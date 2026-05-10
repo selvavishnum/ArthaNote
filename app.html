@@ -805,6 +805,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         </div>
         <div id="gst-status" style="font-size:11px;color:var(--muted);margin-top:6px">GST: OFF — Simple ledger mode</div>
       </div>
+      <div class="stitle" style="margin-top:16px">&#9999;&#65039; Edit Categories</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Sales & Expense categories for each shop. Separate by comma.</div>
+      <div id="settings-cat-ed"></div>
+      <button class="btn G" style="margin-top:8px" onclick="saveShopCatsFromSettings()">&#10003; Save Categories</button>
     </div>
     <button class="btn R" onclick="doLogout()">&#128682; Sign Out</button>
   </div>
@@ -931,6 +935,17 @@ let _la=0,_ll=false;
 // GST STATE
 let _gstOn=JSON.parse(localStorage.getItem('slv_gst')||'false');
 let _gstRate=parseInt(localStorage.getItem('slv_gstrate')||'12');
+
+// ════════════════════════════════════════
+// LEVENSHTEIN — spelling similarity check
+// ════════════════════════════════════════
+function levenshtein(a,b){
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
 
 // ONBOARDING STATE
 let _obType='other',_obGst=false,_obGstRate=12;
@@ -1420,6 +1435,9 @@ function buildUI(){
       <div class="fg" style="flex:1"><input type="text" id="se-${k}" value="${vv.name}" style="font-size:13px;padding:8px 10px"></div>
     </div>`).join('');
 
+  // Categories editor in settings
+  loadSettingsCats();
+
   buildSupSels(); loadQB(); loadStaffList();
 }
 function setShop(s,el){
@@ -1433,6 +1451,39 @@ async function saveShops(){
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
   buildUI(); toast('✅ Shop names saved!');
+}
+
+function loadSettingsCats(){
+  const wrap=document.getElementById('settings-cat-ed');
+  if(!wrap)return;
+  wrap.innerHTML=Object.entries(SHOPS).map(([k,vv])=>`
+    <div style="background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">${vv.icon} ${vv.name}</div>
+      <div class="fg" style="margin-bottom:6px">
+        <label>💚 Sales Categories</label>
+        <input type="text" id="stc-s-${k}" value="${(CATS[k]?.sales||[]).join(', ')}" placeholder="Cash, GPay, Card" style="font-size:12px">
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Separate each with comma</div>
+      </div>
+      <div class="fg">
+        <label>🔴 Expense Categories</label>
+        <input type="text" id="stc-e-${k}" value="${(CATS[k]?.expense||[]).join(', ')}" placeholder="Purchase, Labour, Rent" style="font-size:12px">
+        <div style="font-size:10px;color:var(--muted);margin-top:3px">Separate each with comma</div>
+      </div>
+    </div>`).join('');
+}
+
+async function saveShopCatsFromSettings(){
+  Object.keys(SHOPS).forEach(k=>{
+    const si=document.getElementById('stc-s-'+k);
+    const ei=document.getElementById('stc-e-'+k);
+    if(!CATS[k])CATS[k]={sales:[],expense:[]};
+    if(si) CATS[k].sales=si.value.split(',').map(x=>x.trim()).filter(Boolean);
+    if(ei) CATS[k].expense=ei.value.split(',').map(x=>x.trim()).filter(Boolean);
+  });
+  localStorage.setItem('slv_cats',JSON.stringify(CATS));
+  try{await DB.collection('config').doc(ME.businessId||ME.uid).set({cats:CATS},{merge:true});}catch(e){}
+  loadQB();
+  toast('✅ Categories saved!');
 }
 async function addNewShop(){
   const name=v('ns-name').trim(), icon=v('ns-icon').trim()||'🏪';
@@ -2556,20 +2607,79 @@ function renderReports(){
   // ═══ 5. EXPENSE BREAKDOWN ═══
   const expTxs=txs.filter(x=>x.type==='expense'||x.type==='payment');
   const catMap={};
-  expTxs.forEach(t=>{const c=t.category||t.desc||'Other';catMap[c]=(catMap[c]||0)+(t.amount||0);});
+  expTxs.forEach(t=>{const c=(t.category||t.desc||'Other').trim();catMap[c]=(catMap[c]||0)+(t.amount||0);});
   const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
   const maxCat=cats.length?cats[0][1]:1;
   const colors=['#dc2626','#ea580c','#d97706','#059669','#2563eb','#7c3aed','#db2777','#64748b'];
+
+  // Spelling mismatch detection — find similar category names
+  const catNames=cats.map(c=>c[0]);
+  const mismatches=[];
+  for(let i=0;i<catNames.length;i++){
+    for(let j=i+1;j<catNames.length;j++){
+      const a=catNames[i].toLowerCase().replace(/\s+/g,'');
+      const b=catNames[j].toLowerCase().replace(/\s+/g,'');
+      // Check: same start (3+ chars), or one contains other, or Levenshtein distance ≤ 2
+      if(a===b)continue;
+      const similar=a.startsWith(b.substring(0,4))||b.startsWith(a.substring(0,4))||
+        a.includes(b)||b.includes(a)||levenshtein(a,b)<=2;
+      if(similar) mismatches.push([catNames[i],catNames[j]]);
+    }
+  }
+
+  // Get defined categories for this shop
+  const shopCatsDefined=_shop==='all'
+    ?[...new Set(Object.values(CATS).flatMap(c=>(c.expense||[])))]
+    :(CATS[_shop]?.expense||[]);
+
+  // Find uncategorised (not in defined list)
+  const unlinked=catNames.filter(c=>shopCatsDefined.length&&!shopCatsDefined.map(x=>x.toLowerCase()).includes(c.toLowerCase()));
+
   document.getElementById('rpt-expense-body').innerHTML=`
     <div class="rpt-kpi">
       <div class="rpt-k"><div class="kl">Total Expense</div><div class="kv cr">₹${fmt(te)}</div></div>
       <div class="rpt-k"><div class="kl">Categories</div><div class="kv">${cats.length}</div></div>
     </div>
-    ${cats.map((c,i)=>`<div class="rbar"><div class="rbar-lbl">${esc(c[0])}</div><div class="rbar-track"><div class="rbar-fill" style="width:${(c[1]/maxCat*100).toFixed(0)}%;background:${colors[i%colors.length]}"></div></div><div class="rbar-val">₹${fmt(c[1])}</div><div class="rbar-pct">${te>0?(c[1]/te*100).toFixed(0)+'%':'0%'}</div></div>`).join('')}
-    <div style="margin-top:10px"><table class="plt"><thead><tr><th>Category</th><th>Amount</th><th>% of Total</th></tr></thead><tbody>
-    ${cats.map(c=>`<tr><td>${esc(c[0])}</td><td>₹${fmt(c[1])}</td><td>${te>0?(c[1]/te*100).toFixed(1)+'%':'0%'}</td></tr>`).join('')}
-    <tr><td><b>TOTAL</b></td><td><b>₹${fmt(te)}</b></td><td><b>100%</b></td></tr>
-    </tbody></table></div>`;
+
+    ${mismatches.length?`<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:6px">⚠️ Possible Spelling Mistakes — ${mismatches.length} found</div>
+      ${mismatches.map(([a,b])=>`<div style="font-size:11px;color:#78350f;padding:4px 0;border-bottom:1px solid #fde68a;display:flex;align-items:center;gap:8px">
+        <span style="font-weight:700">"${esc(a)}"</span>
+        <span style="color:#d97706">≈</span>
+        <span style="font-weight:700">"${esc(b)}"</span>
+        <span style="font-size:10px;color:#92400e;margin-left:auto">Fix in Settings → Categories</span>
+      </div>`).join('')}
+    </div>`:''}
+
+    ${unlinked.length?`<div style="background:#ede9fe;border:1px solid #a78bfa;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:800;color:#5b21b6;margin-bottom:6px">🔗 Unlinked Categories — ${unlinked.length} not in your category list</div>
+      ${unlinked.map(c=>`<div style="font-size:11px;color:#6d28d9;padding:3px 0">"${esc(c)}" — ₹${fmt(catMap[c]||0)}</div>`).join('')}
+      <div style="font-size:10px;color:#7c3aed;margin-top:5px">Add these to Settings → Categories to keep reports clean</div>
+    </div>`:''}
+
+    ${cats.map((c,i)=>{
+      const isMismatch=mismatches.some(m=>m.includes(c[0]));
+      const isUnlinked=unlinked.includes(c[0]);
+      return`<div class="rbar" style="${isMismatch?'background:#fffbeb;border-radius:6px;padding:4px 6px;':isUnlinked?'background:#f5f3ff;border-radius:6px;padding:4px 6px;':''}">
+        <div class="rbar-lbl" title="${esc(c[0])}">${isMismatch?'⚠️ ':isUnlinked?'🔗 ':''}${esc(c[0])}</div>
+        <div class="rbar-track"><div class="rbar-fill" style="width:${(c[1]/maxCat*100).toFixed(0)}%;background:${colors[i%colors.length]}"></div></div>
+        <div class="rbar-val">₹${fmt(c[1])}</div>
+        <div class="rbar-pct">${te>0?(c[1]/te*100).toFixed(0)+'%':'0%'}</div>
+      </div>`;
+    }).join('')}
+
+    <div style="margin-top:12px"><table class="plt"><thead><tr><th>Category</th><th>Amount</th><th>% of Total</th><th>Status</th></tr></thead><tbody>
+    ${cats.map(c=>{
+      const isMismatch=mismatches.some(m=>m.includes(c[0]));
+      const isUnlinked=unlinked.includes(c[0]);
+      return`<tr><td>${esc(c[0])}</td><td>₹${fmt(c[1])}</td><td>${te>0?(c[1]/te*100).toFixed(1)+'%':'0%'}</td>
+      <td>${isMismatch?'<span style="color:#d97706;font-size:10px;font-weight:700">⚠️ Check spelling</span>':isUnlinked?'<span style="color:#7c3aed;font-size:10px;font-weight:700">🔗 Not in list</span>':'<span style="color:var(--green);font-size:10px">✅ OK</span>'}</td></tr>`;
+    }).join('')}
+    <tr><td><b>TOTAL</b></td><td><b>₹${fmt(te)}</b></td><td><b>100%</b></td><td></td></tr>
+    </tbody></table></div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px">
+      💡 <b>Fix spelling:</b> Settings (☰) → Edit Categories → correct the name → Save. Next month entries will be clean.
+    </div>`;
 
   // ═══ 6. PAYMENT REPORT ═══
   const salesTxs=txs.filter(x=>x.type==='sales');
