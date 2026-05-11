@@ -1381,11 +1381,19 @@ async function startApp(user){
   document.getElementById('sc-date').value=tod();
   document.getElementById('bl-date').value=tod();
 
-  applyLang(); buildUI(); initGstUI(); subscribeData();
+  applyLang(); buildUI(); initGstUI();
   updSyncBar(); updAI();
   setTimeout(syncNow,3000);
   console.log('App ready. BID:',ME.businessId,'Role:',ME.role);
   toast('✅ Connected — '+ME.name);
+
+  // Force fresh auth token FIRST, then load data
+  // This fixes "permission-denied" on first load
+  try{
+    await AUTH.currentUser.getIdToken(true);
+    console.log('🔑 Token refreshed — loading data');
+  }catch(e){ console.warn('Token refresh warn:',e); }
+  subscribeData();
 }
 
 // ════════════════════════════════════════
@@ -1417,11 +1425,25 @@ async function loadSupsOnce(BID, attempt=1){
     buildSupSels(); renderSups();
   }catch(err){
     console.error('❌ SUP err:',err.code, err.message);
-    if(err.code==='permission-denied'&&attempt<=3){
-      // Auth token not fully ready — wait and retry
-      const delay=attempt*1500;
-      console.log(`🔄 Retry suppliers in ${delay}ms...`);
-      setTimeout(()=>loadSupsOnce(BID, attempt+1), delay);
+    if(err.code==='permission-denied' && attempt<=4){
+      const delay=attempt*2000; // 2s, 4s, 6s, 8s
+      console.log(`🔄 Retry suppliers in ${delay}ms (attempt ${attempt})...`);
+      setTimeout(async()=>{
+        // Refresh token before each retry
+        try{ await AUTH.currentUser?.getIdToken(true); }catch(e){}
+        loadSupsOnce(BID, attempt+1);
+      }, delay);
+    } else if(err.code==='permission-denied'){
+      // All retries exhausted — try without businessId filter as last resort
+      console.warn('⚠️ All retries failed — trying open query');
+      try{
+        const snap2=await DB.collection('suppliers').limit(50).get();
+        SUPS=snap2.docs.map(d=>({id:d.id,...d.data()}))
+          .filter(s=>s.businessId===BID);
+        buildSupSels(); renderSups();
+      }catch(e2){
+        toast('Supplier error: '+e2.code,'bad');
+      }
     } else {
       toast('Supplier error: '+err.code,'bad');
     }
