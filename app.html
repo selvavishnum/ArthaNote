@@ -2274,6 +2274,14 @@ async function confirmScan(){
 
   // STEP 1: ALWAYS save to localStorage first (offline-safe)
   saveQ(txList);
+
+  // ✅ Add to TXS memory array IMMEDIATELY → dashboard updates now
+  TXS.unshift(...txList);
+  TXS.sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
+  saveCacheLocal(); // update localStorage cache too
+  renderDash(); renderLedger(); // dashboard reflects instantly
+  _rptRendered=false; // report will refresh next time
+
   toast('💾 '+txList.length+' entries saved locally!');
 
   // STEP 2: Try to sync to Firestore cloud
