@@ -2939,13 +2939,40 @@ function renderReports(){
       <div style="display:flex;justify-content:space-between;padding:3px 0"><span>GST Collected:</span><span style="font-weight:700;color:var(--yellow)">₹${fmt(calcGst(s).gst)}</span></div>
       <div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid #fcd34d;margin-top:4px;padding-top:6px"><span><b>Total (incl GST):</b></span><span style="font-weight:800">₹${fmt(s)}</span></div>
     </div>`:''}
-    <div style="font-size:11px;color:var(--muted)">Shop-wise P&L:</div>
-    <table class="plt" style="margin-top:6px"><thead><tr><th>Shop</th><th>Sales</th><th>Expense</th><th>Net</th></tr></thead><tbody>
-    ${Object.keys(SHOPS).map(k=>{const st=txs.filter(x=>x.shop===k),ss=sum(st,'sales'),se=sum(st,'expense')+sum(st,'payment'),sn=ss-se;
-      return `<tr><td>${SHOPS[k].icon} ${SHOPS[k].name}</td><td style="color:var(--green)">₹${fmt(ss)}</td><td style="color:var(--red)">₹${fmt(se)}</td><td style="color:${sn>=0?'var(--green)':'var(--red)'}">${sn>=0?'+':''}₹${fmt(sn)}</td></tr>`;
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700">Shop-wise P&L</div>
+      <div onclick="jumpToShopwise()" style="font-size:10px;color:var(--g1);font-weight:700;cursor:pointer;padding:3px 8px;background:var(--gl);border-radius:10px">View detail →</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+    ${Object.keys(SHOPS).map(k=>{
+      const st=txs.filter(x=>x.shop===k),ss=sum(st,'sales'),se=sum(st,'expense')+sum(st,'payment'),sn=ss-se;
+      const sm=ss>0?((sn/ss)*100).toFixed(1):'0';
+      const share=s>0?(ss/s*100).toFixed(0):0;
+      return `<div onclick="jumpToShopDrill('${k}')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--soft);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s" onmousedown="this.style.background='var(--border)'" onmouseup="this.style.background='var(--soft)'">
+        <span style="font-size:18px">${SHOPS[k].icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${SHOPS[k].name}</div>
+          <div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden">
+            <div style="height:100%;width:${share}%;background:${sn>=0?'var(--g1)':'var(--red)'};border-radius:2px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:2px">
+            <span style="font-size:9px;color:var(--muted)">₹${fmt(ss)} sales · ${share}%</span>
+            <span style="font-size:9px;color:var(--muted)">margin ${sm}%</span>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:13px;font-weight:800;color:${sn>=0?'var(--green)':'var(--red)'}">${sn>=0?'+':''}₹${fmt(sn)}</div>
+          <div style="font-size:9px;color:var(--muted)">tap details →</div>
+        </div>
+      </div>`;
     }).join('')}
-    <tr><td><b>TOTAL</b></td><td><b style="color:var(--green)">₹${fmt(s)}</b></td><td><b style="color:var(--red)">₹${fmt(te)}</b></td><td><b style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</b></td></tr>
-    </tbody></table>`;
+    <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:12px;font-weight:800">
+      <span>TOTAL</span>
+      <span style="color:var(--green)">₹${fmt(s)}</span>
+      <span style="color:var(--red)">₹${fmt(te)}</span>
+      <span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span>
+    </div>
+    </div>`;
 
   // ═══ 2. DAILY REPORT ═══
   const dailyData=dates.map(d=>{const dt=txs.filter(x=>x.date===d),ds=sum(dt,'sales'),de=sum(dt,'expense')+sum(dt,'payment'),dn=ds-de;return{date:d,sales:ds,exp:de,net:dn,cnt:dt.length};});
@@ -3339,7 +3366,36 @@ function renderShopWise(txs,dates,avgDaily){
   }).join('');
 }
 
-// ═══ CREDIT RECOVERY ═══
+function toggleDrill(k){
+  const el=document.getElementById('drill-'+k);
+  if(!el) return;
+  el.classList.toggle('open');
+  if(el.classList.contains('open')) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+function toggleCatDrill(k,i){
+  const el=document.getElementById('catd-'+k+'-'+i);
+  if(!el) return;
+  el.classList.toggle('open');
+  if(el.classList.contains('open')) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+
+// Jump from Summary → Shop-wise tab
+function jumpToShopwise(){
+  const chip=document.querySelector('#rpt-nav .rpt-chip[onclick*="shopwise"]');
+  if(chip){ showRptSection('shopwise',chip); chip.scrollIntoView({behavior:'smooth',inline:'center'}); }
+}
+
+// Jump from Summary → Shop-wise tab AND expand that shop
+function jumpToShopDrill(k){
+  jumpToShopwise();
+  setTimeout(()=>{
+    const el=document.getElementById('drill-'+k);
+    if(el&&!el.classList.contains('open')){
+      el.classList.add('open');
+      setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),200);
+    }
+  },150);
+}
 function renderCredit(txs){
   // Find credit sales (desc/category contains 'credit' or 'கடன்')
   const creditSales=txs.filter(t=>t.type==='sales'&&
