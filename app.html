@@ -1325,50 +1325,95 @@ function showErr(m){
 // APP START
 // ════════════════════════════════════════
 async function startApp(user){
-  // CRITICAL: Set businessId = uid FIRST, before any async operation
+  // CRITICAL: Set businessId = uid FIRST
   ME={uid:user.uid, name:user.displayName||user.email||'User', email:user.email||'', role:'owner', shop:'all', businessId:user.uid};
 
-  // Then try to load staff record (may override businessId for staff)
-  try{
-    const sd=await DB.collection('staff').doc(user.uid).get();
-    if(sd.exists){
-      const d=sd.data();
-      ME.role=d.role||'owner'; ME.shop=d.shop||'all';
-      if(d.businessId) ME.businessId=d.businessId;
-    } else {
-      // First time login = create owner record
-      await DB.collection('staff').doc(user.uid).set({
-        uid:user.uid, name:ME.name, email:ME.email,
-        role:'owner', shop:'all', businessId:user.uid,
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }
-  }catch(e){ console.log('Staff load err:',e); /* businessId already set above */ }
+  // ── STEP 1: Load staff + config from localStorage cache first (0 reads) ──
+  const cachedMe=localStorage.getItem('kp_me_cache');
+  const cachedCfg=localStorage.getItem('kp_cfg_cache');
+  let staffLoaded=false, configLoaded=false;
 
-  // Load config from cloud
-  let _needsOnboard=false;
-  try{
-    const cfg=await DB.collection('config').doc(ME.businessId).get();
-    if(cfg.exists){
-      const d=cfg.data();
-      if(d.shops)SHOPS=d.shops;
-      if(d.cats)CATS=d.cats;
-      if(d.gstOn!==undefined){_gstOn=d.gstOn;localStorage.setItem('slv_gst',JSON.stringify(_gstOn));}
-      if(d.gstRate){_gstRate=d.gstRate;localStorage.setItem('slv_gstrate',String(_gstRate));}
-      _needsOnboard=!d.onboarded&&Object.keys(SHOPS).length===0;
-    } else {
-      _needsOnboard=true;
-    }
-  }catch(e){
-    _needsOnboard=Object.keys(SHOPS).length===0;
+  if(cachedMe){
+    try{
+      const m=JSON.parse(cachedMe);
+      if(m.uid===user.uid){ // same user
+        ME.role=m.role||'owner'; ME.shop=m.shop||'all';
+        if(m.businessId) ME.businessId=m.businessId;
+        staffLoaded=true;
+        console.log('👤 Staff loaded from cache');
+      }
+    }catch(e){}
   }
 
-  // Check if onboarding needed (no shops created yet)
-  if(_needsOnboard&&ME.role==='owner'){
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app').style.display='none';
-    document.getElementById('onboard-screen').classList.add('on');
-    return; // Wait for onboarding to complete
+  if(cachedCfg){
+    try{
+      const c=JSON.parse(cachedCfg);
+      if(c.shops) SHOPS=c.shops;
+      if(c.cats) CATS=c.cats;
+      if(c.gstOn!==undefined){_gstOn=c.gstOn;localStorage.setItem('slv_gst',JSON.stringify(_gstOn));}
+      if(c.gstRate){_gstRate=c.gstRate;localStorage.setItem('slv_gstrate',String(_gstRate));}
+      configLoaded=true;
+      console.log('⚙️ Config loaded from cache');
+    }catch(e){}
+  }
+
+  // ── STEP 2: If no cache → load from Firestore ONCE, save to cache ──
+  if(!staffLoaded){
+    try{
+      const sd=await DB.collection('staff').doc(user.uid).get();
+      if(sd.exists){
+        const d=sd.data();
+        ME.role=d.role||'owner'; ME.shop=d.shop||'all';
+        if(d.businessId) ME.businessId=d.businessId;
+      } else {
+        await DB.collection('staff').doc(user.uid).set({
+          uid:user.uid, name:ME.name, email:ME.email,
+          role:'owner', shop:'all', businessId:user.uid,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      // Save to cache → next login = 0 reads
+      localStorage.setItem('kp_me_cache',JSON.stringify({
+        uid:ME.uid, role:ME.role, shop:ME.shop, businessId:ME.businessId
+      }));
+    }catch(e){ console.log('Staff load err:',e); }
+  }
+
+  if(!configLoaded){
+    let _needsOnboard=false;
+    try{
+      const cfg=await DB.collection('config').doc(ME.businessId).get();
+      if(cfg.exists){
+        const d=cfg.data();
+        if(d.shops) SHOPS=d.shops;
+        if(d.cats) CATS=d.cats;
+        if(d.gstOn!==undefined){_gstOn=d.gstOn;localStorage.setItem('slv_gst',JSON.stringify(_gstOn));}
+        if(d.gstRate){_gstRate=d.gstRate;localStorage.setItem('slv_gstrate',String(_gstRate));}
+        _needsOnboard=!d.onboarded&&Object.keys(SHOPS).length===0;
+        // Save to cache → next login = 0 reads
+        localStorage.setItem('kp_cfg_cache',JSON.stringify({
+          shops:SHOPS, cats:CATS, gstOn:_gstOn, gstRate:_gstRate
+        }));
+      } else {
+        _needsOnboard=true;
+      }
+    }catch(e){
+      _needsOnboard=Object.keys(SHOPS).length===0;
+    }
+    if(_needsOnboard&&ME.role==='owner'){
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='none';
+      document.getElementById('onboard-screen').classList.add('on');
+      return;
+    }
+  } else {
+    // Check onboarding from cache
+    if(Object.keys(SHOPS).length===0&&ME.role==='owner'){
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='none';
+      document.getElementById('onboard-screen').classList.add('on');
+      return;
+    }
   }
 
   // Show app
@@ -1459,11 +1504,12 @@ function subscribeData(){
   const hasCached=loadFromCache();
 
   if(hasCached){
-    // Has local data → show instantly, sync in background
+    // Has local data → show instantly — NO auto background sync (saves reads!)
     renderDash(); renderLedger(); buildSupSels(); renderSups();
     const lbl=document.getElementById('data-range-lbl');
     if(lbl) lbl.textContent=`📦 ${TXS.length} entries · ↻ to sync`;
-    setTimeout(()=>silentCloudSync(BID), 3000);
+    // ❌ Removed: setTimeout(()=>silentCloudSync(BID), 3000);
+    // User manually taps ↻ Refresh to sync — saves 50+ reads per open
   } else {
     // No local data → show sync screen, load from Firestore
     document.getElementById('app').style.display='none';
@@ -1719,6 +1765,7 @@ function setShop(s,el){
 async function saveShops(){
   Object.keys(SHOPS).forEach(k=>{const i=document.getElementById('se-'+k);if(i&&i.value.trim())SHOPS[k].name=i.value.trim();});
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
+  localStorage.removeItem('kp_cfg_cache'); // clear cache so next load re-fetches
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
   buildUI(); toast('✅ Shop names saved!');
 }
