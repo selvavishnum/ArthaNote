@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>கணக்கபிள்ளை — Data Diagnostic</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:#f0fdf4;color:#1c1917;padding:16px;font-size:14px}
+.card{background:#fff;border:1px solid #d1fae5;border-radius:14px;padding:16px;margin-bottom:12px}
+.title{font-size:18px;font-weight:800;color:#065f46;margin-bottom:4px}
+.sub{font-size:12px;color:#6b7280;margin-bottom:16px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.row:last-child{border:none}
+.lbl{color:#6b7280;font-weight:600}
+.val{font-family:monospace;font-size:12px;font-weight:700;word-break:break-all;max-width:60%;text-align:right}
+.ok{color:#059669}.bad{color:#dc2626}.warn{color:#d97706}
+.btn{width:100%;padding:13px;border-radius:10px;border:none;background:#065f46;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px}
+.btn2{background:#fff;color:#065f46;border:2px solid #065f46}
+.log{background:#111;color:#4ade80;border-radius:10px;padding:12px;font-family:monospace;font-size:11px;white-space:pre-wrap;max-height:300px;overflow-y:auto;margin-top:8px}
+.step{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.step-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.step-icon.wait{background:#fef3c7;color:#d97706}
+.step-icon.ok{background:#d1fae5;color:#059669}
+.step-icon.fail{background:#fee2e2;color:#dc2626}
+.step-icon.run{background:#dbeafe;color:#2563eb;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+h3{font-size:13px;font-weight:700;color:#374151;margin:12px 0 6px}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="title">🔍 Data Diagnostic Tool</div>
+  <div class="sub">உங்கள் Firebase data exact-ஆ எங்க இருக்குன்னு கண்டுபிடிக்கிறோம்</div>
+  <button class="btn" onclick="runDiagnosis()" id="start-btn">▶ Run Full Diagnosis</button>
+</div>
+
+<!-- Auth Info -->
+<div class="card" id="auth-card" style="display:none">
+  <h3>👤 Auth Status</h3>
+  <div class="row"><span class="lbl">Status</span><span class="val" id="d-auth-status">—</span></div>
+  <div class="row"><span class="lbl">Email</span><span class="val" id="d-email">—</span></div>
+  <div class="row"><span class="lbl">UID</span><span class="val" id="d-uid">—</span></div>
+  <div class="row"><span class="lbl">BusinessId (used)</span><span class="val" id="d-bid">—</span></div>
+</div>
+
+<!-- Steps -->
+<div class="card" id="steps-card" style="display:none">
+  <h3>📋 Diagnostic Steps</h3>
+  <div class="step" id="s1"><div class="step-icon wait" id="s1-icon">1</div><div><b>Token Refresh</b><br><span style="font-size:11px;color:#6b7280" id="s1-msg">Waiting...</span></div></div>
+  <div class="step" id="s2"><div class="step-icon wait" id="s2-icon">2</div><div><b>Config Collection</b><br><span style="font-size:11px;color:#6b7280" id="s2-msg">Waiting...</span></div></div>
+  <div class="step" id="s3"><div class="step-icon wait" id="s3-icon">3</div><div><b>Transactions (by businessId)</b><br><span style="font-size:11px;color:#6b7280" id="s3-msg">Waiting...</span></div></div>
+  <div class="step" id="s4"><div class="step-icon wait" id="s4-icon">4</div><div><b>Transactions (by userId)</b><br><span style="font-size:11px;color:#6b7280" id="s4-msg">Waiting...</span></div></div>
+  <div class="step" id="s5"><div class="step-icon wait" id="s5-icon">5</div><div><b>Transactions (ALL — no filter)</b><br><span style="font-size:11px;color:#6b7280" id="s5-msg">Waiting...</span></div></div>
+  <div class="step" id="s6"><div class="step-icon wait" id="s6-icon">6</div><div><b>Suppliers Collection</b><br><span style="font-size:11px;color:#6b7280" id="s6-msg">Waiting...</span></div></div>
+  <div class="step" id="s7"><div class="step-icon wait" id="s7-icon">7</div><div><b>Sup Bills Collection</b><br><span style="font-size:11px;color:#6b7280" id="s7-msg">Waiting...</span></div></div>
+</div>
+
+<!-- Results -->
+<div class="card" id="result-card" style="display:none">
+  <h3>📊 Results</h3>
+  <div id="result-body"></div>
+  <button class="btn btn2" style="margin-top:12px" onclick="copyLog()">📋 Copy Full Log</button>
+</div>
+
+<div class="card" id="log-card" style="display:none">
+  <h3>🖥 Full Log</h3>
+  <div class="log" id="log-box"></div>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyB5q3fFfl5aUXp8d9yb0K_qkI20vdTL2Xg",
+  authDomain:"selva-ledger.firebaseapp.com",
+  projectId:"selva-ledger",
+  storageBucket:"selva-ledger.firebasestorage.app",
+  messagingSenderId:"546195090451",
+  appId:"1:546195090451:web:26dd2f6aa464721ddae3e6"
+});
+const AUTH=firebase.auth(), DB=firebase.firestore();
+let _log='';
+
+function log(msg){
+  const ts=new Date().toLocaleTimeString('en-IN');
+  const line=`[${ts}] ${msg}`;
+  _log+=line+'\n';
+  const box=document.getElementById('log-box');
+  if(box){box.textContent+=line+'\n'; box.scrollTop=box.scrollHeight;}
+  console.log(msg);
+}
+
+function stepRun(n){ setStep(n,'run','⟳',''); }
+function stepOk(n,msg){ setStep(n,'ok','✓',msg); }
+function stepFail(n,msg){ setStep(n,'fail','✗',msg); }
+function setStep(n,cls,icon,msg){
+  const ic=document.getElementById('s'+n+'-icon');
+  const mg=document.getElementById('s'+n+'-msg');
+  if(ic){ic.className='step-icon '+cls; ic.textContent=icon;}
+  if(mg) mg.textContent=msg;
+}
+
+async function runDiagnosis(){
+  document.getElementById('start-btn').disabled=true;
+  document.getElementById('start-btn').textContent='Running...';
+  document.getElementById('auth-card').style.display='block';
+  document.getElementById('steps-card').style.display='block';
+  document.getElementById('log-card').style.display='block';
+  _log='';
+
+  log('=== கணக்கபிள்ளை Diagnostic Tool ===');
+  log('Time: '+new Date().toLocaleString('en-IN'));
+
+  // Wait for auth
+  const user = await new Promise(resolve=>{
+    const unsub=AUTH.onAuthStateChanged(u=>{ unsub(); resolve(u); });
+  });
+
+  if(!user){
+    log('❌ NOT LOGGED IN');
+    document.getElementById('d-auth-status').textContent='❌ Not logged in';
+    document.getElementById('d-auth-status').className='val bad';
+    document.getElementById('result-card').style.display='block';
+    document.getElementById('result-body').innerHTML='<div style="color:#dc2626;font-weight:700">Please login to app first, then open this page.</div>';
+    return;
+  }
+
+  const UID=user.uid;
+  const EMAIL=user.email;
+  log('✅ Auth user: '+EMAIL+' UID: '+UID);
+
+  document.getElementById('d-auth-status').textContent='✅ Logged In';
+  document.getElementById('d-auth-status').className='val ok';
+  document.getElementById('d-email').textContent=EMAIL;
+  document.getElementById('d-uid').textContent=UID;
+  document.getElementById('d-bid').textContent=UID;
+
+  const results={};
+
+  // STEP 1 — Token Refresh
+  stepRun(1);
+  try{
+    await user.getIdToken(true);
+    stepOk(1,'Token refreshed successfully');
+    log('✅ Step 1: Token refresh OK');
+    results.token='OK';
+  }catch(e){
+    stepFail(1,'Token refresh failed: '+e.code);
+    log('❌ Step 1: Token refresh FAIL: '+e.code);
+    results.token='FAIL: '+e.code;
+  }
+
+  // STEP 2 — Config
+  stepRun(2);
+  try{
+    const cfg=await DB.collection('config').doc(UID).get();
+    if(cfg.exists){
+      const d=cfg.data();
+      const shopCount=d.shops?Object.keys(d.shops).length:0;
+      stepOk(2,`Found! ${shopCount} shop(s), bizType: ${d.bizType||'—'}`);
+      log('✅ Step 2: Config found. Shops: '+shopCount+' bizType: '+d.bizType);
+      results.config='FOUND ('+shopCount+' shops)';
+    } else {
+      stepFail(2,'Config document NOT found for UID: '+UID.substring(0,8)+'...');
+      log('⚠️ Step 2: Config NOT found for UID: '+UID);
+      results.config='NOT FOUND';
+    }
+  }catch(e){
+    stepFail(2,'Error: '+e.code+' — '+e.message);
+    log('❌ Step 2: Config error: '+e.code+' '+e.message);
+    results.config='ERROR: '+e.code;
+  }
+
+  // STEP 3 — Transactions by businessId
+  stepRun(3);
+  try{
+    const snap=await DB.collection('transactions').where('businessId','==',UID).limit(5).get();
+    stepOk(3,`Found ${snap.size} docs (showing first 5)`);
+    log('✅ Step 3: transactions where businessId==UID: '+snap.size+' docs');
+    if(snap.size>0){
+      const d=snap.docs[0].data();
+      log('   Sample doc fields: '+Object.keys(d).join(', '));
+      log('   Sample date: '+d.date+' amount: '+d.amount+' type: '+d.type);
+    }
+    results.txByBid=snap.size+' docs found';
+  }catch(e){
+    stepFail(3,'Error: '+e.code);
+    log('❌ Step 3: transactions by businessId FAIL: '+e.code+' '+e.message);
+    results.txByBid='ERROR: '+e.code;
+  }
+
+  // STEP 4 — Transactions by userId
+  stepRun(4);
+  try{
+    const snap=await DB.collection('transactions').where('userId','==',UID).limit(5).get();
+    stepOk(4,`Found ${snap.size} docs (showing first 5)`);
+    log('✅ Step 4: transactions where userId==UID: '+snap.size+' docs');
+    results.txByUid=snap.size+' docs found';
+  }catch(e){
+    stepFail(4,'Error: '+e.code);
+    log('❌ Step 4: transactions by userId FAIL: '+e.code);
+    results.txByUid='ERROR: '+e.code;
+  }
+
+  // STEP 5 — ALL transactions no filter
+  stepRun(5);
+  try{
+    const snap=await DB.collection('transactions').limit(10).get();
+    stepOk(5,`${snap.size} docs accessible (no filter)`);
+    log('✅ Step 5: All transactions (no filter): '+snap.size+' docs');
+    if(snap.size>0){
+      snap.docs.forEach((d,i)=>{
+        const data=d.data();
+        log('   Doc'+i+': businessId='+data.businessId+' userId='+data.userId+' date='+data.date);
+      });
+    }
+    results.txAll=snap.size+' docs accessible';
+  }catch(e){
+    stepFail(5,'Error: '+e.code);
+    log('❌ Step 5: All transactions FAIL: '+e.code);
+    results.txAll='ERROR: '+e.code;
+  }
+
+  // STEP 6 — Suppliers
+  stepRun(6);
+  try{
+    const snap=await DB.collection('suppliers').where('businessId','==',UID).get();
+    stepOk(6,`Found ${snap.size} supplier(s)`);
+    log('✅ Step 6: Suppliers by businessId: '+snap.size);
+    results.suppliers=snap.size+' found';
+  }catch(e){
+    try{
+      const snap2=await DB.collection('suppliers').limit(10).get();
+      stepOk(6,'Open query: '+snap2.size+' total (where failed: '+e.code+')');
+      log('⚠️ Step 6: Suppliers where failed ('+e.code+'), open query: '+snap2.size);
+      results.suppliers='WHERE failed, open: '+snap2.size;
+    }catch(e2){
+      stepFail(6,'Both failed: '+e2.code);
+      log('❌ Step 6: Suppliers FAIL: '+e2.code);
+      results.suppliers='ERROR: '+e2.code;
+    }
+  }
+
+  // STEP 7 — Sup Bills
+  stepRun(7);
+  try{
+    const snap=await DB.collection('sup_bills').where('businessId','==',UID).get();
+    stepOk(7,`Found ${snap.size} bill(s)`);
+    log('✅ Step 7: Sup_bills: '+snap.size);
+    results.bills=snap.size+' found';
+  }catch(e){
+    stepFail(7,'Error: '+e.code);
+    log('❌ Step 7: Sup_bills FAIL: '+e.code);
+    results.bills='ERROR: '+e.code;
+  }
+
+  // Final Summary
+  log('\n=== SUMMARY ===');
+  log('Token: '+results.token);
+  log('Config: '+results.config);
+  log('TX by businessId: '+results.txByBid);
+  log('TX by userId: '+results.txByUid);
+  log('TX no filter: '+results.txAll);
+  log('Suppliers: '+results.suppliers);
+  log('Bills: '+results.bills);
+
+  document.getElementById('result-card').style.display='block';
+
+  // Diagnosis
+  let diagnosis='';
+  let fix='';
+
+  if(results.txAll?.includes('ERROR: permission-denied')){
+    diagnosis='🔴 Firestore Rules blocking ALL reads';
+    fix='Firebase Console → Firestore Rules → உள்ள rules சரியா save ஆகலை. மறுபடியும் paste + Publish பண்ணுங்க.';
+  } else if(results.txByBid?.includes('0 docs') && results.txAll?.includes('0 docs')){
+    diagnosis='🟡 Data not in Firestore — localStorage only';
+    fix='உங்க data phone-ல் localStorage-ல் மட்டும் இருக்கு. Cloud backup இல்லை.';
+  } else if(results.txByBid?.includes('ERROR') && results.txByUid?.includes('docs')){
+    diagnosis='🟡 businessId mismatch — data saved with userId';
+    fix='Data userId-ல் save ஆகிருக்கு, businessId-ல் இல்லை. Code fix வேணும்.';
+  } else if(results.txByBid?.match(/\d+ docs/) && !results.txByBid?.includes('0 docs')){
+    diagnosis='✅ Data found! App query working';
+    fix='Data இருக்கு! App code issue மட்டும் — re-upload fix பண்ணிய app.html.';
+  } else if(results.config?.includes('ERROR: permission-denied')){
+    diagnosis='🔴 Auth working but Firestore Rules wrong';
+    fix='Rules update சரியா ஆகலை. Firebase Console → Firestore → Rules → Publish பண்ணுங்க.';
+  }
+
+  document.getElementById('result-body').innerHTML=`
+    <div style="background:#f0fdf4;border:1px solid #6ee7b7;border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:800;margin-bottom:6px">${diagnosis}</div>
+      <div style="font-size:12px;color:#374151">${fix}</div>
+    </div>
+    <div style="font-size:11px;color:#6b7280">
+      <b>Your UID:</b> ${UID}<br>
+      Screenshot எடுத்து Claude-கிட்ட அனுப்புங்க — exact fix சொல்றேன்!
+    </div>`;
+
+  document.getElementById('start-btn').disabled=false;
+  document.getElementById('start-btn').textContent='▶ Run Again';
+}
+
+function copyLog(){
+  navigator.clipboard?.writeText(_log).then(()=>alert('Log copied!')).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=_log; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    alert('Copied!');
+  });
+}
+</script>
+</body>
+</html>
