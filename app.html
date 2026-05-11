@@ -301,7 +301,30 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .alert-box{border-radius:9px;padding:10px 12px;margin-bottom:8px;font-size:12px;display:flex;align-items:flex-start;gap:8px}
 .alert-box.critical{background:var(--rl);border:1px solid #fca5a5;color:var(--red)}
 .alert-box.warning{background:var(--yl);border:1px solid #fcd34d;color:var(--yellow)}
-.alert-box.good{background:var(--gl);border:1px solid #6ee7b7;color:var(--green)}
+.alert-box.good{background:var(--gl);border:1px solid #6ee7b7;color:var(--green)}border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.shop-drill-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;font-size:13px;font-weight:700;transition:background .2s}
+.shop-drill-hd:hover{background:var(--border)}
+.shop-drill-body{display:none;padding:10px 14px;border-top:1px solid var(--border)}
+.shop-drill.open .shop-drill-body{display:block}
+.shop-drill-arrow{transition:transform .2s;font-size:10px;color:var(--muted)}
+.shop-drill.open .shop-drill-arrow{transform:rotate(180deg)}
+.cat-drill{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden}
+.cat-drill-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;font-size:12px;font-weight:700}
+.cat-drill-hd:active{background:var(--soft)}
+.cat-drill-entries{display:none;background:var(--soft);padding:8px 12px}
+.cat-drill.open .cat-drill-entries{display:block}
+.entry-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.entry-row:last-child{border:none}
+.credit-card-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.credit-name{font-size:13px;font-weight:700;margin-bottom:4px}
+.credit-meta{display:flex;gap:10px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.credit-amt{font-size:16px;font-weight:800;font-family:var(--mono)}
+.staff-row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px}
+.staff-name{font-size:13px;font-weight:700;margin-bottom:6px}
+.staff-kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.staff-kpi{text-align:center;background:var(--soft);border-radius:8px;padding:7px}
+.staff-kpi .sv{font-size:14px;font-weight:800;font-family:var(--mono)}
+.staff-kpi .sl{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase}
 
 /* TOAST */
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;font-family:var(--sans)}
@@ -684,6 +707,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="rpt-section on" id="rpt-exec">
       <div class="card"><div class="chd">&#128202; Executive Summary</div><div id="rpt-exec-body"></div></div>
     </div>
+    <!-- 1b. SHOP-WISE DETAILED -->
+    <div class="rpt-section" id="rpt-shopwise">
+      <div class="card"><div class="chd">&#127978; Shop-wise P&amp;L</div><div id="rpt-shopwise-body"></div></div>
+    </div>
     <!-- 2. DAILY REPORT -->
     <div class="rpt-section" id="rpt-daily">
       <div class="card"><div class="chd">&#128197; Daily Report</div><div id="rpt-daily-body"></div></div>
@@ -703,6 +730,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <!-- 6. PAYMENT REPORT -->
     <div class="rpt-section" id="rpt-payment">
       <div class="card"><div class="chd">&#128176; Payment Report</div><div id="rpt-payment-body"></div></div>
+    </div>
+    <!-- CREDIT RECOVERY -->
+    <div class="rpt-section" id="rpt-credit">
+      <div class="card"><div class="chd">&#128179; Credit Recovery Tracker</div><div id="rpt-credit-body"></div></div>
+    </div>
+    <!-- STAFF EFFICIENCY -->
+    <div class="rpt-section" id="rpt-staff">
+      <div class="card"><div class="chd">&#9889; Staff Efficiency</div><div id="rpt-staff-body"></div></div>
     </div>
     <!-- 7. SALARY REPORT -->
     <div class="rpt-section" id="rpt-salary">
@@ -2794,12 +2829,15 @@ async function saveBill(){
 let _rptDate='week';
 const RPT_SECTIONS=[
   {id:'exec',label:'📊 Summary'},
+  {id:'shopwise',label:'🏪 Shop-wise'},
   {id:'daily',label:'📅 Daily'},
   {id:'weekly',label:'📆 Weekly'},
   {id:'monthly',label:'📈 Monthly'},
   {id:'expense',label:'💸 Expense'},
-  {id:'payment',label:'💰 Payment'},
+  {id:'credit',label:'💳 Credit'},
   {id:'salary',label:'👤 Salary'},
+  {id:'staff',label:'⚡ Staff Efficiency'},
+  {id:'payment',label:'💰 Payment'},
   {id:'variance',label:'📉 Variance'},
   {id:'charts',label:'📊 Charts'},
   {id:'alerts',label:'🚨 Alerts'},
@@ -2950,7 +2988,14 @@ function renderReports(){
     }).join('')}
     </tbody></table>`;
 
-  // ═══ 5. EXPENSE BREAKDOWN ═══
+  // ═══ SHOP-WISE ═══
+  renderShopWise(txs,dates,avgDaily);
+
+  // ═══ CREDIT RECOVERY ═══
+  renderCredit(txs);
+
+  // ═══ STAFF EFFICIENCY ═══
+  renderStaffEfficiency(txs);
   const expTxs=txs.filter(x=>x.type==='expense'||x.type==='payment');
   const catMap={};
   expTxs.forEach(t=>{const c=(t.category||t.desc||'Other').trim();catMap[c]=(catMap[c]||0)+(t.amount||0);});
@@ -3098,6 +3143,12 @@ function renderReports(){
   if(growthS!=='-'&&growthS<-10) alerts.push({type:'critical',msg:'🔴 Sales dropped '+growthS+'% vs previous period!'});
   if(totalSal>s*0.15&&s>0) alerts.push({type:'warning',msg:'🟡 Salary is '+((totalSal/s)*100).toFixed(0)+'% of revenue — ideally below 15%.'});
   SUPS.filter(sup=>getSupBal(sup.id)>30000).forEach(sup=>alerts.push({type:'warning',msg:'🟡 Supplier "'+sup.name+'" balance ₹'+fmt(getSupBal(sup.id))+' — high outstanding!'}));
+
+  // Credit pending alert
+  const creditPending=txs.filter(t=>t.type==='sales'&&
+    ((t.desc||'').toLowerCase().includes('credit')||(t.desc||'').includes('கடன்')))
+    .reduce((a,t)=>a+(t.amount||0),0);
+  if(creditPending>0) alerts.push({type:'warning',msg:'💳 ₹'+fmt(creditPending)+' credit sales — check recovery in Credit tab!'});
   if(!alerts.length) alerts.push({type:'good',msg:'✅ All parameters within normal range. Business is healthy!'});
   document.getElementById('rpt-alerts-body').innerHTML=alerts.map(a=>`<div class="alert-box ${a.type}"><div style="flex:1">${a.msg}</div></div>`).join('');
 
@@ -3126,6 +3177,209 @@ function renderReports(){
   document.getElementById('rpt-actions-body').innerHTML=actions.map((a,i)=>`<div class="action-item"><b>${i+1}. ${a.title}</b><div style="color:var(--muted);margin-top:3px">${a.desc}</div></div>`).join('');
 
   loadAudit(); updAI();
+}
+
+// ═══ SHOP-WISE DETAILED P&L ═══
+function renderShopWise(txs,dates,avgDaily){
+  const shopKeys=Object.keys(SHOPS);
+  document.getElementById('rpt-shopwise-body').innerHTML=shopKeys.map(k=>{
+    const st=txs.filter(x=>x.shop===k);
+    const ss=sum(st,'sales'),se=sum(st,'expense')+sum(st,'payment'),sn=ss-se;
+    const sm=ss>0?((sn/ss)*100).toFixed(1):'0';
+    // Category breakdown for this shop
+    const expSt=st.filter(x=>x.type!=='sales');
+    const catMap={};
+    expSt.forEach(t=>{const c=(t.category||t.desc||'Other').trim();catMap[c]=(catMap[c]||0)+(t.amount||0);});
+    const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const colors=['#dc2626','#ea580c','#d97706','#059669','#2563eb','#7c3aed','#db2777','#64748b'];
+    return`<div class="shop-drill" id="drill-${k}">
+      <div class="shop-drill-hd" onclick="toggleDrill('${k}')">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">${SHOPS[k].icon}</span>
+          <div>
+            <div>${SHOPS[k].name}</div>
+            <div style="font-size:10px;color:var(--muted);font-weight:500">${st.length} entries · margin ${sm}%</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="text-align:right">
+            <div style="font-size:14px;font-weight:800;color:${sn>=0?'var(--green)':'var(--red)'}">${sn>=0?'+':''}₹${fmt(sn)}</div>
+            <div style="font-size:10px;color:var(--muted)">₹${fmt(ss)} sales</div>
+          </div>
+          <span class="shop-drill-arrow">▼</span>
+        </div>
+      </div>
+      <div class="shop-drill-body">
+        <div class="rpt-kpi3" style="margin-bottom:10px">
+          <div class="rpt-k"><div class="kl">Sales</div><div class="kv cg" style="font-size:15px">₹${fmt(ss)}</div></div>
+          <div class="rpt-k"><div class="kl">Expense</div><div class="kv cr" style="font-size:15px">₹${fmt(se)}</div></div>
+          <div class="rpt-k"><div class="kl">Net</div><div class="kv ${sn>=0?'cg':'cr'}" style="font-size:15px">${sn>=0?'+':''}₹${fmt(sn)}</div></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">EXPENSE CATEGORIES — tap to see entries</div>
+        ${cats.map((c,i)=>`
+          <div class="cat-drill" id="catd-${k}-${i}" onclick="toggleCatDrill('${k}','${i}','${esc(c[0])}')">
+            <div class="cat-drill-hd">
+              <div style="width:8px;height:8px;border-radius:50%;background:${colors[i%colors.length]};flex-shrink:0"></div>
+              <div style="flex:1">${esc(c[0])}</div>
+              <div style="font-family:var(--mono);font-size:12px;font-weight:800;color:var(--red)">₹${fmt(c[1])}</div>
+              <div style="font-size:10px;color:var(--muted);margin-left:6px">${se>0?(c[1]/se*100).toFixed(0)+'%':''}</div>
+              <div style="font-size:10px;margin-left:6px">▼</div>
+            </div>
+            <div class="cat-drill-entries" id="cate-${k}-${i}">
+              ${expSt.filter(t=>(t.category||t.desc||'Other').trim()===c[0])
+                .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1)
+                .slice(0,20).map(t=>`
+                <div class="entry-row">
+                  <span style="color:var(--muted)">${t.date||'—'}</span>
+                  <span style="font-family:var(--tamil)">${esc(t.desc||t.category||'—')}</span>
+                  <span style="font-weight:700;color:var(--red)">₹${fmt(t.amount)}</span>
+                </div>`).join('')}
+            </div>
+          </div>`).join('')}
+        ${!cats.length?'<div class="empty">No expense entries this period</div>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDrill(k){
+  const el=document.getElementById('drill-'+k);
+  el?.classList.toggle('open');
+}
+function toggleCatDrill(k,i,cat){
+  const el=document.getElementById('catd-'+k+'-'+i);
+  el?.classList.toggle('open');
+}
+
+// ═══ CREDIT RECOVERY ═══
+function renderCredit(txs){
+  // Find credit sales (desc/category contains 'credit' or 'கடன்')
+  const creditSales=txs.filter(t=>t.type==='sales'&&
+    ((t.desc||'').toLowerCase().includes('credit')||
+     (t.category||'').toLowerCase().includes('credit')||
+     (t.desc||'').includes('கடன்')||(t.category||'').includes('கடன்')||
+     (t.desc||'').toLowerCase().includes('udhaar')||(t.desc||'').toLowerCase().includes('udhar')));
+
+  // Find credit payments received
+  const creditPayments=txs.filter(t=>t.type==='payment'&&
+    ((t.desc||'').toLowerCase().includes('credit')||
+     (t.category||'').toLowerCase().includes('credit')||
+     (t.desc||'').includes('கடன்')));
+
+  const totalCredit=creditSales.reduce((a,t)=>a+(t.amount||0),0);
+  const totalRecovered=creditPayments.reduce((a,t)=>a+(t.amount||0),0);
+  const pending=totalCredit-totalRecovered;
+
+  // Group by customer name
+  const custMap={};
+  creditSales.forEach(t=>{
+    const n=t.note||t.billRef||t.desc||'Unknown Customer';
+    if(!custMap[n])custMap[n]={given:0,recovered:0,dates:[],shop:t.shop};
+    custMap[n].given+=(t.amount||0);
+    custMap[n].dates.push(t.date);
+  });
+  creditPayments.forEach(t=>{
+    const n=t.note||t.billRef||t.desc||'Unknown Customer';
+    if(custMap[n]) custMap[n].recovered+=(t.amount||0);
+  });
+
+  const entries=Object.entries(custMap).sort((a,b)=>(b[1].given-b[1].recovered)-(a[1].given-a[1].recovered));
+
+  document.getElementById('rpt-credit-body').innerHTML=`
+    <div class="rpt-kpi3" style="margin-bottom:12px">
+      <div class="rpt-k" style="border-left:3px solid var(--red)"><div class="kl">Total Credit Given</div><div class="kv cr" style="font-size:15px">₹${fmt(totalCredit)}</div></div>
+      <div class="rpt-k" style="border-left:3px solid var(--green)"><div class="kl">Recovered</div><div class="kv cg" style="font-size:15px">₹${fmt(totalRecovered)}</div></div>
+      <div class="rpt-k" style="border-left:3px solid var(--yellow)"><div class="kl">Pending</div><div class="kv cy" style="font-size:15px">₹${fmt(pending)}</div></div>
+    </div>
+    ${pending>0?`<div class="alert-box warning" style="margin-bottom:12px">⚠️ ₹${fmt(pending)} credit pending — follow up with customers!</div>`:''}
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">
+      CREDIT CUSTOMERS (tag entries with "credit" or "கடன்" in description to track)
+    </div>
+    ${entries.length?entries.map(([name,v])=>{
+      const bal=v.given-v.recovered;
+      return`<div class="credit-card-item">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="credit-name">👤 ${esc(name)}</div>
+            <div class="credit-meta">
+              <span>Given: ₹${fmt(v.given)}</span>
+              <span>Recovered: ₹${fmt(v.recovered)}</span>
+              <span>Shop: ${SHOPS[v.shop]?.name||v.shop||'—'}</span>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">Last: ${v.dates.sort().pop()||'—'}</div>
+          </div>
+          <div class="credit-amt ${bal>0?'cr':'cg'}">${bal>0?'₹'+fmt(bal)+' due':'✅ Cleared'}</div>
+        </div>
+      </div>`;
+    }).join(''):`<div class="empty">
+      <div style="font-size:24px;margin-bottom:8px">📝</div>
+      <div style="font-weight:700;margin-bottom:4px">No credit entries found</div>
+      <div style="font-size:12px">Entry add பண்ணும்போது description-ல் "credit" or "கடன்" type பண்ணுங்க</div>
+    </div>`}`;
+}
+
+// ═══ STAFF EFFICIENCY ═══
+function renderStaffEfficiency(txs){
+  // Group sales by 'by' field (who entered it = cashier on duty)
+  const staffMap={};
+  txs.filter(t=>t.type==='sales').forEach(t=>{
+    const who=t.by||'Unknown';
+    if(!staffMap[who])staffMap[who]={sales:0,entries:0,days:new Set(),shops:new Set()};
+    staffMap[who].sales+=(t.amount||0);
+    staffMap[who].entries++;
+    if(t.date) staffMap[who].days.add(t.date);
+    if(t.shop) staffMap[who].shops.add(t.shop);
+  });
+
+  // Salary data from salary entries
+  const salaryMap={};
+  txs.filter(t=>t.type!=='sales'&&((t.desc||'').toLowerCase().includes('salary')||(t.category||'').toLowerCase().includes('salary')||(t.desc||'').toLowerCase().includes('sal '))).forEach(t=>{
+    const n=t.desc||t.category||'Staff';
+    salaryMap[n]=(salaryMap[n]||0)+(t.amount||0);
+  });
+
+  const staffEntries=Object.entries(staffMap).sort((a,b)=>b[1].sales-a[1].sales);
+  const totalSalary=Object.values(salaryMap).reduce((a,b)=>a+b,0);
+
+  document.getElementById('rpt-staff-body').innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+      யார் கேஷியர் இருக்கும்போது விற்பனை அதிகம் — "by" field-ல் இருந்து calculate பண்றோம்
+    </div>
+    ${staffEntries.length?staffEntries.map(([name,v])=>{
+      const days=v.days.size||1;
+      const avgPerDay=Math.round(v.sales/days);
+      const sal=Object.entries(salaryMap).find(([k])=>k.toLowerCase().includes(name.toLowerCase()));
+      const salAmt=sal?sal[1]:0;
+      const roi=salAmt>0?((v.sales/salAmt)*100).toFixed(0):'—';
+      return`<div class="staff-row">
+        <div class="staff-name">👤 ${esc(name)}</div>
+        <div class="staff-kpis">
+          <div class="staff-kpi"><div class="sv cg">₹${fmt(v.sales)}</div><div class="sl">Total Sales</div></div>
+          <div class="staff-kpi"><div class="sv cb">₹${fmt(avgPerDay)}</div><div class="sl">Avg/Day</div></div>
+          <div class="staff-kpi"><div class="sv">${days}</div><div class="sl">Days</div></div>
+          <div class="staff-kpi"><div class="sv">${v.entries}</div><div class="sl">Entries</div></div>
+          <div class="staff-kpi"><div class="sv cy">₹${fmt(salAmt)}</div><div class="sl">Salary</div></div>
+          <div class="staff-kpi"><div class="sv ${roi>300?'cg':'cr'}">${roi!=='—'?roi+'x':'—'}</div><div class="sl">Sales/Salary</div></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">Shops: ${[...v.shops].map(s=>SHOPS[s]?.name||s).join(', ')||'—'}</div>
+      </div>`;
+    }).join(''):`<div class="empty">
+      <div style="font-size:24px;margin-bottom:8px">👥</div>
+      <div style="font-weight:700;margin-bottom:4px">Staff data இல்லை</div>
+      <div style="font-size:12px">Entry add பண்ணும்போது "by" field fill பண்ணுங்க (cashier பேரு)</div>
+    </div>`}
+    ${Object.keys(salaryMap).length?`
+      <div style="margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">💰 SALARY TRACKER</div>
+        ${Object.entries(salaryMap).map(([n,amt])=>`
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+            <span>👤 ${esc(n)}</span>
+            <span style="font-weight:700;color:var(--red)">₹${fmt(amt)}</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:12px;font-weight:800">
+          <span>Total Salary</span><span style="color:var(--red)">₹${fmt(totalSalary)}</span>
+        </div>
+      </div>`:''}`;
 }
 
 function showRptSection(id,el){
