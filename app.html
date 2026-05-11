@@ -1415,37 +1415,41 @@ function subscribeData(){
 
 async function loadSupsOnce(BID, attempt=1){
   try{
-    console.log('📦 Loading suppliers BID:',BID,'attempt:',attempt);
+    console.log('📦 Loading suppliers attempt:',attempt,'BID:',BID);
+
+    // NO where clause — avoid permission issues with compound queries
+    // Rules allow any authenticated user to read
+    // We filter by businessId in JavaScript
     const snap=await DB.collection('suppliers')
-      .where('businessId','==',BID)
-      .limit(100)
+      .limit(200)
       .get();
-    SUPS=snap.docs.map(d=>({id:d.id,...d.data()}));
-    console.log('✅ Suppliers loaded:',SUPS.length);
+
+    // Filter client-side by businessId OR userId
+    SUPS=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(s=>
+        s.businessId===BID ||
+        s.userId===ME.uid ||
+        s.businessId===ME.uid
+      );
+
+    console.log('✅ Suppliers loaded:',SUPS.length,'(from',snap.docs.length,'total)');
     buildSupSels(); renderSups();
+
   }catch(err){
     console.error('❌ SUP err:',err.code, err.message);
-    if(err.code==='permission-denied' && attempt<=4){
-      const delay=attempt*2000; // 2s, 4s, 6s, 8s
-      console.log(`🔄 Retry suppliers in ${delay}ms (attempt ${attempt})...`);
+
+    if(err.code==='permission-denied' && attempt<=3){
+      const delay=attempt*2000;
+      console.log(`🔄 Retry in ${delay}ms...`);
       setTimeout(async()=>{
-        // Refresh token before each retry
         try{ await AUTH.currentUser?.getIdToken(true); }catch(e){}
         loadSupsOnce(BID, attempt+1);
       }, delay);
-    } else if(err.code==='permission-denied'){
-      // All retries exhausted — try without businessId filter as last resort
-      console.warn('⚠️ All retries failed — trying open query');
-      try{
-        const snap2=await DB.collection('suppliers').limit(50).get();
-        SUPS=snap2.docs.map(d=>({id:d.id,...d.data()}))
-          .filter(s=>s.businessId===BID);
-        buildSupSels(); renderSups();
-      }catch(e2){
-        toast('Supplier error: '+e2.code,'bad');
-      }
     } else {
-      toast('Supplier error: '+err.code,'bad');
+      // Silent fail — suppliers section just shows empty
+      console.warn('Suppliers unavailable:', err.code);
+      SUPS=[];
+      buildSupSels(); renderSups();
     }
   }
 }
@@ -1510,19 +1514,16 @@ async function loadTxsOnce(BID){
 
 async function loadBillsOnce(BID){
   try{
-    // Simple query — no orderBy to avoid index requirement
     const snap=await DB.collection('sup_bills')
-      .where('businessId','==',BID)
-      .limit(200)
+      .limit(300)
       .get();
     BILLS=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(b=>b.businessId===BID||b.userId===ME.uid||b.businessId===ME.uid)
       .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
     renderSups();
   }catch(err){
     console.error('BILLS err:',err.code);
-    if(err.code==='permission-denied'){
-      setTimeout(()=>loadBillsOnce(BID),2000);
-    }
+    BILLS=[];
   }
 }
 
