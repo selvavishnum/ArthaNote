@@ -1442,112 +1442,98 @@ function subscribeData(){
   const BID=ME.businessId||ME.uid;
   console.log('🔄 subscribeData BID:',BID);
 
-  // Try cache first — instant load, 0 Firestore reads
+  // ALWAYS load from localStorage first — instant, 0 Firestore reads
+  // App NEVER waits for Firestore to show data
   const hasCached=loadFromCache();
-  if(hasCached){
-    renderDash(); renderLedger(); buildSupSels(); renderSups();
-    const lbl=document.getElementById('data-range-lbl');
-    if(lbl) lbl.textContent=`📦 ${TXS.length} entries (cache) · ↻ tap to sync`;
-    // Silent background sync for new data only
-    setTimeout(()=>syncNewDataOnly(BID), 3000);
-    return;
-  }
+  renderDash(); renderLedger(); buildSupSels(); renderSups();
 
-  // No cache → Full load from Firestore (first time only)
-  fullLoadFromFirestore(BID);
+  const lbl=document.getElementById('data-range-lbl');
+  if(hasCached){
+    if(lbl) lbl.textContent=`📦 ${TXS.length} entries · ↻ to sync cloud`;
+    // Background sync silently — won't block app
+    setTimeout(()=>silentCloudSync(BID), 4000);
+  } else {
+    // New user — no local data yet
+    if(lbl) lbl.textContent='🆕 New account — add your first entry!';
+    // Try cloud sync in background after 2s
+    setTimeout(()=>silentCloudSync(BID), 2000);
+  }
 }
 
-// FULL LOAD — no limits, gets ALL your data
-async function fullLoadFromFirestore(BID){
+// SILENT CLOUD SYNC — never blocks app, never shows error to user
+// Runs in background, updates cache if successful
+async function silentCloudSync(BID){
   const lbl=document.getElementById('data-range-lbl');
-  if(lbl) lbl.textContent='☁️ Loading all data from cloud...';
-  toast('☁️ Loading your data...','info');
-
   try{
-    // Load transactions — ALL data, no limit
+    // Refresh token silently
     await AUTH.currentUser?.getIdToken(true);
 
-    const [txSnap, supSnap, billSnap] = await Promise.all([
+    // Fetch all 3 collections in parallel
+    const results = await Promise.allSettled([
       DB.collection('transactions').where('businessId','==',BID).get(),
-      DB.collection('suppliers').limit(200).get(),
-      DB.collection('sup_bills').limit(300).get()
+      DB.collection('suppliers').where('businessId','==',BID).get(),
+      DB.collection('sup_bills').where('businessId','==',BID).get()
     ]);
 
-    TXS = txSnap.docs.map(d=>({id:d.id,...d.data()}))
-      .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
+    let updated=false;
 
-    SUPS = supSnap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(s=>s.businessId===BID||s.userId===ME.uid);
-
-    BILLS = billSnap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(b=>b.businessId===BID||b.userId===ME.uid)
-      .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
-
-    console.log('✅ Full load done: TXS='+TXS.length+' SUPS='+SUPS.length+' BILLS='+BILLS.length);
-
-    // Save to localStorage cache
-    saveCacheLocal();
-
-    if(lbl) lbl.textContent=`✅ ${TXS.length} entries loaded`;
-    renderDash(); renderLedger(); buildSupSels(); renderSups();
-    toast('✅ All data loaded!');
-
-  }catch(err){
-    console.error('❌ Full load err:',err.code, err.message);
-    if(lbl) lbl.textContent='❌ '+err.code+' — tap ↻ Refresh to retry';
-    if(err.code==='resource-exhausted'||err.code==='quota-exceeded'){
-      toast('⏳ Daily quota full — resets at 1:30 PM IST','warn');
-      if(lbl) lbl.textContent='⏳ Quota full — resets 1:30 PM IST · Check back later';
-    } else if(err.code==='permission-denied'){
-      // Retry after token refresh
-      setTimeout(async()=>{
-        await AUTH.currentUser?.getIdToken(true);
-        fullLoadFromFirestore(BID);
-      },3000);
+    // Transactions
+    if(results[0].status==='fulfilled'){
+      const newTXS=results[0].value.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
+      if(newTXS.length!==TXS.length){TXS=newTXS;updated=true;}
     } else {
-      toast('Load error: '+err.code,'bad');
+      console.warn('TX sync skip:',results[0].reason?.code);
     }
+
+    // Suppliers
+    if(results[1].status==='fulfilled'){
+      SUPS=results[1].value.docs.map(d=>({id:d.id,...d.data()}));
+    } else {
+      // Try without where clause (permissions fallback)
+      try{
+        const s=await DB.collection('suppliers').limit(100).get();
+        SUPS=s.docs.map(d=>({id:d.id,...d.data()}))
+          .filter(x=>x.businessId===BID||x.userId===ME.uid);
+      }catch(e2){}
+    }
+
+    // Bills
+    if(results[2].status==='fulfilled'){
+      BILLS=results[2].value.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+    } else {
+      try{
+        const b=await DB.collection('sup_bills').limit(200).get();
+        BILLS=b.docs.map(d=>({id:d.id,...d.data()}))
+          .filter(x=>x.businessId===BID||x.userId===ME.uid)
+          .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+      }catch(e2){}
+    }
+
+    // Save whatever we got to cache
+    saveCacheLocal();
+    if(updated){ renderDash(); renderLedger(); }
+    buildSupSels(); renderSups();
+
+    if(lbl) lbl.textContent=`✅ ${TXS.length} entries · synced`;
+    console.log('☁️ Sync done TXS:'+TXS.length+' SUPS:'+SUPS.length);
+
+  }catch(e){
+    // Cloud sync failed — app still works from localStorage
+    console.warn('☁️ Sync skipped:',e.code||e.message);
+    if(lbl) lbl.textContent=`📦 ${TXS.length} entries (offline mode)`;
+    // NO toast error — user doesn't need to see cloud issues
   }
 }
 
-// SYNC NEW DATA — only fetches entries newer than cache
-async function syncNewDataOnly(BID){
-  try{
-    const cacheTs=parseInt(localStorage.getItem(CACHE_KEY_TS)||'0');
-    if(!cacheTs) return;
-    // Only fetch transactions from last 7 days to get new ones
-    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-7);
-    const cutoffStr=cutoff.toISOString().split('T')[0];
-    const snap=await DB.collection('transactions')
-      .where('businessId','==',BID)
-      .where('date','>=',cutoffStr)
-      .orderBy('date','desc')
-      .limit(50)
-      .get();
-    const newTxs=snap.docs.map(d=>({id:d.id,...d.data()}));
-    // Merge new entries (avoid duplicates by id)
-    const existingIds=new Set(TXS.map(t=>t.id));
-    const added=newTxs.filter(t=>!existingIds.has(t.id));
-    if(added.length){
-      TXS=[...added,...TXS].sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
-      saveCacheLocal();
-      renderDash(); renderLedger();
-      const lbl=document.getElementById('data-range-lbl');
-      if(lbl) lbl.textContent=`✅ ${TXS.length} entries (+${added.length} new)`;
-    }
-  }catch(e){ console.warn('Sync warn:',e.code); /* silent fail */ }
-}
-
-// MANUAL REFRESH — full reload, updates cache
+// MANUAL REFRESH — user tapped ↻
 async function manualRefresh(){
   const btn=document.getElementById('refresh-dash-btn');
   const lbl=document.getElementById('data-range-lbl');
-  if(btn){btn.textContent='↻ Loading...';btn.disabled=true;}
-  // Clear cache to force full reload
-  localStorage.removeItem(CACHE_KEY_TS);
-  _txLoaded=false;
-  SUPS=[]; BILLS=[]; TXS=[];
-  await fullLoadFromFirestore(ME.businessId||ME.uid);
+  if(btn){btn.textContent='↻ Syncing...';btn.disabled=true;}
+  if(lbl) lbl.textContent='☁️ Syncing from cloud...';
+  await silentCloudSync(ME.businessId||ME.uid);
   if(btn){btn.textContent='↻ Refresh';btn.disabled=false;}
 }
 
