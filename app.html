@@ -1400,141 +1400,154 @@ async function startApp(user){
 // FIREBASE REALTIME DATA
 // ════════════════════════════════════════
 // ════════════════════════════════════════
-// SMART DATA LOADING
+// SMART DATA LOADING WITH LOCAL CACHE
+// Strategy:
+//   1st open  → Load ALL data from Firestore → cache in localStorage
+//   Next open → Load from localStorage cache instantly (0 Firestore reads)
+//   New entry → Add to cache locally
+//   Manual ↻  → Re-fetch from Firestore + update cache
 // ════════════════════════════════════════
 let _txLoaded=false;
-let _supRetry=0;
+const CACHE_KEY_TXS='kp_txs_cache';
+const CACHE_KEY_SUPS='kp_sups_cache';
+const CACHE_KEY_BILLS='kp_bills_cache';
+const CACHE_KEY_TS='kp_cache_ts';
+
+function saveCacheLocal(){
+  try{
+    localStorage.setItem(CACHE_KEY_TXS, JSON.stringify(TXS));
+    localStorage.setItem(CACHE_KEY_SUPS, JSON.stringify(SUPS));
+    localStorage.setItem(CACHE_KEY_BILLS, JSON.stringify(BILLS));
+    localStorage.setItem(CACHE_KEY_TS, Date.now().toString());
+  }catch(e){ console.warn('Cache save warn:',e); }
+}
+
+function loadFromCache(){
+  try{
+    const ts=parseInt(localStorage.getItem(CACHE_KEY_TS)||'0');
+    if(!ts) return false;
+    const txRaw=localStorage.getItem(CACHE_KEY_TXS);
+    const supRaw=localStorage.getItem(CACHE_KEY_SUPS);
+    const billRaw=localStorage.getItem(CACHE_KEY_BILLS);
+    if(txRaw) TXS=JSON.parse(txRaw);
+    if(supRaw) SUPS=JSON.parse(supRaw);
+    if(billRaw) BILLS=JSON.parse(billRaw);
+    const ageMin=Math.round((Date.now()-ts)/60000);
+    console.log('📦 Cache loaded: TXS='+TXS.length+' SUPS='+SUPS.length+' BILLS='+BILLS.length+' ('+ageMin+'min old)');
+    return true;
+  }catch(e){ console.warn('Cache load warn:',e); return false; }
+}
 
 function subscribeData(){
   const BID=ME.businessId||ME.uid;
   console.log('🔄 subscribeData BID:',BID);
-  loadTxsOnce(BID);
-  loadSupsOnce(BID);
-  loadBillsOnce(BID);
+
+  // Try cache first — instant load, 0 Firestore reads
+  const hasCached=loadFromCache();
+  if(hasCached){
+    renderDash(); renderLedger(); buildSupSels(); renderSups();
+    const lbl=document.getElementById('data-range-lbl');
+    if(lbl) lbl.textContent=`📦 ${TXS.length} entries (cache) · ↻ tap to sync`;
+    // Silent background sync for new data only
+    setTimeout(()=>syncNewDataOnly(BID), 3000);
+    return;
+  }
+
+  // No cache → Full load from Firestore (first time only)
+  fullLoadFromFirestore(BID);
 }
 
-async function loadSupsOnce(BID, attempt=1){
+// FULL LOAD — no limits, gets ALL your data
+async function fullLoadFromFirestore(BID){
+  const lbl=document.getElementById('data-range-lbl');
+  if(lbl) lbl.textContent='☁️ Loading all data from cloud...';
+  toast('☁️ Loading your data...','info');
+
   try{
-    console.log('📦 Loading suppliers attempt:',attempt,'BID:',BID);
+    // Load transactions — ALL data, no limit
+    await AUTH.currentUser?.getIdToken(true);
 
-    // NO where clause — avoid permission issues with compound queries
-    // Rules allow any authenticated user to read
-    // We filter by businessId in JavaScript
-    const snap=await DB.collection('suppliers')
-      .limit(200)
-      .get();
+    const [txSnap, supSnap, billSnap] = await Promise.all([
+      DB.collection('transactions').where('businessId','==',BID).get(),
+      DB.collection('suppliers').limit(200).get(),
+      DB.collection('sup_bills').limit(300).get()
+    ]);
 
-    // Filter client-side by businessId OR userId
-    SUPS=snap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(s=>
-        s.businessId===BID ||
-        s.userId===ME.uid ||
-        s.businessId===ME.uid
-      );
+    TXS = txSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
 
-    console.log('✅ Suppliers loaded:',SUPS.length,'(from',snap.docs.length,'total)');
-    buildSupSels(); renderSups();
+    SUPS = supSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(s=>s.businessId===BID||s.userId===ME.uid);
+
+    BILLS = billSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(b=>b.businessId===BID||b.userId===ME.uid)
+      .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+
+    console.log('✅ Full load done: TXS='+TXS.length+' SUPS='+SUPS.length+' BILLS='+BILLS.length);
+
+    // Save to localStorage cache
+    saveCacheLocal();
+
+    if(lbl) lbl.textContent=`✅ ${TXS.length} entries loaded`;
+    renderDash(); renderLedger(); buildSupSels(); renderSups();
+    toast('✅ All data loaded!');
 
   }catch(err){
-    console.error('❌ SUP err:',err.code, err.message);
-
-    if(err.code==='permission-denied' && attempt<=3){
-      const delay=attempt*2000;
-      console.log(`🔄 Retry in ${delay}ms...`);
+    console.error('❌ Full load err:',err.code, err.message);
+    if(lbl) lbl.textContent='❌ '+err.code+' — tap ↻ Refresh to retry';
+    if(err.code==='resource-exhausted'||err.code==='quota-exceeded'){
+      toast('⏳ Daily quota full — resets at 1:30 PM IST','warn');
+      if(lbl) lbl.textContent='⏳ Quota full — resets 1:30 PM IST · Check back later';
+    } else if(err.code==='permission-denied'){
+      // Retry after token refresh
       setTimeout(async()=>{
-        try{ await AUTH.currentUser?.getIdToken(true); }catch(e){}
-        loadSupsOnce(BID, attempt+1);
-      }, delay);
+        await AUTH.currentUser?.getIdToken(true);
+        fullLoadFromFirestore(BID);
+      },3000);
     } else {
-      // Silent fail — suppliers section just shows empty
-      console.warn('Suppliers unavailable:', err.code);
-      SUPS=[];
-      buildSupSels(); renderSups();
+      toast('Load error: '+err.code,'bad');
     }
   }
 }
 
-async function loadTxsOnce(BID){
-  if(_txLoaded)return;
-  _txLoaded=true;
-  const lbl=document.getElementById('data-range-lbl');
-  if(lbl) lbl.textContent='📅 Loading...';
+// SYNC NEW DATA — only fetches entries newer than cache
+async function syncNewDataOnly(BID){
   try{
-    // Simple single-field query — no composite index needed
-    // businessId filter only → date filter in JS
+    const cacheTs=parseInt(localStorage.getItem(CACHE_KEY_TS)||'0');
+    if(!cacheTs) return;
+    // Only fetch transactions from last 7 days to get new ones
+    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-7);
+    const cutoffStr=cutoff.toISOString().split('T')[0];
     const snap=await DB.collection('transactions')
       .where('businessId','==',BID)
-      .orderBy('createdMs','desc')
-      .limit(400)
+      .where('date','>=',cutoffStr)
+      .orderBy('date','desc')
+      .limit(50)
       .get();
-
-    const cutoff=new Date();
-    cutoff.setDate(cutoff.getDate()-90);
-    const cutoffStr=cutoff.toISOString().split('T')[0];
-
-    // Filter last 90 days in JS — no index required
-    TXS=snap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(t=>!t.date||t.date>=cutoffStr)
-      .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:((b.createdMs||0)-(a.createdMs||0))<0?1:-1);
-
-    if(lbl) lbl.textContent=`📅 ${TXS.length} entries (last 90 days)`;
-    renderDash(); renderLedger();
-
-  }catch(err){
-    console.error('TX load err:',err.code, err.message);
-    _txLoaded=false;
-
-    if(err.code==='permission-denied'){
-      // Auth not ready yet — retry after 2 seconds
-      if(lbl) lbl.textContent='🔄 Retrying...';
-      setTimeout(()=>{ _txLoaded=false; loadTxsOnce(BID); }, 2000);
-      return;
+    const newTxs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Merge new entries (avoid duplicates by id)
+    const existingIds=new Set(TXS.map(t=>t.id));
+    const added=newTxs.filter(t=>!existingIds.has(t.id));
+    if(added.length){
+      TXS=[...added,...TXS].sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+      saveCacheLocal();
+      renderDash(); renderLedger();
+      const lbl=document.getElementById('data-range-lbl');
+      if(lbl) lbl.textContent=`✅ ${TXS.length} entries (+${added.length} new)`;
     }
-    if(err.code==='failed-precondition'){
-      // Index missing — try without orderBy
-      try{
-        const snap=await DB.collection('transactions')
-          .where('businessId','==',BID)
-          .limit(300)
-          .get();
-        TXS=snap.docs.map(d=>({id:d.id,...d.data()}))
-          .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
-        if(lbl) lbl.textContent=`📅 ${TXS.length} entries loaded`;
-        renderDash(); renderLedger();
-      }catch(e2){
-        if(lbl) lbl.textContent='❌ Load failed';
-        toast('Data error: '+e2.code,'bad');
-      }
-      return;
-    }
-    if(lbl) lbl.textContent='❌ Error: '+err.code;
-    toast('Data error: '+err.code,'bad');
-  }
+  }catch(e){ console.warn('Sync warn:',e.code); /* silent fail */ }
 }
 
-async function loadBillsOnce(BID){
-  try{
-    const snap=await DB.collection('sup_bills')
-      .limit(300)
-      .get();
-    BILLS=snap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(b=>b.businessId===BID||b.userId===ME.uid||b.businessId===ME.uid)
-      .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
-    renderSups();
-  }catch(err){
-    console.error('BILLS err:',err.code);
-    BILLS=[];
-  }
-}
-
-// Manual refresh — only when user taps
+// MANUAL REFRESH — full reload, updates cache
 async function manualRefresh(){
   const btn=document.getElementById('refresh-dash-btn');
   const lbl=document.getElementById('data-range-lbl');
   if(btn){btn.textContent='↻ Loading...';btn.disabled=true;}
-  if(lbl) lbl.textContent='📅 Refreshing...';
+  // Clear cache to force full reload
+  localStorage.removeItem(CACHE_KEY_TS);
   _txLoaded=false;
-  await loadTxsOnce(ME.businessId||ME.uid);
+  SUPS=[]; BILLS=[]; TXS=[];
+  await fullLoadFromFirestore(ME.businessId||ME.uid);
   if(btn){btn.textContent='↻ Refresh';btn.disabled=false;}
 }
 
@@ -2304,6 +2317,7 @@ async function addEntry(){
     toast('✅ Entry saved to cloud!');
     // Add to local TXS array instantly — no re-fetch needed
     TXS.unshift(txData); renderDash(); renderLedger();
+    _rptRendered=false; // allow report to refresh with new data next time
   }catch(err){
     console.error('Entry cloud err:',err.code,err.message);
     ['m-amt','m-desc','m-ref','m-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -2939,19 +2953,49 @@ function showRptSection(id,el){
   document.getElementById('rpt-'+id)?.classList.add('on');
   el.classList.add('on');
 }
+// Audit cache — load ONCE, never re-fetch
+let _auditCache=null;
+let _auditLoaded=false;
+
 async function loadAudit(){
   const el=document.getElementById('audit-wrap'); if(!el)return;
+
+  // Use cache if already loaded
+  if(_auditLoaded){
+    renderAuditUI(_auditCache);
+    return;
+  }
+
   try{
-    const snap=await DB.collection('audit').where('businessId','==',ME.businessId||ME.uid).limit(20).get();
-    const logs=snap.docs.map(d=>d.data()).sort((a,b)=>(b.at?.seconds||0)-(a.at?.seconds||0));
-    el.innerHTML=logs.length?logs.map(l=>`<div style="padding:9px 0;border-bottom:1px solid var(--border)">
+    const snap=await DB.collection('audit')
+      .where('businessId','==',ME.businessId||ME.uid)
+      .limit(20)
+      .get();
+    _auditCache=snap.docs.map(d=>d.data())
+      .sort((a,b)=>(b.at?.seconds||0)-(a.at?.seconds||0));
+    _auditLoaded=true;
+    renderAuditUI(_auditCache);
+  }catch(e){
+    el.innerHTML='<div class="empty">Audit log unavailable</div>';
+  }
+}
+
+function renderAuditUI(logs){
+  const el=document.getElementById('audit-wrap'); if(!el)return;
+  el.innerHTML=logs&&logs.length?logs.map(l=>`
+    <div style="padding:9px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;margin-bottom:2px">
         <span style="font-weight:600;font-size:12px">👤 ${l.by||'?'}</span>
         <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${l.at?.toDate?l.at.toDate().toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</span>
       </div>
-      <div style="font-size:12px;color:var(--muted)">${l.action==='scan_save'?'📷 Scanned & saved '+l.count+' entries':l.action==='manual_add'?'✏️ Added: '+(l.desc||''):l.action==='edit_tx'?'✏️ Edited an entry':'Action: '+l.action}</div>
-    </div>`).join(''):'<div class="empty">No audit logs yet</div>';
-  }catch(e){el.innerHTML='<div class="empty">Unable to load audit log</div>';}
+      <div style="font-size:12px;color:var(--muted)">${
+        l.action==='scan_save'?'📷 Scanned & saved '+l.count+' entries':
+        l.action==='manual_add'?'✏️ Added: '+(l.desc||''):
+        l.action==='edit_tx'?'✏️ Edited an entry':
+        'Action: '+l.action
+      }</div>
+    </div>`).join('')
+    :'<div class="empty">No audit logs yet</div>';
 }
 function fmtM(m){const[y,mo]=m.split('-');return['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)]+' '+y;}
 
@@ -3076,13 +3120,16 @@ function toggleApiView(){
 // ════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════
+let _rptRendered=false; // prevent re-render on every tab tap
+
 function goPane(name,btn){
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nbt').forEach(b=>b.classList.remove('on'));
   document.getElementById('pane-'+name)?.classList.add('on');
   if(btn) btn.classList.add('on');
   else document.querySelectorAll('.nbt').forEach(b=>{if(b.getAttribute('onclick')?.includes("'"+name+"'"))b.classList.add('on');});
-  if(name==='report') renderReports();
+  // Report: render once per session, re-render only after new entry added
+  if(name==='report'){if(!_rptRendered){renderReports();_rptRendered=true;}}
   if(name==='sup'){renderSups();buildSupSels();}
   if(name==='entry') loadQB();
   if(name==='ledger') renderLedger();
