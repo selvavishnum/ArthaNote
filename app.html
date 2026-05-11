@@ -3182,73 +3182,161 @@ function renderReports(){
 // ═══ SHOP-WISE DETAILED P&L ═══
 function renderShopWise(txs,dates,avgDaily){
   const shopKeys=Object.keys(SHOPS);
-  document.getElementById('rpt-shopwise-body').innerHTML=shopKeys.map(k=>{
+  const colors=['#dc2626','#ea580c','#d97706','#059669','#2563eb','#7c3aed','#db2777','#0891b2','#64748b','#84cc16'];
+
+  // Overall totals for comparison bar
+  const overallSales=sum(txs,'sales');
+
+  document.getElementById('rpt-shopwise-body').innerHTML=`
+    <div style="font-size:10px;color:var(--muted);margin-bottom:12px;font-weight:600">
+      ${shopKeys.length} shops · Tap any shop to expand · Tap category to see date-wise entries
+    </div>
+    `+shopKeys.map((k,idx)=>{
     const st=txs.filter(x=>x.shop===k);
-    const ss=sum(st,'sales'),se=sum(st,'expense')+sum(st,'payment'),sn=ss-se;
+    const ss=sum(st,'sales');
+    const expSt=st.filter(x=>x.type!=='sales'); // expense + payment
+    const se=expSt.reduce((a,t)=>a+(t.amount||0),0);
+    const sn=ss-se;
     const sm=ss>0?((sn/ss)*100).toFixed(1):'0';
-    // Category breakdown for this shop
-    const expSt=st.filter(x=>x.type!=='sales');
+    const shareOfTotal=overallSales>0?(ss/overallSales*100).toFixed(0):0;
+    const days=[...new Set(st.filter(t=>t.date).map(t=>t.date))].length||1;
+    const avgDay=Math.round(ss/days);
+
+    // ALL categories — expense + payment together
     const catMap={};
-    expSt.forEach(t=>{const c=(t.category||t.desc||'Other').trim();catMap[c]=(catMap[c]||0)+(t.amount||0);});
-    const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
-    const colors=['#dc2626','#ea580c','#d97706','#059669','#2563eb','#7c3aed','#db2777','#64748b'];
-    return`<div class="shop-drill" id="drill-${k}">
-      <div class="shop-drill-hd" onclick="toggleDrill('${k}')">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:20px">${SHOPS[k].icon}</span>
-          <div>
-            <div>${SHOPS[k].name}</div>
-            <div style="font-size:10px;color:var(--muted);font-weight:500">${st.length} entries · margin ${sm}%</div>
+    expSt.forEach(t=>{
+      const c=(t.category||t.desc||'Other').trim();
+      if(!catMap[c]) catMap[c]={amount:0,entries:[],type:t.type};
+      catMap[c].amount+=(t.amount||0);
+      catMap[c].entries.push(t);
+    });
+    const allCats=Object.entries(catMap).sort((a,b)=>b[1].amount-a[1].amount);
+    const maxCat=allCats.length?allCats[0][1].amount:1;
+
+    const statusColor=sn>=0?'var(--green)':'var(--red)';
+    const statusBg=sn>=0?'#f0fdf4':'#fff1f2';
+    const statusBorder=sn>=0?'#6ee7b7':'#fca5a5';
+
+    return`
+    <div class="shop-drill" id="drill-${k}" style="border:1.5px solid var(--border);border-radius:16px;margin-bottom:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+
+      <!-- SHOP HEADER ROW -->
+      <div onclick="toggleDrill('${k}')" style="padding:14px 16px;cursor:pointer;background:var(--card);display:flex;align-items:center;gap:12px">
+        <!-- Number badge -->
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--g1);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">${idx+1}</div>
+        <!-- Shop icon + name -->
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <span style="font-size:18px">${SHOPS[k].icon}</span>
+            <span style="font-size:14px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${SHOPS[k].name}</span>
+          </div>
+          <div style="display:flex;gap:8px;font-size:10px;color:var(--muted);font-weight:600">
+            <span>${st.length} entries</span>
+            <span>·</span>
+            <span>${days} days</span>
+            <span>·</span>
+            <span>${shareOfTotal}% of total</span>
+          </div>
+          <!-- Mini progress bar -->
+          <div style="height:3px;background:var(--border);border-radius:3px;margin-top:5px;overflow:hidden">
+            <div style="height:100%;width:${shareOfTotal}%;background:var(--g1);border-radius:3px"></div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <div style="text-align:right">
-            <div style="font-size:14px;font-weight:800;color:${sn>=0?'var(--green)':'var(--red)'}">${sn>=0?'+':''}₹${fmt(sn)}</div>
-            <div style="font-size:10px;color:var(--muted)">₹${fmt(ss)} sales</div>
-          </div>
-          <span class="shop-drill-arrow">▼</span>
+        <!-- Net P&L -->
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:16px;font-weight:800;color:${statusColor}">${sn>=0?'+':''}₹${fmt(sn)}</div>
+          <div style="font-size:9px;color:var(--muted);font-weight:600">margin ${sm}%</div>
         </div>
+        <div class="shop-drill-arrow" style="color:var(--muted);font-size:10px;flex-shrink:0">▼</div>
       </div>
-      <div class="shop-drill-body">
-        <div class="rpt-kpi3" style="margin-bottom:10px">
-          <div class="rpt-k"><div class="kl">Sales</div><div class="kv cg" style="font-size:15px">₹${fmt(ss)}</div></div>
-          <div class="rpt-k"><div class="kl">Expense</div><div class="kv cr" style="font-size:15px">₹${fmt(se)}</div></div>
-          <div class="rpt-k"><div class="kl">Net</div><div class="kv ${sn>=0?'cg':'cr'}" style="font-size:15px">${sn>=0?'+':''}₹${fmt(sn)}</div></div>
+
+      <!-- EXPANDED BODY -->
+      <div class="shop-drill-body" style="background:var(--soft)">
+
+        <!-- KPI STRIP -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:12px 14px;background:var(--card);border-bottom:1px solid var(--border)">
+          <div style="text-align:center">
+            <div style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--green)">₹${fmt(ss)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:2px">Sales</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--red)">₹${fmt(se)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:2px">Expense</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:11px;font-weight:800;font-family:var(--mono);color:${statusColor}">${sn>=0?'+':''}₹${fmt(sn)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:2px">Net</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:11px;font-weight:800;font-family:var(--mono);color:var(--blue)">₹${fmt(avgDay)}</div>
+            <div style="font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:2px">Avg/Day</div>
+          </div>
         </div>
-        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">EXPENSE CATEGORIES — tap to see entries</div>
-        ${cats.map((c,i)=>`
-          <div class="cat-drill" id="catd-${k}-${i}" onclick="toggleCatDrill('${k}','${i}','${esc(c[0])}')">
-            <div class="cat-drill-hd">
-              <div style="width:8px;height:8px;border-radius:50%;background:${colors[i%colors.length]};flex-shrink:0"></div>
-              <div style="flex:1">${esc(c[0])}</div>
-              <div style="font-family:var(--mono);font-size:12px;font-weight:800;color:var(--red)">₹${fmt(c[1])}</div>
-              <div style="font-size:10px;color:var(--muted);margin-left:6px">${se>0?(c[1]/se*100).toFixed(0)+'%':''}</div>
-              <div style="font-size:10px;margin-left:6px">▼</div>
-            </div>
-            <div class="cat-drill-entries" id="cate-${k}-${i}">
-              ${expSt.filter(t=>(t.category||t.desc||'Other').trim()===c[0])
-                .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1)
-                .slice(0,20).map(t=>`
-                <div class="entry-row">
-                  <span style="color:var(--muted)">${t.date||'—'}</span>
-                  <span style="font-family:var(--tamil)">${esc(t.desc||t.category||'—')}</span>
-                  <span style="font-weight:700;color:var(--red)">₹${fmt(t.amount)}</span>
-                </div>`).join('')}
-            </div>
-          </div>`).join('')}
-        ${!cats.length?'<div class="empty">No expense entries this period</div>':''}
+
+        <!-- STATUS PILL -->
+        <div style="margin:10px 14px 4px;padding:8px 12px;background:${statusBg};border:1px solid ${statusBorder};border-radius:8px;font-size:11px;font-weight:700;color:${statusColor}">
+          ${sn>=0?'✅ Profitable':'⚠️ Loss — expenses exceed sales by ₹'+fmt(Math.abs(sn))}
+        </div>
+
+        <!-- ALL CATEGORIES -->
+        <div style="padding:10px 14px">
+          <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+            📋 All Categories (${allCats.length}) — Tap to see date-wise entries
+          </div>
+
+          ${allCats.length?allCats.map((c,i)=>{
+            const catEntries=c[1].entries.sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+            const pct=se>0?(c[1].amount/se*100).toFixed(0):'0';
+            // Group by date for date-wise view
+            const byDate={};
+            catEntries.forEach(t=>{
+              const d=t.date||'No date';
+              if(!byDate[d]) byDate[d]={total:0,items:[]};
+              byDate[d].total+=(t.amount||0);
+              byDate[d].items.push(t);
+            });
+            const dateGroups=Object.entries(byDate).sort((a,b)=>b[0]>a[0]?1:-1);
+
+            return`<div class="cat-drill" id="catd-${k}-${i}" style="margin-bottom:6px;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--card)">
+              <!-- Category Header -->
+              <div onclick="toggleCatDrill('${k}','${i}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer">
+                <div style="width:9px;height:9px;border-radius:50%;background:${colors[i%colors.length]};flex-shrink:0"></div>
+                <div style="flex:1;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c[0])}</div>
+                <div style="flex-shrink:0">
+                  <!-- Mini bar -->
+                  <div style="width:50px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:2px">
+                    <div style="height:100%;width:${(c[1].amount/maxCat*100).toFixed(0)}%;background:${colors[i%colors.length]};border-radius:2px"></div>
+                  </div>
+                </div>
+                <div style="font-family:var(--mono);font-size:12px;font-weight:800;color:var(--red);flex-shrink:0">₹${fmt(c[1].amount)}</div>
+                <div style="font-size:9px;color:var(--muted);flex-shrink:0;width:26px;text-align:right">${pct}%</div>
+                <div style="font-size:10px;color:var(--muted);flex-shrink:0">▼</div>
+              </div>
+              <!-- DATE-WISE ENTRIES -->
+              <div class="cat-drill-entries" id="cate-${k}-${i}" style="background:var(--soft);padding:0 12px 8px">
+                <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;padding:6px 0 4px">${catEntries.length} entries</div>
+                ${dateGroups.map(([date,dv])=>`
+                  <div style="margin-bottom:6px">
+                    <!-- Date header -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:var(--border);border-radius:6px;margin-bottom:3px">
+                      <span style="font-size:10px;font-weight:700;color:var(--text)">${date}</span>
+                      <span style="font-size:10px;font-weight:800;font-family:var(--mono);color:var(--red)">₹${fmt(dv.total)}</span>
+                    </div>
+                    <!-- Entries for this date -->
+                    ${dv.items.map(t=>`
+                      <div style="display:flex;justify-content:space-between;padding:4px 8px;font-size:11px;border-bottom:1px solid var(--border)">
+                        <span style="color:var(--muted);font-size:10px;flex-shrink:0;width:50px">${(t.type||'exp').substring(0,3)}</span>
+                        <span style="flex:1;font-family:var(--tamil);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px">${esc(t.desc||t.category||'—')}</span>
+                        <span style="font-weight:700;color:var(--red);flex-shrink:0">₹${fmt(t.amount)}</span>
+                      </div>`).join('')}
+                  </div>`).join('')}
+              </div>
+            </div>`;
+          }).join(''):`<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No expense entries this period</div>`}
+        </div>
       </div>
     </div>`;
   }).join('');
-}
-
-function toggleDrill(k){
-  const el=document.getElementById('drill-'+k);
-  el?.classList.toggle('open');
-}
-function toggleCatDrill(k,i,cat){
-  const el=document.getElementById('catd-'+k+'-'+i);
-  el?.classList.toggle('open');
 }
 
 // ═══ CREDIT RECOVERY ═══
