@@ -446,6 +446,19 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   </div>
 </div>
 
+<!-- ════ FIRST TIME SYNC SCREEN ════ -->
+<div id="sync-screen" style="display:none;position:fixed;inset:0;z-index:90;background:#f0fdf4;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center">
+  <div style="font-size:52px;margin-bottom:14px" id="sync-icon">☁️</div>
+  <div style="font-size:20px;font-weight:800;font-family:var(--tamil);margin-bottom:8px">உங்கள் data load ஆகுது...</div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:24px" id="sync-msg">Firestore-ல் இருந்து sync பண்றோம்</div>
+  <div style="width:200px;height:6px;background:var(--border);border-radius:6px;overflow:hidden;margin-bottom:20px">
+    <div id="sync-bar" style="height:100%;background:var(--green);border-radius:6px;width:0%;transition:width .5s"></div>
+  </div>
+  <div id="sync-status" style="font-size:12px;color:var(--muted);margin-bottom:20px">Connecting...</div>
+  <button id="sync-retry-btn" onclick="retryFirstSync()" style="display:none;padding:12px 28px;background:var(--green);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--sans)">🔄 Retry Sync</button>
+  <button onclick="skipSyncStartFresh()" style="margin-top:10px;padding:8px 20px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:10px;font-size:12px;cursor:pointer;font-family:var(--sans)">Start Fresh (skip)</button>
+</div>
+
 <!-- ════ APP ════ -->
 <div id="app">
   <!-- TOPBAR -->
@@ -1442,22 +1455,149 @@ function subscribeData(){
   const BID=ME.businessId||ME.uid;
   console.log('🔄 subscribeData BID:',BID);
 
-  // ALWAYS load from localStorage first — instant, 0 Firestore reads
-  // App NEVER waits for Firestore to show data
+  // Check localStorage cache first
   const hasCached=loadFromCache();
-  renderDash(); renderLedger(); buildSupSels(); renderSups();
 
-  const lbl=document.getElementById('data-range-lbl');
   if(hasCached){
-    if(lbl) lbl.textContent=`📦 ${TXS.length} entries · ↻ to sync cloud`;
-    // Background sync silently — won't block app
-    setTimeout(()=>silentCloudSync(BID), 4000);
+    // Has local data → show instantly, sync in background
+    renderDash(); renderLedger(); buildSupSels(); renderSups();
+    const lbl=document.getElementById('data-range-lbl');
+    if(lbl) lbl.textContent=`📦 ${TXS.length} entries · ↻ to sync`;
+    setTimeout(()=>silentCloudSync(BID), 3000);
   } else {
-    // New user — no local data yet
-    if(lbl) lbl.textContent='🆕 New account — add your first entry!';
-    // Try cloud sync in background after 2s
-    setTimeout(()=>silentCloudSync(BID), 2000);
+    // No local data → show sync screen, load from Firestore
+    document.getElementById('app').style.display='none';
+    document.getElementById('sync-screen').style.display='flex';
+    firstTimeSync(BID);
   }
+}
+
+// FIRST TIME SYNC — shows progress, retries on failure
+let _syncBID='';
+async function firstTimeSync(BID, attempt=1){
+  _syncBID=BID;
+  const msg=document.getElementById('sync-msg');
+  const status=document.getElementById('sync-status');
+  const bar=document.getElementById('sync-bar');
+  const icon=document.getElementById('sync-icon');
+  const retryBtn=document.getElementById('sync-retry-btn');
+
+  retryBtn.style.display='none';
+  icon.textContent='☁️';
+
+  const setStatus=(txt,pct)=>{
+    if(status) status.textContent=txt;
+    if(bar) bar.style.width=pct+'%';
+  };
+
+  try{
+    setStatus('Token refresh...', 10);
+    await AUTH.currentUser?.getIdToken(true);
+    setStatus('Connected! Loading transactions...', 30);
+
+    // Load transactions
+    const txSnap=await DB.collection('transactions')
+      .where('businessId','==',BID)
+      .get();
+    TXS=txSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+    setStatus(`✅ ${TXS.length} transactions loaded! Loading suppliers...`, 60);
+
+    // Load suppliers
+    try{
+      const supSnap=await DB.collection('suppliers')
+        .where('businessId','==',BID).get();
+      SUPS=supSnap.docs.map(d=>({id:d.id,...d.data()}));
+    }catch(e){
+      // Try without filter
+      const supSnap=await DB.collection('suppliers').limit(100).get();
+      SUPS=supSnap.docs.map(d=>({id:d.id,...d.data()}))
+        .filter(s=>s.businessId===BID||s.userId===ME.uid);
+    }
+    setStatus(`✅ ${SUPS.length} suppliers! Loading bills...`, 80);
+
+    // Load bills
+    try{
+      const billSnap=await DB.collection('sup_bills')
+        .where('businessId','==',BID).get();
+      BILLS=billSnap.docs.map(d=>({id:d.id,...d.data()}))
+        .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+    }catch(e){ BILLS=[]; }
+
+    setStatus(`✅ All data loaded! ${TXS.length} entries`, 100);
+    icon.textContent='✅';
+
+    // Save to cache
+    saveCacheLocal();
+
+    // Show app
+    setTimeout(()=>{
+      document.getElementById('sync-screen').style.display='none';
+      document.getElementById('app').style.display='block';
+      renderDash(); renderLedger(); buildSupSels(); renderSups();
+      const lbl=document.getElementById('data-range-lbl');
+      if(lbl) lbl.textContent=`✅ ${TXS.length} entries synced`;
+      toast('✅ உங்கள் data load ஆச்சு!');
+    }, 800);
+
+  }catch(err){
+    console.error('❌ First sync err:',err.code, err.message);
+    icon.textContent='❌';
+
+    if(err.code==='permission-denied'){
+      if(attempt<=3){
+        const wait=attempt*3;
+        setStatus(`Permission issue — retrying in ${wait}s... (attempt ${attempt}/3)`, 20);
+        if(msg) msg.textContent=`Auth token refresh பண்றோம்...`;
+        setTimeout(()=>firstTimeSync(BID, attempt+1), wait*1000);
+      } else {
+        // Show manual retry
+        setStatus('Permission denied — check Firestore Rules', 0);
+        if(msg) msg.textContent='Firebase Rules issue. Retry பண்ணுங்க.';
+        retryBtn.style.display='block';
+      }
+    } else if(err.code==='resource-exhausted'){
+      setStatus('⏳ Daily quota full — resets 1:30 PM IST', 0);
+      if(msg) msg.textContent='இன்னைக்கு limit முடிஞ்சுது. நாளைக்கு try பண்ணுங்க.';
+      retryBtn.style.display='block';
+    } else if(err.code==='failed-precondition'){
+      // Index missing — retry without orderBy
+      setStatus('Index missing — retrying...', 15);
+      try{
+        const txSnap=await DB.collection('transactions')
+          .where('businessId','==',BID).get();
+        TXS=txSnap.docs.map(d=>({id:d.id,...d.data()}));
+        saveCacheLocal();
+        setTimeout(()=>{
+          document.getElementById('sync-screen').style.display='none';
+          document.getElementById('app').style.display='block';
+          renderDash(); renderLedger(); buildSupSels(); renderSups();
+        },500);
+      }catch(e2){
+        setStatus('Error: '+e2.code, 0);
+        retryBtn.style.display='block';
+      }
+    } else {
+      setStatus('Error: '+(err.code||err.message), 0);
+      if(msg) msg.textContent='Network issue? Internet check பண்ணுங்க.';
+      retryBtn.style.display='block';
+    }
+  }
+}
+
+function retryFirstSync(){
+  document.getElementById('sync-icon').textContent='☁️';
+  document.getElementById('sync-retry-btn').style.display='none';
+  firstTimeSync(_syncBID, 1);
+}
+
+function skipSyncStartFresh(){
+  // Skip cloud sync, start with empty data
+  document.getElementById('sync-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  saveCacheLocal(); // save empty cache so next time skips sync screen
+  renderDash(); renderLedger(); buildSupSels(); renderSups();
+  toast('Started fresh — add your first entry!');
 }
 
 // SILENT CLOUD SYNC — never blocks app, never shows error to user
