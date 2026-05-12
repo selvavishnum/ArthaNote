@@ -241,9 +241,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .alert.info{background:var(--bl);color:var(--blue);border:1px solid #93c5fd}
 
 /* MODAL */
-.mover{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:flex-end;justify-content:center}
+.mover{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;display:none;align-items:flex-end;justify-content:center;padding:0}
 .mover.on{display:flex}
-.modal{background:var(--card);border-radius:20px 20px 0 0;padding:22px 18px 36px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+.modal{background:var(--card);border-radius:20px 20px 0 0;padding:22px 18px 40px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* Center modal variant for forms */
+.mover.center-modal{align-items:center;padding:16px}
+.mover.center-modal .modal{border-radius:20px;max-height:92vh}
 .mhd{font-size:16px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
 .mclose{background:var(--soft);border:none;border-radius:50%;width:28px;height:28px;font-size:15px;cursor:pointer}
 .stitle{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin:14px 0 8px}
@@ -878,7 +881,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 </div>
 
 <!-- QR MODAL -->
-<div class="mover" id="qr-modal">
+<div class="mover center-modal" id="qr-modal">
   <div class="modal">
     <div class="mhd">📷 Today's Attendance QR <button class="mclose" onclick="closeM('qr-modal')">✕</button></div>
     <div style="text-align:center;padding:12px 0">
@@ -892,7 +895,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 </div>
 
 <!-- ATTENDANCE VIEW MODAL -->
-<div class="mover" id="attendance-view-modal">
+<div class="mover center-modal" id="attendance-view-modal">
   <div class="modal">
     <div class="mhd">📋 Attendance Records <button class="mclose" onclick="closeM('attendance-view-modal')">✕</button></div>
     <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
@@ -905,6 +908,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     </div>
   </div>
 </div>
+
+<div class="mover center-modal" id="add-staff-modal">
   <div class="modal">
     <div class="mhd">Add Staff <button class="mclose" onclick="closeM('add-staff-modal')">&#10005;</button></div>
     <div class="fr full"><div class="fg"><label>Full Name</label><input type="text" id="st-name" placeholder="e.g. Perinbham, Sherina"></div></div>
@@ -1056,30 +1061,44 @@ function generateQR(){
   const date=tod();
   const BID=ME.businessId||ME.uid;
 
-  // Attendance URL — encodes shop, date, businessId
   const baseUrl='https://selvavishnum.github.io/Selva-ledger/attend.html';
   const params=`?bid=${encodeURIComponent(BID)}&shop=${encodeURIComponent(shopId)}&sname=${encodeURIComponent(shopName)}&date=${date}`;
   const url=baseUrl+params;
 
-  // Label
   const lbl=document.getElementById('qr-shop-label');
-  if(lbl) lbl.innerHTML=`<b>${SHOPS[shopId]?.icon} ${shopName}</b> · ${date}`;
+  if(lbl) lbl.innerHTML=`<b>${SHOPS[shopId]?.icon||'🏪'} ${shopName}</b> · ${date}`;
 
-  // Generate QR
   const wrap=document.getElementById('qr-canvas-wrap');
   wrap.innerHTML='';
-  try{
-    _qrInstance=new QRCode(wrap,{
-      text:url,
-      width:220,
-      height:220,
-      colorDark:'#065f46',
-      colorLight:'#ffffff',
-      correctLevel:QRCode.CorrectLevel.M
-    });
-  }catch(e){
-    wrap.innerHTML=`<div style="padding:20px;font-size:11px;word-break:break-all;color:var(--muted)">${url}</div>`;
+
+  // Method 1: QRCode.js library
+  if(typeof QRCode!=='undefined'){
+    try{
+      _qrInstance=new QRCode(wrap,{
+        text:url, width:220, height:220,
+        colorDark:'#065f46', colorLight:'#ffffff',
+        correctLevel:QRCode.CorrectLevel.M
+      });
+      return;
+    }catch(e){ console.warn('QRCode.js failed:',e); }
   }
+
+  // Method 2: Google Charts API fallback
+  const encoded=encodeURIComponent(url);
+  const img=document.createElement('img');
+  img.src=`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encoded}&color=065f46&bgcolor=ffffff`;
+  img.width=220; img.height=220;
+  img.style.borderRadius='8px';
+  img.onerror=()=>{
+    // Method 3: Show URL as text if all fails
+    wrap.innerHTML=`
+      <div style="padding:14px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">QR URL (copy & send):</div>
+        <div style="font-size:10px;word-break:break-all;color:var(--blue);background:var(--bluel);padding:8px;border-radius:8px">${url}</div>
+        <button onclick="navigator.clipboard?.writeText('${url}').then(()=>toast('Copied!'))" class="btn G sm" style="margin-top:8px">📋 Copy Link</button>
+      </div>`;
+  };
+  wrap.appendChild(img);
 }
 
 function downloadQR(){
@@ -3810,18 +3829,68 @@ async function loadStaffList(){
   const el=document.getElementById('staff-list-wrap'); if(!el)return;
   try{
     const snap=await DB.collection('staff').where('businessId','==',ME.businessId||ME.uid).get();
+    if(snap.empty){el.innerHTML='<div class="empty">No staff added yet</div>';return;}
     el.innerHTML=snap.docs.map(d=>{
-      const s=d.data();
-      return `<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border)">
-        <div style="width:32px;height:32px;border-radius:50%;background:var(--green);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(s.name||'?')[0].toUpperCase()}</div>
-        <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">${s.name||'Unknown'}</div><div style="font-size:11px;color:var(--muted)">${s.email||''}</div></div>
-        <div style="text-align:right;flex-shrink:0">
+      const s=d.data(); const docId=d.id;
+      if(s.role==='owner') return ''; // don't show owner in list
+      return `<div style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--green);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(s.name||'?')[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13px">${s.name||'Unknown'}</div>
+          <div style="font-size:11px;color:var(--muted)">${s.email||''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-right:6px">
           <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--bl);color:var(--blue);display:block;margin-bottom:2px">${s.shop==='all'?'All Shops':(SHOPS[s.shop]?.name||s.shop||'All')}</span>
           <span style="font-size:9px;padding:2px 6px;border-radius:20px;background:var(--yl);color:var(--yellow)">${(s.role||'staff').toUpperCase()}</span>
         </div>
+        <button onclick="confirmRemoveStaff('${docId}','${(s.name||'').replace(/'/g,'')}')" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;border:none;background:var(--rl);color:var(--red);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Remove staff">🗑</button>
       </div>`;
     }).join('')||'<div class="empty">No staff added yet</div>';
   }catch(e){el.innerHTML='<div class="empty">Unable to load staff list</div>';}
+}
+
+function confirmRemoveStaff(docId, staffName){
+  // Show confirm dialog with name input
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:18px;font-weight:800;margin-bottom:6px">Remove Staff</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        "<b>${staffName}</b>"-ஐ remove பண்ண staff பேரை type பண்ணுங்க:
+      </div>
+      <input id="confirm-name-inp" type="text" placeholder="${staffName}" style="width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;font-size:14px;font-family:var(--sans);outline:none;margin-bottom:12px" oninput="checkConfirmName('${staffName}')">
+      <div style="display:flex;gap:8px">
+        <button onclick="this.closest('[style]').remove()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-size:14px;font-weight:700;cursor:pointer">Cancel</button>
+        <button id="confirm-del-btn" onclick="doRemoveStaff('${docId}','${staffName}',this)" disabled style="flex:1;padding:12px;border-radius:12px;border:none;background:#fee2e2;color:var(--red);font-size:14px;font-weight:800;cursor:pointer;opacity:.5">Remove</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>modal.querySelector('#confirm-name-inp').focus(),100);
+}
+
+function checkConfirmName(expected){
+  const inp=document.getElementById('confirm-name-inp');
+  const btn=document.getElementById('confirm-del-btn');
+  if(!inp||!btn) return;
+  const match=inp.value.trim().toLowerCase()===expected.toLowerCase();
+  btn.disabled=!match;
+  btn.style.opacity=match?'1':'0.5';
+  btn.style.background=match?'var(--red)':'#fee2e2';
+  btn.style.color=match?'#fff':'var(--red)';
+}
+
+async function doRemoveStaff(docId, staffName, btn){
+  btn.textContent='Removing...'; btn.disabled=true;
+  try{
+    await DB.collection('staff').doc(docId).delete();
+    btn.closest('[style*="position:fixed"]')?.remove(); // close modal
+    await loadStaffList();
+    toast('✅ '+staffName+' removed!');
+  }catch(e){
+    toast('Error: '+e.message,'bad');
+    btn.textContent='Remove'; btn.disabled=false;
+  }
 }
 async function addStaff(){
   const name=v('st-name'),email=v('st-email'),role=v('st-role'),shop=v('st-shop');
@@ -3875,7 +3944,6 @@ function goPane(name,btn){
   if(name==='ledger') renderLedger();
   if(name==='scan'){const sd=document.getElementById('sc-date');if(sd&&!sd.value)sd.value=tod();}
 }
-function openM(id){ document.getElementById(id)?.classList.add('on'); }
 function closeM(id){ document.getElementById(id)?.classList.remove('on'); }
 document.querySelectorAll('.mover').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('on');}));
 
