@@ -1,0 +1,44 @@
+{
+  "name": "கணக்கபிள்ளை — Digital Accountant",
+  "short_name": "கணக்கபிள்ளை",
+  "description": "உங்கள் கடை கணக்கு, இப்போது டிஜிட்டல். Your retail shop ledger app.",
+  "start_url": "/Selva-ledger/app.html",
+  "scope": "/Selva-ledger/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#065f46",
+  "theme_color": "#065f46",
+  "lang": "ta",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Add Entry",
+      "short_name": "Entry",
+      "description": "Add a new ledger entry",
+      "url": "/Selva-ledger/app.html#entry",
+      "icons": [{"src": "icon-192.png", "sizes": "192x192"}]
+    },
+    {
+      "name": "View Reports",
+      "short_name": "Reports",
+      "description": "View business reports",
+      "url": "/Selva-ledger/app.html#report",
+      "icons": [{"src": "icon-192.png", "sizes": "192x192"}]
+    }
+  ]
+}
