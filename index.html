@@ -605,6 +605,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div class="chd">&#9999;&#65039; Review &amp; Edit Entries</div>
         <div id="scan-date-info" class="alert info" style="display:none"></div>
         <div id="scan-ai-info" class="alert ok" style="display:none"></div>
+        <div id="scan-engine-lbl" style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:4px"></div>
         <div id="scan-alert" class="alert ok" style="display:none"></div>
         <div id="entries-list"></div>
         <button class="btn G" id="confirm-btn" onclick="confirmScan()">&#10003; Confirm &amp; Save All</button>
@@ -842,14 +843,42 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div style="font-weight:700;font-size:15px" id="mu-name">-</div>
       <div style="font-size:12px;color:var(--muted)" id="mu-email">-</div>
     </div>
-    <div class="stitle">&#128273; Claude API Key (OCR Scan)</div>
-    <div style="position:relative;margin-bottom:5px">
-      <input type="password" id="api-inp" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:12px;padding-right:42px">
-      <button onclick="toggleApiView()" id="api-eye" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px">&#128065;&#65039;</button>
+    <div class="stitle">&#128273; OCR API Keys</div>
+    <div style="background:var(--gl);border:1px solid #6ee7b7;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:#065f46">
+      🤖 <b>Smart OCR:</b> Gemini (Free) → Claude (Paid) → Tesseract (Offline)<br>
+      Gemini free-ஆ work ஆகும், fail ஆனா Claude use ஆகும்!
     </div>
-    <div id="api-st" style="font-size:11px;color:var(--muted);margin-bottom:4px"></div>
-    <div style="font-size:10px;color:var(--red);margin-bottom:8px">&#128274; Never share this key with anyone</div>
-    <button class="btn G" onclick="saveKey()" style="margin-top:0">&#10003; Save API Key</button>
+
+    <!-- Gemini API Key (FREE) -->
+    <div style="background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:14px">🔵</span>
+        <div style="font-size:12px;font-weight:700">Gemini API Key <span style="font-size:10px;background:#f0fdf4;color:#065f46;border:1px solid #6ee7b7;border-radius:10px;padding:1px 6px;font-weight:600">FREE</span></div>
+        <div id="gemini-status" style="margin-left:auto;font-size:10px"></div>
+      </div>
+      <div style="position:relative;margin-bottom:5px">
+        <input type="password" id="gemini-inp" placeholder="AIzaSy..." style="font-family:var(--mono);font-size:12px;padding-right:42px">
+        <button onclick="toggleGeminiView()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px">👁️</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted)">Get free key: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a></div>
+    </div>
+
+    <!-- Claude API Key (PAID FALLBACK) -->
+    <div style="background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:14px">🟠</span>
+        <div style="font-size:12px;font-weight:700">Claude API Key <span style="font-size:10px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:10px;padding:1px 6px;font-weight:600">Fallback</span></div>
+        <div id="claude-status" style="margin-left:auto;font-size:10px"></div>
+      </div>
+      <div style="position:relative;margin-bottom:5px">
+        <input type="password" id="api-inp" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:12px;padding-right:42px">
+        <button onclick="toggleApiView()" id="api-eye" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px">👁️</button>
+      </div>
+      <div id="api-st" style="font-size:11px;color:var(--muted);margin-bottom:2px"></div>
+    </div>
+
+    <div style="font-size:10px;color:var(--red);margin-bottom:8px">🔒 Keys locally stored only — never shared</div>
+    <button class="btn G" onclick="saveKey()" style="margin-top:0">✅ Save API Keys</button>
     <div id="owner-only">
       <div class="stitle" style="margin-top:16px">&#127978; Shop Names</div>
       <div id="shop-ed"></div>
@@ -1770,7 +1799,7 @@ async function startApp(user){
   document.getElementById('sc-date').value=tod();
   document.getElementById('bl-date').value=tod();
 
-  applyLang(); buildUI(); initGstUI();
+  applyLang(); buildUI(); initGstUI(); initApiKeyDisplay();
   updSyncBar(); updAI();
   setTimeout(syncNow,3000);
   console.log('App ready. BID:',ME.businessId,'Role:',ME.role);
@@ -2396,8 +2425,9 @@ function showPh(n){ ['upload','scan','review','done'].forEach(p=>document.getEle
 function setStep(n){ [1,2,3,4].forEach(i=>{const s=document.getElementById('st'+i);s.classList.toggle('done',i<n);s.classList.toggle('active',i===n);}); }
 
 async function startScan(){
-  const key=localStorage.getItem('slv_key')||'';
-  if(!key){toast('Set Claude API key in Menu → Settings','warn');return;}
+  const geminiKey=localStorage.getItem('slv_gemini_key')||'';
+  const claudeKey=localStorage.getItem('slv_key')||'';
+  if(!geminiKey&&!claudeKey){toast('Set API key in Settings — Gemini (free) or Claude','warn');return;}
   if(!_scanImg) return;
   showPh('scan'); setStep(2); animP();
   const shop=v('sc-shop'),sName=SHOPS[shop]?.name||shop,sd=v('sc-date')||tod();
@@ -2407,71 +2437,33 @@ async function startScan(){
   const sys=`Expert bilingual OCR agent for retail shop ledger scanning in Tamil Nadu.
 Shop: ${sName}. Ledger Date: ${sd}. Suppliers: ${sups}. Categories: ${allCats}.
 
-THUCKALAY LEDGER PATTERN:
-SALES (type=sales) — income received: GPay/G-Pay, Card Sales, Cash, Vishnu GPay, Ballari, Preyum Fruits, Ali Tea Stall, Platez, Kumaran Hotel, Heerai, Baby Corn, Coconut, Nanjil Milk, B2B Credit, வண்டி வடக்கை, மாண்டை கரவு
-EXPENSE (type=expense) — costs: Load Man, Driver, Token, Hut Sun Curd, Paneer/பன்னீர், Koyya/கொய்யா, Milk/பால், Egg/முட்டை, Chappathi/சப்பாத்தி, Mavu/மாவு, Samayal/சமையல், Hema/ஹேமா, Water Can, OGuy, OP, Gokulam Finance, Tea Bill, நீம் மார்கெட், உண்டியல்
-PAYMENT (type=payment) — paid to suppliers
-EXTRACT ALL LINES including:
-- "Total Sales" → type="sales", desc="Total Sales"
-- "Opening Balance" / "OP" → type="sales", desc="Opening Balance"
-- Individual sales entries (GPay, Cash, Ballari, etc.) → type="sales"
-- Individual expense entries (Load Man, Driver, etc.) → type="expense"
-- Supplier payments → type="payment"
-- "Closing Balance" / "இறுதி இருப்பு" → type="expense", desc="Closing Balance"
-
-SKIP ONLY:
-- Pure running subtotal numbers with NO description text
-- Page numbers, dates at top (the date goes in note_date field)
-
-LANGUAGE RULES — CRITICAL:
-- This ledger is from TAMIL NADU. All text is TAMIL or ENGLISH only.
-- NEVER output Malayalam (Kerala) script. If you see ക,ഗ,ട,ദ,ന,പ,ബ,മ,ര,ല,വ,ശ,സ — these are NOT in this ledger.
-- Tamil script uses: அ,ஆ,இ,ஈ,உ,ஊ — verify before outputting any Tamil.
-- If unsure of a word's script, write it in English transliteration instead.
-- DO NOT skip the date line — put date in note_date field only, don't create an entry for it.
-
 EXTRACT RULES:
 1. Extract EVERY line that has a description + amount
-2. "Total Sales" and "Opening Balance" ARE valid entries — type="sales"
-3. Keep Tamil text as Tamil script (Tamil Nadu dialect only, NOT Malayalam)
-4. If Tamil script is unclear, use English equivalent (e.g., "Load Man" not "ലോഡ് മാൻ")
-5. Tamil numerals (௧௨௩) → Arabic (1,2,3)
-6. Skip date header lines (25/03/26 Friday etc.) — they go in note_date only
-7. Keep desc SHORT (max 30 chars)
-8. COMPACT JSON only — no markdown
-9. amount = NUMBER. null only if truly illegible
-10. doubt=true only for genuinely unclear entries
+2. SALES (type=sales): GPay, Cash, Card, Ballari, etc.
+3. EXPENSE (type=expense): Load Man, Driver, purchases, salary etc.
+4. PAYMENT (type=payment): supplier payments
+5. Tamil text → keep as Tamil (NOT Malayalam script)
+6. Tamil numerals → Arabic numbers
+7. amount = NUMBER, null only if illegible
+8. Return ONLY compact JSON: {"note_date":"YYYY-MM-DD or null","entries":[{"id":1,"type":"sales","desc":"GPay","amount":17736,"category":"GPay","doubt":false}],"summary":"N entries"}`;
 
-Return ONLY: {"note_date":"YYYY-MM-DD or null","entries":[{"id":1,"type":"sales","desc":"GPay","amount":17736,"category":"GPay","ref":null,"supplier":null,"doubt":false,"doubtQ":null}],"summary":"N entries"}`;
+  const prompt=`Extract all ledger entries from this handwritten ledger image. Shop: ${sName}. Date: ${sd}. Return JSON only, no markdown.`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key':key,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
-      },
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:4000,
-        system:sys,
-        messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:_scanImg}},
-          {type:'text',text:'Extract all entries. Shop:'+sName+'. Date:'+sd+'. JSON only.'}
-        ]}]
-      })
-    });
-    const data=await res.json();
-    if(data.error) throw new Error(data.error.message);
-    let raw=data.content?.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
-    // Extract JSON object
+    // Show which engine is being used
+    const engEl=document.getElementById('scan-engine-lbl');
+    if(engEl) engEl.textContent='';
+
+    const result=await callOCR(_scanImg,'image/jpeg',sys+'\n\n'+prompt);
+
+    if(engEl) engEl.textContent=result.engine==='gemini'?'🔵 Gemini (free)':'🟠 Claude (paid)';
+
+    let raw=result.text.replace(/```json|```/g,'').trim();
     const ji=raw.indexOf('{'),je=raw.lastIndexOf('}');
     if(ji>=0&&je>ji) raw=raw.substring(ji,je+1);
     let parsed;
     try{parsed=JSON.parse(raw);}
-    catch(je2){ throw new Error('Too many entries in one scan. Please scan one page at a time (max ~30 entries per photo). Parse error: '+je2.message); }
+    catch(je2){ throw new Error('Parse error — try scanning one page at a time'); }
     if(!parsed?.entries?.length){toast('No entries found — take a clearer photo','warn');showPh('upload');setStep(1);return;}
 
     // Determine date: use manually selected date as priority
@@ -4029,17 +4021,118 @@ async function addStaff(){
 // SETTINGS
 // ════════════════════════════════════════
 function saveKey(){
-  const k=document.getElementById('api-inp').value.trim();
-  if(!k.startsWith('sk-ant-')){toast('Invalid key format','bad');return;}
-  localStorage.setItem('slv_key',k);
-  document.getElementById('api-st').textContent='✅ Saved ('+k.slice(0,12)+'...)';
-  document.getElementById('api-inp').value='';
-  toast('✅ API key saved!');
+  const claude=document.getElementById('api-inp')?.value.trim();
+  const gemini=document.getElementById('gemini-inp')?.value.trim();
+  let saved=0;
+  if(gemini&&gemini.startsWith('AIzaSy')){
+    localStorage.setItem('slv_gemini_key',gemini);
+    document.getElementById('gemini-inp').value='';
+    document.getElementById('gemini-status').innerHTML='<span style="color:var(--green)">✅ Saved</span>';
+    saved++;
+  } else if(gemini) { toast('Invalid Gemini key — should start with AIzaSy','bad'); return; }
+  if(claude&&claude.startsWith('sk-ant-')){
+    localStorage.setItem('slv_key',claude);
+    document.getElementById('api-inp').value='';
+    document.getElementById('api-st').textContent='✅ Saved ('+claude.slice(0,12)+'...)';
+    saved++;
+  } else if(claude) { toast('Invalid Claude key — should start with sk-ant-','bad'); return; }
+  if(saved>0) toast('✅ '+saved+' API key(s) saved!');
+  else toast('Enter at least one API key','warn');
+  updAI();
 }
+
 function toggleApiView(){
   const i=document.getElementById('api-inp'),e=document.getElementById('api-eye');
   if(i){i.type=i.type==='password'?'text':'password';}
   if(e){e.textContent=i?.type==='password'?'👁️':'🙈';}
+}
+function toggleGeminiView(){
+  const i=document.getElementById('gemini-inp');
+  if(i) i.type=i.type==='password'?'text':'password';
+}
+
+// Load saved keys into status display
+function initApiKeyDisplay(){
+  const gk=localStorage.getItem('slv_gemini_key');
+  const ck=localStorage.getItem('slv_key');
+  const gs=document.getElementById('gemini-status');
+  const cs=document.getElementById('api-st');
+  if(gs&&gk) gs.innerHTML='<span style="color:var(--green)">✅ '+gk.slice(0,12)+'...</span>';
+  if(cs&&ck) cs.textContent='✅ Saved ('+ck.slice(0,12)+'...)';
+}
+
+// ════════════════════════════════════════
+// DUAL OCR ENGINE
+// Priority: Gemini (free) → Claude (paid) → Tesseract (offline)
+// ════════════════════════════════════════
+async function callOCR(base64Image, mediaType, prompt){
+  const geminiKey=localStorage.getItem('slv_gemini_key')||'';
+  const claudeKey=localStorage.getItem('slv_key')||'';
+
+  // ── ENGINE 1: Gemini (Free) ──
+  if(geminiKey){
+    try{
+      console.log('🔵 Trying Gemini OCR...');
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          contents:[{parts:[
+            {text:prompt},
+            {inline_data:{mime_type:mediaType,data:base64Image}}
+          ]}],
+          generationConfig:{maxOutputTokens:2000,temperature:0.1}
+        })
+      });
+      if(res.ok){
+        const data=await res.json();
+        const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+        if(text.trim()){
+          console.log('✅ Gemini OCR success');
+          return {text, engine:'gemini'};
+        }
+      } else {
+        const err=await res.json();
+        console.warn('⚠️ Gemini err:',err.error?.status);
+        // If quota exceeded, fall through to Claude
+      }
+    }catch(e){ console.warn('⚠️ Gemini failed:',e.message); }
+  }
+
+  // ── ENGINE 2: Claude (Paid fallback) ──
+  if(claudeKey){
+    try{
+      console.log('🟠 Falling back to Claude OCR...');
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key':claudeKey,
+          'anthropic-version':'2023-06-01',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:2000,
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:mediaType,data:base64Image}},
+            {type:'text',text:prompt}
+          ]}]
+        })
+      });
+      if(res.ok){
+        const data=await res.json();
+        const text=data.content?.[0]?.text||'';
+        if(text.trim()){
+          console.log('✅ Claude OCR success');
+          return {text, engine:'claude'};
+        }
+      }
+    }catch(e){ console.warn('⚠️ Claude failed:',e.message); }
+  }
+
+  // ── ENGINE 3: No API — return error ──
+  throw new Error('no_api_key');
 }
 
 // ════════════════════════════════════════
