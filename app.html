@@ -14,6 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
   --bg:#f0f4f8;--card:#fff;--border:#e2e8f0;--soft:#f7fafc;
@@ -843,6 +844,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       </div>
       <div id="staff-list-wrap"></div>
       <button class="btn B" onclick="openM('add-staff-modal')">+ Add Staff</button>
+
+      <!-- QR ATTENDANCE -->
+      <div class="stitle" style="margin-top:16px">&#128247; QR Attendance</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Staff phone-ல் QR scan பண்ணி attendance mark பண்ணலாம் — login வேண்டாம்!</div>
+      <div style="margin-bottom:8px">
+        <label style="font-size:11px;font-weight:700;color:var(--muted)">Shop select:</label>
+        <select id="qr-shop-sel" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--soft);font-family:var(--sans);font-size:13px;margin-top:4px"></select>
+      </div>
+      <button class="btn G" onclick="openM('qr-modal')" style="margin-bottom:8px">&#128247; Generate Today's QR Code</button>
+      <button class="btn B" onclick="openM('attendance-view-modal')" style="margin-top:0">&#128203; View Attendance</button>
       <div class="stitle" style="margin-top:16px">🧾 GST Settings</div>
       <div class="gst-wrap">
         <div class="gst-toggle">
@@ -866,7 +877,34 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   </div>
 </div>
 
-<div class="mover" id="add-staff-modal">
+<!-- QR MODAL -->
+<div class="mover" id="qr-modal">
+  <div class="modal">
+    <div class="mhd">📷 Today's Attendance QR <button class="mclose" onclick="closeM('qr-modal')">✕</button></div>
+    <div style="text-align:center;padding:12px 0">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px" id="qr-shop-label">—</div>
+      <div id="qr-canvas-wrap" style="display:inline-block;padding:16px;background:#fff;border-radius:14px;border:2px solid var(--border);margin-bottom:12px"></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Staff இந்த QR-ஐ phone camera-ல் scan பண்ணுங்கள்<br>Daily 12:00 AM-ல் புதுசா QR generate பண்ணுங்க</div>
+      <button class="btn G sm" onclick="downloadQR()">⬇️ Download QR</button>
+      <button class="btn S sm" onclick="shareQR()" style="margin-top:6px">📤 Share QR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ATTENDANCE VIEW MODAL -->
+<div class="mover" id="attendance-view-modal">
+  <div class="modal">
+    <div class="mhd">📋 Attendance Records <button class="mclose" onclick="closeM('attendance-view-modal')">✕</button></div>
+    <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
+      <input type="date" id="att-date-filter" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:var(--sans)">
+      <select id="att-shop-filter" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:var(--sans);background:var(--soft)"></select>
+      <button class="btn G sm" style="margin:0" onclick="loadAttendance()">&#128269;</button>
+    </div>
+    <div id="attendance-body">
+      <div class="empty">Select date to view attendance</div>
+    </div>
+  </div>
+</div>
   <div class="modal">
     <div class="mhd">Add Staff <button class="mclose" onclick="closeM('add-staff-modal')">&#10005;</button></div>
     <div class="fr full"><div class="fg"><label>Full Name</label><input type="text" id="st-name" placeholder="e.g. Perinbham, Sherina"></div></div>
@@ -990,8 +1028,131 @@ let _gstOn=JSON.parse(localStorage.getItem('slv_gst')||'false');
 let _gstRate=parseInt(localStorage.getItem('slv_gstrate')||'12');
 
 // ════════════════════════════════════════
-// LEVENSHTEIN — spelling similarity check
+// QR ATTENDANCE SYSTEM
 // ════════════════════════════════════════
+let _qrInstance=null;
+
+function buildQRShopSel(){
+  ['qr-shop-sel','att-shop-filter'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel)return;
+    sel.innerHTML=Object.entries(SHOPS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.name}</option>`).join('');
+  });
+}
+
+function openM(id){
+  document.getElementById(id)?.classList.add('on');
+  if(id==='qr-modal') generateQR();
+  if(id==='attendance-view-modal'){
+    const df=document.getElementById('att-date-filter');
+    if(df&&!df.value) df.value=tod();
+    loadAttendance();
+  }
+}
+
+function generateQR(){
+  const shopSel=document.getElementById('qr-shop-sel');
+  const shopId=shopSel?.value||Object.keys(SHOPS)[0]||'s1';
+  const shopName=SHOPS[shopId]?.name||'Shop';
+  const date=tod();
+  const BID=ME.businessId||ME.uid;
+
+  // Attendance URL — encodes shop, date, businessId
+  const baseUrl='https://selvavishnum.github.io/Selva-ledger/attend.html';
+  const params=`?bid=${encodeURIComponent(BID)}&shop=${encodeURIComponent(shopId)}&sname=${encodeURIComponent(shopName)}&date=${date}`;
+  const url=baseUrl+params;
+
+  // Label
+  const lbl=document.getElementById('qr-shop-label');
+  if(lbl) lbl.innerHTML=`<b>${SHOPS[shopId]?.icon} ${shopName}</b> · ${date}`;
+
+  // Generate QR
+  const wrap=document.getElementById('qr-canvas-wrap');
+  wrap.innerHTML='';
+  try{
+    _qrInstance=new QRCode(wrap,{
+      text:url,
+      width:220,
+      height:220,
+      colorDark:'#065f46',
+      colorLight:'#ffffff',
+      correctLevel:QRCode.CorrectLevel.M
+    });
+  }catch(e){
+    wrap.innerHTML=`<div style="padding:20px;font-size:11px;word-break:break-all;color:var(--muted)">${url}</div>`;
+  }
+}
+
+function downloadQR(){
+  const canvas=document.querySelector('#qr-canvas-wrap canvas');
+  if(!canvas){toast('QR not ready','warn');return;}
+  const a=document.createElement('a');
+  a.download='attendance_qr_'+tod()+'.png';
+  a.href=canvas.toDataURL();
+  a.click();
+  toast('✅ QR downloaded!');
+}
+
+async function shareQR(){
+  const canvas=document.querySelector('#qr-canvas-wrap canvas');
+  if(!canvas){toast('QR not ready','warn');return;}
+  try{
+    canvas.toBlob(async blob=>{
+      if(navigator.share){
+        const file=new File([blob],'attendance_qr.png',{type:'image/png'});
+        await navigator.share({title:'Attendance QR',files:[file]});
+      } else {
+        downloadQR();
+      }
+    });
+  }catch(e){ downloadQR(); }
+}
+
+async function loadAttendance(){
+  const date=document.getElementById('att-date-filter')?.value||tod();
+  const shopId=document.getElementById('att-shop-filter')?.value||Object.keys(SHOPS)[0];
+  const BID=ME.businessId||ME.uid;
+  const body=document.getElementById('attendance-body');
+  body.innerHTML=`<div class="loading" style="text-align:center;padding:20px">Loading...</div>`;
+
+  try{
+    const snap=await DB.collection('attendance')
+      .where('businessId','==',BID)
+      .where('date','==',date)
+      .get();
+
+    const records=snap.docs.map(d=>d.data())
+      .filter(r=>!shopId||r.shopId===shopId)
+      .sort((a,b)=>(a.time||'')>(b.time||'')?1:-1);
+
+    const allStaff=[...new Set([
+      ...Object.values(SUPS||[]).map(s=>s.name),
+      ...records.map(r=>r.staffName)
+    ])].filter(Boolean);
+
+    // Staff who marked attendance
+    const present=new Set(records.map(r=>r.staffName));
+
+    body.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700">${SHOPS[shopId]?.icon} ${SHOPS[shopId]?.name} · ${date}</div>
+        <div style="font-size:11px;color:var(--green);font-weight:700">${present.size} present</div>
+      </div>
+      ${records.length?records.map(r=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--g1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">${(r.staffName||'?').substring(0,1).toUpperCase()}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">${esc(r.staffName||'Unknown')}</div>
+            <div style="font-size:10px;color:var(--muted)">${esc(r.shopName||'')} · ${r.time||''}</div>
+          </div>
+          <div style="font-size:10px;font-weight:700;color:var(--green);background:var(--gl);padding:3px 8px;border-radius:10px">✅ Present</div>
+        </div>`).join(''):`<div class="empty">இன்னைக்கு யாரும் attendance போடல</div>`}
+      <div style="margin-top:12px;padding:10px;background:var(--soft);border-radius:8px;font-size:11px;color:var(--muted);text-align:center">
+        Total: ${records.length} attendance records on ${date}
+      </div>`;
+  }catch(e){
+    body.innerHTML=`<div class="empty">Error: ${e.code||e.message}</div>`;
+  }
+}
 function levenshtein(a,b){
   const m=a.length,n=b.length;
   const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
@@ -1788,7 +1949,7 @@ function buildUI(){
 
   // Categories editor in settings
   loadSettingsCats();
-
+  buildQRShopSel();
   buildSupSels(); loadQB(); loadStaffList();
 }
 function setShop(s,el){
