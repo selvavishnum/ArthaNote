@@ -3,10 +3,10 @@
 
 const CACHE_NAME = 'kanakkupillai-v3';
 const CACHE_URLS = [
-  '/Selva-ledger/index.html',
-  '/Selva-ledger/manifest.json',
-  '/Selva-ledger/icon-192.png',
-  '/Selva-ledger/icon-512.png',
+  '/Kannakupilai/index.html',
+  '/Kannakupilai/manifest.json',
+  '/Kannakupilai/icon-192.png',
+  '/Kannakupilai/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
 ];
@@ -96,8 +96,8 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/Selva-ledger/icon-192.png',
-      badge: '/Selva-ledger/icon-192.png',
+      icon: '/Kannakupilai/icon-192.png',
+      badge: '/Kannakupilai/icon-192.png',
       vibrate: [200, 100, 200]
     })
   );
