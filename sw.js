@@ -3,7 +3,7 @@
 
 const CACHE_NAME = 'kanakkupillai-v3';
 const CACHE_URLS = [
-  '/Selva-ledger/app.html',
+  '/Selva-ledger/index.html',
   '/Selva-ledger/manifest.json',
   '/Selva-ledger/icon-192.png',
   '/Selva-ledger/icon-512.png',

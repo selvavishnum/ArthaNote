@@ -2,7 +2,7 @@
   "name": "கணக்கபிள்ளை — Digital Accountant",
   "short_name": "கணக்கபிள்ளை",
   "description": "உங்கள் கடை கணக்கு, இப்போது டிஜிட்டல். Your retail shop ledger app.",
-  "start_url": "/Selva-ledger/app.html",
+  "start_url": "/Selva-ledger/index.html",
   "scope": "/Selva-ledger/",
   "display": "standalone",
   "orientation": "portrait",
@@ -30,14 +30,14 @@
       "name": "Add Entry",
       "short_name": "Entry",
       "description": "Add a new ledger entry",
-      "url": "/Selva-ledger/app.html#entry",
+      "url": "/Selva-ledger/index.html#entry",
       "icons": [{"src": "icon-192.png", "sizes": "192x192"}]
     },
     {
       "name": "View Reports",
       "short_name": "Reports",
       "description": "View business reports",
-      "url": "/Selva-ledger/app.html#report",
+      "url": "/Selva-ledger/index.html#report",
       "icons": [{"src": "icon-192.png", "sizes": "192x192"}]
     }
   ]
