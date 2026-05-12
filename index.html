@@ -3,11 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="கணக்கபிள்ளை — உங்கள் டிஜிட்டல் கணக்கபிள்ளை. Retail shop ledger app.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="கணக்கபிள்ளை">
-<meta name="theme-color" content="#059669">
+<meta name="theme-color" content="#065f46">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>கணக்கபிள்ளை — Your Digital Accountant</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -877,6 +880,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <button class="btn G" style="margin-top:8px" onclick="saveShopCatsFromSettings()">&#10003; Save Categories</button>
     </div>
     <button class="btn R" onclick="doLogout()">&#128682; Sign Out</button>
+    <button id="pwa-install-btn" onclick="installPWA()" style="display:none;width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-top:8px;align-items:center;justify-content:center;gap:8px;font-family:var(--sans)">📲 Install as App</button>
   </div>
 </div>
 
@@ -4008,6 +4012,42 @@ window.onload=()=>{
     // else: login screen already showing
   });
 };
+</script>
+<script>
+// ── PWA SERVICE WORKER REGISTRATION ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js')
+      .then(r=>console.log('✅ SW registered'))
+      .catch(e=>console.log('SW error:',e));
+  });
+}
+
+// ── PWA INSTALL PROMPT ──
+let _installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  _installPrompt=e;
+  // Show install button if available
+  const btn=document.getElementById('pwa-install-btn');
+  if(btn) btn.style.display='flex';
+});
+window.addEventListener('appinstalled',()=>{
+  _installPrompt=null;
+  toast('✅ App installed successfully!');
+  const btn=document.getElementById('pwa-install-btn');
+  if(btn) btn.style.display='none';
+});
+
+function installPWA(){
+  if(_installPrompt){
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(r=>{
+      if(r.outcome==='accepted') toast('🎉 Installing app...');
+      _installPrompt=null;
+    });
+  }
+}
 </script>
 </body>
 </html>
