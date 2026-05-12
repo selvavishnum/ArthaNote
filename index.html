@@ -1110,12 +1110,14 @@ function openM(id){
 }
 
 function generateQR(){
+  // Use modal shop selector (qr-shop-sel2) first, fallback to settings selector
   const shopSel=document.getElementById('qr-shop-sel2')||document.getElementById('qr-shop-sel');
   const shopId=shopSel?.value||Object.keys(SHOPS)[0]||'s1';
   const shopName=SHOPS[shopId]?.name||'Shop';
   const shopIcon=SHOPS[shopId]?.icon||'🏪';
-  const date=tod();
   const BID=ME.businessId||ME.uid;
+
+  console.log('🔲 QR for shop:', shopId, shopName);
 
   // Format date nicely
   const dateObj=new Date();
@@ -1213,53 +1215,6 @@ function printQRCard(){
     </html>
   `);
   printWin.document.close();
-}
-
-function generateQR(){
-  const shopSel=document.getElementById('qr-shop-sel');
-  const shopId=shopSel?.value||Object.keys(SHOPS)[0]||'s1';
-  const shopName=SHOPS[shopId]?.name||'Shop';
-  const date=tod();
-  const BID=ME.businessId||ME.uid;
-
-  const baseUrl='https://selvavishnum.github.io/Kannakupilai/attend.html';
-  const params=`?bid=${encodeURIComponent(BID)}&shop=${encodeURIComponent(shopId)}&sname=${encodeURIComponent(shopName)}`;
-  const url=baseUrl+params;
-
-  const lbl=document.getElementById('qr-shop-label');
-  if(lbl) lbl.innerHTML=`<b>${SHOPS[shopId]?.icon||'🏪'} ${shopName}</b> · 🔒 Permanent QR`;
-
-  const wrap=document.getElementById('qr-canvas-wrap');
-  wrap.innerHTML='';
-
-  // Method 1: QRCode.js library
-  if(typeof QRCode!=='undefined'){
-    try{
-      _qrInstance=new QRCode(wrap,{
-        text:url, width:220, height:220,
-        colorDark:'#065f46', colorLight:'#ffffff',
-        correctLevel:QRCode.CorrectLevel.M
-      });
-      return;
-    }catch(e){ console.warn('QRCode.js failed:',e); }
-  }
-
-  // Method 2: Google Charts API fallback
-  const encoded=encodeURIComponent(url);
-  const img=document.createElement('img');
-  img.src=`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encoded}&color=065f46&bgcolor=ffffff`;
-  img.width=220; img.height=220;
-  img.style.borderRadius='8px';
-  img.onerror=()=>{
-    // Method 3: Show URL as text if all fails
-    wrap.innerHTML=`
-      <div style="padding:14px;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">QR URL (copy & send):</div>
-        <div style="font-size:10px;word-break:break-all;color:var(--blue);background:var(--bluel);padding:8px;border-radius:8px">${url}</div>
-        <button onclick="navigator.clipboard?.writeText('${url}').then(()=>toast('Copied!'))" class="btn G sm" style="margin-top:8px">📋 Copy Link</button>
-      </div>`;
-  };
-  wrap.appendChild(img);
 }
 
 function downloadQR(){

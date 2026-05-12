@@ -202,6 +202,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <div class="ntab" onclick="showTab('transactions',this)">💰 Transactions</div>
     <div class="ntab" onclick="showTab('revenue',this)">📈 Revenue</div>
     <div class="ntab" onclick="showTab('activity',this)">🔍 Activity Log</div>
+    <div class="ntab" onclick="showTab('attendance',this)">📋 Attendance</div>
   </div>
 
   <main>
@@ -328,8 +329,37 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       </div>
     </div>
 
-  </main>
-</div>
+    <!-- ═══ ATTENDANCE ═══ -->
+    <div class="section" id="tab-attendance">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select id="att-shop-f" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;font-family:var(--sans);flex:1" onchange="loadAdminAtt()">
+          <option value="">All Shops</option>
+        </select>
+        <input type="month" id="att-month-f" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;font-family:var(--sans);flex:1" onchange="loadAdminAtt()">
+        <button class="refresh-btn" onclick="loadAdminAtt()">↻ Load</button>
+      </div>
+      <!-- Summary KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px" id="att-kpis">
+        <div class="kpi-card k-green" style="padding:10px"><div class="kpi-lbl">Total Present</div><div class="kpi-val" id="att-total" style="font-size:20px">—</div></div>
+        <div class="kpi-card k-blue" style="padding:10px"><div class="kpi-lbl">Unique Staff</div><div class="kpi-val" id="att-staff" style="font-size:20px">—</div></div>
+        <div class="kpi-card k-yellow" style="padding:10px"><div class="kpi-lbl">Working Days</div><div class="kpi-val" id="att-days" style="font-size:20px">—</div></div>
+      </div>
+      <!-- Staff-wise summary -->
+      <div class="acard">
+        <div class="acard-hd"><span><span class="hd-icon">👥</span>Staff-wise Summary</span></div>
+        <div id="att-staff-body"><div class="tbl-empty">Select month to view</div></div>
+      </div>
+      <!-- Date-wise table -->
+      <div class="acard" style="margin-top:10px">
+        <div class="acard-hd"><span><span class="hd-icon">📅</span>Date-wise Records</span></div>
+        <div class="tbl-wrap">
+          <table class="atbl">
+            <thead><tr><th>Date</th><th>Staff</th><th>Shop</th><th>IN</th><th>OUT</th><th>Hours</th></tr></thead>
+            <tbody id="att-tbody"><tr><td colspan="6" class="tbl-empty">Select month to view</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
 <script>
 // ── FIREBASE INIT ──
@@ -402,6 +432,7 @@ function showTab(id,el){
   if(id==='transactions') loadTransactions();
   if(id==='revenue') loadRevenue();
   if(id==='activity') loadActivity();
+  if(id==='attendance') loadAdminAtt();
 }
 
 // ════════════════════════════════════════
@@ -688,6 +719,105 @@ async function loadActivity(){
         <div class="feed-time">${fmtTime(a.at)}</div>
       </div>`).join('');
   }catch(e){console.error('loadActivity:',e);document.getElementById('activity-feed').innerHTML='<div class="tbl-empty">Error loading activity</div>';}
+}
+
+// ════════════════════════════════════════
+// ATTENDANCE ADMIN
+// ════════════════════════════════════════
+async function loadAdminAtt(){
+  // Set default month if empty
+  const mf=document.getElementById('att-month-f');
+  if(mf&&!mf.value) mf.value=new Date().toISOString().substring(0,7);
+  const month=document.getElementById('att-month-f')?.value||new Date().toISOString().substring(0,7);
+  const shopFilter=document.getElementById('att-shop-f')?.value||'';
+
+  // Load all users' attendance for this month
+  const tbody=document.getElementById('att-tbody');
+  const staffBody=document.getElementById('att-staff-body');
+  tbody.innerHTML='<tr><td colspan="6" class="tbl-empty">Loading...</td></tr>';
+  staffBody.innerHTML='<div class="tbl-empty">Loading...</div>';
+
+  try{
+    const snap=await DB.collection('attendance')
+      .where('date','>=',month+'-01')
+      .where('date','<=',month+'-31')
+      .orderBy('date','desc')
+      .limit(1000)
+      .get();
+
+    let recs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(shopFilter) recs=recs.filter(r=>r.shopId===shopFilter||r.shopName===shopFilter);
+
+    // KPIs
+    const inRecs=recs.filter(r=>r.type==='in'||!r.type);
+    const uniqueStaff=new Set(inRecs.map(r=>r.staffName)).size;
+    const workDays=new Set(inRecs.map(r=>r.date)).size;
+    document.getElementById('att-total').textContent=inRecs.length;
+    document.getElementById('att-staff').textContent=uniqueStaff;
+    document.getElementById('att-days').textContent=workDays;
+
+    // Staff-wise summary
+    const staffMap={};
+    inRecs.forEach(r=>{
+      if(!staffMap[r.staffName]) staffMap[r.staffName]={days:new Set(),inTimes:[],shop:r.shopName||r.shopId};
+      staffMap[r.staffName].days.add(r.date);
+      staffMap[r.staffName].inTimes.push(r.time||'—');
+    });
+    // OUT times
+    const outRecs=recs.filter(r=>r.type==='out');
+    outRecs.forEach(r=>{
+      if(staffMap[r.staffName]) staffMap[r.staffName].lastOut=r.time;
+    });
+
+    staffBody.innerHTML=`<table class="atbl"><thead><tr><th>Staff</th><th>Shop</th><th>Days Present</th><th>Attendance %</th><th>Last Seen</th></tr></thead><tbody>`+
+      Object.entries(staffMap).sort((a,b)=>b[1].days.size-a[1].days.size).map(([name,v])=>{
+        const pct=workDays>0?Math.round(v.days.size/workDays*100):0;
+        const pctColor=pct>=80?'var(--g1)':pct>=60?'var(--yellow)':'var(--red)';
+        const lastDate=[...v.days].sort().pop()||'—';
+        return`<tr>
+          <td><div style="display:flex;align-items:center;gap:8px"><div class="av" style="width:28px;height:28px;font-size:11px">${(name||'?')[0].toUpperCase()}</div>${esc(name)}</div></td>
+          <td style="font-size:11px;color:var(--muted)">${esc(v.shop)}</td>
+          <td style="font-family:var(--mono);font-weight:700">${v.days.size} / ${workDays}</td>
+          <td><span style="font-weight:800;color:${pctColor}">${pct}%</span>
+            <div style="height:4px;background:var(--soft);border-radius:2px;margin-top:3px;width:60px"><div style="height:100%;width:${pct}%;background:${pctColor};border-radius:2px"></div></div>
+          </td>
+          <td style="font-size:11px;color:var(--muted)">${lastDate}</td>
+        </tr>`;
+      }).join('')+'</tbody></table>';
+
+    // Date-wise records
+    tbody.innerHTML=recs.map(r=>{
+      const isIn=r.type==='in'||!r.type;
+      const isOut=r.type==='out';
+      // Find matching OUT for same person+date
+      const matchOut=isIn?recs.find(x=>x.staffName===r.staffName&&x.date===r.date&&x.type==='out'):null;
+      let hours='—';
+      if(isIn&&matchOut&&r.timeRaw&&matchOut.timeRaw){
+        const diff=(matchOut.timeRaw-r.timeRaw)/3600000;
+        if(diff>0&&diff<24) hours=diff.toFixed(1)+'h';
+      }
+      if(isOut) return ''; // skip OUT rows (shown with IN)
+      return`<tr>
+        <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${r.date}</td>
+        <td><div style="display:flex;align-items:center;gap:6px"><div class="av" style="width:24px;height:24px;font-size:10px">${(r.staffName||'?')[0].toUpperCase()}</div><span style="font-size:12px">${esc(r.staffName||'—')}</span></div></td>
+        <td style="font-size:11px;color:var(--muted)">${esc(r.shopName||r.shopId||'—')}</td>
+        <td style="font-size:11px;font-weight:700;color:var(--g1)">${r.time||'—'}</td>
+        <td style="font-size:11px;font-weight:700;color:var(--yellow)">${matchOut?.time||'—'}</td>
+        <td style="font-family:var(--mono);font-size:11px;font-weight:700">${hours}</td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="6" class="tbl-empty">No records this month</td></tr>';
+
+    // Populate shop filter
+    const shopSel=document.getElementById('att-shop-f');
+    const shops=[...new Set(recs.map(r=>r.shopName||r.shopId).filter(Boolean))];
+    if(shopSel&&shopSel.options.length<=1){
+      shops.forEach(s=>{ const o=document.createElement('option');o.value=s;o.textContent=s;shopSel.appendChild(o); });
+    }
+
+  }catch(e){
+    console.error('loadAdminAtt:',e);
+    tbody.innerHTML=`<tr><td colspan="6" class="tbl-empty">Error: ${e.message}</td></tr>`;
+  }
 }
 </script>
 </body>
