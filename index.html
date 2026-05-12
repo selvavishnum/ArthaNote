@@ -2442,7 +2442,19 @@ function setStep(n){ [1,2,3,4].forEach(i=>{const s=document.getElementById('st'+
 async function startScan(){
   const geminiKey=localStorage.getItem('slv_gemini_key')||'';
   const claudeKey=localStorage.getItem('slv_key')||'';
-  if(!geminiKey&&!claudeKey){toast('Set API key in Settings — Gemini (free) or Claude','warn');return;}
+  const geminiOn=localStorage.getItem('slv_gemini_on')==='true'; // must be explicitly true
+  const claudeOn=localStorage.getItem('slv_claude_on')==='true';
+
+  const geminiReady=geminiKey&&geminiOn;
+  const claudeReady=claudeKey&&claudeOn;
+
+  if(!geminiReady&&!claudeReady){
+    // Better error — tell exact issue
+    if(geminiKey&&!geminiOn) toast('🔵 Gemini key saved but toggle OFF — Settings-ல் ON பண்ணுங்க','warn');
+    else if(claudeKey&&!claudeOn) toast('🟠 Claude key saved but toggle OFF — Settings-ல் ON பண்ணுங்க','warn');
+    else toast('Settings (☰) → OCR API Keys → Gemini/Claude key add பண்ணுங்க','warn');
+    return;
+  }
   if(!_scanImg) return;
   showPh('scan'); setStep(2); animP();
   const shop=v('sc-shop'),sName=SHOPS[shop]?.name||shop,sd=v('sc-date')||tod();
@@ -4073,8 +4085,8 @@ function toggleGeminiView(){
 function initApiKeyDisplay(){
   const gk=localStorage.getItem('slv_gemini_key');
   const ck=localStorage.getItem('slv_key');
-  const gOn=localStorage.getItem('slv_gemini_on')!=='false'; // default on if key exists
-  const cOn=localStorage.getItem('slv_claude_on')!=='false';
+  const gOn=localStorage.getItem('slv_gemini_on')==='true';
+  const cOn=localStorage.getItem('slv_claude_on')==='true';
 
   // Gemini toggle
   const gToggle=document.getElementById('gemini-toggle');
@@ -4156,8 +4168,8 @@ function updateEngineStatus(){
 async function callOCR(base64Image, mediaType, prompt){
   const geminiKey=localStorage.getItem('slv_gemini_key')||'';
   const claudeKey=localStorage.getItem('slv_key')||'';
-  const geminiOn=localStorage.getItem('slv_gemini_on')!=='false';
-  const claudeOn=localStorage.getItem('slv_claude_on')!=='false';
+  const geminiOn=localStorage.getItem('slv_gemini_on')==='true';
+  const claudeOn=localStorage.getItem('slv_claude_on')==='true';
 
   // ── ENGINE 1: Gemini (Free) — only if toggled ON ──
   if(geminiKey && geminiOn){
