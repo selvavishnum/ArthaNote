@@ -2529,8 +2529,14 @@ EXTRACT RULES:
     updCBtn(); showPh('review'); setStep(3);
   }catch(err){
     showPh('upload'); setStep(1);
-    toast('Scan failed: '+err.message,'bad');
-    alert('Scan failed:\n'+err.message+'\n\nPlease check:\n1. Your Claude API key in Settings\n2. Photo is clear and well-lit\n3. Internet connection is working');
+    console.error('Scan err:',err.message);
+    if(err.message==='no_api_key'){
+      toast('OCR engine OFF — Settings-ல் toggle ON + Save பண்ணுங்க','warn');
+      alert('OCR Engine Ready இல்லை!\n\nFix:\nSettings (☰) → OCR API Keys\n→ 🔵 Gemini toggle ON\n→ AIzaSy... key paste\n→ Save API Keys button press\n\nFree Gemini key:\naistudio.google.com');
+    } else {
+      toast('Scan error: '+err.message,'bad');
+      alert('Scan failed:\n'+err.message);
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 // கணக்கபிள்ளை — Service Worker
 // Caches app files for offline use
 
-const CACHE_NAME = 'kanakkupillai-v3';
+const CACHE_NAME = 'kanakkupillai-v4';
 const CACHE_URLS = [
   '/Kannakupilai/index.html',
   '/Kannakupilai/manifest.json',
