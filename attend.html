@@ -157,7 +157,7 @@ async function init(){
     _staff=ss.docs.map(d=>({...d.data(),docId:d.id})).filter(s=>s.name);
     _todayAtt=as.docs.map(d=>({...d.data(),docId:d.id}));
     renderCard();
-  }catch(e){showErr2('Connection error: '+e.message);}
+  }catch(e){showErr2('Connection error: '+String(e.message||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'));}
 }
 
 function renderCard(){
@@ -314,7 +314,7 @@ async function loadSummary(){
           </div>
         </div>`;
       }).join('');
-  }catch(e){body.innerHTML='<div class="err-box">Error: '+e.message+'</div>';}
+  }catch(e){body.innerHTML='<div class="err-box">Error: '+String(e.message||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';}
 }
 
 function switchTab(tab){
@@ -386,7 +386,7 @@ async function go(){
     </div>`;
 
   }catch(e){
-    showErrInline('Error: '+e.message);
+    showErrInline('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
     btn.disabled=false; btn.textContent='✅ Attendance Mark பண்ணு';
   }
 }

@@ -46,11 +46,19 @@ self.addEventListener('fetch', e => {
   const url = e.request.url;
 
   // Skip Firebase & Google APIs — always network
-  if (url.includes('firestore.googleapis.com') ||
-      url.includes('firebase') ||
-      url.includes('googleapis.com/identitytoolkit') ||
-      url.includes('securetoken') ||
-      url.includes('gstatic.com/firebasejs')) {
+  // Use exact domain matching to avoid bypass attacks
+  const u = new URL(url);
+  const hostname = u.hostname;
+  if (hostname === 'firestore.googleapis.com' ||
+      hostname === 'www.googleapis.com' ||
+      hostname.endsWith('.firebase.com') ||
+      hostname.endsWith('.firebaseio.com') ||
+      hostname.endsWith('.googleapis.com') ||
+      hostname.endsWith('.gstatic.com') ||
+      hostname === 'securetoken.googleapis.com' ||
+      url.includes('identitytoolkit') ||
+      url.includes('__/firebase') ||
+      url.includes('/__/auth')) {
     return; // Let browser handle Firebase calls
   }
 

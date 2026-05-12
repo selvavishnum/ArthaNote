@@ -1095,7 +1095,7 @@ let _qrInstance=null;
 function buildQRShopSel(){
   ['qr-shop-sel','qr-shop-sel2','att-shop-filter'].forEach(id=>{
     const sel=document.getElementById(id); if(!sel)return;
-    sel.innerHTML=Object.entries(SHOPS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.name}</option>`).join('');
+    sel.innerHTML=Object.entries(SHOPS).map(([k,v])=>`<option value="${k}">${v.icon} ${esc(v.name)}</option>`).join('');
   });
 }
 
@@ -1285,7 +1285,7 @@ async function loadAttendance(){
         Total: ${records.length} attendance records on ${date}
       </div>`;
   }catch(e){
-    body.innerHTML=`<div class="empty">Error: ${e.code||e.message}</div>`;
+    body.innerHTML=`<div class="empty">Error: ${String(e.code||e.message||"error").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
   }
 }
 function levenshtein(a,b){
@@ -2069,7 +2069,7 @@ function buildUI(){
   if(isO) strip.innerHTML+=`<button class="addsbtn" onclick="openM('add-shop-modal')">+ New Shop</button>`;
 
   // Shop selects
-  const opts=se.map(([k,vv])=>`<option value="${k}">${vv.icon} ${vv.name}</option>`).join('');
+  const opts=se.map(([k,vv])=>`<option value="${k}">${vv.icon} ${esc(vv.name)}</option>`).join('');
   const allOpts='<option value="all">All Shops</option>'+opts;
   ['sc-shop','m-shop','et-shop','sn-s','st-shop','es-shop'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
   const fs=document.getElementById('f-shop'); if(fs) fs.innerHTML=allOpts;
@@ -2886,7 +2886,7 @@ function openEdit(id){
   document.getElementById('et-desc').value=t.desc||'';
   document.getElementById('et-type').value=t.type||'sales';
   document.getElementById('et-cat').value=t.category||'';
-  document.getElementById('et-shop').innerHTML=Object.entries(SHOPS).map(([k,vv])=>`<option value="${k}" ${t.shop===k?'selected':''}>${vv.icon} ${vv.name}</option>`).join('');
+  document.getElementById('et-shop').innerHTML=Object.entries(SHOPS).map(([k,vv])=>`<option value="${k}" ${t.shop===k?'selected':''}>${vv.icon} ${esc(vv.name)}</option>`).join('');
   openM('edit-modal');
 }
 async function saveEdit(){
@@ -2914,7 +2914,7 @@ function getSupBal(sid){
 function buildSupSels(){
   const opts=SUPS.length?SUPS.map(s=>`<option value="${s.name}">${s.name}</option>`).join(''):'<option>No suppliers yet</option>';
   const ms=document.getElementById('m-sup'); if(ms)ms.innerHTML=opts;
-  const bs=document.getElementById('bl-sup'); if(bs)bs.innerHTML=SUPS.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+  const bs=document.getElementById('bl-sup'); if(bs)bs.innerHTML=SUPS.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}">${s.name}</option>`).join('');
 }
 let _supDate='all';
 function setSupDate(m,el){
@@ -3067,7 +3067,7 @@ async function addSupplier(){
     await loadSupsOnce(BID);
   }catch(e){
     console.error('addSupplier err:',e.code,e.message);
-    toast('Error: '+e.message,'bad');
+    toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');
   }
 }
 function openEditSup(id){
@@ -3076,7 +3076,7 @@ function openEditSup(id){
   document.getElementById('es-name').value=s.name||'';
   document.getElementById('es-ob').value=s.openingBalance||0;
   document.getElementById('es-ph').value=s.phone||'';
-  document.getElementById('es-shop').innerHTML=Object.entries(SHOPS).map(([k,vv])=>`<option value="${k}" ${s.shop===k?'selected':''}>${vv.icon} ${vv.name}</option>`).join('');
+  document.getElementById('es-shop').innerHTML=Object.entries(SHOPS).map(([k,vv])=>`<option value="${k}" ${s.shop===k?'selected':''}>${vv.icon} ${esc(vv.name)}</option>`).join('');
   openM('edit-sup-modal');
 }
 async function saveSupEdit(){
@@ -3085,7 +3085,7 @@ async function saveSupEdit(){
   try{
     await DB.collection('suppliers').doc(id).update({name,shop:v('es-shop'),openingBalance:parseFloat(v('es-ob'))||0,phone:v('es-ph'),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     closeM('edit-sup-modal'); toast('✅ Supplier updated!');
-  }catch(e){toast('Error: '+e.message,'bad');}
+  }catch(e){toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');}
 }
 async function deleteSup(){
   const id=document.getElementById('es-id').value,s=SUPS.find(x=>x.id===id);
@@ -3095,7 +3095,7 @@ async function deleteSup(){
     const bills=await DB.collection('sup_bills').where('supplierId','==',id).get();
     const batch=DB.batch(); bills.docs.forEach(d=>batch.delete(d.ref)); await batch.commit();
     closeM('edit-sup-modal'); toast('✅ Supplier deleted!');
-  }catch(e){toast('Error: '+e.message,'bad');}
+  }catch(e){toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');}
 }
 function openAddBill(supId){
   document.getElementById('bl-date').value=tod();
@@ -3116,7 +3116,7 @@ async function saveBill(){
     }
     ['bl-amt','bl-ref','bl-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     closeM('add-bill-modal'); toast('✅ Entry saved!');
-  }catch(e){toast('Error: '+e.message,'bad');}
+  }catch(e){toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');}
 }
 
 // ════════════════════════════════════════
@@ -4004,7 +4004,7 @@ async function doRemoveStaff(docId, staffName, btn){
     await loadStaffList();
     toast('✅ '+staffName+' removed!');
   }catch(e){
-    toast('Error: '+e.message,'bad');
+    toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');
     btn.textContent='Remove'; btn.disabled=false;
   }
 }
@@ -4022,7 +4022,7 @@ async function addStaff(){
     const code=(ME.businessId||ME.uid).slice(0,8).toUpperCase();
     toast('✅ Staff record created!');
     setTimeout(()=>alert('Staff "'+name+'" added!\n\n📲 How they join:\n1. Open app: '+window.location.href+'\n2. Click "Create Account"\n3. Enter Business Code: '+code+'\n4. Automatically connected to your business!'),500);
-  }catch(e){toast('Error: '+e.message,'bad');}
+  }catch(e){toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');}
 }
 
 // ════════════════════════════════════════
