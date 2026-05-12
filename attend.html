@@ -4,217 +4,400 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>கணக்கபிள்ளை — Attendance</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'DM Sans',sans-serif;background:linear-gradient(135deg,#f0fdf4,#dbeafe);min-height:100vh;padding:20px;-webkit-font-smoothing:antialiased}
-.card{background:#fff;border-radius:20px;padding:24px 20px;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:400px;margin:0 auto}
-.logo{text-align:center;margin-bottom:20px}
-.logo-icon{font-size:48px;margin-bottom:8px}
-.logo-title{font-family:'Noto Sans Tamil','DM Sans',sans-serif;font-size:22px;font-weight:800;color:#065f46}
-.logo-sub{font-size:12px;color:#6b7280;margin-top:2px}
-.shop-badge{display:inline-flex;align-items:center;gap:8px;background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:12px;padding:10px 16px;margin-bottom:20px;width:100%}
-.shop-name{font-size:15px;font-weight:700;color:#065f46}
-.shop-date{font-size:11px;color:#6b7280;margin-top:1px}
-.section-title{font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
-.staff-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
-.staff-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid #e5e7eb;border-radius:14px;background:#fff;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
-.staff-btn:active{transform:scale(.97)}
-.staff-btn.sel{border-color:#059669;background:#f0fdf4}
-.staff-btn.already{border-color:#6ee7b7;background:#f0fdf4;opacity:.7;pointer-events:none}
-.av{width:38px;height:38px;border-radius:50%;background:#065f46;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0}
-.av.sel{background:#059669}
-.sn{font-size:14px;font-weight:700;flex:1}
-.srole{font-size:11px;color:#6b7280}
-.check{font-size:20px;margin-left:auto}
-.submit-btn{width:100%;padding:16px;border-radius:14px;border:none;background:#065f46;color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
-.submit-btn:active{transform:scale(.97)}
-.submit-btn:disabled{opacity:.5;cursor:not-allowed}
-.success-card{text-align:center;padding:20px 0}
-.success-icon{font-size:64px;margin-bottom:12px;animation:pop .4s ease}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:linear-gradient(160deg,#022c22 0%,#065f46 50%,#059669 100%);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+/* HEADER */
+.hdr{padding:24px 20px 14px;text-align:center}
+.logo{font-size:40px;margin-bottom:5px}
+.brand{font-family:'Noto Sans Tamil','DM Sans',sans-serif;font-size:22px;font-weight:900;color:#fff}
+.brand-sub{font-size:9px;color:#6ee7b7;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+
+/* LIVE CLOCK */
+.live-strip{margin:0 16px 12px;background:rgba(0,0,0,.2);border-radius:12px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+.live-date{font-size:12px;color:rgba(255,255,255,.7);font-weight:600}
+.live-time{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:#fff}
+
+/* SHOP STRIP */
+.shop-strip{margin:0 16px 12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:10px}
+.si-name{font-size:14px;font-weight:800;color:#fff}
+.si-sub{font-size:10px;color:rgba(255,255,255,.55);margin-top:1px}
+
+/* CARD */
+.card{background:#fff;border-radius:24px 24px 0 0;min-height:calc(100vh - 210px);padding:20px 16px 48px}
+
+/* TABS */
+.tabs{display:flex;gap:8px;margin-bottom:16px;background:#f3f4f6;border-radius:12px;padding:4px}
+.tab{flex:1;padding:9px;text-align:center;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;color:#9ca3af}
+.tab.on{background:#fff;color:#065f46;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+
+/* SECTION */
+.section{display:none}.section.on{display:block}
+
+/* STAFF BUTTONS */
+.staff-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.sbtn{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:2px solid #e5e7eb;border-radius:14px;cursor:pointer;transition:all .15s;position:relative}
+.sbtn:active{transform:scale(.97)}
+.sbtn.in-done{border-color:#6ee7b7;background:#f0fdf4}
+.sbtn.out-done{border-color:#fcd34d;background:#fffbeb}
+.sbtn.sel{border-color:#065f46;background:#f0fdf4;box-shadow:0 0 0 3px rgba(6,95,70,.1)}
+.sav{width:42px;height:42px;border-radius:50%;background:#065f46;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0}
+.sbtn.sel .sav{background:#059669}
+.sname{font-size:14px;font-weight:700;color:#111}
+.srole{font-size:10px;color:#9ca3af;margin-top:1px}
+.s-time{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:2px;font-weight:700}
+.s-time.in{color:#059669}.s-time.out{color:#d97706}
+.schk{font-size:18px;flex-shrink:0;margin-left:auto}
+
+/* CUSTOM */
+.custom-inp{width:100%;padding:14px 16px;border:2px solid #e5e7eb;border-radius:12px;font-size:16px;font-family:'DM Sans',sans-serif;outline:none;transition:border .2s;margin-bottom:14px}
+.custom-inp:focus{border-color:#065f46}
+
+/* SUBMIT */
+.submit-btn{width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:16px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 4px 16px rgba(6,95,70,.3);transition:all .2s}
+.submit-btn:disabled{opacity:.4;cursor:not-allowed}
+.submit-btn:active:not(:disabled){transform:scale(.97)}
+
+/* SUMMARY TABLE */
+.sum-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:14px;margin-bottom:10px;overflow:hidden}
+.sum-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-size:12px;font-weight:700}
+.sum-av{width:34px;height:34px;border-radius:50%;background:#065f46;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #f3f4f6;font-size:12px}
+.sum-row:last-child{border:none}
+.day-chip{display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #6ee7b7;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;color:#065f46;margin:2px}
+.day-chip.absent{background:#fee2e2;border-color:#fca5a5;color:#dc2626}
+.filter-row{display:flex;gap:8px;margin-bottom:12px}
+.f-sel{flex:1;padding:9px 10px;border:1.5px solid #e5e7eb;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;background:#fff;outline:none}
+.f-btn{padding:9px 14px;border-radius:10px;border:none;background:#065f46;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* SUCCESS */
+.success-wrap{text-align:center;padding:16px 0}
+.s-anim{font-size:64px;margin-bottom:12px;animation:pop .5s cubic-bezier(.36,.07,.19,.97)}
 @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
-.success-name{font-family:'Noto Sans Tamil','DM Sans',sans-serif;font-size:24px;font-weight:900;color:#065f46;margin-bottom:6px}
-.success-sub{font-size:14px;color:#6b7280;margin-bottom:16px}
-.success-meta{background:#f0fdf4;border:1px solid #6ee7b7;border-radius:10px;padding:12px;font-size:12px;color:#374151}
-.success-meta div{padding:3px 0}
-.add-btn{width:100%;padding:13px;border-radius:12px;border:2px solid #065f46;background:transparent;color:#065f46;font-size:14px;font-weight:700;cursor:pointer;margin-top:12px;font-family:'DM Sans',sans-serif}
-.loading{text-align:center;padding:40px 20px;color:#6b7280}
-.err{background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:12px;font-size:12px;color:#dc2626;margin-bottom:14px;text-align:center}
-.custom-wrap{margin-bottom:16px}
-.custom-inp{width:100%;padding:13px 14px;border:2px solid #e5e7eb;border-radius:12px;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border .2s}
-.custom-inp:focus{border-color:#059669}
+.s-name{font-family:'Noto Sans Tamil','DM Sans',sans-serif;font-size:22px;font-weight:900;color:#065f46;margin-bottom:5px}
+.s-detail{background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:12px;padding:14px;margin:12px 0}
+.s-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;color:#374151}
+.back-btn{width:100%;padding:13px;border-radius:12px;border:2px solid #065f46;background:#fff;color:#065f46;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+.err-box{background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px;font-size:12px;color:#dc2626;text-align:center;margin-bottom:10px}
+.lbl{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.empty-msg{text-align:center;padding:20px;color:#9ca3af;font-size:13px}
 </style>
 </head>
 <body>
-<div class="card" id="main-card">
-  <div class="loading" id="loading-wrap">
-    <div style="font-size:40px;margin-bottom:12px">☁️</div>
-    <div style="font-weight:700;font-size:14px">Loading...</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">📒</div>
+  <div class="brand">கணக்கபிள்ளை</div>
+  <div class="brand-sub">Staff Attendance</div>
+</div>
+
+<!-- LIVE CLOCK -->
+<div class="live-strip">
+  <div class="live-date" id="live-date">—</div>
+  <div class="live-time" id="live-time">—</div>
+</div>
+
+<!-- SHOP STRIP -->
+<div class="shop-strip">
+  <div style="font-size:22px" id="si-icon">🏪</div>
+  <div><div class="si-name" id="si-name">Loading...</div><div class="si-sub" id="si-sub">கணக்கபிள்ளை Attendance System</div></div>
+</div>
+
+<!-- MAIN CARD -->
+<div class="card" id="card">
+  <div style="text-align:center;padding:30px;color:#9ca3af">
+    <div style="font-size:32px;margin-bottom:8px">🔄</div>
+    <div style="font-weight:700">Loading...</div>
   </div>
 </div>
 
 <script>
-firebase.initializeApp({
-  apiKey:"AIzaSyB5q3fFfl5aUXp8d9yb0K_qkI20vdTL2Xg",
-  authDomain:"selva-ledger.firebaseapp.com",
-  projectId:"selva-ledger",
-  storageBucket:"selva-ledger.firebasestorage.app",
-  messagingSenderId:"546195090451",
-  appId:"1:546195090451:web:26dd2f6aa464721ddae3e6"
-});
+firebase.initializeApp({apiKey:"AIzaSyB5q3fFfl5aUXp8d9yb0K_qkI20vdTL2Xg",authDomain:"selva-ledger.firebaseapp.com",projectId:"selva-ledger",storageBucket:"selva-ledger.firebasestorage.app",messagingSenderId:"546195090451",appId:"1:546195090451:web:26dd2f6aa464721ddae3e6"});
 const DB=firebase.firestore();
 
-// Parse URL params
-const params=new URLSearchParams(window.location.search);
-const BID=params.get('bid')||'';
-const SHOP_ID=params.get('shop')||'s1';
-const SHOP_NAME=decodeURIComponent(params.get('sname')||'Shop');
-const DATE=params.get('date')||new Date().toISOString().split('T')[0];
-const NOW=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+const P=new URLSearchParams(window.location.search);
+const BID=P.get('bid')||'';
+const SHOP_ID=P.get('shop')||'s1';
+const SHOP_NAME=decodeURIComponent(P.get('sname')||'Shop');
 
-let _selectedStaff=null;
-let _staffList=[];
-let _existingAttendance=new Set();
+// Auto date/time — permanent QR
+const NOW_DATE=new Date();
+const DATE=NOW_DATE.toISOString().split('T')[0];
+const TIME=NOW_DATE.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+const DATE_NICE=NOW_DATE.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+let _staff=[],_todayAtt=[],_sel=null,_activeTab='mark';
+
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt_time=ts=>{if(!ts)return'—';const d=ts?.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});};
+
+// LIVE CLOCK
+function tickClock(){
+  const n=new Date();
+  document.getElementById('live-date').textContent=n.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('live-time').textContent=n.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+}
+tickClock(); setInterval(tickClock,1000);
 
 async function init(){
-  if(!BID){
-    showError('Invalid QR code. Please ask your manager to generate a new QR.');
-    return;
-  }
+  document.getElementById('si-name').textContent=SHOP_NAME;
+  document.getElementById('si-sub').textContent='📅 '+DATE_NICE;
+  if(!BID){showErr2('Invalid QR. Please ask manager for new QR.');return;}
   try{
-    // Load staff list from Firestore
-    const [staffSnap, attSnap]=await Promise.all([
+    const [ss,as]=await Promise.all([
       DB.collection('staff').where('businessId','==',BID).get(),
       DB.collection('attendance').where('businessId','==',BID).where('date','==',DATE).where('shopId','==',SHOP_ID).get()
     ]);
-
-    _staffList=staffSnap.docs.map(d=>d.data()).filter(s=>s.name&&s.role!=='owner');
-    attSnap.docs.forEach(d=>_existingAttendance.add(d.data().staffName));
-
-    renderMain();
-  }catch(e){
-    showError('Connection error: '+e.message);
-  }
+    _staff=ss.docs.map(d=>({...d.data(),docId:d.id})).filter(s=>s.name);
+    _todayAtt=as.docs.map(d=>({...d.data(),docId:d.id}));
+    renderCard();
+  }catch(e){showErr2('Connection error: '+e.message);}
 }
 
-function renderMain(){
-  const card=document.getElementById('main-card');
-  const dateFormatted=new Date(DATE+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-
+function renderCard(){
+  const card=document.getElementById('card');
   card.innerHTML=`
-    <div class="logo">
-      <div class="logo-icon">📒</div>
-      <div class="logo-title">கணக்கபிள்ளை</div>
-      <div class="logo-sub">Staff Attendance</div>
+    <div class="tabs">
+      <div class="tab on" id="tab-mark" onclick="switchTab('mark')">✅ Mark Attendance</div>
+      <div class="tab" id="tab-sum" onclick="switchTab('sum')">📊 Summary</div>
     </div>
-    <div class="shop-badge">
-      <div style="font-size:24px">🏪</div>
-      <div>
-        <div class="shop-name">${esc(SHOP_NAME)}</div>
-        <div class="shop-date">📅 ${dateFormatted}</div>
-      </div>
-    </div>
-    <div id="err-wrap"></div>
-    <div class="section-title">உங்கள் பேரை தேர்ந்தெடுங்கள்</div>
-    <div class="staff-list" id="staff-list-div">
-      ${_staffList.length?_staffList.map(s=>{
-        const done=_existingAttendance.has(s.name);
-        return`<div class="staff-btn${done?' already':''}" id="sbtn-${esc(s.name)}" onclick="selectStaff('${esc(s.name)}','${esc(s.role||'')}')">
-          <div class="av">${(s.name||'?').substring(0,1).toUpperCase()}</div>
-          <div>
-            <div class="sn">${esc(s.name)}</div>
-            <div class="srole">${done?'✅ Already marked today':(s.role||'Staff')}</div>
-          </div>
-          <div class="check">${done?'✅':''}</div>
-        </div>`;
-      }).join(''):`<div style="text-align:center;padding:12px;color:#6b7280;font-size:13px">No staff added yet. Enter name below.</div>`}
-    </div>
-    <div class="custom-wrap">
-      <div class="section-title">அல்லது பேரை type பண்ணுங்கள்</div>
-      <input class="custom-inp" type="text" id="custom-name" placeholder="உங்கள் பேரை உள்ளிடுங்கள்..." oninput="onCustomName(this.value)">
-    </div>
-    <button class="submit-btn" id="submit-btn" onclick="markAttendance()" disabled>
-      ✅ Attendance Mark பண்ணு
-    </button>`;
+    <div class="section on" id="sec-mark">${renderMarkSection()}</div>
+    <div class="section" id="sec-sum">${renderSummarySection()}</div>`;
 }
 
-function selectStaff(name,role){
-  _selectedStaff=name;
-  document.querySelectorAll('.staff-btn').forEach(b=>{
-    b.classList.remove('sel');
-    b.querySelector('.check').textContent='';
-    b.querySelector('.av').classList.remove('sel');
+function renderMarkSection(){
+  // Build today's IN/OUT map
+  const inMap={}, outMap={};
+  _todayAtt.forEach(a=>{
+    if(a.type==='in'||!a.type) inMap[a.staffName]={time:a.time,ts:a.markedAt};
+    if(a.type==='out') outMap[a.staffName]={time:a.time,ts:a.markedAt};
   });
-  const btn=document.getElementById('sbtn-'+name);
-  if(btn){
-    btn.classList.add('sel');
-    btn.querySelector('.check').textContent='☑️';
-    btn.querySelector('.av').classList.add('sel');
-  }
-  document.getElementById('custom-name').value='';
-  document.getElementById('submit-btn').disabled=false;
+  const totalPresent=Object.keys(inMap).length;
+
+  return`
+    ${totalPresent>0?`<div style="background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:10px 14px;margin-bottom:14px;text-align:center;font-size:13px;font-weight:700;color:#065f46">
+      ✅ ${totalPresent} பேர் இன்னைக்கு வந்தாங்க
+    </div>`:''}
+    <div id="err-area"></div>
+    <div class="lbl">உங்கள் பேரை tap பண்ணுங்க 👇</div>
+    <div class="staff-grid">
+      ${_staff.map(s=>{
+        const hasIn=!!inMap[s.name], hasOut=!!outMap[s.name];
+        const cls=hasOut?'out-done':hasIn?'in-done':'';
+        const statusIcon=hasOut?'🏁':hasIn?'✅':'›';
+        const timeInfo=hasOut?`<div class="s-time in">IN: ${inMap[s.name]?.time||'—'}</div><div class="s-time out">OUT: ${outMap[s.name]?.time||'—'}</div>`:
+                       hasIn?`<div class="s-time in">✅ IN: ${inMap[s.name]?.time||'—'}</div>`:'';
+        return`<div class="sbtn ${cls}" ${!hasOut?`onclick="pick(this,'${esc(s.name)}')"`:'style="pointer-events:none"'}>
+          <div class="sav">${hasOut?'🏁':hasIn?'☑️':(s.name||'?')[0].toUpperCase()}</div>
+          <div style="flex:1"><div class="sname">${esc(s.name)}</div><div class="srole">${s.role==='manager'?'Manager':'Staff'}</div>${timeInfo}</div>
+          <div class="schk">${statusIcon}</div>
+        </div>`;
+      }).join('')}
+      ${!_staff.length?'<div class="empty-msg">Staff list இல்லை — Owner app-ல் staff add பண்ணுங்க</div>':''}
+    </div>
+    <div class="lbl">பேர் list-ல் இல்லையா?</div>
+    <input class="custom-inp" type="text" id="cinp" placeholder="உங்கள் பேரை type பண்ணுங்க..." oninput="onTyp(this.value)" autocomplete="off">
+    <button class="submit-btn" id="sbmt" onclick="go()" disabled>✅ Attendance Mark பண்ணு</button>`;
 }
 
-function onCustomName(val){
-  _selectedStaff=val.trim()||null;
-  document.querySelectorAll('.staff-btn:not(.already)').forEach(b=>b.classList.remove('sel'));
-  document.getElementById('submit-btn').disabled=!_selectedStaff;
+function renderSummarySection(){
+  // Get last 30 days dates
+  const last30=[];
+  for(let i=0;i<30;i++){const d=new Date();d.setDate(d.getDate()-i);last30.push(d.toISOString().split('T')[0]);}
+
+  return`
+    <div class="filter-row">
+      <select class="f-sel" id="sum-month" onchange="loadSummary()">
+        ${[...new Set(last30.map(d=>d.substring(0,7)))].map(m=>`<option value="${m}">${m}</option>`).join('')}
+      </select>
+      <button class="f-btn" onclick="loadSummary()">🔍</button>
+    </div>
+    <div id="sum-body"><div class="empty-msg">Loading summary...</div></div>`;
 }
 
-async function markAttendance(){
-  if(!_selectedStaff){toast('பேரை select பண்ணுங்கள்');return;}
-  if(_existingAttendance.has(_selectedStaff)){
-    showErr('நீங்கள் இன்னைக்கு attendance போட்டிருக்கீங்க!');return;
+async function loadSummary(){
+  const month=document.getElementById('sum-month')?.value||DATE.substring(0,7);
+  const body=document.getElementById('sum-body');
+  body.innerHTML='<div class="empty-msg">Loading...</div>';
+  try{
+    const snap=await DB.collection('attendance')
+      .where('businessId','==',BID)
+      .where('shopId','==',SHOP_ID)
+      .get();
+
+    const allAtt=snap.docs.map(d=>d.data()).filter(a=>a.date?.startsWith(month));
+
+    // Group by staff
+    const staffMap={};
+    allAtt.forEach(a=>{
+      if(!staffMap[a.staffName]) staffMap[a.staffName]={days:new Set(),entries:[]};
+      staffMap[a.staffName].days.add(a.date);
+      staffMap[a.staffName].entries.push(a);
+    });
+
+    // Get working days in month
+    const workDays=new Set(allAtt.map(a=>a.date)).size;
+
+    if(!Object.keys(staffMap).length){body.innerHTML='<div class="empty-msg">இந்த மாதம் attendance இல்லை</div>';return;}
+
+    body.innerHTML=Object.entries(staffMap)
+      .sort((a,b)=>b[1].days.size-a[1].days.size)
+      .map(([name,v])=>{
+        const days=[...v.days].sort();
+        const dayCount=days.length;
+        const pct=workDays>0?Math.round(dayCount/workDays*100):0;
+        const pctColor=pct>=80?'#059669':pct>=60?'#d97706':'#dc2626';
+
+        // Calculate avg hours if IN+OUT both present
+        const hoursData=[];
+        days.forEach(d=>{
+          const ins=v.entries.filter(e=>e.date===d&&(e.type==='in'||!e.type));
+          const outs=v.entries.filter(e=>e.date===d&&e.type==='out');
+          if(ins.length&&outs.length&&ins[0].timeRaw&&outs[0].timeRaw){
+            const diff=(outs[0].timeRaw-ins[0].timeRaw)/3600000;
+            if(diff>0&&diff<24) hoursData.push(diff);
+          }
+        });
+        const avgHours=hoursData.length?(hoursData.reduce((a,b)=>a+b,0)/hoursData.length).toFixed(1):null;
+
+        return`<div class="sum-card">
+          <div class="sum-hd">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="sum-av">${(name||'?')[0].toUpperCase()}</div>
+              <div>
+                <div style="font-size:13px;font-weight:800">${esc(name)}</div>
+                <div style="font-size:10px;color:#9ca3af;font-weight:500">${month}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:20px;font-weight:900;color:${pctColor};font-family:'JetBrains Mono',monospace">${dayCount}</div>
+              <div style="font-size:9px;color:#9ca3af">days / ${workDays} working</div>
+            </div>
+          </div>
+          <!-- Progress bar -->
+          <div style="padding:10px 14px 8px;border-bottom:1px solid #f3f4f6">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11px">
+              <span style="font-weight:700;color:#374151">Attendance Rate</span>
+              <span style="font-weight:800;color:${pctColor}">${pct}%</span>
+            </div>
+            <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${pctColor};border-radius:4px;transition:width .5s"></div>
+            </div>
+          </div>
+          <!-- Stats row -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 14px;border-bottom:1px solid #f3f4f6">
+            <div style="text-align:center">
+              <div style="font-size:16px;font-weight:800;color:#065f46">${dayCount}</div>
+              <div style="font-size:9px;color:#9ca3af;font-weight:600">PRESENT</div>
+            </div>
+            <div style="text-align:center;border-left:1px solid #f3f4f6;border-right:1px solid #f3f4f6">
+              <div style="font-size:16px;font-weight:800;color:#dc2626">${workDays-dayCount}</div>
+              <div style="font-size:9px;color:#9ca3af;font-weight:600">ABSENT</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:16px;font-weight:800;color:#d97706">${avgHours||'—'}</div>
+              <div style="font-size:9px;color:#9ca3af;font-weight:600">AVG HRS</div>
+            </div>
+          </div>
+          <!-- Date chips -->
+          <div style="padding:10px 14px;font-size:11px">
+            <div style="font-weight:700;color:#9ca3af;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-size:9px">வந்த நாட்கள்</div>
+            <div style="display:flex;flex-wrap:wrap">
+              ${days.map(d=>`<span class="day-chip">${d.split('-')[2]}</span>`).join('')}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+  }catch(e){body.innerHTML='<div class="err-box">Error: '+e.message+'</div>';}
+}
+
+function switchTab(tab){
+  _activeTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'));
+  document.getElementById('tab-'+tab)?.classList.add('on');
+  document.getElementById('sec-'+tab)?.classList.add('on');
+  if(tab==='sum') loadSummary();
+}
+
+function pick(el,name){
+  document.querySelectorAll('.sbtn:not(.in-done):not(.out-done)').forEach(b=>{b.classList.remove('sel');b.querySelector('.schk').textContent='›';});
+  el.classList.add('sel'); el.querySelector('.schk').textContent='☑️';
+  _sel=name; document.getElementById('cinp').value='';
+  document.getElementById('sbmt').disabled=false;
+}
+
+function onTyp(v){
+  _sel=v.trim()||null;
+  document.querySelectorAll('.sbtn').forEach(b=>{if(!b.classList.contains('in-done')&&!b.classList.contains('out-done')){b.classList.remove('sel');b.querySelector('.schk').textContent='›';}});
+  document.getElementById('sbmt').disabled=!_sel;
+}
+
+async function go(){
+  if(!_sel) return;
+  const btn=document.getElementById('sbmt');
+  btn.disabled=true; btn.textContent='⏳ Saving...';
+
+  // Check if already IN today
+  const existingIn=_todayAtt.find(a=>a.staffName===_sel&&(a.type==='in'||!a.type));
+  const existingOut=_todayAtt.find(a=>a.staffName===_sel&&a.type==='out');
+
+  if(existingOut){
+    showErrInline('நீங்கள் இன்னைக்கு IN & OUT போட்டீங்க! 🏁');
+    btn.disabled=false; btn.textContent='✅ Attendance Mark பண்ணு'; return;
   }
-  const btn=document.getElementById('submit-btn');
-  btn.disabled=true; btn.textContent='Saving...';
+
+  const type=existingIn?'out':'in';
+  const nowMs=Date.now();
+  const nowTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+
   try{
     await DB.collection('attendance').add({
       businessId:BID, shopId:SHOP_ID, shopName:SHOP_NAME,
-      staffName:_selectedStaff,
-      date:DATE, time:NOW,
+      staffName:_sel, date:DATE, time:nowTime,
+      timeRaw:nowMs, type, // 'in' or 'out'
       markedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    showSuccess(_selectedStaff);
+
+    // Show success
+    const card=document.getElementById('card');
+    const typeLabel=type==='in'?'வருகை (IN)':'விடுதல் (OUT)';
+    const typeEmoji=type==='in'?'✅':'🏁';
+    const typeColor=type==='in'?'#065f46':'#d97706';
+    const nextMsg=type==='in'?'மாலையில் logout செய்ய மீண்டும் scan பண்ணுங்க 👋':'நாளைக்கு பார்க்கலாம்! 😊';
+
+    card.innerHTML=`<div class="success-wrap">
+      <div class="s-anim">${typeEmoji}</div>
+      <div class="s-name">${esc(_sel)}</div>
+      <div style="font-size:14px;font-weight:800;color:${typeColor};margin-bottom:8px">${typeLabel} பதிவாகிவிட்டது!</div>
+      <div class="s-detail">
+        <div class="s-row">🏪 <b>${esc(SHOP_NAME)}</b></div>
+        <div class="s-row">📅 ${DATE_NICE}</div>
+        <div class="s-row">⏰ <b style="color:${typeColor}">${nowTime}</b></div>
+        <div class="s-row" style="border-top:1px solid #6ee7b7;margin-top:8px;padding-top:8px;font-size:12px;color:#6b7280">${nextMsg}</div>
+      </div>
+      <button class="back-btn" onclick="location.reload()">⬅ Back (mark another)</button>
+    </div>`;
+
   }catch(e){
-    showErr('Error: '+e.message);
+    showErrInline('Error: '+e.message);
     btn.disabled=false; btn.textContent='✅ Attendance Mark பண்ணு';
   }
 }
 
-function showSuccess(name){
-  const card=document.getElementById('main-card');
-  card.innerHTML=`
-    <div class="success-card">
-      <div class="success-icon">✅</div>
-      <div class="success-name">${esc(name)}</div>
-      <div class="success-sub">Attendance successfully marked!</div>
-      <div class="success-meta">
-        <div>🏪 <b>${esc(SHOP_NAME)}</b></div>
-        <div>📅 ${DATE}</div>
-        <div>⏰ ${NOW}</div>
-        <div style="margin-top:6px;color:#059669;font-weight:700">✅ வருகை பதிவாகிவிட்டது!</div>
-      </div>
-      <button class="add-btn" onclick="init()">⬅ Back (mark another)</button>
-    </div>`;
+function showErrInline(msg){
+  const el=document.getElementById('err-area');
+  if(el){el.innerHTML=`<div class="err-box">${msg}</div>`;setTimeout(()=>el.innerHTML='',5000);}
 }
-
-function showError(msg){
-  document.getElementById('main-card').innerHTML=`
-    <div class="logo"><div class="logo-icon">❌</div><div class="logo-title">Error</div></div>
-    <div class="err">${msg}</div>
-    <div style="text-align:center;font-size:12px;color:#6b7280">Please ask your manager for a new QR code.</div>`;
+function showErr2(msg){
+  document.getElementById('card').innerHTML=`<div style="text-align:center;padding:30px"><div style="font-size:40px;margin-bottom:10px">❌</div><div class="err-box">${msg}</div><button onclick="location.reload()" style="padding:12px 24px;background:#065f46;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🔄 Retry</button></div>`;
 }
-
-function showErr(msg){
-  const wrap=document.getElementById('err-wrap');
-  if(wrap) wrap.innerHTML=`<div class="err">${msg}</div>`;
-}
-
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 init();
 </script>

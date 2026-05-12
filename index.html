@@ -11,6 +11,18 @@
 <meta name="theme-color" content="#065f46">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<style>
+@media print {
+  body > *:not(#qr-print-full) { display: none !important; }
+  #qr-print-full {
+    display: block !important;
+    position: fixed; inset: 0;
+    background: white;
+    padding: 20px;
+    z-index: 9999;
+  }
+}
+</style>
 <title>கணக்கபிள்ளை — Your Digital Accountant</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -887,13 +899,52 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 <!-- QR MODAL -->
 <div class="mover center-modal" id="qr-modal">
   <div class="modal">
-    <div class="mhd">📷 Today's Attendance QR <button class="mclose" onclick="closeM('qr-modal')">✕</button></div>
-    <div style="text-align:center;padding:12px 0">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px" id="qr-shop-label">—</div>
-      <div id="qr-canvas-wrap" style="display:inline-block;padding:16px;background:#fff;border-radius:14px;border:2px solid var(--border);margin-bottom:12px"></div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Staff இந்த QR-ஐ phone camera-ல் scan பண்ணுங்கள்<br>Daily 12:00 AM-ல் புதுசா QR generate பண்ணுங்க</div>
-      <button class="btn G sm" onclick="downloadQR()">⬇️ Download QR</button>
-      <button class="btn S sm" onclick="shareQR()" style="margin-top:6px">📤 Share QR</button>
+    <div class="mhd">📷 Attendance QR Card <button class="mclose" onclick="closeM('qr-modal')">✕</button></div>
+    <div style="text-align:center;padding:8px 0">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Shop select பண்ணி QR generate பண்ணுங்க</div>
+      <select id="qr-shop-sel2" onchange="generateQR()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:var(--sans);font-size:13px;margin-bottom:12px;background:var(--soft)"></select>
+
+      <!-- PRINTABLE QR CARD -->
+      <div id="qr-print-card" style="background:#fff;border:2px solid #065f46;border-radius:16px;padding:18px;margin-bottom:12px;display:inline-block;width:100%;max-width:320px">
+        <!-- Header -->
+        <div style="background:#065f46;border-radius:10px;padding:10px;margin-bottom:12px;text-align:center">
+          <div style="font-size:22px;margin-bottom:3px">📒</div>
+          <div style="font-family:'Noto Sans Tamil',sans-serif;font-size:16px;font-weight:800;color:#fff">கணக்கபிள்ளை</div>
+          <div style="font-size:10px;color:#6ee7b7;margin-top:2px">Staff Attendance Scanner</div>
+        </div>
+        <!-- Shop + Date -->
+        <div style="margin-bottom:10px">
+          <div id="qr-card-shop" style="font-size:15px;font-weight:800;color:#065f46;margin-bottom:2px">—</div>
+          <div id="qr-card-date" style="font-size:11px;color:#6b7280">—</div>
+        </div>
+        <!-- QR Code -->
+        <div id="qr-canvas-wrap" style="display:flex;justify-content:center;margin-bottom:10px">
+          <div style="padding:12px;background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;display:inline-block"></div>
+        </div>
+        <!-- Instructions -->
+        <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:4px">📱 எப்படி scan பண்றது?</div>
+          <div style="font-size:11px;color:#374151;line-height:1.6">
+            1. Phone camera திறங்க<br>
+            2. இந்த QR-ஐ point பண்ணுங்க<br>
+            3. உங்கள் பேரை tap பண்ணுங்க<br>
+            4. ✅ Attendance complete!
+          </div>
+        </div>
+        <!-- Footer -->
+        <div style="margin-top:10px;text-align:center;font-size:9px;color:#9ca3af">
+          Daily 12:00 AM-ல் புதுசா QR வரும் · கணக்கபிள்ளை
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <button class="btn G" onclick="printQRCard()" style="margin:0;display:flex;align-items:center;justify-content:center;gap:8px">
+          🖨️ Print QR Card
+        </button>
+        <button class="btn B sm" onclick="downloadQR()" style="margin:0">⬇️ Download as Image</button>
+        <button class="btn S sm" onclick="shareQR()" style="margin:0">📤 Share via WhatsApp</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1042,7 +1093,7 @@ let _gstRate=parseInt(localStorage.getItem('slv_gstrate')||'12');
 let _qrInstance=null;
 
 function buildQRShopSel(){
-  ['qr-shop-sel','att-shop-filter'].forEach(id=>{
+  ['qr-shop-sel','qr-shop-sel2','att-shop-filter'].forEach(id=>{
     const sel=document.getElementById(id); if(!sel)return;
     sel.innerHTML=Object.entries(SHOPS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.name}</option>`).join('');
   });
@@ -1059,6 +1110,112 @@ function openM(id){
 }
 
 function generateQR(){
+  const shopSel=document.getElementById('qr-shop-sel2')||document.getElementById('qr-shop-sel');
+  const shopId=shopSel?.value||Object.keys(SHOPS)[0]||'s1';
+  const shopName=SHOPS[shopId]?.name||'Shop';
+  const shopIcon=SHOPS[shopId]?.icon||'🏪';
+  const date=tod();
+  const BID=ME.businessId||ME.uid;
+
+  // Format date nicely
+  const dateObj=new Date();
+  const dateNice=dateObj.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Update card labels
+  const cardShop=document.getElementById('qr-card-shop');
+  const cardDate=document.getElementById('qr-card-date');
+  if(cardShop) cardShop.textContent=shopIcon+' '+shopName;
+  if(cardDate) cardDate.textContent='🔒 Permanent QR — Auto date daily';
+
+  const baseUrl='https://selvavishnum.github.io/Kannakupilai/attend.html';
+  // PERMANENT QR — no date, attend.html auto-detects today's date
+  const params=`?bid=${encodeURIComponent(BID)}&shop=${encodeURIComponent(shopId)}&sname=${encodeURIComponent(shopName)}`;
+  const url=baseUrl+params;
+
+  // QR wrap — find inner div
+  const wrap=document.querySelector('#qr-canvas-wrap > div');
+  if(!wrap) return;
+  wrap.innerHTML='';
+
+  if(typeof QRCode!=='undefined'){
+    try{
+      new QRCode(wrap,{
+        text:url, width:200, height:200,
+        colorDark:'#065f46', colorLight:'#ffffff',
+        correctLevel:QRCode.CorrectLevel.M
+      });
+      return;
+    }catch(e){}
+  }
+  // Fallback: API
+  const img=document.createElement('img');
+  img.src=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}&color=065f46&bgcolor=ffffff&qzone=1`;
+  img.width=200; img.height=200; img.style.borderRadius='6px';
+  wrap.appendChild(img);
+  // Store URL for sharing
+  wrap.dataset.url=url;
+}
+
+function printQRCard(){
+  const card=document.getElementById('qr-print-card');
+  if(!card){toast('QR not ready','warn');return;}
+
+  // Create print window
+  const printWin=window.open('','_blank','width=400,height=600');
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Attendance QR — கணக்கபிள்ளை</title>
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'DM Sans',sans-serif; background:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+        .card { border:3px solid #065f46; border-radius:18px; padding:24px; max-width:320px; width:100%; text-align:center; }
+        .header { background:#065f46; border-radius:12px; padding:14px; margin-bottom:16px; }
+        .logo { font-size:32px; margin-bottom:6px; }
+        .brand { font-family:'Noto Sans Tamil','DM Sans',sans-serif; font-size:20px; font-weight:800; color:#fff; }
+        .brand-sub { font-size:11px; color:#6ee7b7; margin-top:3px; }
+        .shop-name { font-size:18px; font-weight:800; color:#065f46; margin-bottom:3px; }
+        .date { font-size:12px; color:#6b7280; margin-bottom:14px; }
+        .qr-wrap { padding:14px; background:#fff; border:2px solid #e5e7eb; border-radius:12px; display:inline-block; margin-bottom:14px; }
+        .instructions { background:#f0fdf4; border-radius:10px; padding:12px; margin-bottom:10px; }
+        .inst-title { font-size:14px; font-weight:700; color:#065f46; margin-bottom:6px; }
+        .inst-step { font-size:12px; color:#374151; line-height:1.8; text-align:left; }
+        .footer { font-size:9px; color:#9ca3af; }
+        @media print { body { margin:0; } @page { margin:10mm; } }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="header">
+          <div class="logo">📒</div>
+          <div class="brand">கணக்கபிள்ளை</div>
+          <div class="brand-sub">Staff Attendance Scanner</div>
+        </div>
+        <div class="shop-name">${document.getElementById('qr-card-shop')?.textContent||'Shop'}</div>
+        <div class="date">${document.getElementById('qr-card-date')?.textContent||''}</div>
+        <div class="qr-wrap">${document.querySelector('#qr-canvas-wrap > div')?.innerHTML||''}</div>
+        <div class="instructions">
+          <div class="inst-title">📱 எப்படி scan பண்றது?</div>
+          <div class="inst-step">
+            1️⃣ Phone camera திறங்க<br>
+            2️⃣ இந்த QR-ஐ point பண்ணுங்க<br>
+            3️⃣ உங்கள் பேரை tap பண்ணுங்க<br>
+            4️⃣ ✅ Attendance complete!
+          </div>
+        </div>
+        <div class="footer">தினமும் 12:00 AM-ல் புதுசா QR வரும் · கணக்கபிள்ளை</div>
+      </div>
+      <script>window.onload=()=>{window.print();}<\/script>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+}
+
+function generateQR(){
   const shopSel=document.getElementById('qr-shop-sel');
   const shopId=shopSel?.value||Object.keys(SHOPS)[0]||'s1';
   const shopName=SHOPS[shopId]?.name||'Shop';
@@ -1066,11 +1223,11 @@ function generateQR(){
   const BID=ME.businessId||ME.uid;
 
   const baseUrl='https://selvavishnum.github.io/Kannakupilai/attend.html';
-  const params=`?bid=${encodeURIComponent(BID)}&shop=${encodeURIComponent(shopId)}&sname=${encodeURIComponent(shopName)}&date=${date}`;
+  const params=`?bid=${encodeURIComponent(BID)}&shop=${encodeURIComponent(shopId)}&sname=${encodeURIComponent(shopName)}`;
   const url=baseUrl+params;
 
   const lbl=document.getElementById('qr-shop-label');
-  if(lbl) lbl.innerHTML=`<b>${SHOPS[shopId]?.icon||'🏪'} ${shopName}</b> · ${date}`;
+  if(lbl) lbl.innerHTML=`<b>${SHOPS[shopId]?.icon||'🏪'} ${shopName}</b> · 🔒 Permanent QR`;
 
   const wrap=document.getElementById('qr-canvas-wrap');
   wrap.innerHTML='';
