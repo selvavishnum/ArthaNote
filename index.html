@@ -4195,7 +4195,8 @@ const API_CONFIG = {
 
 // ── GEMINI API CALL ──
 async function callGeminiOCR(base64Data, prompt){
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_CONFIG.geminiKey}`;
+  // gemini-2.0-flash = latest, faster, free tier available
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_CONFIG.geminiKey}`;
   console.log('🔵 Calling Gemini OCR...');
   const response=await fetch(url,{
     method:'POST',
