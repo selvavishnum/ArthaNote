@@ -844,40 +844,55 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div style="font-size:12px;color:var(--muted)" id="mu-email">-</div>
     </div>
     <div class="stitle">&#128273; OCR API Keys</div>
-    <div style="background:var(--gl);border:1px solid #6ee7b7;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:#065f46">
-      🤖 <b>Smart OCR:</b> Gemini (Free) → Claude (Paid) → Tesseract (Offline)<br>
-      Gemini free-ஆ work ஆகும், fail ஆனா Claude use ஆகும்!
+
+    <!-- Gemini Toggle Card -->
+    <div style="background:var(--soft);border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px" id="gemini-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">🔵</span>
+          <div>
+            <div style="font-size:13px;font-weight:700">Gemini <span style="font-size:9px;background:#f0fdf4;color:#065f46;border:1px solid #6ee7b7;border-radius:8px;padding:1px 6px;font-weight:700">FREE</span></div>
+            <div style="font-size:10px;color:var(--muted)" id="gemini-status">Not configured</div>
+          </div>
+        </div>
+        <label class="switch"><input type="checkbox" id="gemini-toggle" onchange="toggleOCREngine('gemini')"><span class="slider"></span></label>
+      </div>
+      <div id="gemini-key-area" style="display:none">
+        <div style="position:relative;margin-bottom:5px">
+          <input type="password" id="gemini-inp" placeholder="AIzaSy..." style="font-family:var(--mono);font-size:12px;padding-right:42px">
+          <button onclick="toggleGeminiView()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px">👁️</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted)">Get free key: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a></div>
+      </div>
     </div>
 
-    <!-- Gemini API Key (FREE) -->
-    <div style="background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <span style="font-size:14px">🔵</span>
-        <div style="font-size:12px;font-weight:700">Gemini API Key <span style="font-size:10px;background:#f0fdf4;color:#065f46;border:1px solid #6ee7b7;border-radius:10px;padding:1px 6px;font-weight:600">FREE</span></div>
-        <div id="gemini-status" style="margin-left:auto;font-size:10px"></div>
+    <!-- Claude Toggle Card -->
+    <div style="background:var(--soft);border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px" id="claude-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">🟠</span>
+          <div>
+            <div style="font-size:13px;font-weight:700">Claude <span style="font-size:9px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:8px;padding:1px 6px;font-weight:700">PAID</span></div>
+            <div style="font-size:10px;color:var(--muted)" id="claude-status">Not configured</div>
+          </div>
+        </div>
+        <label class="switch"><input type="checkbox" id="claude-toggle" onchange="toggleOCREngine('claude')"><span class="slider"></span></label>
       </div>
-      <div style="position:relative;margin-bottom:5px">
-        <input type="password" id="gemini-inp" placeholder="AIzaSy..." style="font-family:var(--mono);font-size:12px;padding-right:42px">
-        <button onclick="toggleGeminiView()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px">👁️</button>
+      <div id="claude-key-area" style="display:none">
+        <div style="position:relative;margin-bottom:5px">
+          <input type="password" id="api-inp" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:12px;padding-right:42px">
+          <button onclick="toggleApiView()" id="api-eye" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px">👁️</button>
+        </div>
+        <div id="api-st" style="font-size:10px;color:var(--muted);margin-bottom:2px"></div>
       </div>
-      <div style="font-size:10px;color:var(--muted)">Get free key: <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a></div>
     </div>
 
-    <!-- Claude API Key (PAID FALLBACK) -->
-    <div style="background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <span style="font-size:14px">🟠</span>
-        <div style="font-size:12px;font-weight:700">Claude API Key <span style="font-size:10px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:10px;padding:1px 6px;font-weight:600">Fallback</span></div>
-        <div id="claude-status" style="margin-left:auto;font-size:10px"></div>
-      </div>
-      <div style="position:relative;margin-bottom:5px">
-        <input type="password" id="api-inp" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:12px;padding-right:42px">
-        <button onclick="toggleApiView()" id="api-eye" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px">👁️</button>
-      </div>
-      <div id="api-st" style="font-size:11px;color:var(--muted);margin-bottom:2px"></div>
+    <!-- Active engine indicator -->
+    <div id="ocr-engine-status" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;text-align:center;color:var(--muted)">
+      OCR: No engine active
     </div>
 
-    <div style="font-size:10px;color:var(--red);margin-bottom:8px">🔒 Keys locally stored only — never shared</div>
+    <div style="font-size:10px;color:var(--red);margin-bottom:8px">🔒 Keys stored locally only</div>
     <button class="btn G" onclick="saveKey()" style="margin-top:0">✅ Save API Keys</button>
     <div id="owner-only">
       <div class="stitle" style="margin-top:16px">&#127978; Shop Names</div>
@@ -4024,21 +4039,24 @@ function saveKey(){
   const claude=document.getElementById('api-inp')?.value.trim();
   const gemini=document.getElementById('gemini-inp')?.value.trim();
   let saved=0;
-  if(gemini&&gemini.startsWith('AIzaSy')){
+
+  if(gemini){
+    if(!gemini.startsWith('AIzaSy')){toast('Invalid Gemini key — should start with AIzaSy','bad');return;}
     localStorage.setItem('slv_gemini_key',gemini);
+    localStorage.setItem('slv_gemini_on','true');
     document.getElementById('gemini-inp').value='';
-    document.getElementById('gemini-status').innerHTML='<span style="color:var(--green)">✅ Saved</span>';
     saved++;
-  } else if(gemini) { toast('Invalid Gemini key — should start with AIzaSy','bad'); return; }
-  if(claude&&claude.startsWith('sk-ant-')){
+  }
+  if(claude){
+    if(!claude.startsWith('sk-ant-')){toast('Invalid Claude key — should start with sk-ant-','bad');return;}
     localStorage.setItem('slv_key',claude);
+    localStorage.setItem('slv_claude_on','true');
     document.getElementById('api-inp').value='';
-    document.getElementById('api-st').textContent='✅ Saved ('+claude.slice(0,12)+'...)';
     saved++;
-  } else if(claude) { toast('Invalid Claude key — should start with sk-ant-','bad'); return; }
-  if(saved>0) toast('✅ '+saved+' API key(s) saved!');
+  }
+
+  if(saved>0){ toast('✅ '+saved+' API key(s) saved!'); initApiKeyDisplay(); }
   else toast('Enter at least one API key','warn');
-  updAI();
 }
 
 function toggleApiView(){
@@ -4051,14 +4069,84 @@ function toggleGeminiView(){
   if(i) i.type=i.type==='password'?'text':'password';
 }
 
-// Load saved keys into status display
+// Load saved keys into status display + init toggles
 function initApiKeyDisplay(){
   const gk=localStorage.getItem('slv_gemini_key');
   const ck=localStorage.getItem('slv_key');
-  const gs=document.getElementById('gemini-status');
-  const cs=document.getElementById('api-st');
-  if(gs&&gk) gs.innerHTML='<span style="color:var(--green)">✅ '+gk.slice(0,12)+'...</span>';
-  if(cs&&ck) cs.textContent='✅ Saved ('+ck.slice(0,12)+'...)';
+  const gOn=localStorage.getItem('slv_gemini_on')!=='false'; // default on if key exists
+  const cOn=localStorage.getItem('slv_claude_on')!=='false';
+
+  // Gemini toggle
+  const gToggle=document.getElementById('gemini-toggle');
+  const gArea=document.getElementById('gemini-key-area');
+  const gCard=document.getElementById('gemini-card');
+  const gStatus=document.getElementById('gemini-status');
+  if(gToggle){
+    gToggle.checked=gk&&gOn;
+    if(gArea) gArea.style.display=gToggle.checked?'block':'none';
+    if(gCard) gCard.style.borderColor=gToggle.checked?'#6ee7b7':'var(--border)';
+    if(gStatus) gStatus.textContent=gk?(gToggle.checked?'✅ Active — '+gk.slice(0,12)+'...':'⏸ Saved (OFF)'):'Not configured';
+  }
+
+  // Claude toggle
+  const cToggle=document.getElementById('claude-toggle');
+  const cArea=document.getElementById('claude-key-area');
+  const cCard=document.getElementById('claude-card');
+  const cStatus=document.getElementById('claude-status');
+  if(cToggle){
+    cToggle.checked=ck&&cOn;
+    if(cArea) cArea.style.display=cToggle.checked?'block':'none';
+    if(cCard) cCard.style.borderColor=cToggle.checked?'#fed7aa':'var(--border)';
+    if(cStatus) cStatus.textContent=ck?(cToggle.checked?'✅ Active (fallback) — '+ck.slice(0,12)+'...':'⏸ Saved (OFF)'):'Not configured';
+    const apiSt=document.getElementById('api-st');
+    if(apiSt&&ck) apiSt.textContent='Saved: '+ck.slice(0,12)+'...';
+  }
+
+  updateEngineStatus();
+}
+
+function toggleOCREngine(engine){
+  const toggle=document.getElementById(engine+'-toggle');
+  const area=document.getElementById(engine+'-key-area');
+  const card=document.getElementById(engine+'-card');
+  const on=toggle?.checked;
+
+  // Save ON/OFF state
+  localStorage.setItem('slv_'+engine+'_on', on?'true':'false');
+
+  // Show/hide key input
+  if(area) area.style.display=on?'block':'none';
+
+  // Border color
+  if(card) card.style.borderColor=on?(engine==='gemini'?'#6ee7b7':'#fed7aa'):'var(--border)';
+
+  // Update status
+  const key=engine==='gemini'?localStorage.getItem('slv_gemini_key'):localStorage.getItem('slv_key');
+  const statusEl=document.getElementById(engine+'-status');
+  if(statusEl){
+    if(!key) statusEl.textContent=on?'⚠️ Add key below':'Not configured';
+    else statusEl.textContent=on?'✅ Active'+(key?(' — '+key.slice(0,12)+'...'):''):'⏸ Saved (OFF)';
+  }
+
+  updateEngineStatus();
+  toast(engine==='gemini'?'🔵 Gemini OCR '+(on?'ON ✅':'OFF ⏸'):' 🟠 Claude OCR '+(on?'ON ✅':'OFF ⏸'));
+}
+
+function updateEngineStatus(){
+  const gOn=document.getElementById('gemini-toggle')?.checked;
+  const cOn=document.getElementById('claude-toggle')?.checked;
+  const gk=localStorage.getItem('slv_gemini_key');
+  const ck=localStorage.getItem('slv_key');
+  const el=document.getElementById('ocr-engine-status');
+  if(!el) return;
+
+  if(gOn&&gk&&cOn&&ck)      el.innerHTML='🤖 OCR: 🔵 Gemini → 🟠 Claude fallback';
+  else if(gOn&&gk)           el.innerHTML='🤖 OCR: 🔵 Gemini only (FREE)';
+  else if(cOn&&ck)           el.innerHTML='🤖 OCR: 🟠 Claude only';
+  else if(gk||ck)            el.innerHTML='⏸ OCR engines saved but OFF — toggle to enable';
+  else                       el.innerHTML='⚠️ No OCR engine configured';
+
+  el.style.color=((gOn&&gk)||(cOn&&ck))?'var(--green)':'var(--red)';
 }
 
 // ════════════════════════════════════════
@@ -4068,9 +4156,11 @@ function initApiKeyDisplay(){
 async function callOCR(base64Image, mediaType, prompt){
   const geminiKey=localStorage.getItem('slv_gemini_key')||'';
   const claudeKey=localStorage.getItem('slv_key')||'';
+  const geminiOn=localStorage.getItem('slv_gemini_on')!=='false';
+  const claudeOn=localStorage.getItem('slv_claude_on')!=='false';
 
-  // ── ENGINE 1: Gemini (Free) ──
-  if(geminiKey){
+  // ── ENGINE 1: Gemini (Free) — only if toggled ON ──
+  if(geminiKey && geminiOn){
     try{
       console.log('🔵 Trying Gemini OCR...');
       const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,{
@@ -4087,22 +4177,18 @@ async function callOCR(base64Image, mediaType, prompt){
       if(res.ok){
         const data=await res.json();
         const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
-        if(text.trim()){
-          console.log('✅ Gemini OCR success');
-          return {text, engine:'gemini'};
-        }
+        if(text.trim()){console.log('✅ Gemini success');return{text,engine:'gemini'};}
       } else {
-        const err=await res.json();
-        console.warn('⚠️ Gemini err:',err.error?.status);
-        // If quota exceeded, fall through to Claude
+        const err=await res.json().catch(()=>({}));
+        console.warn('⚠️ Gemini err:',err?.error?.status||res.status);
       }
-    }catch(e){ console.warn('⚠️ Gemini failed:',e.message); }
+    }catch(e){console.warn('⚠️ Gemini failed:',e.message);}
   }
 
-  // ── ENGINE 2: Claude (Paid fallback) ──
-  if(claudeKey){
+  // ── ENGINE 2: Claude (Paid) — only if toggled ON ──
+  if(claudeKey && claudeOn){
     try{
-      console.log('🟠 Falling back to Claude OCR...');
+      console.log('🟠 Trying Claude OCR...');
       const res=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{
@@ -4123,15 +4209,11 @@ async function callOCR(base64Image, mediaType, prompt){
       if(res.ok){
         const data=await res.json();
         const text=data.content?.[0]?.text||'';
-        if(text.trim()){
-          console.log('✅ Claude OCR success');
-          return {text, engine:'claude'};
-        }
+        if(text.trim()){console.log('✅ Claude success');return{text,engine:'claude'};}
       }
-    }catch(e){ console.warn('⚠️ Claude failed:',e.message); }
+    }catch(e){console.warn('⚠️ Claude failed:',e.message);}
   }
 
-  // ── ENGINE 3: No API — return error ──
   throw new Error('no_api_key');
 }
 
