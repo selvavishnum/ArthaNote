@@ -1701,8 +1701,25 @@ function showLogin(){ document.getElementById('lform').style.display='block'; do
 function showReg(){ document.getElementById('lform').style.display='none'; document.getElementById('rform').style.display='block'; }
 
 async function loginGoogle(){
-  try{ await AUTH.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
-  catch(e){ showErr(e.message); }
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.addScope('email');
+  provider.addScope('profile');
+  try{
+    // Mobile-ல் popup block ஆகும் — redirect use பண்றோம்
+    const isMobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
+    if(isMobile){
+      await AUTH.signInWithRedirect(provider);
+    } else {
+      await AUTH.signInWithPopup(provider);
+    }
+  }catch(e){
+    if(e.code==='auth/popup-blocked'||e.code==='auth/cancelled-popup-request'){
+      // Popup blocked → fallback to redirect
+      await AUTH.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+    } else {
+      showErr(e.message);
+    }
+  }
 }
 async function loginEmail(){
   if(_ll){showErr('Too many attempts. Wait 30 seconds.');return;}
@@ -4564,6 +4581,14 @@ window.onload=()=>{
   const q=getQ(); if(q.length>0){ const bar=document.getElementById('syncbar'); if(bar) bar.classList.add('show'); }
 
   // Auth state listener
+  // Handle Google redirect result first (back from Google sign-in)
+  AUTH.getRedirectResult().then(result=>{
+    if(result?.user){
+      document.getElementById('login-screen').style.display='none';
+      startApp(result.user);
+    }
+  }).catch(e=>console.warn('Redirect:',e.code));
+
   AUTH.onAuthStateChanged(user=>{
     if(user){
       document.getElementById('login-screen').style.display='none';
@@ -4574,39 +4599,26 @@ window.onload=()=>{
 };
 </script>
 <script>
-// ── PWA SERVICE WORKER REGISTRATION ──
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('sw.js')
-      .then(r=>console.log('✅ SW registered'))
-      .catch(e=>console.log('SW error:',e));
-  });
-}
-
-// ── PWA INSTALL PROMPT ──
+// ── PWA SERVICE WORKER — force fresh on every update ──
 let _installPrompt=null;
+if('serviceWorker' in navigator){
+  // Unregister all old SWs first → then register fresh
+  navigator.serviceWorker.getRegistrations().then(regs=>{
+    return Promise.all(regs.map(r=>r.unregister()));
+  }).then(()=>{
+    return navigator.serviceWorker.register('sw.js?v=6');
+  }).then(r=>console.log('✅ SW v6'))
+    .catch(e=>console.log('SW err:',e));
+}
 window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();
-  _installPrompt=e;
-  // Show install button if available
-  const btn=document.getElementById('pwa-install-btn');
-  if(btn) btn.style.display='flex';
+  e.preventDefault(); _installPrompt=e;
+  const b=document.getElementById('pwa-install-btn');
+  if(b) b.style.display='flex';
 });
-window.addEventListener('appinstalled',()=>{
-  _installPrompt=null;
-  toast('✅ App installed successfully!');
-  const btn=document.getElementById('pwa-install-btn');
-  if(btn) btn.style.display='none';
-});
-
 function installPWA(){
-  if(_installPrompt){
-    _installPrompt.prompt();
-    _installPrompt.userChoice.then(r=>{
-      if(r.outcome==='accepted') toast('🎉 Installing app...');
-      _installPrompt=null;
-    });
-  }
+  if(!_installPrompt) return;
+  _installPrompt.prompt();
+  _installPrompt.userChoice.then(()=>_installPrompt=null);
 }
 </script>
 </body>
