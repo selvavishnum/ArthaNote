@@ -4570,20 +4570,23 @@ window.onload=()=>{
   function doStart(user){
     if(_appStarted) return;
     _appStarted=true;
+    console.log('✅ Auth user:', user.email);
+    // Hide login immediately
     document.getElementById('login-screen').style.display='none';
-    document.getElementById('sync-screen').style.display='none';
-    startApp(user).catch(e=>{
-      console.error('startApp error:',e);
-      // Reset and show login again
-      _appStarted=false;
-      document.getElementById('login-screen').style.display='flex';
+    // Show app shell immediately (don't wait for data)
+    document.getElementById('app').style.display='block';
+    // Start app async — errors won't affect login visibility
+    startApp(user).then(()=>{
+      console.log('✅ App started');
+    }).catch(e=>{
+      console.error('startApp error (non-fatal):', e);
+      // Don't hide app — just log the error
     });
   }
 
-  // onAuthStateChanged — fires immediately if already logged in
   AUTH.onAuthStateChanged(user=>{
+    console.log('Auth state:', user?user.email:'null');
     if(user) doStart(user);
-    // else: show login screen (already showing)
   });
 };
 </script>
