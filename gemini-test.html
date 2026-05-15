@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gemini Key Tester</title>
+<script type="importmap">{"imports":{"@google/generative-ai":"https://esm.run/@google/generative-ai"}}</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:sans-serif;background:#f0fdf4;padding:16px}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:10px;border:1px solid #e5e7eb}
+h2{font-size:15px;font-weight:800;color:#065f46;margin-bottom:6px}
+input{width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:monospace;outline:none;margin-bottom:8px}
+input:focus{border-color:#065f46}
+button{width:100%;padding:12px;border-radius:10px;border:none;background:#065f46;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:6px}
+button:disabled{opacity:.5}
+.ok{background:#f0fdf4;border:1.5px solid #6ee7b7;color:#065f46;border-radius:10px;padding:12px;margin:8px 0;font-size:13px}
+.err{background:#fee2e2;border:1.5px solid #fca5a5;color:#dc2626;border-radius:10px;padding:12px;margin:8px 0;font-size:13px}
+.warn{background:#fff7ed;border:1.5px solid #fed7aa;color:#c2410c;border-radius:10px;padding:12px;margin:8px 0;font-size:12px}
+.row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:12px}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:#e5e7eb}
+.dot.ok{background:#059669}.dot.err{background:#dc2626}.dot.run{background:#f59e0b;animation:p 1s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+.log{background:#111;color:#4ade80;border-radius:8px;padding:10px;font-size:10px;font-family:monospace;white-space:pre-wrap;max-height:160px;overflow-y:auto;margin-top:8px;display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>🔑 Gemini SDK Key Tester — All Models</h2>
+  <input type="text" id="ki" placeholder="AIzaSy... paste here">
+  <button onclick="runTest()" id="btn">▶ Test All Models</button>
+  <div id="rows"></div>
+  <div id="res"></div>
+  <div class="log" id="log"></div>
+</div>
+
+<script type="module">
+import { GoogleGenerativeAI } from '@google/generative-ai';
+window.__gtest = async (key, model) => {
+  const g = new GoogleGenerativeAI(key);
+  const m = g.getGenerativeModel({ model });
+  const r = await m.generateContent('Say OK');
+  return r.response.text();
+};
+</script>
+
+<script>
+const MODELS=['gemini-1.5-flash','gemini-1.5-flash-latest','gemini-2.0-flash','gemini-2.0-flash-lite'];
+function lg(t){const e=document.getElementById('log');e.style.display='block';e.textContent+='['+new Date().toLocaleTimeString()+'] '+t+'\n';e.scrollTop=e.scrollHeight;}
+
+async function runTest(){
+  const key=document.getElementById('ki').value.trim();
+  if(!key){alert('Key paste பண்ணுங்க');return;}
+  if(!key.startsWith('AIzaSy')){document.getElementById('res').innerHTML='<div class="err">❌ Invalid — AIzaSy... வேணும்</div>';return;}
+  const btn=document.getElementById('btn');
+  btn.disabled=true;btn.textContent='Testing...';
+  document.getElementById('res').innerHTML='';
+  document.getElementById('log').textContent='';
+
+  // Show model rows
+  document.getElementById('rows').innerHTML=MODELS.map((m,i)=>`<div class="row"><div class="dot" id="d${i}"></div><div id="r${i}">${m}</div></div>`).join('');
+
+  let w=0;
+  while(!window.__gtest&&w<30){await new Promise(r=>setTimeout(r,200));w++;}
+  if(!window.__gtest){document.getElementById('res').innerHTML='<div class="err">SDK load failed</div>';btn.disabled=false;btn.textContent='▶ Retry';return;}
+
+  let winner=null;
+  for(let i=0;i<MODELS.length;i++){
+    const m=MODELS[i];
+    document.getElementById('d'+i).className='dot run';
+    document.getElementById('r'+i).textContent=m+' — testing...';
+    lg('Testing: '+m);
+    try{
+      const t=await window.__gtest(key,m);
+      document.getElementById('d'+i).className='dot ok';
+      document.getElementById('r'+i).textContent='✅ '+m+' — WORKS! "'+t.trim()+'"';
+      lg('✅ '+m+' OK');
+      if(!winner) winner=m;
+    }catch(e){
+      const msg=String(e.message||e);
+      const isQ=msg.includes('quota')||msg.includes('RESOURCE_EXHAUSTED')||msg.includes('429');
+      document.getElementById('d'+i).className='dot err';
+      document.getElementById('r'+i).textContent=(isQ?'⏳ ':' ❌ ')+m+(isQ?' — Quota exceeded':' — '+msg.substring(0,50));
+      lg('❌ '+m+': '+msg.substring(0,80));
+    }
+  }
+
+  if(winner){
+    document.getElementById('res').innerHTML=`<div class="ok"><b>✅ Working model: ${winner}</b><br>App Settings → Gemini key paste → Save!</div>`;
+    localStorage.setItem('slv_gemini_key',key);
+    localStorage.setItem('slv_gemini_on','true');
+    localStorage.setItem('slv_gemini_model',winner);
+  } else {
+    document.getElementById('res').innerHTML=`<div class="warn"><b>⏳ All models quota exceeded</b><br><br><b>உண்மையான fix:</b><br>1. aistudio.google.com → Sign out → Other Google account-ல் sign in<br>2. "Create API key in new project"<br>3. புதுசா key test பண்ணுங்க<br><br>அல்லது Claude API key use பண்ணுங்க (paid but works)</div>`;
+  }
+  btn.disabled=false;btn.textContent='▶ Test Again';
+}
+</script>
+</body>
+</html>
