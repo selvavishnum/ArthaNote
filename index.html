@@ -1703,23 +1703,12 @@ function showReg(){ document.getElementById('lform').style.display='none'; docum
 
 async function loginGoogle(){
   const provider=new firebase.auth.GoogleAuthProvider();
-  provider.addScope('email');
-  provider.addScope('profile');
   try{
-    // Mobile-ல் popup block ஆகும் — redirect use பண்றோம்
-    const isMobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
-    if(isMobile){
-      await AUTH.signInWithRedirect(provider);
-    } else {
-      await AUTH.signInWithPopup(provider);
-    }
+    // Always use redirect on mobile (no popup issues)
+    await AUTH.signInWithRedirect(provider);
+    // Page will reload and onAuthStateChanged will fire
   }catch(e){
-    if(e.code==='auth/popup-blocked'||e.code==='auth/cancelled-popup-request'){
-      // Popup blocked → fallback to redirect
-      await AUTH.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
-    } else {
-      showErr(e.message);
-    }
+    showErr('Google login failed: '+e.message);
   }
 }
 async function loginEmail(){
@@ -4571,31 +4560,30 @@ window.addEventListener('beforeunload', e=>{
 });
 
 window.onload=()=>{
-  // FAST: Show login screen immediately — don't wait for Firebase
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app').style.display='none';
 
-  // Init today's date defaults
   const sd=document.getElementById('sc-date'); if(sd) sd.value=new Date().toISOString().split('T')[0];
-
-  // Check pending offline entries
   const q=getQ(); if(q.length>0){ const bar=document.getElementById('syncbar'); if(bar) bar.classList.add('show'); }
 
-  // Auth state listener
-  // Handle Google redirect result first (back from Google sign-in)
-  AUTH.getRedirectResult().then(result=>{
-    if(result?.user){
-      document.getElementById('login-screen').style.display='none';
-      startApp(result.user);
-    }
-  }).catch(e=>console.warn('Redirect:',e.code));
+  let _appStarted=false;
+  function doStart(user){
+    if(_appStarted) return;
+    _appStarted=true;
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('sync-screen').style.display='none';
+    startApp(user).catch(e=>{
+      console.error('startApp error:',e);
+      // Reset and show login again
+      _appStarted=false;
+      document.getElementById('login-screen').style.display='flex';
+    });
+  }
 
+  // onAuthStateChanged — fires immediately if already logged in
   AUTH.onAuthStateChanged(user=>{
-    if(user){
-      document.getElementById('login-screen').style.display='none';
-      startApp(user);
-    }
-    // else: login screen already showing
+    if(user) doStart(user);
+    // else: show login screen (already showing)
   });
 };
 </script>
