@@ -461,9 +461,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div class="ob-type" onclick="pickBizType(this,'textile')" data-t="textile"><div class="ot-icon">👕</div><div class="ot-name">Textile</div></div>
         <div class="ob-type" onclick="pickBizType(this,'hardware')" data-t="hardware"><div class="ot-icon">🔧</div><div class="ot-name">Hardware</div></div>
         <div class="ob-type" onclick="pickBizType(this,'jewellery')" data-t="jewellery"><div class="ot-icon">💍</div><div class="ot-name">Jewellery</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'finance')" data-t="finance"><div class="ot-icon">💰</div><div class="ot-name">Finance</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'chit')" data-t="chit"><div class="ot-icon">🎰</div><div class="ot-name">Chit Fund</div></div>
         <div class="ob-type" onclick="pickBizType(this,'other')" data-t="other"><div class="ot-icon">🏪</div><div class="ot-name">Other</div></div>
       </div>
-      <button class="ob-btn" id="ob-next1" disabled onclick="obStep(2)">Next →</button>
+      <button class="ob-btn" id="ob-next1" disabled onclick="obNext1()">Next →</button>
     </div>
 
     <!-- Step 2: Shop Name -->
@@ -946,6 +948,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <button class="btn G" style="margin-top:8px" onclick="saveShopCatsFromSettings()">&#10003; Save Categories</button>
     </div>
     <button class="btn R" onclick="doLogout()">&#128682; Sign Out</button>
+    <button class="btn B" onclick="window.location.href='finance.html'" style="margin-top:8px">💰 Finance & Chit Fund Module</button>
     <button id="pwa-install-btn" onclick="installPWA()" style="display:none;width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-top:8px;align-items:center;justify-content:center;gap:8px;font-family:var(--sans)">📲 Install as App</button>
   </div>
 </div>
@@ -1361,8 +1364,51 @@ function pickBizType(el,type){
   el.classList.add('sel');
   _obType=type;
   document.getElementById('ob-next1').disabled=false;
+
+  // Show special note for finance/chit
+  let note=document.getElementById('ob-finance-note');
+  if(!note){
+    note=document.createElement('div');
+    note.id='ob-finance-note';
+    note.style.cssText='margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;text-align:center;display:none';
+    document.getElementById('ob-next1').before(note);
+  }
+  if(type==='finance'||type==='chit'){
+    note.style.display='block';
+    note.style.background=type==='chit'?'#ede9fe':'#dbeafe';
+    note.style.color=type==='chit'?'#7c3aed':'#2563eb';
+    note.innerHTML=type==='chit'?'🎰 Chit Fund module திறக்கும் — members, collection, prize track பண்ணலாம்!':'💰 Finance Collection module திறக்கும் — members, monthly due track பண்ணலாம்!';
+  } else {
+    note.style.display='none';
+  }
 }
-function obStep(n){
+
+function obNext1(){
+  // Finance / Chit → direct to finance.html
+  if(_obType==='finance'||_obType==='chit'){
+    // Save bizType to Firebase first, then redirect
+    const saveAndGo=async()=>{
+      try{
+        await DB.collection('config').doc(ME.businessId||ME.uid).set({
+          bizType:_obType, onboarded:true,
+          shops:{}, createdAt:firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
+        await DB.collection('staff').doc(ME.uid).set({
+          businessId:ME.uid, uid:ME.uid,
+          name:ME.name, email:ME.email,
+          role:'owner', bizType:_obType
+        },{merge:true});
+        localStorage.setItem('slv_onboarded','true');
+        localStorage.removeItem('kp_cfg_cache');
+      }catch(e){ console.warn('save err:',e); }
+      window.location.href='finance.html';
+    };
+    saveAndGo();
+    return;
+  }
+  // Normal shops → continue onboarding
+  obStep(2);
+}
   document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('on'));
   document.getElementById('obs'+n)?.classList.add('on');
   document.querySelectorAll('.ob-dot').forEach((d,i)=>{d.classList.toggle('on',i<n);});
