@@ -246,8 +246,8 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         </div>
         <div class="tbl-wrap">
           <table class="atbl">
-            <thead><tr><th>#</th><th>User</th><th>Email</th><th>Role</th><th>Plan</th><th>Business Type</th><th>Shops</th><th>Entries</th><th>Last Active</th><th>Joined</th></tr></thead>
-            <tbody id="users-tbody"><tr><td colspan="10" class="tbl-empty loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr></tbody>
+            <thead><tr><th>#</th><th>User</th><th>Plan</th><th>Business</th><th>Shops</th><th>Joined</th><th></th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="7" class="tbl-empty loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -951,24 +951,31 @@ async function loadAll(){
 async function loadUsers(){
   const spin=document.getElementById('usr-spin');
   if(spin) spin.classList.add('spinning');
+  const tb=document.getElementById('users-tbody');
+  if(tb) tb.innerHTML='<tr><td colspan="7" class="tbl-empty">Loading...</td></tr>';
   try{
-    // Load owners from staff collection (role=owner)
+    // Strategy: load from staff (no role filter) + enrich from config
     const [staffSnap, configSnap]=await Promise.all([
-      DB.collection('staff').where('role','==','owner').get(),
+      DB.collection('staff').limit(200).get(),
       DB.collection('config').limit(200).get()
     ]);
 
-    // Build config map by businessId/uid
+    // Build config map by doc id
     const cfgMap={};
-    configSnap.docs.forEach(d=>{cfgMap[d.id]=d.data();});
+    configSnap.docs.forEach(d=>{ cfgMap[d.id]=d.data(); });
 
-    // Merge staff + config
-    _users=staffSnap.docs.map(d=>{
-      const s=d.data();
-      const cfg=cfgMap[s.uid||s.businessId||d.id]||{};
+    // Filter owner-type users (role = owner / Owner / admin, or no role = owner by default)
+    const ownerRoles=['owner','Owner','admin','OWNER'];
+    const ownerStaff=staffSnap.docs
+      .map(d=>({docId:d.id,...d.data()}))
+      .filter(s=>!s.role||ownerRoles.includes(s.role));
+
+    // Merge with config
+    _users=ownerStaff.map(s=>{
+      const uid=s.uid||s.businessId||s.docId;
+      const cfg=cfgMap[uid]||cfgMap[s.businessId]||{};
       return {
-        id:d.id,
-        uid:s.uid||d.id,
+        id:s.docId, uid,
         name:s.name||s.displayName||'—',
         email:s.email||'—',
         role:s.role||'owner',
@@ -978,16 +985,31 @@ async function loadUsers(){
         shopCount:cfg.shops?Object.keys(cfg.shops).length:0,
         createdAt:s.createdAt||cfg.createdAt,
         lastActive:s.lastActive||cfg.lastActive,
-        entryCount:cfg.entryCount||null,
-        businessId:s.businessId||s.uid||d.id
+        businessId:s.businessId||uid
       };
     });
+
+    // If still empty, show all config owners
+    if(!_users.length){
+      _users=configSnap.docs.map(d=>{
+        const cfg=d.data();
+        return {
+          id:d.id, uid:d.id,
+          name:cfg.ownerName||'—',
+          email:cfg.ownerEmail||'—',
+          role:'owner', plan:cfg.plan||'free',
+          bizType:cfg.bizType||'other',
+          shops:cfg.shops||{},
+          shopCount:cfg.shops?Object.keys(cfg.shops).length:0,
+          createdAt:cfg.createdAt,
+          businessId:d.id
+        };
+      }).filter(u=>u.shopCount>0);
+    }
 
     renderUsers(_users);
     const lbl=document.getElementById('user-count-lbl');
     if(lbl) lbl.textContent='('+_users.length+' total)';
-
-    // Update KPIs
     const kpiU=document.getElementById('kpi-users');
     if(kpiU) kpiU.textContent=_users.length;
     const pro=_users.filter(u=>u.plan==='pro').length;
@@ -997,18 +1019,15 @@ async function loadUsers(){
     if(kpiRS) kpiRS.textContent='₹'+(pro*199)+'/month MRR';
     const kpiM=document.getElementById('kpi-mrr');
     if(kpiM) kpiM.textContent='₹'+fmt(pro*199);
-
     const today=new Date();today.setHours(0,0,0,0);
-    const todaySignups=_users.filter(u=>{const d=u.createdAt?.toDate?.();return d&&d>=today;}).length;
+    const ts=_users.filter(u=>{const d=u.createdAt?.toDate?.();return d&&d>=today;}).length;
     const kpiUS=document.getElementById('kpi-users-sub');
-    if(kpiUS) kpiUS.textContent=todaySignups?'+'+todaySignups+' today':'';
-
+    if(kpiUS) kpiUS.textContent=ts?'+'+ts+' today':'';
     renderRecentSignups(_users.slice(0,8));
-
+    console.log('✅ Users loaded:',_users.length);
   }catch(e){
-    console.error('loadUsers:',e);
-    const tb=document.getElementById('users-tbody');
-    if(tb) tb.innerHTML='<tr><td colspan="10" class="tbl-empty">Error: '+esc(e.message)+'</td></tr>';
+    console.error('loadUsers err:',e);
+    if(tb) tb.innerHTML='<tr><td colspan="7" class="tbl-empty">Error: '+esc(String(e.message||e).substring(0,100))+'</td></tr>';
   }
   if(spin) spin.classList.remove('spinning');
 }
@@ -1016,7 +1035,7 @@ async function loadUsers(){
 function renderUsers(users){
   const tb=document.getElementById('users-tbody');
   if(!tb) return;
-  if(!users.length){tb.innerHTML='<tr><td colspan="10" class="tbl-empty">No users found</td></tr>';return;}
+  if(!users.length){tb.innerHTML='<tr><td colspan="7" class="tbl-empty">No users found</td></tr>';return;}
   tb.innerHTML=users.map((u,i)=>{
     const initials=(u.name||u.email||'?').substring(0,2).toUpperCase();
     const shopCount=u.shopCount||0;
