@@ -1409,6 +1409,7 @@ function obNext1(){
   // Normal shops → continue onboarding
   obStep(2);
 }
+function obStep(n){
   document.querySelectorAll('.ob-step').forEach(s=>s.classList.remove('on'));
   document.getElementById('obs'+n)?.classList.add('on');
   document.querySelectorAll('.ob-dot').forEach((d,i)=>{d.classList.toggle('on',i<n);});
