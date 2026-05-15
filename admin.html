@@ -946,51 +946,160 @@ async function loadAll(){
 }
 
 // ════════════════════════════════════════
-// USERS
+// USERS — reads from staff + config collections
 // ════════════════════════════════════════
 async function loadUsers(){
   const spin=document.getElementById('usr-spin');
-  spin.classList.add('spinning');
+  if(spin) spin.classList.add('spinning');
   try{
-    const snap=await DB.collection('users').orderBy('createdAt','desc').get();
-    _users=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Load owners from staff collection (role=owner)
+    const [staffSnap, configSnap]=await Promise.all([
+      DB.collection('staff').where('role','==','owner').get(),
+      DB.collection('config').limit(200).get()
+    ]);
+
+    // Build config map by businessId/uid
+    const cfgMap={};
+    configSnap.docs.forEach(d=>{cfgMap[d.id]=d.data();});
+
+    // Merge staff + config
+    _users=staffSnap.docs.map(d=>{
+      const s=d.data();
+      const cfg=cfgMap[s.uid||s.businessId||d.id]||{};
+      return {
+        id:d.id,
+        uid:s.uid||d.id,
+        name:s.name||s.displayName||'—',
+        email:s.email||'—',
+        role:s.role||'owner',
+        plan:cfg.plan||s.plan||'free',
+        bizType:cfg.bizType||s.bizType||'other',
+        shops:cfg.shops||{},
+        shopCount:cfg.shops?Object.keys(cfg.shops).length:0,
+        createdAt:s.createdAt||cfg.createdAt,
+        lastActive:s.lastActive||cfg.lastActive,
+        entryCount:cfg.entryCount||null,
+        businessId:s.businessId||s.uid||d.id
+      };
+    });
+
     renderUsers(_users);
-    document.getElementById('user-count-lbl').textContent='('+_users.length+' total)';
+    const lbl=document.getElementById('user-count-lbl');
+    if(lbl) lbl.textContent='('+_users.length+' total)';
+
     // Update KPIs
-    document.getElementById('kpi-users').textContent=_users.length;
+    const kpiU=document.getElementById('kpi-users');
+    if(kpiU) kpiU.textContent=_users.length;
     const pro=_users.filter(u=>u.plan==='pro').length;
-    document.getElementById('kpi-pro').textContent=pro;
-    document.getElementById('kpi-rev-sub').textContent='₹'+(pro*199)+'/month MRR';
-    document.getElementById('kpi-mrr').textContent='₹'+fmt(pro*199);
-    // Today's signups
-    const today=new Date(); today.setHours(0,0,0,0);
+    const kpiP=document.getElementById('kpi-pro');
+    if(kpiP) kpiP.textContent=pro;
+    const kpiRS=document.getElementById('kpi-rev-sub');
+    if(kpiRS) kpiRS.textContent='₹'+(pro*199)+'/month MRR';
+    const kpiM=document.getElementById('kpi-mrr');
+    if(kpiM) kpiM.textContent='₹'+fmt(pro*199);
+
+    const today=new Date();today.setHours(0,0,0,0);
     const todaySignups=_users.filter(u=>{const d=u.createdAt?.toDate?.();return d&&d>=today;}).length;
-    document.getElementById('kpi-users-sub').textContent=todaySignups?'+'+todaySignups+' today':'';
-    // Recent signups
+    const kpiUS=document.getElementById('kpi-users-sub');
+    if(kpiUS) kpiUS.textContent=todaySignups?'+'+todaySignups+' today':'';
+
     renderRecentSignups(_users.slice(0,8));
-  }catch(e){console.error('loadUsers:',e);}
-  spin.classList.remove('spinning');
+
+  }catch(e){
+    console.error('loadUsers:',e);
+    const tb=document.getElementById('users-tbody');
+    if(tb) tb.innerHTML='<tr><td colspan="10" class="tbl-empty">Error: '+esc(e.message)+'</td></tr>';
+  }
+  if(spin) spin.classList.remove('spinning');
 }
 
 function renderUsers(users){
   const tb=document.getElementById('users-tbody');
+  if(!tb) return;
   if(!users.length){tb.innerHTML='<tr><td colspan="10" class="tbl-empty">No users found</td></tr>';return;}
   tb.innerHTML=users.map((u,i)=>{
     const initials=(u.name||u.email||'?').substring(0,2).toUpperCase();
-    const shopCount=u.shops?Object.keys(u.shops).length:(u.shopCount||0);
-    return`<tr>
+    const shopCount=u.shopCount||0;
+    const sid='user-exp-'+i;
+    return`<tr style="cursor:pointer" onclick="expandUser(${i})">
       <td style="color:var(--muted);font-family:var(--mono);font-size:10px">${i+1}</td>
-      <td><div style="display:flex;align-items:center;gap:8px"><div class="av">${initials}</div><div style="font-size:12px;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'—')}</div></div></td>
-      <td style="font-size:11px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.email||'—')}</td>
-      <td><span class="badge ${u.role||'owner'}">${u.role||'owner'}</span></td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="av" style="background:${u.plan==='pro'?'var(--blue)':'var(--g1)'}">${initials}</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'—')}</div>
+          <div style="font-size:10px;color:var(--muted)">${esc(u.email||'—')}</div>
+        </div>
+      </div></td>
       <td><span class="badge ${u.plan==='pro'?'pro':'free'}">${u.plan==='pro'?'⭐ Pro':'Free'}</span></td>
       <td>${BIZ_ICONS[u.bizType]||'🏪'} <span style="font-size:11px">${u.bizType||'—'}</span></td>
       <td style="font-family:var(--mono);font-size:12px;font-weight:700">${shopCount}</td>
-      <td style="font-family:var(--mono);font-size:12px">${u.entryCount||'—'}</td>
-      <td style="font-size:10px;color:var(--muted)">${fmtTime(u.lastActive||u.updatedAt)}</td>
       <td style="font-size:10px;color:var(--muted)">${fmtDate(u.createdAt)}</td>
+      <td style="text-align:center">▼</td>
+    </tr>
+    <tr id="${sid}" style="display:none">
+      <td colspan="7" style="padding:0;background:var(--bg)">
+        <div style="padding:12px 14px" id="${sid}-body">
+          <div style="color:var(--muted);font-size:12px">Loading...</div>
+        </div>
+      </td>
     </tr>`;
   }).join('');
+}
+
+async function expandUser(i){
+  const u=_users[i];
+  const sid='user-exp-'+i;
+  const row=document.getElementById(sid);
+  if(!row) return;
+  // Toggle
+  if(row.style.display!=='none'){row.style.display='none';return;}
+  row.style.display='table-row';
+  const body=document.getElementById(sid+'-body');
+
+  // Load this user's transactions
+  try{
+    const txSnap=await DB.collection('transactions')
+      .where('businessId','==',u.businessId||u.uid)
+      .orderBy('date','desc').limit(100).get();
+    const txns=txSnap.docs.map(d=>d.data());
+    const totalSales=txns.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
+    const totalExp=txns.filter(t=>t.type!=='sales').reduce((a,t)=>a+(t.amount||0),0);
+    const activeDays=new Set(txns.map(t=>t.date)).size;
+    const lastDate=txns.length?txns[0].date:'Never';
+    const shops=u.shops?Object.entries(u.shops):[];
+
+    body.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:8px;border:1px solid var(--border)">
+          <div style="font-size:14px;font-weight:800;color:var(--g1)">₹${fmt(totalSales)}</div>
+          <div style="font-size:9px;color:var(--muted)">SALES</div>
+        </div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:8px;border:1px solid var(--border)">
+          <div style="font-size:14px;font-weight:800;color:var(--red)">₹${fmt(totalExp)}</div>
+          <div style="font-size:9px;color:var(--muted)">EXPENSE</div>
+        </div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:8px;border:1px solid var(--border)">
+          <div style="font-size:14px;font-weight:800">${txns.length}</div>
+          <div style="font-size:9px;color:var(--muted)">ENTRIES</div>
+        </div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:8px;border:1px solid var(--border)">
+          <div style="font-size:14px;font-weight:800;color:var(--blue)">${activeDays}</div>
+          <div style="font-size:9px;color:var(--muted)">DAYS</div>
+        </div>
+      </div>
+      ${shops.length?`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">SHOPS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        ${shops.map(([k,s])=>`<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px">${esc(s.icon||'🏪')} ${esc(s.name||k)}</div>`).join('')}
+      </div>`:''}
+      <div style="display:flex;gap:8px;font-size:10px;flex-wrap:wrap">
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">📧 ${esc(u.email)}</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">📅 Joined: ${fmtDate(u.createdAt)}</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">⏰ Last: ${lastDate}</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">🏪 ${shops.length} shops</span>
+      </div>`;
+  }catch(e){
+    body.innerHTML='<div style="color:var(--muted);font-size:12px">Could not load transactions: '+esc(e.message)+'</div>';
+  }
 }
 
 function renderRecentSignups(users){
@@ -1019,7 +1128,7 @@ function filterUsers(){
 // ════════════════════════════════════════
 async function loadShops(){
   const spin=document.getElementById('shp-spin');
-  spin.classList.add('spinning');
+  if(spin) spin.classList.add('spinning');
   try{
     const snap=await DB.collection('config').get();
     _shops=[];
@@ -1029,41 +1138,86 @@ async function loadShops(){
         Object.entries(data.shops).forEach(([shopId,shop])=>{
           _shops.push({
             bizId:d.id, shopId, name:shop.name||shopId, icon:shop.icon||'🏪',
-            bizType:data.bizType||'other', gstOn:data.gstOn||false, gstRate:data.gstRate||0,
+            bizType:data.bizType||shop.type||'other', gstOn:data.gstOn||false, gstRate:data.gstRate||0,
             ownerEmail:'—', createdAt:data.createdAt
           });
         });
       }
     });
-    // Enrich with user emails
     _users.forEach(u=>{
       _shops.filter(s=>s.bizId===u.id||s.bizId===u.businessId).forEach(s=>s.ownerEmail=u.email||'—');
     });
-    document.getElementById('kpi-shops').textContent=_shops.length;
-    document.getElementById('kpi-shops-sub').textContent=_users.length+' businesses';
+    const ks=document.getElementById('kpi-shops');
+    if(ks) ks.textContent=_shops.length;
+    const ksub=document.getElementById('kpi-shops-sub');
+    if(ksub) ksub.textContent=_users.length+' businesses';
     renderShops(_shops);
-    document.getElementById('shop-count-lbl').textContent='('+_shops.length+' total)';
+    const lbl=document.getElementById('shop-count-lbl');
+    if(lbl) lbl.textContent='('+_shops.length+' total)';
   }catch(e){console.error('loadShops:',e);}
-  spin.classList.remove('spinning');
+  if(spin) spin.classList.remove('spinning');
 }
 
 function renderShops(shops){
   const tb=document.getElementById('shops-tbody');
-  if(!shops.length){tb.innerHTML='<tr><td colspan="8" class="tbl-empty">No shops found</td></tr>';return;}
-  tb.innerHTML=shops.map((s,i)=>`<tr>
-    <td style="color:var(--muted);font-family:var(--mono);font-size:10px">${i+1}</td>
-    <td><span style="font-size:14px">${s.icon}</span> <span style="font-size:12px;font-weight:600">${esc(s.name)}</span></td>
-    <td>${BIZ_ICONS[s.bizType]||'🏪'} <span style="font-size:11px">${s.bizType||'—'}</span></td>
-    <td style="font-size:11px;color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.ownerEmail)}</td>
-    <td><span class="badge ${s.gstOn?'active':'inactive'}">${s.gstOn?'GST ON '+s.gstRate+'%':'No GST'}</span></td>
-    <td style="font-family:var(--mono);font-size:12px">—</td>
-    <td style="font-family:var(--mono);font-size:12px;color:var(--g1)">—</td>
-    <td style="font-size:10px;color:var(--muted)">${fmtDate(s.createdAt)}</td>
-  </tr>`).join('');
+  if(!tb) return;
+  if(!shops.length){tb.innerHTML='<tr><td colspan="6" class="tbl-empty">No shops found</td></tr>';return;}
+  tb.innerHTML=shops.map((s,i)=>{
+    const sid='shp-exp-'+i;
+    return`<tr style="cursor:pointer" onclick="expandShop(${i})">
+      <td style="color:var(--muted);font-size:10px">${i+1}</td>
+      <td><div style="display:flex;align-items:center;gap:7px">
+        <span style="font-size:18px">${s.icon}</span>
+        <span style="font-size:12px;font-weight:700">${esc(s.name)}</span>
+      </div></td>
+      <td style="font-size:11px">${BIZ_ICONS[s.bizType]||'🏪'} ${s.bizType||'—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(s.ownerEmail)}</td>
+      <td><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${s.gstOn?'var(--gl)':'var(--soft)'};color:${s.gstOn?'var(--g1)':'var(--muted)'}">${s.gstOn?'GST '+s.gstRate+'%':'NO GST'}</span></td>
+      <td style="text-align:center;font-size:12px;color:var(--muted)">▼</td>
+    </tr>
+    <tr id="${sid}" style="display:none">
+      <td colspan="6" style="padding:0;background:var(--bg)">
+        <div style="padding:12px 14px" id="${sid}-body">Loading...</div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function expandShop(i){
+  const s=_shops[i];
+  const sid='shp-exp-'+i;
+  const row=document.getElementById(sid);
+  if(!row) return;
+  if(row.style.display!=='none'){row.style.display='none';return;}
+  row.style.display='table-row';
+  const body=document.getElementById(sid+'-body');
+  try{
+    const txSnap=await DB.collection('transactions')
+      .where('businessId','==',s.bizId)
+      .where('shop','==',s.shopId)
+      .orderBy('date','desc').limit(50).get();
+    const txns=txSnap.docs.map(d=>d.data());
+    const totalSales=txns.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
+    const totalExp=txns.filter(t=>t.type!=='sales').reduce((a,t)=>a+(t.amount||0),0);
+    const activeDays=new Set(txns.map(t=>t.date)).size;
+    const last=txns.length?txns[0].date:'Never';
+    body.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:var(--g1)">₹${fmt(totalSales)}</div><div style="font-size:9px;color:var(--muted)">SALES</div></div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:var(--red)">₹${fmt(totalExp)}</div><div style="font-size:9px;color:var(--muted)">EXPENSE</div></div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800">${txns.length}</div><div style="font-size:9px;color:var(--muted)">ENTRIES</div></div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:var(--blue)">${activeDays}</div><div style="font-size:9px;color:var(--muted)">DAYS</div></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:10px">
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">Owner: ${esc(s.ownerEmail)}</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">Last entry: ${last}</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">Created: ${fmtDate(s.createdAt)}</span>
+      </div>`;
+  }catch(e){body.innerHTML='<div style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</div>';}
 }
 
 function filterShops(){
-  const q=document.getElementById('shop-search').value.toLowerCase();
+  const q=(document.getElementById('shop-search')?.value||'').toLowerCase();
   if(!q){renderShops(_shops);return;}
   renderShops(_shops.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.ownerEmail||'').toLowerCase().includes(q)));
 }
