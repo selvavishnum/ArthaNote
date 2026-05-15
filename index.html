@@ -2437,7 +2437,17 @@ async function saveShopCats(){
 function onFile(inp){ if(inp.files[0]) loadImg(inp.files[0]); }
 function loadImg(f){
   const r=new FileReader();
-  r.onload=e=>{ _scanImg=e.target.result.split(',')[1]; document.getElementById('prev-img').src=e.target.result; document.getElementById('prev-area').style.display='block'; };
+  r.onload=e=>{
+    const originalSrc=e.target.result;
+    document.getElementById('prev-img').src=originalSrc;
+    document.getElementById('prev-area').style.display='block';
+    // Compress image before OCR — reduces tokens by 80%!
+    compressImageForOCR(originalSrc, (compressed)=>{
+      _scanImg=compressed;
+      const kb=Math.round(compressed.length*0.75/1024);
+      console.log('📸 Image compressed: ~'+kb+'KB');
+    });
+  };
   r.readAsDataURL(f);
 }
 function resetScan(){
@@ -2541,14 +2551,13 @@ EXTRACT RULES:
     showPh('upload'); setStep(1);
     console.error('Scan err:',err.message);
     if(err.message==='no_api_key'){
-      toast('Settings → OCR API Keys → key add பண்ணுங்க','warn');
-      alert('OCR Engine Ready இல்லை!\n\nSettings (☰) → OCR API Keys\n→ Gemini toggle ON + key save பண்ணுங்க');
-    } else if(err.message==='QUOTA_EXCEEDED'){
-      toast('🔵 Gemini quota full — 🟠 Claude use பண்ணுங்க','warn');
-      alert('Gemini daily quota முடிஞ்சது!\n\nOption 1: 1 minute wait பண்ணி retry\nOption 2: Settings → Claude key ON பண்ணுங்க (paid)\nOption 3: aistudio.google.com → நாளைக்கு reset ஆகும்');
+      toast('Settings → OCR API Keys → Gemini/Claude key add பண்ணுங்க','warn');
+      showGeminiQuotaNotice('no_key');
+    } else if(err.message==='QUOTA_ONLY'){
+      toast('⏳ Gemini quota full — புதுசா key or Claude add பண்ணுங்க','warn');
+      showGeminiQuotaNotice('quota');
     } else {
-      toast('Scan error — retry பண்ணுங்க','bad');
-      console.error('Full error:',err);
+      toast('Scan retry பண்ணுங்க','bad');
     }
   }
 }
@@ -4184,7 +4193,66 @@ function updateEngineStatus(){
 // DUAL OCR ENGINE
 // Priority: Gemini (free) → Claude (paid) → Tesseract (offline)
 // ════════════════════════════════════════
-// ── API CONFIGURATION ──
+// Show in-app notice instead of alert
+function showGeminiQuotaNotice(type='quota'){
+  const scanArea=document.getElementById('scan-inner')||document.getElementById('scan-pane');
+  const notice=document.createElement('div');
+  notice.style.cssText='background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:14px;margin:10px 0;font-size:12px';
+  notice.innerHTML=type==='quota'?`
+    <div style="font-weight:800;color:#c2410c;margin-bottom:6px">⏳ Gemini quota முடிஞ்சது</div>
+    <div style="color:#374151;margin-bottom:8px">Limit: <b>15 req/min, 1500/day</b></div>
+    <div style="font-weight:700;color:#374151;margin-bottom:6px">Fix options:</div>
+    <div style="color:#374151;line-height:1.8">
+      1️⃣ 1 minute wait பண்ணி retry<br>
+      2️⃣ <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a> → <b>புதுசா key</b> (free)<br>
+      3️⃣ Settings → Claude key ON (paid fallback)<br>
+      4️⃣ நாளைக்கு 12:30 PM-க்கு reset
+    </div>
+    <button onclick="this.parentElement.remove()" style="margin-top:8px;padding:6px 12px;border-radius:8px;border:none;background:#c2410c;color:#fff;font-size:11px;font-weight:700;cursor:pointer">OK</button>
+  `:`
+    <div style="font-weight:800;color:#065f46;margin-bottom:6px">⚙️ OCR Key வேணும்</div>
+    <div style="color:#374151;line-height:1.8">
+      <b>Free key:</b> <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">aistudio.google.com</a><br>
+      Settings (☰) → OCR API Keys → Gemini toggle ON → paste key → Save
+    </div>
+    <button onclick="this.parentElement.remove();openM('menu-modal')" style="margin-top:8px;padding:6px 12px;border-radius:8px;border:none;background:#065f46;color:#fff;font-size:11px;font-weight:700;cursor:pointer">Open Settings</button>
+  `;
+  if(scanArea) scanArea.prepend(notice);
+}
+
+// Skip Gemini if quota hit recently (within 60s), go straight to Claude
+function shouldSkipGemini(){
+  const ts=parseInt(localStorage.getItem('slv_gemini_quota_ts')||'0');
+  if(!ts) return false;
+  const age=(Date.now()-ts)/1000;
+  // Skip for 60 seconds after quota hit
+  return age<60;
+}
+// ── IMAGE COMPRESSION FOR OCR ──
+// Original phone photo: ~3MB = 10,000+ tokens = quota exceeded!
+// Compressed 1024px: ~150KB = 500 tokens = works fine!
+function compressImageForOCR(dataUrl, callback){
+  const img=new Image();
+  img.onload=()=>{
+    const canvas=document.createElement('canvas');
+    const MAX=1024;
+    let w=img.width, h=img.height;
+    if(w>MAX||h>MAX){
+      if(w>h){h=Math.round(h*MAX/w);w=MAX;}
+      else{w=Math.round(w*MAX/h);h=MAX;}
+    }
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    const compressed=canvas.toDataURL('image/jpeg',0.75).split(',')[1];
+    const origKB=Math.round(dataUrl.length*0.75/1024);
+    const compKB=Math.round(compressed.length*0.75/1024);
+    console.log(`📸 ${origKB}KB → ${compKB}KB saved ${origKB-compKB}KB`);
+    callback(compressed);
+  };
+  img.onerror=()=>callback(dataUrl.split(',')[1]);
+  img.src=dataUrl;
+}
+
 const API_CONFIG = {
   get geminiKey(){ return localStorage.getItem('slv_gemini_key')||''; },
   get claudeKey(){ return localStorage.getItem('slv_key')||''; },
@@ -4204,55 +4272,51 @@ const API_CONFIG = {
   reset(){ localStorage.removeItem('slv_ocr_provider'); } // reset after session
 };
 
-// ── GEMINI API CALL (SDK) ──
+// ── GEMINI API CALL (SDK only — no CORS issues) ──
 async function callGeminiOCR(base64Data, prompt){
-  console.log('🔵 Calling Gemini OCR (SDK)...');
+  console.log('🔵 Calling Gemini OCR via SDK...');
   try{
-    // Dynamic import — works with importmap
     const {GoogleGenerativeAI}=await import('@google/generative-ai');
     const genAI=new GoogleGenerativeAI(API_CONFIG.geminiKey);
-    const model=genAI.getGenerativeModel({model:'gemini-2.0-flash'});
-
-    const imageData={
-      inlineData:{
-        data: base64Data, // already base64, no split needed
-        mimeType:'image/jpeg'
+    // Try models in order — different quotas per model
+    const MODELS=['gemini-1.5-flash','gemini-1.5-flash-latest','gemini-2.0-flash'];
+    let lastErr=null;
+    for(const modelName of MODELS){
+      try{
+        console.log('🔵 Trying model:',modelName);
+        const model=genAI.getGenerativeModel({model:modelName});
+        const result=await model.generateContent([
+          prompt,
+          {inlineData:{data:base64Data, mimeType:'image/jpeg'}}
+        ]);
+        const text=result.response.text();
+        if(!text?.trim()) throw new Error('empty response');
+        console.log('✅ Gemini success with model:',modelName);
+        localStorage.setItem('slv_gemini_model',modelName); // save working model
+        return {text, engine:'gemini'};
+      }catch(modelErr){
+        const msg=String(modelErr.message||modelErr);
+        const isQuota=msg.includes('quota')||msg.includes('RESOURCE_EXHAUSTED')||msg.includes('429');
+        console.warn(`⚠️ ${modelName} failed:`, msg.substring(0,60));
+        lastErr=isQuota?new Error('QUOTA_EXCEEDED'):modelErr;
+        // If quota — try next model
+        // If other error — also try next model
+        continue;
       }
-    };
-
-    const result=await model.generateContent([prompt, imageData]);
-    const response=await result.response;
-    let text=response.text();
-    if(!text?.trim()) throw new Error('Gemini: empty response');
-    console.log('✅ Gemini SDK success');
-    return {text, engine:'gemini'};
+    }
+    // All models failed
+    throw lastErr||new Error('All Gemini models failed');
 
   }catch(sdkErr){
-    // SDK failed — fallback to direct fetch API
-    console.warn('⚠️ SDK failed, trying direct API:',sdkErr.message);
-    const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_CONFIG.geminiKey}`;
-    const response=await fetch(url,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:base64Data}}]}],
-        generationConfig:{maxOutputTokens:2000,temperature:0.1}
-      })
-    });
-    if(!response.ok){
-      const err=await response.json().catch(()=>({}));
-      const msg=err?.error?.message||err?.error?.status||response.status;
-      // Quota exceeded — don't show full message, just switch to Claude
-      if(response.status===429||msg?.includes('quota')||msg?.includes('RESOURCE_EXHAUSTED')){
-        throw new Error('QUOTA_EXCEEDED');
-      }
-      throw new Error('Gemini: '+msg);
+    const msg=String(sdkErr.message||sdkErr);
+    console.warn('⚠️ Gemini all models failed:', msg);
+    if(msg.includes('QUOTA_EXCEEDED')||msg.includes('quota')||msg.includes('RESOURCE_EXHAUSTED')){
+      throw new Error('QUOTA_EXCEEDED');
     }
-    const data=await response.json();
-    const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
-    if(!text.trim()) throw new Error('Gemini: empty response');
-    console.log('✅ Gemini direct API success');
-    return {text, engine:'gemini'};
+    if(msg.includes('API_KEY_INVALID')||msg.includes('403')){
+      throw new Error('Gemini: Invalid API key');
+    }
+    throw new Error('Gemini: '+msg.substring(0,80));
   }
 }
 
@@ -4295,30 +4359,56 @@ async function callOCR(base64Image, mediaType, prompt){
 
   if(!hasGemini&&!hasClaude) throw new Error('no_api_key');
 
-  // Use Gemini first
-  if(hasGemini){
+  // ── Gemini first (free) — skip if recently quota-exceeded ──
+  if(hasGemini && !shouldSkipGemini()){
     try{
       const result=await callGeminiOCR(base64Image, prompt);
       API_CONFIG.currentProvider='gemini';
+      // Clear any previous quota flag
+      localStorage.removeItem('slv_gemini_quota_ts');
       return result;
     }catch(err){
-      if(err.message==='QUOTA_EXCEEDED'&&hasClaude){
-        console.warn('⚠️ Gemini quota → auto switching to Claude');
-        toast('🔵 Gemini quota full → 🟠 Claude-ஐ use பண்றோம்','warn');
-        API_CONFIG.currentProvider='claude';
+      const isQuota=err.message==='QUOTA_EXCEEDED'||err.message?.includes('quota')||err.message?.includes('RESOURCE_EXHAUSTED');
+
+      if(isQuota){
+        // Mark quota time
+        localStorage.setItem('slv_gemini_quota_ts', Date.now().toString());
+        console.warn('⚠️ Gemini quota exceeded');
+
+        if(hasClaude){
+          // Silent auto-switch — no alert
+          toast('🔵→🟠 Gemini quota → Claude-ஐ use பண்றோம்','warn');
+          API_CONFIG.currentProvider='claude';
+          return await callClaudeOCR(base64Image, prompt);
+        }
+        // No Claude — throw special error
+        throw new Error('QUOTA_ONLY');
+      }
+
+      // Other Gemini error
+      console.warn('⚠️ Gemini error:',err.message);
+      if(hasClaude){
+        toast('🔵→🟠 Gemini error → Claude switch','warn');
         return await callClaudeOCR(base64Image, prompt);
       }
-      console.warn('⚠️ Gemini failed:',err.message);
-      API_CONFIG.currentProvider='claude';
-      if(hasClaude) return await callClaudeOCR(base64Image, prompt);
       throw err;
     }
   }
 
-  // Gemini off, Claude only
-  if(hasClaude){
+  // ── Gemini skipped (quota cooldown) → go directly to Claude ──
+  if(hasGemini && shouldSkipGemini() && hasClaude){
+    console.log('⏩ Gemini quota cooldown → using Claude directly');
+    toast('⏩ Gemini cooldown → 🟠 Claude use பண்றோம்','warn');
     return await callClaudeOCR(base64Image, prompt);
   }
+
+  // ── Gemini skipped + no Claude = wait and retry ──
+  if(hasGemini && shouldSkipGemini() && !hasClaude){
+    throw new Error('QUOTA_ONLY');
+  }
+
+  // ── Claude only ──
+  if(hasClaude) return await callClaudeOCR(base64Image, prompt);
 
   throw new Error('no_api_key');
 }
