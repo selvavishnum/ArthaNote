@@ -447,41 +447,44 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <div class="ob-card">
     <div style="text-align:center;font-size:48px;margin-bottom:8px">📒</div>
     <div class="ob-title">கணக்கபிள்ளை</div>
-    <div class="ob-sub">Let's set up your first shop in 30 seconds</div>
+    <div class="ob-sub">உங்கள் கடையை 30 seconds-ல் setup பண்ணலாம்!</div>
     <div class="ob-dots"><div class="ob-dot on" id="obd1"></div><div class="ob-dot" id="obd2"></div><div class="ob-dot" id="obd3"></div></div>
 
-    <!-- Step 1: Business Type -->
+    <!-- Step 1: Business Type — 12 types -->
     <div class="ob-step on" id="obs1">
-      <div class="ob-label">What type of shop do you run?</div>
-      <div class="ob-types" id="ob-types">
-        <div class="ob-type" onclick="pickBizType(this,'vegetables')" data-t="vegetables"><div class="ot-icon">🥬</div><div class="ot-name">Vegetables</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'grocery')" data-t="grocery"><div class="ot-icon">🛒</div><div class="ot-name">Grocery</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'bakery')" data-t="bakery"><div class="ot-icon">🍞</div><div class="ot-name">Bakery</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'tea')" data-t="tea"><div class="ot-icon">☕</div><div class="ot-name">Tea / Coffee</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'textile')" data-t="textile"><div class="ot-icon">👕</div><div class="ot-name">Textile</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'hardware')" data-t="hardware"><div class="ot-icon">🔧</div><div class="ot-name">Hardware</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'jewellery')" data-t="jewellery"><div class="ot-icon">💍</div><div class="ot-name">Jewellery</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'finance')" data-t="finance"><div class="ot-icon">💰</div><div class="ot-name">Finance</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'chit')" data-t="chit"><div class="ot-icon">🎰</div><div class="ot-name">Chit Fund</div></div>
-        <div class="ob-type" onclick="pickBizType(this,'other')" data-t="other"><div class="ot-icon">🏪</div><div class="ot-name">Other</div></div>
+      <div class="ob-label" style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">உங்கள் கடை என்ன?</div>
+      <div class="ob-types" id="ob-types" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="ob-type" onclick="pickBizType(this,'vegetables')"><div class="ot-icon">🥬</div><div class="ot-name">Vegetables</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'grocery')"><div class="ot-icon">🛒</div><div class="ot-name">Grocery</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'tea')"><div class="ot-icon">☕</div><div class="ot-name">Tea/Coffee</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'bakery')"><div class="ot-icon">🍞</div><div class="ot-name">Bakery</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'textile')"><div class="ot-icon">👕</div><div class="ot-name">Textile</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'hardware')"><div class="ot-icon">🔧</div><div class="ot-name">Hardware</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'jewellery')"><div class="ot-icon">💍</div><div class="ot-name">Jewellery</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'medical')"><div class="ot-icon">💊</div><div class="ot-name">Medical</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'hotel')"><div class="ot-icon">🍽️</div><div class="ot-name">Hotel/Food</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'finance')"><div class="ot-icon">💰</div><div class="ot-name">Finance</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'chit')"><div class="ot-icon">🎰</div><div class="ot-name">Chit Fund</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'other')"><div class="ot-icon">🏪</div><div class="ot-name">Other</div></div>
       </div>
+      <div id="ob-type-hint" style="display:none;margin:8px 0;padding:10px 12px;border-radius:10px;font-size:11px;text-align:center"></div>
       <button class="ob-btn" id="ob-next1" disabled onclick="obNext1()">Next →</button>
     </div>
 
     <!-- Step 2: Shop Name -->
     <div class="ob-step" id="obs2">
-      <div class="ob-label">Your Shop Name</div>
+      <div class="ob-label">உங்கள் கடை பெயர்</div>
       <input class="ob-input" id="ob-shopname" placeholder="e.g. Sri Lakshmi Vegetables" oninput="document.getElementById('ob-next2').disabled=!this.value.trim()">
-      <div style="font-size:10px;color:var(--muted);margin-top:6px">You can add more shops later from Settings</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px">Settings-ல் பின்னால் மேலும் shops add பண்ணலாம்</div>
       <button class="ob-btn" id="ob-next2" disabled onclick="obStep(3)">Next →</button>
     </div>
 
-    <!-- Step 3: GST Option -->
+    <!-- Step 3: GST -->
     <div class="ob-step" id="obs3">
-      <div class="ob-label">Do you need GST calculation?</div>
+      <div class="ob-label">GST calculation வேணுமா?</div>
       <div style="display:flex;gap:10px;margin:12px 0">
         <div class="ob-type" style="flex:1" onclick="pickGst(this,false)"><div class="ot-icon">📝</div><div class="ot-name">Without GST</div><div style="font-size:9px;color:var(--muted);margin-top:4px">Simple ledger</div></div>
-        <div class="ob-type" style="flex:1" onclick="pickGst(this,true)"><div class="ot-icon">🧾</div><div class="ot-name">With GST</div><div style="font-size:9px;color:var(--muted);margin-top:4px">Auto GST calculate</div></div>
+        <div class="ob-type" style="flex:1" onclick="pickGst(this,true)"><div class="ot-icon">🧾</div><div class="ot-name">With GST</div><div style="font-size:9px;color:var(--muted);margin-top:4px">Auto calculate</div></div>
       </div>
       <div id="ob-gst-rates" style="display:none;margin-bottom:10px">
         <div class="ob-label">Default GST Rate</div>
@@ -1359,27 +1362,43 @@ let _obType='other',_obGst=false,_obGstRate=12;
 // ════════════════════════════════════════
 // ONBOARDING WIZARD
 // ════════════════════════════════════════
+const BIZ_HINTS={
+  vegetables:'🥬 Daily sales, expense, supplier ledger, MIS reports',
+  grocery:'🛒 Sales entry, expense tracking, supplier payments',
+  tea:'☕ Daily sales, expense, staff attendance',
+  bakery:'🍞 Sales, expense, supplier payments, daily report',
+  textile:'👕 Sales, expense, GST, stock tracking',
+  hardware:'🔧 Sales, stock, GST, supplier ledger',
+  jewellery:'💍 Sales, expense, gold rate, rental tracking',
+  medical:'💊 Sales, stock, GST, supplier payments',
+  hotel:'🍽️ Daily sales, expense, staff, supplier',
+  finance:'💰 Member list, monthly collection, defaulter alerts',
+  chit:'🎰 Chit groups, monthly collection, prize recording',
+  other:'🏪 Custom categories, sales, expense, reports'
+};
+
 function pickBizType(el,type){
   document.querySelectorAll('#ob-types .ob-type').forEach(e=>e.classList.remove('sel'));
   el.classList.add('sel');
   _obType=type;
   document.getElementById('ob-next1').disabled=false;
 
-  // Show special note for finance/chit
-  let note=document.getElementById('ob-finance-note');
-  if(!note){
-    note=document.createElement('div');
-    note.id='ob-finance-note';
-    note.style.cssText='margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;text-align:center;display:none';
-    document.getElementById('ob-next1').before(note);
-  }
-  if(type==='finance'||type==='chit'){
-    note.style.display='block';
-    note.style.background=type==='chit'?'#ede9fe':'#dbeafe';
-    note.style.color=type==='chit'?'#7c3aed':'#2563eb';
-    note.innerHTML=type==='chit'?'🎰 Chit Fund module திறக்கும் — members, collection, prize track பண்ணலாம்!':'💰 Finance Collection module திறக்கும் — members, monthly due track பண்ணலாம்!';
-  } else {
-    note.style.display='none';
+  // Show hint for selected type
+  const hint=document.getElementById('ob-type-hint');
+  if(hint){
+    hint.style.display='block';
+    const isFinance=type==='finance'||type==='chit';
+    hint.style.cssText=`display:block;margin:8px 0;padding:10px 12px;border-radius:10px;font-size:11px;text-align:center;
+      background:${isFinance?'#ede9fe':type==='jewellery'?'#fef3c7':'#f0fdf4'};
+      color:${isFinance?'#7c3aed':type==='jewellery'?'#92400e':'#065f46'};
+      border:1px solid ${isFinance?'#c4b5fd':type==='jewellery'?'#fcd34d':'#6ee7b7'}`;
+    hint.textContent=BIZ_HINTS[type]||BIZ_HINTS.other;
+
+    const btn=document.getElementById('ob-next1');
+    if(btn){
+      if(isFinance) btn.textContent='💰 Finance Module திற →';
+      else btn.textContent='Next →';
+    }
   }
 }
 
