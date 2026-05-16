@@ -1796,9 +1796,15 @@ async function startApp(user){
   }
 
   // ── STEP 2: If no cache → load from Firestore ONCE, save to cache ──
-  if(!staffLoaded){
+  // RATE LIMIT: Max 1 Firestore read per 5 minutes per user
+  const lastRead=parseInt(localStorage.getItem('kp_last_firestore_read')||'0');
+  const sinceRead=(Date.now()-lastRead)/1000/60; // minutes
+  const canRead=sinceRead>5||lastRead===0;
+
+  if(!staffLoaded && canRead){
     try{
       const sd=await DB.collection('staff').doc(user.uid).get();
+      localStorage.setItem('kp_last_firestore_read', Date.now().toString());
       if(sd.exists){
         const d=sd.data();
         ME.role=d.role||'owner'; ME.shop=d.shop||'all';
@@ -1810,11 +1816,12 @@ async function startApp(user){
           createdAt:firebase.firestore.FieldValue.serverTimestamp()
         });
       }
-      // Save to cache → next login = 0 reads
       localStorage.setItem('kp_me_cache',JSON.stringify({
         uid:ME.uid, role:ME.role, shop:ME.shop, businessId:ME.businessId
       }));
     }catch(e){ console.log('Staff load err:',e); }
+  } else if(!staffLoaded) {
+    console.log('⏩ Rate limited — skip staff read, using defaults');
   }
 
   if(!configLoaded){
@@ -1828,15 +1835,22 @@ async function startApp(user){
         if(d.gstOn!==undefined){_gstOn=d.gstOn;localStorage.setItem('slv_gst',JSON.stringify(_gstOn));}
         if(d.gstRate){_gstRate=d.gstRate;localStorage.setItem('slv_gstrate',String(_gstRate));}
         _needsOnboard=!d.onboarded&&Object.keys(SHOPS).length===0;
-        // Save to cache → next login = 0 reads
         localStorage.setItem('kp_cfg_cache',JSON.stringify({
-          shops:SHOPS, cats:CATS, gstOn:_gstOn, gstRate:_gstRate
+          shops:SHOPS, cats:CATS, gstOn:_gstOn, gstRate:_gstRate, onboarded:d.onboarded
         }));
       } else {
         _needsOnboard=true;
       }
     }catch(e){
-      _needsOnboard=Object.keys(SHOPS).length===0;
+      console.log('Config read err (quota?):', e.code);
+      // ⚠️ Quota exceeded or network error — DON'T show onboarding
+      // Check localStorage for any saved shops
+      const savedShops=localStorage.getItem('slv_shops');
+      if(savedShops){
+        try{SHOPS=JSON.parse(savedShops);}catch(e2){}
+      }
+      // Only show onboarding if truly new user (no shops anywhere)
+      _needsOnboard=Object.keys(SHOPS).length===0 && !localStorage.getItem('kp_cfg_cache') && !localStorage.getItem('slv_shops');
     }
     if(_needsOnboard&&ME.role==='owner'){
       document.getElementById('login-screen').style.display='none';
@@ -1845,12 +1859,17 @@ async function startApp(user){
       return;
     }
   } else {
-    // Check onboarding from cache
+    // Loaded from cache — check onboarding
     if(Object.keys(SHOPS).length===0&&ME.role==='owner'){
-      document.getElementById('login-screen').style.display='none';
-      document.getElementById('app').style.display='none';
-      document.getElementById('onboard-screen').classList.add('on');
-      return;
+      // Double check localStorage shops before onboarding
+      const savedShops=localStorage.getItem('slv_shops');
+      if(savedShops){try{SHOPS=JSON.parse(savedShops);}catch(e){}}
+      if(Object.keys(SHOPS).length===0){
+        document.getElementById('login-screen').style.display='none';
+        document.getElementById('app').style.display='none';
+        document.getElementById('onboard-screen').classList.add('on');
+        return;
+      }
     }
   }
 
