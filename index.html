@@ -1702,31 +1702,19 @@ function showLogin(){ document.getElementById('lform').style.display='block'; do
 function showReg(){ document.getElementById('lform').style.display='none'; document.getElementById('rform').style.display='block'; }
 
 async function loginGoogle(){
-  const btn=document.querySelector('.gbtn');
-  if(btn){btn.disabled=true;btn.innerHTML='⏳ Opening Google...';}
+  // POPUP ONLY — redirect breaks on Android Chrome (sessionStorage partition issue)
   const provider=new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
-  const isMobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   try{
-    if(isMobile){
-      // Mobile: use redirect (popup gets blocked)
-      await AUTH.signInWithRedirect(provider);
-      // Page reloads — onAuthStateChanged handles it
-    } else {
-      // Desktop: use popup
-      await AUTH.signInWithPopup(provider);
-    }
+    const result=await AUTH.signInWithPopup(provider);
+    console.log('✅ Google login:', result.user.email);
   }catch(e){
-    console.error('Google login err:',e.code);
-    const msg=e.code==='auth/popup-blocked'?'Popup blocked — trying redirect...':
-              e.code==='auth/popup-closed-by-user'?'':
-              'Error: '+e.message;
-    if(msg) showErr(msg);
-    if(e.code==='auth/popup-blocked'){
-      await AUTH.signInWithRedirect(provider);
-    } else {
-      if(btn){btn.disabled=false;btn.innerHTML='<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style="width:18px;margin-right:8px">Continue with Google';}
+    console.error('Google err:',e.code);
+    if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request'){
+      showErr('Google login failed. Email/password use பண்ணுங்க!');
     }
+    const btn=document.querySelector('.gbtn');
+    if(btn) btn.innerHTML='<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style="width:18px;margin-right:8px">Continue with Google';
   }
 }
 async function loginEmail(){
@@ -4550,19 +4538,11 @@ window.onload=async ()=>{
     catch(e){ console.error('startApp err:',e.message); }
   }
 
-  // Listen for auth state (fires immediately if already logged in)
+  // Listen for auth state
   AUTH.onAuthStateChanged(async user=>{
-    console.log('onAuthStateChanged:', user?user.email:'null');
+    console.log('Auth:', user?user.email:'null');
     if(user) await doStart(user);
   });
-
-  // Also check Google redirect result
-  AUTH.getRedirectResult().then(async result=>{
-    if(result?.user){
-      console.log('✅ Redirect user:', result.user.email);
-      await doStart(result.user);
-    }
-  }).catch(e=>console.warn('Redirect err:',e.code));
 };
 </script>
 <script>
