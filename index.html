@@ -1707,12 +1707,23 @@ async function loginGoogle(){
   try{
     const provider=new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({prompt:'select_account'});
-    // Use redirect — works on all mobile browsers
-    await AUTH.signInWithRedirect(provider);
+    // Use popup — works better than redirect on Android Chrome
+    const result=await AUTH.signInWithPopup(provider);
+    console.log('✅ Google login:', result.user.email);
+    // onAuthStateChanged will fire automatically
   }catch(e){
-    console.error('Google login err:',e);
-    showErr('Google login failed: '+e.message+'\n\nEmail login use பண்ணுங்க!');
-    if(btn){btn.disabled=false;btn.textContent='G  Continue with Google';}
+    console.error('Google login err:',e.code, e.message);
+    if(e.code==='auth/popup-blocked'){
+      // Popup blocked — fallback to redirect
+      showErr('Popup blocked! Trying redirect...');
+      const provider=new firebase.auth.GoogleAuthProvider();
+      await AUTH.signInWithRedirect(provider);
+    } else if(e.code==='auth/cancelled-popup-request'||e.code==='auth/popup-closed-by-user'){
+      // User closed popup — just re-enable button
+    } else {
+      showErr('Google login failed. Email login use பண்ணுங்க!');
+    }
+    if(btn){btn.disabled=false;btn.innerHTML='<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style="width:18px">Continue with Google';}
   }
 }
 async function loginEmail(){
