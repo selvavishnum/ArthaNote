@@ -1702,13 +1702,17 @@ function showLogin(){ document.getElementById('lform').style.display='block'; do
 function showReg(){ document.getElementById('lform').style.display='none'; document.getElementById('rform').style.display='block'; }
 
 async function loginGoogle(){
-  const provider=new firebase.auth.GoogleAuthProvider();
+  const btn=document.querySelector('.gbtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Opening Google...';}
   try{
-    // Always use redirect on mobile (no popup issues)
+    const provider=new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({prompt:'select_account'});
+    // Use redirect — works on all mobile browsers
     await AUTH.signInWithRedirect(provider);
-    // Page will reload and onAuthStateChanged will fire
   }catch(e){
-    showErr('Google login failed: '+e.message);
+    console.error('Google login err:',e);
+    showErr('Google login failed: '+e.message+'\n\nEmail login use பண்ணுங்க!');
+    if(btn){btn.disabled=false;btn.textContent='G  Continue with Google';}
   }
 }
 async function loginEmail(){
