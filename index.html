@@ -1826,40 +1826,6 @@ async function startApp(user){
 }
 
 async function _finishAppSetup(user){
-
-  if(!configLoaded){
-    let _needsOnboard=false;
-    try{
-      const cfg=await DB.collection('config').doc(ME.businessId).get();
-      if(cfg.exists){
-        const d=cfg.data();
-        if(d.shops) SHOPS=d.shops;
-        if(d.cats) CATS=d.cats;
-        if(d.gstOn!==undefined){_gstOn=d.gstOn;localStorage.setItem('slv_gst',JSON.stringify(_gstOn));}
-        if(d.gstRate){_gstRate=d.gstRate;localStorage.setItem('slv_gstrate',String(_gstRate));}
-        _needsOnboard=!d.onboarded&&Object.keys(SHOPS).length===0;
-        localStorage.setItem('kp_cfg_cache',JSON.stringify({
-          shops:SHOPS, cats:CATS, gstOn:_gstOn, gstRate:_gstRate, onboarded:true
-        }));
-        localStorage.setItem('slv_onboarded','true');
-      } else {
-        _needsOnboard=!localStorage.getItem('slv_onboarded');
-      }
-    }catch(e){
-      console.log('Config read err:', e.code||e.message);
-      // Quota exceeded or network error
-      // Check if user has been here before
-      const wasOnboarded=localStorage.getItem('slv_onboarded');
-      const savedShops=localStorage.getItem('slv_shops');
-      if(savedShops){ try{SHOPS=JSON.parse(savedShops);}catch(e2){} }
-      // If user was onboarded before OR has shops → show app, not onboarding
-      _needsOnboard=!wasOnboarded && Object.keys(SHOPS).length===0;
-      if(_needsOnboard){
-        // Last resort: known user email → skip onboarding
-        if(ME.email==='selvavishnu.m@gmail.com'){
-          _needsOnboard=false;
-          // Set fallback shops for Selva
-async function _finishAppSetup(user){
   // Set UI
   document.getElementById('t-user').textContent=ME.name;
   const roleLabels={owner:'👑 Owner',manager:'👔 Manager',cashier:'💵 Cashier'};
