@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clear Cache</title>
+<style>
+body{font-family:sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;text-align:center}
+.card{background:#fff;border-radius:20px;padding:28px 20px;max-width:340px;box-shadow:0 4px 20px rgba(0,0,0,.1)}
+.icon{font-size:52px;margin-bottom:12px}
+h2{font-size:20px;font-weight:800;color:#065f46;margin-bottom:8px}
+p{font-size:13px;color:#6b7280;margin-bottom:20px;line-height:1.6}
+button{width:100%;padding:14px;border-radius:12px;border:none;background:#065f46;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px}
+.status{font-size:12px;color:#059669;font-weight:600;min-height:20px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🧹</div>
+  <h2>Clear App Cache</h2>
+  <p>பழைய cached version-ஐ clear பண்ணி புதுசா load பண்ணும்</p>
+  <button onclick="clearAll()">🗑️ Clear Cache & Reload</button>
+  <div class="status" id="status"></div>
+</div>
+<script>
+async function clearAll(){
+  const s=document.getElementById('status');
+  s.textContent='Clearing...';
+  try{
+    // Clear all caches
+    const keys=await caches.keys();
+    await Promise.all(keys.map(k=>caches.delete(k)));
+    s.textContent='✅ Cache cleared! Redirecting...';
+    // Unregister service workers
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+    }
+    // Clear localStorage OCR toggle to reset
+    localStorage.removeItem('slv_gemini_on');
+    localStorage.removeItem('slv_claude_on');
+    setTimeout(()=>window.location.href='index.html?nocache='+Date.now(),1500);
+  }catch(e){
+    s.textContent='Error: '+e.message+' — manually clear browser cache';
+  }
+}
+</script>
+</body>
+</html>
