@@ -2843,7 +2843,7 @@ function loadQB(){
   const cats=(CATS[shop]?.[type])||[];
   const label=type==='sales'?'Income':'Expense';
   let html=`<div class="qbwrap"><div class="qblbl">Quick Select ${label} Type</div><div class="qbgrid">`;
-  html+=cats.map(c=>`<div class="qb" onclick="pickCat('${esc(c)}',this)">${esc(c)}</div>`).join('');
+  html+=cats.map(c=>`<div class="qb" data-cat="${escAttr(c)}" onclick="pickCat(this.dataset.cat,this)">${esc(c)}</div>`).join('');
   html+=`<div class="qb" style="border-style:dashed;color:var(--green)" onclick="showCustomCat()">+ Custom</div>`;
   html+=`</div></div>`;
   html+=`<div id="custom-cat-row" style="display:none;margin-bottom:10px"><div class="fr"><div class="fg"><label>New Category Name</label><input type="text" id="custom-cat-inp" placeholder="Type new category"></div></div><button class="btn S sm" onclick="addCustomCat()">+ Add &amp; Select</button></div>`;
@@ -2862,7 +2862,7 @@ function loadQB(){
   tip.style.display='block';
   tip.innerHTML=`<div style="font-size:11px;color:var(--green);font-weight:600;margin-bottom:6px">💡 Similar shops also track:</div>`+
     `<div style="display:flex;flex-wrap:wrap;gap:5px">`+
-    extra.map(s=>`<div class="qb" onclick="pickCat('${esc(s)}',this)" style="font-size:11px">${esc(s)}</div>`).join('')+
+    extra.map(s=>`<div class="qb" data-cat="${escAttr(s)}" onclick="pickCat(this.dataset.cat,this)" style="font-size:11px">${esc(s)}</div>`).join('')+
     `</div>`;
 }
 function showCustomCat(){
@@ -4589,6 +4589,7 @@ document.querySelectorAll('.mover').forEach(o=>o.addEventListener('click',e=>{if
 function sum(txs,type){ return txs.filter(t=>t.type===type).reduce((s,t)=>s+(t.amount||0),0); }
 function fmt(n){ return Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s){ return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function v(id){ return document.getElementById(id)?.value||''; }
 
 // ════════════════════════════════════════
