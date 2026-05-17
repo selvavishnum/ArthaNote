@@ -1901,7 +1901,7 @@ async function startApp(user){
       ]);
       if(sd.exists){ const d=sd.data(); ME.role=d.role||'owner'; if(d.businessId)ME.businessId=d.businessId; }
       else { await DB.collection('staff').doc(user.uid).set({uid:user.uid,name:ME.name,email:ME.email,role:'owner',businessId:user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()}); }
-      if(cfg.exists){ const d=cfg.data(); if(d.shops)SHOPS=d.shops; if(d.cats)CATS=d.cats; if(d.bizType){_bizType=d.bizType;localStorage.setItem('slv_biztype',d.bizType);} localStorage.setItem('kp_cfg_cache',JSON.stringify({shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate,bizType:_bizType})); }
+      if(cfg.exists){ const d=cfg.data(); if(d.shops)SHOPS=d.shops; if(d.cats)CATS=d.cats; if(d.bizType){_bizType=d.bizType;localStorage.setItem('slv_biztype',d.bizType);} localStorage.setItem('slv_cats',JSON.stringify(CATS)); localStorage.setItem('kp_cfg_cache',JSON.stringify({shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate,bizType:_bizType})); }
       else if(!localStorage.getItem('slv_onboarded')){ document.getElementById('login-screen').style.display='none'; document.getElementById('onboard-screen').classList.add('on'); return; }
       localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,role:ME.role,businessId:ME.businessId}));
     }catch(e){
@@ -2290,8 +2290,7 @@ async function saveShopCatsFromSettings(){
     if(si) CATS[k].sales=si.value.split(',').map(x=>x.trim()).filter(Boolean);
     if(ei) CATS[k].expense=ei.value.split(',').map(x=>x.trim()).filter(Boolean);
   });
-  localStorage.setItem('slv_cats',JSON.stringify(CATS));
-  try{await DB.collection('config').doc(ME.businessId||ME.uid).set({cats:CATS},{merge:true});}catch(e){}
+  await persistCats();
   loadQB();
   toast('✅ Categories saved!');
 }
@@ -2306,8 +2305,7 @@ async function addNewShop(){
   const bc=BIZ_CATS[type]||BIZ_CATS.other;
   CATS[nk]={sales:sc.length?sc:bc.sales,expense:ec.length?ec:bc.expense};
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
-  localStorage.setItem('slv_cats',JSON.stringify(CATS));
-  try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
+  await persistCats();
   applyBizTypeUI();
   ['ns-name','ns-icon','ns-sc','ns-ec'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   closeM('add-shop-modal'); buildUI(); toast('✅ '+name+' added!');
@@ -2331,6 +2329,15 @@ function applyLang(){
   btn.textContent=_lang==='ta'?'English':'தமிழ்';
   btn.classList.toggle('ta',_lang==='ta');
   document.body.classList.toggle('ta',_lang==='ta');
+}
+
+// Single function that keeps slv_cats, kp_cfg_cache, and Firestore in sync
+async function persistCats(){
+  localStorage.setItem('slv_cats',JSON.stringify(CATS));
+  localStorage.setItem('kp_cfg_cache',JSON.stringify({
+    shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate,bizType:_bizType
+  }));
+  try{await DB.collection('config').doc(ME.businessId||ME.uid).set({cats:CATS},{merge:true});}catch(e){console.warn('cats sync err',e);}
 }
 
 // ════════════════════════════════════════
@@ -2790,8 +2797,7 @@ async function saveShopCats(){
   const si=document.getElementById('sdc-s-'+k),ei=document.getElementById('sdc-e-'+k);
   if(si) CATS[k].sales=si.value.split(',').map(x=>x.trim()).filter(Boolean);
   if(ei) CATS[k].expense=ei.value.split(',').map(x=>x.trim()).filter(Boolean);
-  localStorage.setItem('slv_cats',JSON.stringify(CATS));
-  try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
+  await persistCats();
   toast('✅ Categories saved!'); loadQB();
 }
 
@@ -3180,8 +3186,7 @@ function addCustomCat(){
   if(!CATS[shop][type])CATS[shop][type]=[];
   if(!CATS[shop][type].includes(catName)){
     CATS[shop][type].push(catName);
-    localStorage.setItem('slv_cats',JSON.stringify(CATS));
-    try{DB.collection('config').doc(ME.businessId||ME.uid).set({cats:CATS},{merge:true});}catch(e){}
+    persistCats();
   }
   // Set it as selected
   const d=document.getElementById('m-desc'); if(d) d.value=catName;
