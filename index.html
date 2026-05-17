@@ -2160,7 +2160,9 @@ async function silentCloudSync(BID){
     if(results[0].status==='fulfilled'){
       const newTXS=results[0].value.docs.map(d=>({id:d.id,...d.data()}))
         .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
-      if(newTXS.length!==TXS.length){TXS=newTXS;updated=true;}
+      const _newIds=newTXS.map(t=>t.id).sort().join(',');
+      const _oldIds=TXS.filter(t=>t.id).map(t=>t.id).sort().join(',');
+      if(_newIds!==_oldIds){TXS=newTXS;updated=true;}
     } else {
       console.warn('TX sync skip:',results[0].reason?.code);
     }
@@ -3208,6 +3210,13 @@ async function addEntry(){
   if(!amt||amt<=0){toast('Please enter a valid amount','warn');return;}
   if(!desc){toast('Please enter a description','warn');return;}
 
+  // Duplicate check — same date+shop+type+amount+desc
+  const sameTx=TXS.find(t=>t.date===date&&t.shop===shop&&t.type===type&&t.amount===amt&&t.desc===desc);
+  if(sameTx){
+    if((Date.now()-(sameTx.createdMs||0))<30000){toast('⚠️ இதே entry இப்போதே save ஆகிவிட்டது!','warn');return;}
+    if(!confirm('Similar entry already exists for this date. Add anyway?'))return;
+  }
+
   const btn=document.getElementById('entry-btn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Saving...';}
 
@@ -3321,10 +3330,11 @@ function renderLedger(){
       const col=isIn?'var(--green)':t.type==='payment'?'var(--yellow)':'var(--red)';
       const bg=isIn?'var(--gl)':t.type==='payment'?'var(--yl)':'var(--rl)';
       const icon=isIn?'↑':t.type==='payment'?'↔':'↓';
-      return`<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">
+      const isDup=dayTxs.filter(x=>x.shop===t.shop&&x.type===t.type&&x.amount===t.amount&&x.desc===t.desc).length>1;
+      return`<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)${isDup?';background:#fffbe6':''}">
         <div style="width:34px;height:34px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${col};flex-shrink:0">${icon}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)">${esc(t.desc||'Entry')}</div>
+          <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)">${esc(t.desc||'Entry')}${isDup?' <span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 4px;font-weight:700">⚠️ dup</span>':''}</div>
           <div style="font-size:10px;color:var(--muted);margin-top:2px">${shop?shop.icon+' '+esc(shop.name)+' ·&nbsp;':''}<span style="text-transform:capitalize">${t.type}</span>${t.by?' · '+esc(t.by):''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
@@ -3409,6 +3419,7 @@ async function delTx(id){
   try{
     await DB.collection('transactions').doc(id).delete();
     TXS=TXS.filter(t=>t.id!==id); // remove from local array
+    saveCacheLocal(); // keep cache in sync so refresh doesn't resurrect deleted entry
     renderDash(); renderLedger();
     toast('Entry deleted');
   }catch(e){toast('Delete failed: '+e.message,'bad');}
@@ -4990,6 +5001,7 @@ function goPane(name,btn){
   if(btn) btn.classList.add('on');
   else document.querySelectorAll('.nbt').forEach(b=>{if(b.getAttribute('onclick')?.includes("'"+name+"'"))b.classList.add('on');});
   // Report: render once per session, re-render only after new entry added
+  if(name==='dash') renderDash();
   if(name==='report'){if(!_rptRendered){renderReports();_rptRendered=true;}}
   if(name==='sup'){renderSups();buildSupSels();}
   if(name==='entry') loadQB();
