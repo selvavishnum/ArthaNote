@@ -817,6 +817,26 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="card"><div class="chd">&#128203; Audit Log</div><div id="audit-wrap"></div></div>
   </div>
 
+  <!-- ── FINANCE & CHIT ── -->
+  <div class="pane" id="pane-finance">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="flex:1"><div style="font-weight:800;font-size:18px">💰 Finance &amp; Chit</div><div style="font-size:11px;color:var(--muted)">Members · Collection · Chit Groups</div></div>
+      <button class="btn G sm" onclick="setFCTab('members',null);renderFinance()" style="margin-top:0">+ Member</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);border-radius:12px;padding:8px 14px;margin-bottom:10px;border:1px solid var(--border)">
+      <button onclick="shiftFCMonth(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--green);padding:2px 6px">&#8249;</button>
+      <div style="font-weight:700;font-size:14px" id="fc-month-lbl"></div>
+      <button onclick="shiftFCMonth(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--green);padding:2px 6px">&#8250;</button>
+    </div>
+    <div class="dtabs" id="fc-tabs">
+      <div class="dtab on" onclick="setFCTab('overview',this)">&#128202; Overview</div>
+      <div class="dtab" onclick="setFCTab('members',this)">&#128101; Members</div>
+      <div class="dtab" onclick="setFCTab('collect',this)">&#128176; Collection</div>
+      <div class="dtab" onclick="setFCTab('chit',this)">&#127920; Chit</div>
+    </div>
+    <div id="fc-content" style="margin-top:10px"></div>
+  </div>
+
   <!-- ── SHOP DETAIL 360° ── -->
   <div class="pane" id="pane-shop-detail">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
@@ -844,6 +864,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <div class="bnav">
     <button class="nbt on" onclick="goPane('dash',this)"><span class="ni">&#128202;</span><span class="nl">Dashboard</span></button>
     <button class="nbt" id="nav-scan" onclick="goPane('scan',this)"><span class="ni">&#128247;</span><span class="nl">Scan</span></button>
+    <button class="nbt" id="nav-finance" style="display:none" onclick="goPane('finance',this);loadFinanceData()"><span class="ni">&#128176;</span><span class="nl">Finance</span></button>
     <button class="nbt" onclick="goPane('entry',this)"><span class="ni">&#9999;&#65039;</span><span class="nl">Entry</span></button>
     <button class="nbt" onclick="goPane('ledger',this)"><span class="ni">&#128203;</span><span class="nl">Ledger</span></button>
     <button class="nbt" id="nav-sup" onclick="goPane('sup',this)"><span class="ni">&#127991;&#65039;</span><span class="nl">Suppliers</span></button>
@@ -1105,10 +1126,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 <div class="mover" id="add-shop-modal">
   <div class="modal">
     <div class="mhd">Add New Shop <button class="mclose" onclick="closeM('add-shop-modal')">&#10005;</button></div>
+    <div class="fr full"><div class="fg">
+      <label>Shop Type</label>
+      <div id="ns-type-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:6px 0 10px"></div>
+    </div></div>
     <div class="fr full"><div class="fg"><label>Shop Name</label><input type="text" id="ns-name" placeholder="e.g. Fruit Market, New Veg Shop"></div></div>
     <div class="fr full"><div class="fg"><label>Icon (emoji)</label><input type="text" id="ns-icon" placeholder="&#127978;" maxlength="2"></div></div>
-    <div class="fr full"><div class="fg"><label>Sales Categories (comma separated)</label><input type="text" id="ns-sc" placeholder="Cash, Gpay, Wholesale"></div></div>
-    <div class="fr full"><div class="fg"><label>Expense Categories (comma separated)</label><input type="text" id="ns-ec" placeholder="Rent, Labour, Transport"></div></div>
+    <div class="fr full"><div class="fg"><label>Sales / Income Categories</label><input type="text" id="ns-sc" placeholder="Cash, Gpay, Wholesale"></div></div>
+    <div class="fr full"><div class="fg"><label>Expense Categories</label><input type="text" id="ns-ec" placeholder="Rent, Labour, Transport"></div></div>
     <button class="btn G" onclick="addNewShop()">+ Add Shop</button>
   </div>
 </div>
@@ -1152,6 +1177,11 @@ let _gstRate=parseInt(localStorage.getItem('slv_gstrate')||'12');
 
 // BIZTYPE STATE
 let _bizType=localStorage.getItem('slv_biztype')||'other';
+
+// FINANCE MODULE STATE
+let FC_MEMBERS=[],FC_PAYMENTS=[],FC_CHITS=[];
+let _fcTab='overview',_fcMonth=new Date().toISOString().slice(0,7);
+let _nsType='other';
 
 // ════════════════════════════════════════
 // QR ATTENDANCE SYSTEM
@@ -1409,24 +1439,33 @@ function pickBizType(el,type){
 }
 
 function obNext1(){
-  // Finance / Chit → direct to finance.html
+  // Finance / Chit → integrated into main app (no separate page)
   if(_obType==='finance'||_obType==='chit'){
-    // Save bizType to Firebase first, then redirect
     const saveAndGo=async()=>{
+      _bizType=_obType;
+      const icon=BIZ_ICONS[_obType]||'💰';
+      const shopName=_obType==='chit'?'Chit Fund':'Finance';
+      SHOPS={s1:{name:shopName,icon,type:_obType}};
+      CATS={s1:BIZ_CATS[_obType]};
+      localStorage.setItem('slv_biztype',_obType);
+      localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
+      localStorage.setItem('slv_cats',JSON.stringify(CATS));
+      localStorage.setItem('slv_onboarded','true');
+      localStorage.removeItem('kp_cfg_cache');
       try{
         await DB.collection('config').doc(ME.businessId||ME.uid).set({
-          bizType:_obType, onboarded:true,
-          shops:{}, createdAt:firebase.firestore.FieldValue.serverTimestamp()
+          bizType:_obType,onboarded:true,shops:SHOPS,cats:CATS,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp()
         },{merge:true});
         await DB.collection('staff').doc(ME.uid).set({
-          businessId:ME.uid, uid:ME.uid,
-          name:ME.name, email:ME.email,
-          role:'owner', bizType:_obType
+          businessId:ME.uid,uid:ME.uid,name:ME.name,email:ME.email,role:'owner',bizType:_obType
         },{merge:true});
-        localStorage.setItem('slv_onboarded','true');
-        localStorage.removeItem('kp_cfg_cache');
-      }catch(e){ console.warn('save err:',e); }
-      window.location.href='finance.html';
+      }catch(e){console.warn('save err:',e);}
+      document.getElementById('onboard-screen').classList.remove('on');
+      document.getElementById('app').style.display='block';
+      buildUI(); buildShopStrip(); applyBizTypeUI(); renderDash(); loadFinanceData();
+      toast('🎉 Welcome! Add members in the 💰 Finance tab.');
+      setTimeout(()=>{const nf=document.getElementById('nav-finance');if(nf)goPane('finance',nf);},600);
     };
     saveAndGo();
     return;
@@ -1452,7 +1491,7 @@ function pickGstRate(el,rate){
 }
 
 // BUSINESS TYPE → ICON MAP
-const BIZ_ICONS={vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',medical:'💊',hotel:'🍽️',other:'🏪'};
+const BIZ_ICONS={vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',medical:'💊',hotel:'🍽️',finance:'💰',chit:'🎰',other:'🏪'};
 // BUSINESS TYPE → DEFAULT CATEGORIES
 const BIZ_CATS={
   vegetables:{sales:['Cash','GPay','Card','Wholesale','Other'],expense:['Purchase','Labour','Transport','Rent/EB','Other']},
@@ -1464,6 +1503,8 @@ const BIZ_CATS={
   jewellery:{sales:['Cash','GPay','Card','Advance','Order','Other'],expense:['Material','Staff Salary','Rent/EB','Maintenance','Other']},
   medical:{sales:['Cash','GPay','Card','Insurance','Other'],expense:['Purchase','Staff Salary','Rent/EB','Lab Charges','Other']},
   hotel:{sales:['Cash','GPay','Card','Parcel','Delivery','Other'],expense:['Raw Material','Staff Salary','Gas','Rent/EB','Other']},
+  finance:{sales:['EMI Collected','Interest Income','Other'],expense:['Loan Given','Capital Out','Expense']},
+  chit:{sales:['Monthly Collection','Other'],expense:['Chit Prize','Expense','Other']},
   other:{sales:['Cash','GPay','Card','Other'],expense:['Purchase','Salary','Rent/EB','Other']}
 };
 
@@ -1478,6 +1519,8 @@ const BTYPE_CONFIG={
   jewellery:{dashTitle:'💍 Jewellery Shop',salesLabel:'Jewellery Sale',supTab:true},
   medical:{dashTitle:'💊 Medical Shop',salesLabel:'Medicine Sales',supTab:true},
   hotel:{dashTitle:'🍽️ Hotel / Food',salesLabel:'Orders / Revenue',supTab:false},
+  finance:{dashTitle:'💰 Finance / Lending',salesLabel:'EMI Collected',supTab:false},
+  chit:{dashTitle:'🎰 Chit Fund',salesLabel:'Monthly Collection',supTab:false},
   other:{dashTitle:'🏪 Business',salesLabel:'Sales / Income',supTab:true}
 };
 
@@ -1952,6 +1995,7 @@ function subscribeData(){
   if(hasCached){
     // Has local data → show instantly — NO auto background sync (saves reads!)
     renderDash(); renderLedger(); buildSupSels(); renderSups();
+    if(_bizType==='finance'||_bizType==='chit'||Object.values(SHOPS||{}).some(s=>s.type==='finance'||s.type==='chit')) loadFinanceData();
     const lbl=document.getElementById('data-range-lbl');
     if(lbl) lbl.textContent=`📦 ${TXS.length} entries · ↻ to sync`;
     // ❌ Removed: setTimeout(()=>silentCloudSync(BID), 3000);
@@ -2181,7 +2225,7 @@ function buildUI(){
   strip.innerHTML='';
   if(isO||us==='all') strip.innerHTML+=`<div class="schip all on" onclick="setShop('all',this)">🏠 All</div>`;
   se.forEach(([k,vv])=>strip.innerHTML+=`<div class="schip ${k}" onclick="setShop('${k}',this)">${vv.icon} ${vv.name}</div>`);
-  if(isO) strip.innerHTML+=`<button class="addsbtn" onclick="openM('add-shop-modal')">+ New Shop</button>`;
+  if(isO) strip.innerHTML+=`<button class="addsbtn" onclick="openAddShopModal()">+ New Shop</button>`;
 
   // Shop selects
   const opts=se.map(([k,vv])=>`<option value="${k}">${vv.icon} ${esc(vv.name)}</option>`).join('');
@@ -2249,16 +2293,20 @@ async function saveShopCatsFromSettings(){
   toast('✅ Categories saved!');
 }
 async function addNewShop(){
-  const name=v('ns-name').trim(), icon=v('ns-icon').trim()||'🏪';
+  const type=_nsType||'other';
+  const name=v('ns-name').trim(), icon=v('ns-icon').trim()||BIZ_ICONS[type]||'🏪';
   const sc=v('ns-sc').split(',').map(x=>x.trim()).filter(Boolean);
   const ec=v('ns-ec').split(',').map(x=>x.trim()).filter(Boolean);
   if(!name){toast('Enter shop name','warn');return;}
   const keys=Object.keys(SHOPS),nk='s'+(keys.length+1);
-  SHOPS[nk]={name,icon};
-  CATS[nk]={sales:sc.length?sc:['Cash','Gpay','Other'],expense:ec.length?ec:['Rent/EB','Labour','Other']};
+  SHOPS[nk]={name,icon,type};
+  const bc=BIZ_CATS[type]||BIZ_CATS.other;
+  CATS[nk]={sales:sc.length?sc:bc.sales,expense:ec.length?ec:bc.expense};
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
   localStorage.setItem('slv_cats',JSON.stringify(CATS));
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
+  if(type==='finance'||type==='chit') loadFinanceData();
+  applyBizTypeUI();
   ['ns-name','ns-icon','ns-sc','ns-ec'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   closeM('add-shop-modal'); buildUI(); toast('✅ '+name+' added!');
 }
@@ -2276,6 +2324,252 @@ function applyLang(){
   btn.textContent=_lang==='ta'?'English':'தமிழ்';
   btn.classList.toggle('ta',_lang==='ta');
   document.body.classList.toggle('ta',_lang==='ta');
+}
+
+// ════════════════════════════════════════
+// FINANCE & CHIT MODULE
+// ════════════════════════════════════════
+function openAddShopModal(){
+  _nsType='other';
+  const types=[
+    ['vegetables','🥬','Vegetable'],['grocery','🛒','Grocery'],['tea','☕','Tea'],
+    ['bakery','🍞','Bakery'],['textile','👕','Textile'],['hardware','🔧','Hardware'],
+    ['jewellery','💍','Jewellery'],['medical','💊','Medical'],
+    ['hotel','🍽️','Hotel'],['finance','💰','Finance'],['chit','🎰','Chit Fund'],['other','🏪','Other']
+  ];
+  const grid=document.getElementById('ns-type-grid');
+  if(grid) grid.innerHTML=types.map(([t,ic,l])=>
+    `<div id="ns-type-${t}" onclick="pickNSType('${t}')"
+      style="text-align:center;padding:6px 2px;border:2px solid var(--border);border-radius:10px;cursor:pointer;font-size:10px;transition:border-color .15s">
+      <div style="font-size:18px">${ic}</div><div style="font-weight:600">${l}</div>
+    </div>`
+  ).join('');
+  openM('add-shop-modal');
+}
+function pickNSType(type){
+  _nsType=type;
+  document.querySelectorAll('[id^="ns-type-"]').forEach(el=>el.style.borderColor='var(--border)');
+  const el=document.getElementById('ns-type-'+type);
+  if(el) el.style.borderColor='var(--green)';
+  const ic=document.getElementById('ns-icon'); if(ic) ic.value=BIZ_ICONS[type]||'🏪';
+  const bc=BIZ_CATS[type]||BIZ_CATS.other;
+  const sc=document.getElementById('ns-sc'); if(sc) sc.value=bc.sales.join(', ');
+  const ec=document.getElementById('ns-ec'); if(ec) ec.value=bc.expense.join(', ');
+}
+
+// Finance data loading
+async function loadFinanceData(){
+  if(!ME)return;
+  const bid=ME.businessId||ME.uid;
+  // Update month label
+  const[y,m]=_fcMonth.split('-').map(Number);
+  const lbl=document.getElementById('fc-month-lbl');
+  if(lbl) lbl.textContent=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  try{
+    const[ms,ps,cs]=await Promise.all([
+      DB.collection('fc_members').where('businessId','==',bid).get(),
+      DB.collection('fc_payments').where('businessId','==',bid).get(),
+      DB.collection('fc_chits').where('businessId','==',bid).get()
+    ]);
+    FC_MEMBERS=ms.docs.map(d=>({id:d.id,...d.data()}));
+    FC_PAYMENTS=ps.docs.map(d=>({id:d.id,...d.data()}));
+    FC_CHITS=cs.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){console.warn('FC load err:',e);}
+  renderFinance();
+}
+function setFCTab(tab,el){
+  _fcTab=tab;
+  document.querySelectorAll('#fc-tabs .dtab').forEach(b=>b.classList.remove('on'));
+  if(el) el.classList.add('on');
+  renderFinance();
+}
+function shiftFCMonth(dir){
+  const[y,m]=_fcMonth.split('-').map(Number);
+  const d=new Date(y,m-1+dir,1);
+  _fcMonth=d.toISOString().slice(0,7);
+  const lbl=document.getElementById('fc-month-lbl');
+  if(lbl) lbl.textContent=d.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  renderFinance();
+}
+function renderFinance(){
+  const c=document.getElementById('fc-content'); if(!c)return;
+  if(_fcTab==='overview') c.innerHTML=renderFCOverview();
+  else if(_fcTab==='members') c.innerHTML=renderFCMembers();
+  else if(_fcTab==='collect') c.innerHTML=renderFCCollection();
+  else if(_fcTab==='chit') c.innerHTML=renderFCChit();
+}
+function renderFCOverview(){
+  const mp=FC_PAYMENTS.filter(p=>p.month===_fcMonth);
+  const collected=mp.reduce((s,p)=>s+(p.amount||0),0);
+  const totalDue=FC_MEMBERS.reduce((s,m)=>s+(m.amount||0),0);
+  const paidIds=new Set(mp.map(p=>p.memberId));
+  const pending=FC_MEMBERS.filter(m=>!paidIds.has(m.id)).reduce((s,m)=>s+(m.amount||0),0);
+  const pct=totalDue>0?Math.round(collected/totalDue*100):0;
+  const defaulters=FC_MEMBERS.filter(m=>!paidIds.has(m.id));
+  const recent=[...FC_PAYMENTS].sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,5);
+  const defHtml=defaulters.length
+    ?defaulters.slice(0,5).map(m=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600">${esc(m.name)}</div><div style="color:var(--red);font-weight:700">₹${fmt(m.amount)}</div></div>`).join('')
+      +(defaulters.length>5?`<div style="text-align:center;font-size:11px;color:var(--muted);padding-top:6px">+${defaulters.length-5} more pending</div>`:'')
+    :'<div style="color:var(--green);padding:8px 0;font-size:12px;text-align:center">✅ All members paid this month!</div>';
+  const recHtml=recent.length
+    ?recent.map(p=>{const mem=FC_MEMBERS.find(m=>m.id===p.memberId);
+        return`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-weight:600">${esc(mem?.name||'Unknown')}</div><div style="font-size:10px;color:var(--muted)">${p.month} · ${esc(p.mode||'cash')}</div></div>
+          <div style="font-weight:700;color:var(--green)">₹${fmt(p.amount)}</div></div>`;}).join('')
+    :'<div class="empty">No payments recorded yet</div>';
+  return`<div class="sgrid">
+    <div class="stile"><div class="slbl">Collected</div><div class="sval cg">₹${fmt(collected)}</div></div>
+    <div class="stile"><div class="slbl">Pending</div><div class="sval cr">₹${fmt(pending)}</div></div>
+    <div class="stile"><div class="slbl">Members</div><div class="sval">${FC_MEMBERS.length}</div></div>
+    <div class="stile"><div class="slbl">Collection %</div><div class="sval ${pct>=80?'cg':pct>=50?'cy':'cr'}">${pct}%</div></div>
+  </div>
+  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center" class="chd"><span>🔴 Pending This Month</span><span style="font-size:11px;font-weight:400;color:var(--muted)">${defaulters.length} members</span></div>${defHtml}</div>
+  <div class="card"><div class="chd">📋 Recent Payments</div>${recHtml}</div>`;
+}
+function renderFCMembers(){
+  const list=FC_MEMBERS.length
+    ?FC_MEMBERS.map(m=>`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-weight:700;font-size:14px">${esc(m.name)}</div>
+            <div style="font-size:11px;color:var(--muted)">${m.phone?esc(m.phone)+' · ':''} ₹${fmt(m.amount)}/month · <span style="background:var(--gl);color:var(--green);padding:1px 6px;border-radius:10px">${esc(m.group||'finance')}</span></div></div>
+          <button onclick="delFCMember('${m.id}')" style="background:var(--rl);color:var(--red);border:none;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px">✕</button>
+        </div></div>`).join('')
+    :'<div class="empty">No members yet. Add your first member below.</div>';
+  return`<div class="card">
+    <div class="chd">➕ Add New Member</div>
+    <div class="fr full"><div class="fg"><label>Name</label><input type="text" id="fc-m-name" placeholder="Member full name" style="font-family:var(--tamil)"></div></div>
+    <div class="fr">
+      <div class="fg"><label>Phone</label><input type="tel" id="fc-m-phone" placeholder="Optional"></div>
+      <div class="fg"><label>Monthly Amount (₹)</label><input type="number" id="fc-m-amt" placeholder="500" min="0"></div>
+    </div>
+    <div class="fr full"><div class="fg"><label>Group</label>
+      <select id="fc-m-group"><option value="finance">💰 Finance</option><option value="chit">🎰 Chit Fund</option><option value="both">Both</option></select>
+    </div></div>
+    <button class="btn G" onclick="addFCMember()" style="margin-top:8px">+ Add Member</button>
+  </div>
+  <div style="font-weight:700;font-size:12px;color:var(--muted);margin-bottom:8px">${FC_MEMBERS.length} MEMBERS</div>${list}`;
+}
+function renderFCCollection(){
+  const mp=FC_PAYMENTS.filter(p=>p.month===_fcMonth);
+  const paidIds=new Set(mp.map(p=>p.memberId));
+  const rows=FC_MEMBERS.length
+    ?FC_MEMBERS.map(m=>{const paid=paidIds.has(m.id);const pay=mp.find(p=>p.memberId===m.id);
+      return`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div><div style="font-weight:600">${esc(m.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">${paid?`✅ ₹${fmt(pay?.amount||m.amount)} · ${esc(pay?.mode||'cash')}`:`⏳ Due ₹${fmt(m.amount)}`}</div></div>
+        ${paid?'<span style="color:var(--green);font-size:18px">✓</span>'
+          :`<button onclick="recordFCPayment('${m.id}','${escAttr(m.name)}',${m.amount})"
+              style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600">Record</button>`}
+      </div>`;}).join('')
+    :'<div class="empty">Add members first</div>';
+  return`<div class="card"><div class="chd">💰 Collections — ${_fcMonth}</div>${rows}</div>`;
+}
+function renderFCChit(){
+  const groups=FC_CHITS.length
+    ?FC_CHITS.map(c=>{const prizes=c.prizes||[];const done=prizes.length;const lastPrize=prizes[prizes.length-1];
+      return`<div class="card" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div><div style="font-weight:700;font-size:14px">${esc(c.name)}</div>
+            <div style="font-size:11px;color:var(--muted)">${c.memberCount||0} members · ₹${fmt(c.amount)}/month · ${done}/${c.months||'?'} months done</div></div>
+          <div style="font-weight:700;color:var(--green);font-size:13px">₹${fmt((c.memberCount||0)*(c.amount||0))}/mo</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Started: ${c.startMonth||'—'}${lastPrize?` · Last prize: <b>${esc(lastPrize.winnerName)}</b> (${lastPrize.month})`:''}</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="recordChitPrize('${c.id}')" style="background:var(--gl);color:var(--green);border:1px solid var(--green);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600">🎰 Record Prize</button>
+          <button onclick="delFCChit('${c.id}')" style="background:var(--rl);color:var(--red);border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px">✕</button>
+        </div></div>`;}).join('')
+    :'<div class="empty">No chit groups. Create one below.</div>';
+  return`<div class="card">
+    <div class="chd">➕ New Chit Group</div>
+    <div class="fr full"><div class="fg"><label>Chit Group Name</label><input type="text" id="fc-ch-name" placeholder="e.g. Tulsi Chit Group A"></div></div>
+    <div class="fr">
+      <div class="fg"><label>Members</label><input type="number" id="fc-ch-mc" placeholder="20" min="1"></div>
+      <div class="fg"><label>Monthly Amount (₹)</label><input type="number" id="fc-ch-amt" placeholder="1000" min="0"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Duration (months)</label><input type="number" id="fc-ch-mo" placeholder="20" min="1"></div>
+      <div class="fg"><label>Start Month</label><input type="month" id="fc-ch-start"></div>
+    </div>
+    <button class="btn G" onclick="addFCChitGroup()" style="margin-top:8px">+ Create Chit Group</button>
+  </div>${groups}`;
+}
+async function addFCMember(){
+  const name=(document.getElementById('fc-m-name')?.value||'').trim();
+  const phone=(document.getElementById('fc-m-phone')?.value||'').trim();
+  const amount=parseFloat(document.getElementById('fc-m-amt')?.value)||0;
+  const group=document.getElementById('fc-m-group')?.value||'finance';
+  if(!name){toast('Enter member name','warn');return;}
+  const bid=ME.businessId||ME.uid;
+  const doc={businessId:bid,name,phone,amount,group,joinMonth:_fcMonth,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{
+    const ref=await DB.collection('fc_members').add(doc);
+    FC_MEMBERS.push({id:ref.id,...doc});
+    toast('✅ '+name+' added as member');
+    renderFinance();
+  }catch(e){toast('Save error','error');}
+}
+async function delFCMember(id){
+  if(!confirm('Remove this member?'))return;
+  try{
+    await DB.collection('fc_members').doc(id).delete();
+    FC_MEMBERS=FC_MEMBERS.filter(m=>m.id!==id);
+    renderFinance(); toast('Member removed');
+  }catch(e){toast('Error','error');}
+}
+async function recordFCPayment(memberId,memberName,defaultAmt){
+  const amtStr=prompt(`Payment from ${memberName}\nDue: ₹${defaultAmt}\nEnter amount:`,''+defaultAmt);
+  if(!amtStr)return;
+  const amt=parseFloat(amtStr); if(!amt||isNaN(amt)){toast('Invalid amount','warn');return;}
+  const modes=['cash','gpay','bank','other'];
+  const mode=prompt('Mode (cash/gpay/bank/other):','cash')||'cash';
+  const bid=ME.businessId||ME.uid;
+  const doc={businessId:bid,memberId,month:_fcMonth,amount:amt,mode:mode.toLowerCase(),note:'',createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{
+    const ref=await DB.collection('fc_payments').add(doc);
+    FC_PAYMENTS.push({id:ref.id,...doc});
+    toast('✅ Payment of ₹'+fmt(amt)+' recorded');
+    renderFinance();
+  }catch(e){toast('Error','error');}
+}
+async function addFCChitGroup(){
+  const name=(document.getElementById('fc-ch-name')?.value||'').trim();
+  const mc=parseInt(document.getElementById('fc-ch-mc')?.value)||20;
+  const amt=parseFloat(document.getElementById('fc-ch-amt')?.value)||0;
+  const months=parseInt(document.getElementById('fc-ch-mo')?.value)||20;
+  const start=document.getElementById('fc-ch-start')?.value||_fcMonth;
+  if(!name){toast('Enter chit group name','warn');return;}
+  const bid=ME.businessId||ME.uid;
+  const doc={businessId:bid,name,memberCount:mc,amount:amt,months,startMonth:start,prizes:[],createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{
+    const ref=await DB.collection('fc_chits').add(doc);
+    FC_CHITS.push({id:ref.id,...doc});
+    toast('✅ Chit group "'+name+'" created');
+    renderFinance();
+  }catch(e){toast('Error','error');}
+}
+async function delFCChit(id){
+  if(!confirm('Delete this chit group?'))return;
+  try{
+    await DB.collection('fc_chits').doc(id).delete();
+    FC_CHITS=FC_CHITS.filter(c=>c.id!==id);
+    renderFinance(); toast('Chit group deleted');
+  }catch(e){toast('Error','error');}
+}
+function recordChitPrize(chitId){
+  const winner=(prompt('Winner name (this month\'s prize winner):')||'').trim();
+  if(!winner)return;
+  const amtStr=prompt('Prize amount (₹):','0');
+  const prize=parseFloat(amtStr)||0;
+  const prizeData={month:_fcMonth,winnerName:winner,amount:prize};
+  DB.collection('fc_chits').doc(chitId).update({
+    prizes:firebase.firestore.FieldValue.arrayUnion(prizeData)
+  }).then(()=>{
+    const ch=FC_CHITS.find(c=>c.id===chitId);
+    if(ch){if(!ch.prizes)ch.prizes=[];ch.prizes.push(prizeData);}
+    toast('🎰 Prize recorded for '+winner+'!');
+    renderFinance();
+  }).catch(()=>toast('Error saving prize','error'));
 }
 
 // ════════════════════════════════════════
@@ -4341,6 +4635,13 @@ function applyBizTypeUI(){
   // Show/hide Suppliers nav tab based on bizType
   const ns=document.getElementById('nav-sup');
   if(ns) ns.style.display=cfg.supTab?'flex':'none';
+
+  // Show Finance nav tab if user has any finance/chit type shops or bizType is finance/chit
+  const nf=document.getElementById('nav-finance');
+  if(nf){
+    const hasFinShop=Object.values(SHOPS||{}).some(s=>s.type==='finance'||s.type==='chit');
+    nf.style.display=(hasFinShop||_bizType==='finance'||_bizType==='chit')?'flex':'none';
+  }
 
   // Update Sales option label in entry form type dropdown
   const mtype=document.getElementById('m-type');
