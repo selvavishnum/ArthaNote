@@ -2305,10 +2305,14 @@ async function addNewShop(){
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
   localStorage.setItem('slv_cats',JSON.stringify(CATS));
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
-  if(type==='finance'||type==='chit') loadFinanceData();
   applyBizTypeUI();
   ['ns-name','ns-icon','ns-sc','ns-ec'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   closeM('add-shop-modal'); buildUI(); toast('✅ '+name+' added!');
+  if(type==='finance'||type==='chit'){
+    await loadFinanceData();
+    const nf=document.getElementById('nav-finance');
+    if(nf) goPane('finance',nf);
+  }
 }
 
 // ════════════════════════════════════════
