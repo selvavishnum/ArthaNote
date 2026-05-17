@@ -554,6 +554,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="fr"><div class="fg"><label>From</label><input type="date" id="d-from" onchange="renderDash()"></div><div class="fg"><label>To</label><input type="date" id="d-to" onchange="renderDash()"></div></div>
     </div>
     <div class="pill ok" id="d-pill"><div class="pdot"></div><span id="d-msg">Loading...</span></div>
+    <div id="biz-type-banner" style="display:none;background:linear-gradient(135deg,var(--green),var(--sec));color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-weight:700;font-size:14px;letter-spacing:0.3px"></div>
+    <div id="d-new-user-tip" style="display:none"></div>
     <div class="sgrid">
       <div class="stile"><div class="slbl">Total Sales</div><div class="sval cg" id="d-sales">&#8377;0</div></div>
       <div class="stile"><div class="slbl">Total Expense</div><div class="sval cr" id="d-exp">&#8377;0</div></div>
@@ -660,6 +662,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div style="display:flex;justify-content:space-between;border-top:1px solid #fcd34d;padding-top:4px;margin-top:4px"><span><b>Total (incl GST):</b></span><span id="gst-p-total" style="font-weight:800">₹0</span></div>
       </div>
       <div id="qb-area"></div>
+      <div id="community-tip" style="display:none;background:var(--soft);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px"></div>
       <div class="fr full" id="sup-row" style="display:none"><div class="fg"><label>Supplier</label><select id="m-sup"></select></div></div>
       <div class="fr full"><div class="fg"><label>Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)"></div></div>
       <div class="fr">
@@ -843,7 +846,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <button class="nbt" id="nav-scan" onclick="goPane('scan',this)"><span class="ni">&#128247;</span><span class="nl">Scan</span></button>
     <button class="nbt" onclick="goPane('entry',this)"><span class="ni">&#9999;&#65039;</span><span class="nl">Entry</span></button>
     <button class="nbt" onclick="goPane('ledger',this)"><span class="ni">&#128203;</span><span class="nl">Ledger</span></button>
-    <button class="nbt" onclick="goPane('sup',this)"><span class="ni">&#127991;&#65039;</span><span class="nl">Suppliers</span></button>
+    <button class="nbt" id="nav-sup" onclick="goPane('sup',this)"><span class="ni">&#127991;&#65039;</span><span class="nl">Suppliers</span></button>
     <button class="nbt" onclick="goPane('report',this)"><span class="ni">&#128200;</span><span class="nl">Reports</span></button>
   </div>
 </div>
@@ -1147,6 +1150,9 @@ let _la=0,_ll=false;
 let _gstOn=JSON.parse(localStorage.getItem('slv_gst')||'false');
 let _gstRate=parseInt(localStorage.getItem('slv_gstrate')||'12');
 
+// BIZTYPE STATE
+let _bizType=localStorage.getItem('slv_biztype')||'other';
+
 // ════════════════════════════════════════
 // QR ATTENDANCE SYSTEM
 // ════════════════════════════════════════
@@ -1446,7 +1452,7 @@ function pickGstRate(el,rate){
 }
 
 // BUSINESS TYPE → ICON MAP
-const BIZ_ICONS={vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',other:'🏪'};
+const BIZ_ICONS={vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',medical:'💊',hotel:'🍽️',other:'🏪'};
 // BUSINESS TYPE → DEFAULT CATEGORIES
 const BIZ_CATS={
   vegetables:{sales:['Cash','GPay','Card','Wholesale','Other'],expense:['Purchase','Labour','Transport','Rent/EB','Other']},
@@ -1456,7 +1462,23 @@ const BIZ_CATS={
   textile:{sales:['Cash','GPay','Card','Credit','Other'],expense:['Purchase','Staff Salary','Rent/EB','Alteration','Other']},
   hardware:{sales:['Cash','GPay','Card','Credit','Other'],expense:['Purchase','Staff Salary','Rent/EB','Transport','Other']},
   jewellery:{sales:['Cash','GPay','Card','Advance','Order','Other'],expense:['Material','Staff Salary','Rent/EB','Maintenance','Other']},
+  medical:{sales:['Cash','GPay','Card','Insurance','Other'],expense:['Purchase','Staff Salary','Rent/EB','Lab Charges','Other']},
+  hotel:{sales:['Cash','GPay','Card','Parcel','Delivery','Other'],expense:['Raw Material','Staff Salary','Gas','Rent/EB','Other']},
   other:{sales:['Cash','GPay','Card','Other'],expense:['Purchase','Salary','Rent/EB','Other']}
+};
+
+// BUSINESS TYPE → UI CONFIG
+const BTYPE_CONFIG={
+  vegetables:{dashTitle:'🥬 Vegetable Shop',salesLabel:'Sales / Income',supTab:true},
+  grocery:{dashTitle:'🛒 Grocery Shop',salesLabel:'Sales / Income',supTab:true},
+  bakery:{dashTitle:'🍞 Bakery',salesLabel:'Sales / Income',supTab:true},
+  tea:{dashTitle:'☕ Tea Shop',salesLabel:'Daily Cash Sales',supTab:false},
+  textile:{dashTitle:'👕 Textile Shop',salesLabel:'Sales / Income',supTab:true},
+  hardware:{dashTitle:'🔧 Hardware Shop',salesLabel:'Sales / Income',supTab:true},
+  jewellery:{dashTitle:'💍 Jewellery Shop',salesLabel:'Jewellery Sale',supTab:true},
+  medical:{dashTitle:'💊 Medical Shop',salesLabel:'Medicine Sales',supTab:true},
+  hotel:{dashTitle:'🍽️ Hotel / Food',salesLabel:'Orders / Revenue',supTab:false},
+  other:{dashTitle:'🏪 Business',salesLabel:'Sales / Income',supTab:true}
 };
 
 async function finishOnboard(){
@@ -1476,6 +1498,8 @@ async function finishOnboard(){
   localStorage.setItem('slv_gst',JSON.stringify(_gstOn));
   localStorage.setItem('slv_gstrate',String(_gstRate));
   localStorage.setItem('slv_onboarded','true');
+  localStorage.setItem('slv_biztype',_obType);
+  _bizType=_obType;
 
   // Save to Firebase
   try{
@@ -1488,7 +1512,7 @@ async function finishOnboard(){
   // Hide onboarding, show app
   document.getElementById('onboard-screen').classList.remove('on');
   document.getElementById('app').style.display='block';
-  buildShopStrip(); renderDash();
+  buildShopStrip(); renderDash(); applyBizTypeUI();
   toast('🎉 Welcome to கணக்கபிள்ளை!');
 }
 
@@ -1821,7 +1845,7 @@ async function startApp(user){
   const cachedCfg=localStorage.getItem('kp_cfg_cache');
   let staffLoaded=false, configLoaded=false;
   if(cachedMe){ try{ const m=JSON.parse(cachedMe); if(m.uid===user.uid){ME.role=m.role||'owner';ME.shop=m.shop||'all';if(m.businessId)ME.businessId=m.businessId;staffLoaded=true;} }catch(e){} }
-  if(cachedCfg){ try{ const c=JSON.parse(cachedCfg); if(c.shops)SHOPS=c.shops; if(c.cats)CATS=c.cats; if(c.gstOn!==undefined)_gstOn=c.gstOn; if(c.gstRate)_gstRate=c.gstRate; configLoaded=true; }catch(e){} }
+  if(cachedCfg){ try{ const c=JSON.parse(cachedCfg); if(c.shops)SHOPS=c.shops; if(c.cats)CATS=c.cats; if(c.gstOn!==undefined)_gstOn=c.gstOn; if(c.gstRate)_gstRate=c.gstRate; if(c.bizType)_bizType=c.bizType; configLoaded=true; }catch(e){} }
 
   if(!staffLoaded||!configLoaded){
     try{
@@ -1831,7 +1855,7 @@ async function startApp(user){
       ]);
       if(sd.exists){ const d=sd.data(); ME.role=d.role||'owner'; if(d.businessId)ME.businessId=d.businessId; }
       else { await DB.collection('staff').doc(user.uid).set({uid:user.uid,name:ME.name,email:ME.email,role:'owner',businessId:user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()}); }
-      if(cfg.exists){ const d=cfg.data(); if(d.shops)SHOPS=d.shops; if(d.cats)CATS=d.cats; localStorage.setItem('kp_cfg_cache',JSON.stringify({shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate})); }
+      if(cfg.exists){ const d=cfg.data(); if(d.shops)SHOPS=d.shops; if(d.cats)CATS=d.cats; if(d.bizType){_bizType=d.bizType;localStorage.setItem('slv_biztype',d.bizType);} localStorage.setItem('kp_cfg_cache',JSON.stringify({shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate,bizType:_bizType})); }
       else if(!localStorage.getItem('slv_onboarded')){ document.getElementById('login-screen').style.display='none'; document.getElementById('onboard-screen').classList.add('on'); return; }
       localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,role:ME.role,businessId:ME.businessId}));
     }catch(e){
@@ -1863,7 +1887,7 @@ async function _finishAppSetup(user){
   document.getElementById('sc-date').value=tod();
   document.getElementById('bl-date').value=tod();
   applyLang(); buildUI(); initGstUI(); initApiKeyDisplay();
-  applyOwnerPermissions();
+  applyOwnerPermissions(); applyBizTypeUI();
   API_CONFIG.reset();
   updSyncBar(); updAI();
   setTimeout(syncNow,3000);
@@ -2308,6 +2332,7 @@ function setLDate(m,el){
 // DASHBOARD
 // ════════════════════════════════════════
 function renderDash(){
+  renderNewUserTip();
   const f=getDF(_dd,'d-from','d-to');
   let txs=f(TXS);
   if(_shop!=='all') txs=txs.filter(x=>x.shop===_shop);
@@ -2818,11 +2843,27 @@ function loadQB(){
   const cats=(CATS[shop]?.[type])||[];
   const label=type==='sales'?'Income':'Expense';
   let html=`<div class="qbwrap"><div class="qblbl">Quick Select ${label} Type</div><div class="qbgrid">`;
-  html+=cats.map(c=>`<div class="qb" onclick="pickCat('${esc(c)}',this)">${esc(c)}</div>`).join('');
+  html+=cats.map(c=>`<div class="qb" data-cat="${escAttr(c)}" onclick="pickCat(this.dataset.cat,this)">${esc(c)}</div>`).join('');
   html+=`<div class="qb" style="border-style:dashed;color:var(--green)" onclick="showCustomCat()">+ Custom</div>`;
   html+=`</div></div>`;
   html+=`<div id="custom-cat-row" style="display:none;margin-bottom:10px"><div class="fr"><div class="fg"><label>New Category Name</label><input type="text" id="custom-cat-inp" placeholder="Type new category"></div></div><button class="btn S sm" onclick="addCustomCat()">+ Add &amp; Select</button></div>`;
   area.innerHTML=html;
+
+  // Community tip: visible for new users (<5 entries)
+  const tip=document.getElementById('community-tip');
+  if(!tip)return;
+  const myTxs=TXS.filter(t=>t.businessId===(ME?.businessId||ME?.uid));
+  if(myTxs.length>=5){tip.style.display='none';return;}
+  const bc=BIZ_CATS[_bizType]||BIZ_CATS.other;
+  const suggestions=type==='sales'?bc.sales:bc.expense;
+  const alreadyShown=new Set(cats);
+  const extra=suggestions.filter(s=>!alreadyShown.has(s));
+  if(!extra.length){tip.style.display='none';return;}
+  tip.style.display='block';
+  tip.innerHTML=`<div style="font-size:11px;color:var(--green);font-weight:600;margin-bottom:6px">💡 Similar shops also track:</div>`+
+    `<div style="display:flex;flex-wrap:wrap;gap:5px">`+
+    extra.map(s=>`<div class="qb" data-cat="${escAttr(s)}" onclick="pickCat(this.dataset.cat,this)" style="font-size:11px">${esc(s)}</div>`).join('')+
+    `</div>`;
 }
 function showCustomCat(){
   const row=document.getElementById('custom-cat-row');
@@ -4294,6 +4335,48 @@ function applyOwnerPermissions(){
   }
 }
 
+function applyBizTypeUI(){
+  const cfg=BTYPE_CONFIG[_bizType]||BTYPE_CONFIG.other;
+
+  // Show/hide Suppliers nav tab based on bizType
+  const ns=document.getElementById('nav-sup');
+  if(ns) ns.style.display=cfg.supTab?'flex':'none';
+
+  // Update Sales option label in entry form type dropdown
+  const mtype=document.getElementById('m-type');
+  if(mtype){
+    const opt=mtype.querySelector('option[value="sales"]');
+    if(opt) opt.textContent='💚 '+cfg.salesLabel;
+  }
+
+  // Show bizType banner on dashboard
+  const banner=document.getElementById('biz-type-banner');
+  if(banner&&_bizType&&_bizType!=='other'){
+    banner.textContent=cfg.dashTitle;
+    banner.style.display='block';
+  }
+
+  // New-user community tip on dashboard
+  renderNewUserTip();
+}
+
+function renderNewUserTip(){
+  const tip=document.getElementById('d-new-user-tip');
+  if(!tip)return;
+  const myTxs=TXS.filter(t=>t.businessId===(ME.businessId||ME.uid));
+  if(myTxs.length>=10){tip.style.display='none';return;}
+  const bc=BIZ_CATS[_bizType]||BIZ_CATS.other;
+  const expList=bc.expense.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
+  const salList=bc.sales.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
+  tip.style.display='block';
+  tip.innerHTML=`<div class="card" style="border-left:3px solid var(--green)">
+    <div class="chd">💡 Getting Started — Popular for ${esc((BTYPE_CONFIG[_bizType]||BTYPE_CONFIG.other).dashTitle)} shops</div>
+    <div style="margin-bottom:6px"><span style="font-size:11px;color:var(--muted);font-weight:600">Common Expenses:</span><div>${expList}</div></div>
+    <div><span style="font-size:11px;color:var(--muted);font-weight:600">Sales Types:</span><div>${salList}</div></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:8px">This tip hides after your first 10 entries.</div>
+  </div>`;
+}
+
 // ── API CONFIGURATION ──
 // Original phone photo: ~3MB = 10,000+ tokens = quota exceeded!
 // Compressed 1024px: ~150KB = 500 tokens = works fine!
@@ -4506,6 +4589,7 @@ document.querySelectorAll('.mover').forEach(o=>o.addEventListener('click',e=>{if
 function sum(txs,type){ return txs.filter(t=>t.type===type).reduce((s,t)=>s+(t.amount||0),0); }
 function fmt(n){ return Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s){ return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function v(id){ return document.getElementById(id)?.value||''; }
 
 // ════════════════════════════════════════
