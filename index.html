@@ -675,20 +675,26 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 
   <!-- ── LEDGER ── -->
   <div class="pane" id="pane-ledger">
-    <div class="card">
-      <div class="chd">&#128203; Transactions</div>
-      <div class="dtabs" id="led-tabs">
-        <div class="dtab on" onclick="setLDate('today',this)">&#128197; Today</div>
-        <div class="dtab" onclick="setLDate('yesterday',this)">&#9194; Yesterday</div>
-        <div class="dtab" onclick="setLDate('week',this)">&#128198; Week</div>
-        <div class="dtab" onclick="setLDate('month',this)">&#128197; Month</div>
-        <div class="dtab" onclick="setLDate('custom',this)">&#128198; Custom</div>
-        <div class="dtab" onclick="setLDate('all',this)">&#128203; All</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div><div style="font-weight:800;font-size:18px">📒 Cash Book</div><div style="font-size:11px;color:var(--muted)" id="led-summary-lbl"></div></div>
+      <div style="display:flex;gap:6px">
+        <button onclick="toggleLedFilter()" style="background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:7px 11px;font-size:13px;cursor:pointer">&#9881;&#65039;</button>
+        <button onclick="exportLedgerCSV()" style="background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:7px 11px;font-size:13px;cursor:pointer">&#11015;&#65039; CSV</button>
       </div>
-      <div class="cdrow" id="l-cdrow">
-        <div class="fr"><div class="fg"><label>From Date</label><input type="date" id="l-from" onchange="renderLedger()"></div><div class="fg"><label>To Date</label><input type="date" id="l-to" onchange="renderLedger()"></div></div>
+    </div>
+    <div class="dtabs" id="led-tabs">
+      <div class="dtab on" onclick="setLDate('today',this)">&#128197; Today</div>
+      <div class="dtab" onclick="setLDate('yesterday',this)">&#9194; Yesterday</div>
+      <div class="dtab" onclick="setLDate('week',this)">&#128198; Week</div>
+      <div class="dtab" onclick="setLDate('month',this)">&#128197; Month</div>
+      <div class="dtab" onclick="setLDate('custom',this)">&#128198; Custom</div>
+      <div class="dtab" onclick="setLDate('all',this)">&#128203; All</div>
+    </div>
+    <div id="led-filter-panel" style="display:none;background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;border:1px solid var(--border)">
+      <div id="l-cdrow" style="display:none;margin-bottom:8px">
+        <div class="fr"><div class="fg"><label>From</label><input type="date" id="l-from" onchange="renderLedger()"></div><div class="fg"><label>To</label><input type="date" id="l-to" onchange="renderLedger()"></div></div>
       </div>
-      <div class="fr" style="margin-bottom:10px">
+      <div class="fr">
         <div class="fg"><label>Shop</label><select id="f-shop" onchange="renderLedger()"><option value="all">All Shops</option></select></div>
         <div class="fg"><label>Type</label>
           <select id="f-type" onchange="renderLedger()">
@@ -696,11 +702,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
           </select>
         </div>
       </div>
-      <div class="ltw"><table class="lt">
-        <thead><tr><th>Date</th><th>Shop</th><th>Type</th><th>Description</th><th>Amount</th><th>By</th><th></th></tr></thead>
-        <tbody id="ltbody"></tbody>
-      </table></div>
     </div>
+    <div id="led-body"></div>
   </div>
 
   <!-- ── SUPPLIER ── -->
@@ -2305,10 +2308,14 @@ async function addNewShop(){
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
   localStorage.setItem('slv_cats',JSON.stringify(CATS));
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
-  if(type==='finance'||type==='chit') loadFinanceData();
   applyBizTypeUI();
   ['ns-name','ns-icon','ns-sc','ns-ec'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   closeM('add-shop-modal'); buildUI(); toast('✅ '+name+' added!');
+  if(type==='finance'||type==='chit'){
+    await loadFinanceData();
+    const nf=document.getElementById('nav-finance');
+    if(nf) goPane('finance',nf);
+  }
 }
 
 // ════════════════════════════════════════
@@ -2611,13 +2618,13 @@ function setLDate(m,el){
   document.querySelectorAll('#led-tabs .dtab').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
   const cr=document.getElementById('l-cdrow');
-  if(cr){
-    cr.style.display=m==='custom'?'block':'none';
-    if(m==='custom'){
-      const df=document.getElementById('l-from'),dt=document.getElementById('l-to');
-      if(df&&!df.value){const f=new Date();f.setDate(f.getDate()-10);df.value=f.toISOString().split('T')[0];}
-      if(dt&&!dt.value)dt.value=tod();
-    }
+  if(cr) cr.style.display=m==='custom'?'block':'none';
+  if(m==='custom'){
+    const fp=document.getElementById('led-filter-panel');
+    if(fp) fp.style.display='block';
+    const df=document.getElementById('l-from'),dt=document.getElementById('l-to');
+    if(df&&!df.value){const f=new Date();f.setDate(f.getDate()-10);df.value=f.toISOString().split('T')[0];}
+    if(dt&&!dt.value)dt.value=tod();
   }
   renderLedger();
 }
@@ -3273,21 +3280,124 @@ function renderLedger(){
   if(ft!=='all') txs=txs.filter(t=>t.type===ft);
   if(_shop!=='all') txs=txs.filter(t=>t.shop===_shop);
   if(ME.role!=='owner'&&ME.shop!=='all') txs=txs.filter(t=>t.shop===ME.shop);
-  const tb=document.getElementById('ltbody');
-  if(!txs.length){tb.innerHTML='<tr><td colspan="7" class="empty">No transactions for this period</td></tr>';return;}
+  txs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  const body=document.getElementById('led-body');
+  if(!body)return;
+
+  // Summary label
+  const lbl=document.getElementById('led-summary-lbl');
+  if(lbl){
+    const ts=sum(txs,'sales'),te=sum(txs,'expense')+sum(txs,'payment'),tn=ts-te;
+    lbl.innerHTML=txs.length?`${txs.length} entries · <span style="color:var(--green)">+₹${fmt(ts)}</span> <span style="color:var(--red)">-₹${fmt(te)}</span>`:'';
+  }
+
+  if(!txs.length){
+    body.innerHTML=`<div style="background:var(--card);border-radius:16px;padding:40px 20px;text-align:center;box-shadow:var(--sh)">
+      <div style="font-size:40px;margin-bottom:10px">📭</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">No transactions</div>
+      <div style="font-size:12px;color:var(--muted)">Tap Entry tab to add your first entry</div>
+    </div>`;
+    return;
+  }
+
   const canEdit=ME.role==='owner'||ME.role==='manager';
-  tb.innerHTML=txs.map(t=>`<tr>
-    <td style="font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap">${t.date||''}</td>
-    <td style="font-size:11px;white-space:nowrap">${SHOPS[t.shop]?.icon||'🏪'} ${SHOPS[t.shop]?.name||t.shop}</td>
-    <td><span class="tbadge ${t.type}">${(t.type||'').toUpperCase()}</span></td>
-    <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)" title="${esc(t.desc||'')}">${esc(t.desc||'')}${t.category?'<br><small style="color:var(--muted)">'+t.category+'</small>':''}${t.supplier?'<br><small style="color:var(--muted)">'+t.supplier+'</small>':''}</td>
-    <td style="font-family:var(--mono);font-size:12px;font-weight:700;color:${t.type==='sales'?'var(--green)':'var(--red)'};white-space:nowrap">${t.type==='sales'?'+':'-'}₹${fmt(t.amount)}${t.gstOn?'<br><span class="gst-badge">GST ₹'+fmt(t.gstAmount||0)+'</span>':''}</td>
-    <td style="font-size:10px;color:var(--muted);white-space:nowrap">${t.by||''}</td>
-    <td style="white-space:nowrap">
-      ${canEdit?`<button onclick="openEdit('${t.id}')" style="background:none;border:none;color:var(--blue);font-size:15px;cursor:pointer;padding:3px" title="Edit">✏️</button>`:''}
-      ${ME.role==='owner'?`<button onclick="delTx('${t.id}')" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:3px" title="Delete">✕</button>`:''}
-    </td>
-  </tr>`).join('');
+  const isOwner=ME.role==='owner';
+
+  // Group by date
+  const groups={};
+  txs.forEach(t=>{const d=t.date||'unknown';if(!groups[d])groups[d]=[];groups[d].push(t);});
+
+  body.innerHTML=Object.entries(groups).map(([date,dayTxs])=>{
+    const ds=sum(dayTxs,'sales'),de=sum(dayTxs,'expense')+sum(dayTxs,'payment'),dn=ds-de;
+    const rows=dayTxs.map(t=>{
+      const shop=SHOPS[t.shop];
+      const isIn=t.type==='sales';
+      const col=isIn?'var(--green)':t.type==='payment'?'var(--yellow)':'var(--red)';
+      const bg=isIn?'var(--gl)':t.type==='payment'?'var(--yl)':'var(--rl)';
+      const icon=isIn?'↑':t.type==='payment'?'↔':'↓';
+      return`<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)">
+        <div style="width:34px;height:34px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${col};flex-shrink:0">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)">${esc(t.desc||'Entry')}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${shop?shop.icon+' '+esc(shop.name)+' ·&nbsp;':''}<span style="text-transform:capitalize">${t.type}</span>${t.by?' · '+esc(t.by):''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:800;font-size:15px;font-family:var(--mono);color:${col}">${isIn?'+':'-'}₹${fmt(t.amount)}</div>
+          ${t.gstOn?`<div style="font-size:9px;color:var(--yellow)">GST ₹${fmt(t.gstAmount||0)}</div>`:''}
+        </div>
+        <div style="display:flex;gap:0;flex-shrink:0">
+          ${canEdit?`<button onclick="openEdit('${t.id}')" style="background:none;border:none;color:var(--blue);font-size:15px;cursor:pointer;padding:4px">&#9998;</button>`:''}
+          ${isOwner?`<button onclick="delTx('${t.id}')" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:4px">&#10005;</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
+
+    return`<div style="background:var(--card);border-radius:16px;margin-bottom:10px;overflow:hidden;box-shadow:var(--sh)">
+      <div onclick="toggleLedGroup('${date}')" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--soft);border-bottom:1px solid var(--border);cursor:pointer;user-select:none">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="lg-arr-${date}" style="font-size:13px;color:var(--green);display:inline-block;transition:transform .2s">&#9660;</span>
+          <div>
+            <div style="font-weight:700;font-size:13px">${formatLedDate(date)}</div>
+            <div style="font-size:10px;color:var(--muted)">${dayTxs.length} entr${dayTxs.length===1?'y':'ies'}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:800;font-size:14px;color:${dn>=0?'var(--green)':'var(--red)'}">${dn>=0?'+':'-'}₹${fmt(Math.abs(dn))}</div>
+          <div style="font-size:10px;color:var(--muted)">${ds>0?'↑₹'+fmt(ds):''}${de>0?' ↓₹'+fmt(de):''}</div>
+        </div>
+      </div>
+      <div id="lg-rows-${date}">
+        ${rows}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:var(--soft)">
+          <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px">DAY TOTAL</span>
+          <div style="display:flex;gap:10px;font-size:12px;font-weight:800">
+            ${ds>0?`<span style="color:var(--green)">+₹${fmt(ds)}</span>`:''}
+            ${de>0?`<span style="color:var(--red)">-₹${fmt(de)}</span>`:''}
+            <span style="color:${dn>=0?'var(--green)':'var(--red)'}">= ${dn>=0?'+':'-'}₹${fmt(Math.abs(dn))}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleLedGroup(date){
+  const rows=document.getElementById('lg-rows-'+date);
+  const arr=document.getElementById('lg-arr-'+date);
+  if(!rows)return;
+  const hidden=rows.style.display==='none';
+  rows.style.display=hidden?'block':'none';
+  if(arr)arr.style.transform=hidden?'':'rotate(-90deg)';
+}
+function toggleLedFilter(){
+  const p=document.getElementById('led-filter-panel');
+  if(p)p.style.display=p.style.display==='none'?'block':'none';
+}
+function formatLedDate(ds){
+  if(!ds||ds==='unknown')return'Unknown Date';
+  try{
+    const[y,m,d]=ds.split('-').map(Number);
+    const dt=new Date(y,m-1,d);
+    const today=new Date();today.setHours(0,0,0,0);
+    const diff=Math.round((today-dt)/86400000);
+    const dayStr=dt.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
+    if(diff===0)return'Today · '+dayStr;
+    if(diff===1)return'Yesterday · '+dayStr;
+    return dt.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  }catch(e){return ds;}
+}
+function exportLedgerCSV(){
+  const fs=v('f-shop')||'all',ft=v('f-type')||'all';
+  const f=getDF(_ld,'l-from','l-to');
+  let txs=f(TXS);
+  if(fs!=='all')txs=txs.filter(t=>t.shop===fs);
+  if(ft!=='all')txs=txs.filter(t=>t.type===ft);
+  if(_shop!=='all')txs=txs.filter(t=>t.shop===_shop);
+  txs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const rows=[['Date','Shop','Type','Description','Amount','By'],...txs.map(t=>[t.date||'',SHOPS[t.shop]?.name||t.shop,t.type||'',t.desc||'',t.amount||0,t.by||''])];
+  const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='cashbook-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
 async function delTx(id){
   if(!confirm('Delete this entry?'))return;
