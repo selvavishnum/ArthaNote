@@ -57,6 +57,28 @@ body.hi,body.mr{font-family:var(--devanagari)}
 body.te{font-family:var(--telugu)}
 body.bn{font-family:var(--bengali)}
 
+/* ── INTRO SLIDESHOW ── */
+#intro-screen{position:fixed;inset:0;background:#f8f8f8;z-index:99998;display:none;flex-direction:column}
+#intro-screen.on{display:flex}
+.intro-top{display:flex;justify-content:flex-end;padding:16px 20px;flex-shrink:0}
+.intro-skip{color:#d97706;font-size:14px;font-weight:700;background:none;border:none;cursor:pointer;font-family:var(--sans)}
+.intro-slides{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.intro-slides::-webkit-scrollbar{display:none}
+.intro-slide{min-width:100%;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 32px 0;text-align:center}
+.intro-illo{width:220px;height:220px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:40px;flex-shrink:0;position:relative}
+.intro-illo .big-emoji{font-size:80px;line-height:1}
+.intro-illo .sub-emoji{position:absolute;font-size:36px}
+.intro-h{font-size:26px;font-weight:800;color:#1f2937;margin-bottom:12px;line-height:1.2}
+.intro-p{font-size:15px;color:#6b7280;line-height:1.65;max-width:300px}
+.intro-bottom{flex-shrink:0;padding:16px 24px 40px;background:#f8f8f8}
+.intro-dots{display:flex;justify-content:center;gap:8px;margin-bottom:20px}
+.intro-dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;transition:all .3s;cursor:pointer}
+.intro-dot.on{width:24px;border-radius:4px;background:#d97706}
+.intro-next{width:100%;padding:16px;border-radius:30px;background:#d97706;color:#fff;border:none;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--sans);box-shadow:0 6px 24px rgba(217,119,6,.35);transition:all .2s}
+.intro-next:hover{background:#b45309}
+.intro-already{text-align:center;margin-top:14px;font-size:13px;color:#6b7280}
+.intro-already span{color:#d97706;font-weight:700;cursor:pointer}
+
 /* ── LANGUAGE SELECTOR ── */
 #lang-select-screen{position:fixed;inset:0;background:#fff;z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;padding:40px 20px 60px}
 #lang-select-screen.on{display:flex}
@@ -497,6 +519,84 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 </head>
 <body>
 <div id="toast"></div>
+
+<!-- ════ INTRO SLIDESHOW (new users only) ════ -->
+<div id="intro-screen">
+  <div class="intro-top">
+    <button class="intro-skip" onclick="skipIntro()">Skip →</button>
+  </div>
+
+  <div class="intro-slides" id="intro-slides" onscroll="onIntroScroll()">
+
+    <!-- Slide 1: Easy to Use -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#e8f4fd,#c8e6f9)">
+        <span class="big-emoji">📱</span>
+        <span class="sub-emoji" style="bottom:10px;right:20px">✨</span>
+      </div>
+      <div class="intro-h">Very Easy To Use.</div>
+      <div class="intro-p">Fast and user-friendly. Add your daily entries in seconds — no training needed.</div>
+    </div>
+
+    <!-- Slide 2: Multiple Languages -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#e8f0fe,#c5d5fb);flex-direction:row;gap:0;border-radius:24px;width:260px;height:180px">
+        <div style="background:#4285f4;border-radius:16px 0 0 0;width:120px;height:140px;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;color:#fff;margin-top:auto">A</div>
+        <div style="background:#e8eaf6;border-radius:0 0 16px 0;width:140px;height:120px;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:700;color:#374151;font-family:var(--devanagari);margin-bottom:auto">अ</div>
+      </div>
+      <div class="intro-h">Multiple Language Support.</div>
+      <div class="intro-p">English · हिंदी · தமிழ் · తెలుగు · বাংলা · मराठी — use ArthaNote in your language.</div>
+    </div>
+
+    <!-- Slide 3: 360° Reports -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#d1fae5,#a7f3d0)">
+        <span class="big-emoji">📊</span>
+        <span class="sub-emoji" style="top:16px;right:28px;font-size:28px">📈</span>
+        <span class="sub-emoji" style="bottom:16px;left:28px;font-size:24px">📉</span>
+      </div>
+      <div class="intro-h">360° Report System.</div>
+      <div class="intro-p">Daily, weekly, monthly and annual reports. Know your profit, expenses and trends — all in one tap.</div>
+    </div>
+
+    <!-- Slide 4: Finance & Chit Fund -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#fef3c7,#fde68a)">
+        <span class="big-emoji">💰</span>
+        <span class="sub-emoji" style="top:18px;right:24px;font-size:30px">🤝</span>
+        <span class="sub-emoji" style="bottom:18px;left:24px;font-size:26px">📋</span>
+      </div>
+      <div class="intro-h">Finance &amp; Chit Fund.</div>
+      <div class="intro-p">Separate dashboard for finance groups. Track collections, defaulters, chit prizes — all managed easily.</div>
+    </div>
+
+    <!-- Slide 5: We Are Listening -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#b2ebf2,#80deea);overflow:hidden">
+        <div style="width:90px;height:90px;background:#ffcc80;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;z-index:1">😊</div>
+        <div style="position:absolute;top:20px;left:12px;background:#ef5350;border-radius:12px 12px 12px 0;padding:8px 10px;font-size:20px">⭐</div>
+        <div style="position:absolute;top:16px;right:10px;background:#ff9800;border-radius:12px 12px 12px 0;padding:6px 10px;font-size:13px;color:#fff;font-weight:700">★★★</div>
+        <div style="position:absolute;bottom:20px;right:12px;background:#e91e8c;border-radius:12px 0 12px 12px;padding:8px 10px;font-size:18px">👁️</div>
+        <div style="position:absolute;bottom:20px;left:10px;background:#5c6bc0;border-radius:12px 0 12px 12px;padding:6px 12px;font-size:12px;color:#fff">✦ ✦ ✦</div>
+      </div>
+      <div class="intro-h">We Are Listening.</div>
+      <div class="intro-p">Always ready to add features that help <strong>your</strong> business the most. Customised for you.</div>
+    </div>
+
+  </div>
+
+  <div class="intro-bottom">
+    <div class="intro-dots" id="intro-dots">
+      <div class="intro-dot on" onclick="goIntroSlide(0)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(1)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(2)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(3)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(4)"></div>
+    </div>
+    <button class="intro-next" id="intro-next" onclick="nextIntroSlide()">Next →</button>
+    <div class="intro-already">Already have an account? <span onclick="skipIntro()">Sign In</span></div>
+  </div>
+</div>
 
 <!-- ════ LANGUAGE SELECTOR (shown once to new users) ════ -->
 <div id="lang-select-screen">
@@ -2704,6 +2804,51 @@ async function addNewShop(){
 }
 
 // ════════════════════════════════════════
+// ════════════════════════════════════════
+// MULTI-LANGUAGE SYSTEM
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+// INTRO SLIDESHOW
+// ════════════════════════════════════════
+let _introSlide=0;
+const INTRO_TOTAL=5;
+function goIntroSlide(n){
+  _introSlide=n;
+  const sl=document.getElementById('intro-slides');
+  if(sl) sl.scrollTo({left:sl.offsetWidth*n,behavior:'smooth'});
+  document.querySelectorAll('.intro-dot').forEach((d,i)=>d.classList.toggle('on',i===n));
+  const btn=document.getElementById('intro-next');
+  if(btn) btn.textContent=n===INTRO_TOTAL-1?'Get Started 🚀':'Next →';
+}
+function nextIntroSlide(){
+  if(_introSlide<INTRO_TOTAL-1){ goIntroSlide(_introSlide+1); }
+  else { finishIntro(); }
+}
+function onIntroScroll(){
+  const sl=document.getElementById('intro-slides');
+  if(!sl)return;
+  const n=Math.round(sl.scrollLeft/sl.offsetWidth);
+  if(n!==_introSlide) goIntroSlide(n);
+}
+function skipIntro(){ finishIntro(); }
+function finishIntro(){
+  localStorage.setItem('slv_intro_done','1');
+  document.getElementById('intro-screen').classList.remove('on');
+  // Show language selector if not yet selected, else go to landing
+  if(!localStorage.getItem('slv_lang_selected')){
+    // Pre-select current lang
+    document.querySelectorAll('.ls-item').forEach(el=>{
+      const lang=el.getAttribute('onclick')?.match(/selectLang\('(\w+)'/)?.[1];
+      el.classList.toggle('selected',lang===_lang);
+      el.querySelector('.ls-item-check').textContent=lang===_lang?'✓':'';
+    });
+    _pendingLang=_lang;
+    document.getElementById('lang-select-screen').classList.add('on');
+  } else {
+    document.getElementById('landing').classList.add('on');
+  }
+}
+
 // ════════════════════════════════════════
 // MULTI-LANGUAGE SYSTEM
 // ════════════════════════════════════════
@@ -5562,13 +5707,16 @@ window.onload=async ()=>{
     console.log('Auth:', user?user.email:'null');
     window._authUser=user||null;
     if(user){
+      // Logged-in users skip intro/lang/landing entirely
+      document.getElementById('intro-screen').classList.remove('on');
       document.getElementById('landing').classList.remove('on');
       document.getElementById('lang-select-screen').classList.remove('on');
       await doStart(user);
     } else {
-      // Show language selector for first-time visitors, then landing
-      if(!localStorage.getItem('slv_lang_selected')){
-        // Pre-select current language
+      // New user flow: intro → lang selector → landing
+      if(!localStorage.getItem('slv_intro_done')){
+        document.getElementById('intro-screen').classList.add('on');
+      } else if(!localStorage.getItem('slv_lang_selected')){
         const curLang=_lang||'en';
         document.querySelectorAll('.ls-item').forEach(el=>{
           const lang=el.getAttribute('onclick')?.match(/selectLang\('(\w+)'/)?.[1];
