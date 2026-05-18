@@ -383,7 +383,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .stitle{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin:14px 0 8px}
 
 /* ── PREMIUM SETTINGS MODAL ── */
-.sett-modal{padding:0 0 40px;border-radius:24px 24px 0 0;max-height:82vh}
+.sett-modal{padding:0 0 40px;border-radius:0;max-height:100vh;height:100vh}
+#menu-modal{align-items:stretch}
 .att-tabs{display:flex;background:var(--soft);border-radius:12px;padding:4px;margin-bottom:14px;gap:4px}
 .att-tab{flex:1;text-align:center;padding:9px 6px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);transition:all .2s}
 .att-tab.active{background:#fff;color:#065f46;box-shadow:0 1px 6px rgba(0,0,0,.1)}
@@ -441,6 +442,19 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .sett-logout:active{background:#fef2f2}
 .sett-footer{display:flex;justify-content:center;gap:16px;padding:16px 18px 0;border-top:1px solid var(--border);margin-top:14px}
 .sett-footer a{font-size:11px;color:var(--muted);text-decoration:none;font-weight:600}
+/* DONUT CHARTS */
+.donut-wrap{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
+.donut-legend{flex:1;min-width:0}
+.donut-leg-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.donut-leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.donut-leg-lbl{flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151}
+.donut-leg-pct{font-size:10px;font-weight:800;color:#374151;white-space:nowrap}
+.donut-leg-amt{font-size:9px;color:var(--muted);white-space:nowrap}
+.chart-section-title{font-size:12px;font-weight:800;color:#374151;letter-spacing:.3px;text-transform:uppercase;margin-bottom:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.chart-overview-row{display:flex;gap:8px;margin-bottom:12px}
+.chart-ov-card{flex:1;background:var(--soft);border-radius:10px;padding:10px;text-align:center}
+.chart-ov-card-v{font-size:16px;font-weight:800;font-family:var(--mono)}
+.chart-ov-card-l{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:2px}
 .pwa-install-row{padding:8px 18px 0}
 .sett-pwa-btn{width:100%;padding:13px;border-radius:14px;border:none;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--sans)}
 
@@ -1662,8 +1676,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 </div>
 
 <!-- ATTENDANCE VIEW MODAL -->
-<div class="mover center-modal" id="attendance-view-modal">
-  <div class="modal" style="max-height:88vh">
+<div class="mover" id="attendance-view-modal" style="align-items:stretch;padding:0">
+  <div class="modal" style="max-height:100vh;height:100vh;border-radius:0">
     <div class="mhd">📋 Attendance <button class="mclose" onclick="closeM('attendance-view-modal')">✕</button></div>
     <!-- Tabs -->
     <div class="att-tabs">
@@ -2060,11 +2074,10 @@ async function loadAttSummary(){
 
     const snap=await DB.collection('attendance')
       .where('businessId','==',BID)
-      .where('date','>=',startDate)
-      .where('date','<=',endDate)
       .get();
 
-    const records=snap.docs.map(d=>d.data());
+    const records=snap.docs.map(d=>d.data())
+      .filter(r=>r.date>=startDate&&r.date<=endDate);
     if(!records.length){ body.innerHTML=`<div class="empty">No attendance records for ${monthVal}</div>`; return; }
 
     // Calculate working days elapsed in month (up to today)
@@ -4650,6 +4663,43 @@ const RPT_SECTIONS=[
   {id:'actions',label:'📌 Actions'}
 ];
 
+const DONUT_COLORS=['#059669','#ef4444','#d97706','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#64748b','#dc2626','#0ea5e9'];
+function drawDonut(data){
+  if(!data.length) return '<div class="empty" style="font-size:11px">No data</div>';
+  const total=data.reduce((s,d)=>s+d.v,0);
+  if(!total) return '<div class="empty" style="font-size:11px">No data</div>';
+  const R=52,r=30,cx=64,cy=64;
+  let angle=-Math.PI/2;
+  const segs=data.map((d,i)=>{
+    const pct=d.v/total;
+    const sweep=pct*2*Math.PI;
+    const safe=Math.min(sweep,2*Math.PI-0.001);
+    const x1=cx+R*Math.cos(angle);
+    const y1=cy+R*Math.sin(angle);
+    const ix2=cx+r*Math.cos(angle);
+    const iy2=cy+r*Math.sin(angle);
+    angle+=safe;
+    const x2=cx+R*Math.cos(angle);
+    const y2=cy+R*Math.sin(angle);
+    const ix1=cx+r*Math.cos(angle);
+    const iy1=cy+r*Math.sin(angle);
+    const lg=safe>Math.PI?1:0;
+    const col=DONUT_COLORS[i%DONUT_COLORS.length];
+    return {path:`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R},0,${lg},1,${x2.toFixed(1)},${y2.toFixed(1)} L${ix1.toFixed(1)},${iy1.toFixed(1)} A${r},${r},0,${lg},0,${ix2.toFixed(1)},${iy2.toFixed(1)} Z" fill="${col}"/>`,col,pct:(pct*100).toFixed(0)};
+  });
+  const svgPaths=segs.map(s=>s.path).join('');
+  const svg=`<svg viewBox="0 0 128 128" width="110" height="110" style="flex-shrink:0"><circle cx="${cx}" cy="${cy}" r="${R}" fill="#f3f4f6"/>${svgPaths}<circle cx="${cx}" cy="${cy}" r="${r-2}" fill="white"/></svg>`;
+  const legend=data.slice(0,8).map((d,i)=>`
+    <div class="donut-leg-row">
+      <div class="donut-leg-dot" style="background:${segs[i].col}"></div>
+      <div class="donut-leg-lbl">${esc(d.l)}</div>
+      <div>
+        <div class="donut-leg-pct">${segs[i].pct}%</div>
+        <div class="donut-leg-amt">₹${fmt(d.v)}</div>
+      </div>
+    </div>`).join('');
+  return `<div class="donut-wrap">${svg}<div class="donut-legend">${legend}</div></div>`;
+}
 function setRptDate(m,el){
   _rptDate=m;
   document.querySelectorAll('#rpt-date-tabs .dtab').forEach(b=>b.classList.remove('on'));
@@ -4960,15 +5010,27 @@ function renderReports(){
 
   // ═══ 9. TREND CHARTS ═══
   const maxSales=Math.max(...dailyData.map(d=>d.sales),1);
+  // Compute category breakdowns for charts
+  const salCatMap={};
+  txs.filter(x=>x.type==='sales').forEach(t=>{const c=(t.category||t.desc||'Sales').trim().slice(0,20);salCatMap[c]=(salCatMap[c]||0)+(t.amount||0);});
+  const salCats=Object.entries(salCatMap).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({l,v}));
+  const expCats2=cats.slice(0,8).map(([l,v])=>({l,v}));
+  const overviewData=[{l:'Sales',v:s},{l:'Expenses',v:te}];
   document.getElementById('rpt-charts-body').innerHTML=`
-    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">SALES TREND (Day-wise)</div>
+    <div class="chart-overview-row">
+      <div class="chart-ov-card"><div class="chart-ov-card-v cg">₹${fmt(s)}</div><div class="chart-ov-card-l">Sales</div></div>
+      <div class="chart-ov-card"><div class="chart-ov-card-v cr">₹${fmt(te)}</div><div class="chart-ov-card-l">Expenses</div></div>
+      <div class="chart-ov-card"><div class="chart-ov-card-v ${net>=0?'cg':'cr'}">₹${fmt(Math.abs(net))}</div><div class="chart-ov-card-l">Net ${net>=0?'Profit':'Loss'}</div></div>
+    </div>
+    <div class="chart-section-title">💚 Sales by Category</div>
+    ${salCats.length?drawDonut(salCats):'<div class="empty" style="font-size:11px">No categorized sales. Tag entries with categories.</div>'}
+    <div class="chart-section-title" style="margin-top:12px">💸 Expense by Category</div>
+    ${expCats2.length?drawDonut(expCats2):'<div class="empty" style="font-size:11px">No expense entries found.</div>'}
+    <div class="chart-section-title" style="margin-top:12px">📊 Sales Trend</div>
     <div class="tbar">${dailyData.map(d=>`<div class="tbar-col" style="height:${(d.sales/maxSales*100).toFixed(0)}%;background:var(--green)" title="${d.date}: ₹${fmt(d.sales)}"></div>`).join('')}</div>
     <div class="tbar-xl"><span>${dates[0]||''}</span><span>${dates[dates.length-1]||''}</span></div>
-    <div style="font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 4px">EXPENSE TREND</div>
+    <div class="chart-section-title" style="margin-top:12px">💸 Expense Trend</div>
     <div class="tbar">${dailyData.map(d=>`<div class="tbar-col" style="height:${(d.exp/maxSales*100).toFixed(0)}%;background:var(--red)" title="${d.date}: ₹${fmt(d.exp)}"></div>`).join('')}</div>
-    <div class="tbar-xl"><span>${dates[0]||''}</span><span>${dates[dates.length-1]||''}</span></div>
-    <div style="font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 4px">PROFIT TREND</div>
-    <div class="tbar">${dailyData.map(d=>`<div class="tbar-col" style="height:${Math.max((d.net/maxSales*100),2).toFixed(0)}%;background:${d.net>=0?'var(--green)':'var(--red)'}" title="${d.date}: ₹${fmt(d.net)}"></div>`).join('')}</div>
     <div class="tbar-xl"><span>${dates[0]||''}</span><span>${dates[dates.length-1]||''}</span></div>`;
 
   // ═══ 10. ALERTS & RISKS ═══
