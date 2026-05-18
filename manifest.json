@@ -1,14 +1,14 @@
 {
   "name": "ArthaNote — Your Wealth, Noted",
   "short_name": "ArthaNote",
-  "description": "Smart ledger for Tamil Nadu businesses. Track sales, expenses, suppliers & reports. Artha = Wealth.",
-  "start_url": "/Kannakupilai/index.html",
-  "scope": "/Kannakupilai/",
+  "description": "Smart business ledger app. Track sales, expenses, suppliers & reports. Your wealth, noted.",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#065f46",
+  "background_color": "#ffffff",
   "theme_color": "#065f46",
-  "lang": "ta",
+  "lang": "en",
   "categories": ["business", "finance", "productivity"],
   "icons": [
     {
@@ -30,14 +30,14 @@
       "name": "Add Entry",
       "short_name": "Entry",
       "description": "Add a new ledger entry",
-      "url": "/Kannakupilai/index.html#entry",
+      "url": "./index.html#entry",
       "icons": [{"src": "icon-192.png", "sizes": "192x192"}]
     },
     {
       "name": "View Reports",
       "short_name": "Reports",
       "description": "View business reports",
-      "url": "/Kannakupilai/index.html#report",
+      "url": "./index.html#report",
       "icons": [{"src": "icon-192.png", "sizes": "192x192"}]
     }
   ]
