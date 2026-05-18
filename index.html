@@ -2406,6 +2406,8 @@ async function _finishAppSetup(user){
   document.getElementById('bl-date').value=tod();
   applyLang(); buildUI(); initGstUI(); initApiKeyDisplay();
   applyOwnerPermissions(); applyBizTypeUI();
+  // Render dashboard from cache immediately so users see data right away
+  if(loadFromCache()){ renderDash(); renderLedger(); }
   API_CONFIG.reset();
   updSyncBar(); updAI();
   setTimeout(syncNow,3000);
@@ -2446,12 +2448,12 @@ function saveCacheLocal(){
 
 function loadFromCache(){
   try{
-    const ts=parseInt(localStorage.getItem(CACHE_KEY_TS)||'0');
-    if(!ts) return false;
     const txRaw=localStorage.getItem(CACHE_KEY_TXS);
+    if(!txRaw) return false;
+    const ts=parseInt(localStorage.getItem(CACHE_KEY_TS)||'0');
     const supRaw=localStorage.getItem(CACHE_KEY_SUPS);
     const billRaw=localStorage.getItem(CACHE_KEY_BILLS);
-    if(txRaw) TXS=JSON.parse(txRaw);
+    TXS=JSON.parse(txRaw);
     if(supRaw) SUPS=JSON.parse(supRaw);
     if(billRaw) BILLS=JSON.parse(billRaw);
     const ageMin=Math.round((Date.now()-ts)/60000);
@@ -2846,12 +2848,9 @@ function finishIntro(){
     _pendingLang=_lang;
     document.getElementById('lang-select-screen').classList.add('on');
   } else {
-    document.getElementById('landing').classList.add('on');
+    document.getElementById('login-screen').style.display='flex';
   }
 }
-
-// ════════════════════════════════════════
-// MULTI-LANGUAGE SYSTEM
 // ════════════════════════════════════════
 const LANG_META={
   en:{label:'EN',name:'English',flag:'🇬🇧'},
@@ -2885,9 +2884,9 @@ function confirmLang(){
   localStorage.setItem('slv_lang_selected','1');
   document.getElementById('lang-select-screen').classList.remove('on');
   applyLang();
-  // Show landing or app depending on auth state
+  // Show login if not authenticated
   if(!window._authUser){
-    document.getElementById('landing').classList.add('on');
+    document.getElementById('login-screen').style.display='flex';
   }
 }
 function openLangPicker(){
@@ -5730,7 +5729,7 @@ window.onload=async ()=>{
         _pendingLang=curLang;
         document.getElementById('lang-select-screen').classList.add('on');
       } else {
-        document.getElementById('landing').classList.add('on');
+        document.getElementById('login-screen').style.display='flex';
       }
     }
   });
