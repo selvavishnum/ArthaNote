@@ -25,7 +25,7 @@
 </style>
 <title>ArthaNote — Your Wealth, Noted</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -44,12 +44,59 @@
   --sans:'Plus Jakarta Sans',sans-serif;
   --mono:'JetBrains Mono',monospace;
   --tamil:'Noto Sans Tamil',var(--sans);
+  --devanagari:'Noto Sans Devanagari',var(--sans);
+  --telugu:'Noto Sans Telugu',var(--sans);
+  --bengali:'Noto Sans Bengali',var(--sans);
   --sh:0 1px 4px rgba(0,0,0,.07);--sh2:0 8px 32px rgba(0,0,0,.13);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding-bottom:72px;overflow-x:hidden}
 body.ta{font-family:var(--tamil)}
+body.hi,body.mr{font-family:var(--devanagari)}
+body.te{font-family:var(--telugu)}
+body.bn{font-family:var(--bengali)}
+
+/* ── INTRO SLIDESHOW ── */
+#intro-screen{position:fixed;inset:0;background:#f8f8f8;z-index:99998;display:none;flex-direction:column}
+#intro-screen.on{display:flex}
+.intro-top{display:flex;justify-content:flex-end;padding:16px 20px;flex-shrink:0}
+.intro-skip{color:#d97706;font-size:14px;font-weight:700;background:none;border:none;cursor:pointer;font-family:var(--sans)}
+.intro-slides{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.intro-slides::-webkit-scrollbar{display:none}
+.intro-slide{min-width:100%;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 32px 0;text-align:center}
+.intro-illo{width:220px;height:220px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:40px;flex-shrink:0;position:relative}
+.intro-illo .big-emoji{font-size:80px;line-height:1}
+.intro-illo .sub-emoji{position:absolute;font-size:36px}
+.intro-h{font-size:26px;font-weight:800;color:#1f2937;margin-bottom:12px;line-height:1.2}
+.intro-p{font-size:15px;color:#6b7280;line-height:1.65;max-width:300px}
+.intro-bottom{flex-shrink:0;padding:16px 24px 40px;background:#f8f8f8}
+.intro-dots{display:flex;justify-content:center;gap:8px;margin-bottom:20px}
+.intro-dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;transition:all .3s;cursor:pointer}
+.intro-dot.on{width:24px;border-radius:4px;background:#d97706}
+.intro-next{width:100%;padding:16px;border-radius:30px;background:#d97706;color:#fff;border:none;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--sans);box-shadow:0 6px 24px rgba(217,119,6,.35);transition:all .2s}
+.intro-next:hover{background:#b45309}
+.intro-already{text-align:center;margin-top:14px;font-size:13px;color:#6b7280}
+.intro-already span{color:#d97706;font-weight:700;cursor:pointer}
+
+/* ── LANGUAGE SELECTOR ── */
+#lang-select-screen{position:fixed;inset:0;background:#fff;z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;padding:40px 20px 60px}
+#lang-select-screen.on{display:flex}
+.ls-header{text-align:center;margin-bottom:32px}
+.ls-logo{font-size:32px;font-weight:800;color:#111827;margin-bottom:4px}.ls-logo span{color:#d97706}
+.ls-title{font-size:22px;font-weight:800;color:#111827;margin-bottom:6px}
+.ls-sub{font-size:13px;color:#6b7280}
+.ls-grid{width:100%;max-width:440px;display:flex;flex-direction:column;gap:10px}
+.ls-item{display:flex;align-items:center;gap:14px;padding:16px 18px;border:2px solid #e5e7eb;border-radius:16px;cursor:pointer;transition:all .2s;background:#fff}
+.ls-item:hover,.ls-item.selected{border-color:#d97706;background:#fffbeb}
+.ls-item-flag{font-size:28px;flex-shrink:0}
+.ls-item-info{flex:1}
+.ls-item-name{font-size:18px;font-weight:800;color:#111827;line-height:1.2}
+.ls-item-sub{font-size:12px;color:#6b7280;margin-top:2px}
+.ls-item-check{width:22px;height:22px;border-radius:50%;border:2px solid #e5e7eb;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.ls-item.selected .ls-item-check{background:#d97706;border-color:#d97706;color:#fff;font-size:12px}
+.ls-cta{width:100%;max-width:440px;margin-top:20px;padding:16px;background:#d97706;color:#fff;border:none;border-radius:30px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 6px 24px rgba(217,119,6,.4);transition:all .2s}
+.ls-cta:hover{background:#b45309}
 
 /* ── LANDING PAGE ── */
 #landing{display:none;font-family:var(--sans);background:#fff;overflow-x:hidden}
@@ -149,6 +196,8 @@ body.ta{font-family:var(--tamil)}
 .trole.owner{background:var(--yl);color:var(--yellow)}
 .trole.manager{background:var(--bl);color:var(--blue)}
 .trole.cashier{background:var(--gl);color:var(--green)}
+.trole.admin{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff}
+.trole.pro{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}
 .langbtn{background:var(--bl);color:var(--blue);border:1.5px solid var(--blue);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:var(--sans)}
 .langbtn.ta{background:var(--green);color:#fff;border-color:var(--green)}
 .tmenu{background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;flex-shrink:0}
@@ -471,6 +520,126 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 <body>
 <div id="toast"></div>
 
+<!-- ════ INTRO SLIDESHOW (new users only) ════ -->
+<div id="intro-screen">
+  <div class="intro-top">
+    <button class="intro-skip" onclick="skipIntro()">Skip →</button>
+  </div>
+
+  <div class="intro-slides" id="intro-slides" onscroll="onIntroScroll()">
+
+    <!-- Slide 1: Easy to Use -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#e8f4fd,#c8e6f9)">
+        <span class="big-emoji">📱</span>
+        <span class="sub-emoji" style="bottom:10px;right:20px">✨</span>
+      </div>
+      <div class="intro-h">Very Easy To Use.</div>
+      <div class="intro-p">Fast and user-friendly. Add your daily entries in seconds — no training needed.</div>
+    </div>
+
+    <!-- Slide 2: Multiple Languages -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#e8f0fe,#c5d5fb);flex-direction:row;gap:0;border-radius:24px;width:260px;height:180px">
+        <div style="background:#4285f4;border-radius:16px 0 0 0;width:120px;height:140px;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;color:#fff;margin-top:auto">A</div>
+        <div style="background:#e8eaf6;border-radius:0 0 16px 0;width:140px;height:120px;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:700;color:#374151;font-family:var(--devanagari);margin-bottom:auto">अ</div>
+      </div>
+      <div class="intro-h">Multiple Language Support.</div>
+      <div class="intro-p">English · हिंदी · தமிழ் · తెలుగు · বাংলা · मराठी — use ArthaNote in your language.</div>
+    </div>
+
+    <!-- Slide 3: 360° Reports -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#d1fae5,#a7f3d0)">
+        <span class="big-emoji">📊</span>
+        <span class="sub-emoji" style="top:16px;right:28px;font-size:28px">📈</span>
+        <span class="sub-emoji" style="bottom:16px;left:28px;font-size:24px">📉</span>
+      </div>
+      <div class="intro-h">360° Report System.</div>
+      <div class="intro-p">Daily, weekly, monthly and annual reports. Know your profit, expenses and trends — all in one tap.</div>
+    </div>
+
+    <!-- Slide 4: Finance & Chit Fund -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#fef3c7,#fde68a)">
+        <span class="big-emoji">💰</span>
+        <span class="sub-emoji" style="top:18px;right:24px;font-size:30px">🤝</span>
+        <span class="sub-emoji" style="bottom:18px;left:24px;font-size:26px">📋</span>
+      </div>
+      <div class="intro-h">Finance &amp; Chit Fund.</div>
+      <div class="intro-p">Separate dashboard for finance groups. Track collections, defaulters, chit prizes — all managed easily.</div>
+    </div>
+
+    <!-- Slide 5: We Are Listening -->
+    <div class="intro-slide">
+      <div class="intro-illo" style="background:linear-gradient(145deg,#b2ebf2,#80deea);overflow:hidden">
+        <div style="width:90px;height:90px;background:#ffcc80;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;z-index:1">😊</div>
+        <div style="position:absolute;top:20px;left:12px;background:#ef5350;border-radius:12px 12px 12px 0;padding:8px 10px;font-size:20px">⭐</div>
+        <div style="position:absolute;top:16px;right:10px;background:#ff9800;border-radius:12px 12px 12px 0;padding:6px 10px;font-size:13px;color:#fff;font-weight:700">★★★</div>
+        <div style="position:absolute;bottom:20px;right:12px;background:#e91e8c;border-radius:12px 0 12px 12px;padding:8px 10px;font-size:18px">👁️</div>
+        <div style="position:absolute;bottom:20px;left:10px;background:#5c6bc0;border-radius:12px 0 12px 12px;padding:6px 12px;font-size:12px;color:#fff">✦ ✦ ✦</div>
+      </div>
+      <div class="intro-h">We Are Listening.</div>
+      <div class="intro-p">Always ready to add features that help <strong>your</strong> business the most. Customised for you.</div>
+    </div>
+
+  </div>
+
+  <div class="intro-bottom">
+    <div class="intro-dots" id="intro-dots">
+      <div class="intro-dot on" onclick="goIntroSlide(0)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(1)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(2)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(3)"></div>
+      <div class="intro-dot" onclick="goIntroSlide(4)"></div>
+    </div>
+    <button class="intro-next" id="intro-next" onclick="nextIntroSlide()">Next →</button>
+    <div class="intro-already">Already have an account? <span onclick="skipIntro()">Sign In</span></div>
+  </div>
+</div>
+
+<!-- ════ LANGUAGE SELECTOR (shown once to new users) ════ -->
+<div id="lang-select-screen">
+  <div class="ls-header">
+    <div class="ls-logo">Artha<span>Note</span></div>
+    <div class="ls-title" id="ls-title">Select Your Language</div>
+    <div class="ls-sub" id="ls-sub">Choose your preferred language to continue</div>
+  </div>
+  <div class="ls-grid">
+    <div class="ls-item" onclick="selectLang('en',this)">
+      <div class="ls-item-flag">🇬🇧</div>
+      <div class="ls-item-info"><div class="ls-item-name">English</div><div class="ls-item-sub">Default language</div></div>
+      <div class="ls-item-check">✓</div>
+    </div>
+    <div class="ls-item" onclick="selectLang('hi',this)">
+      <div class="ls-item-flag">🇮🇳</div>
+      <div class="ls-item-info"><div class="ls-item-name" style="font-family:var(--devanagari)">हिंदी</div><div class="ls-item-sub">Hindi · 60 करोड़ से ज़्यादा</div></div>
+      <div class="ls-item-check"></div>
+    </div>
+    <div class="ls-item" onclick="selectLang('ta',this)">
+      <div class="ls-item-flag">🇮🇳</div>
+      <div class="ls-item-info"><div class="ls-item-name" style="font-family:var(--tamil)">தமிழ்</div><div class="ls-item-sub">Tamil · 8 கோடிக்கும் மேல்</div></div>
+      <div class="ls-item-check"></div>
+    </div>
+    <div class="ls-item" onclick="selectLang('te',this)">
+      <div class="ls-item-flag">🇮🇳</div>
+      <div class="ls-item-info"><div class="ls-item-name" style="font-family:var(--telugu)">తెలుగు</div><div class="ls-item-sub">Telugu · 9 కోట్లకు పైగా</div></div>
+      <div class="ls-item-check"></div>
+    </div>
+    <div class="ls-item" onclick="selectLang('bn',this)">
+      <div class="ls-item-flag">🇮🇳</div>
+      <div class="ls-item-info"><div class="ls-item-name" style="font-family:var(--bengali)">বাংলা</div><div class="ls-item-sub">Bengali · ১০ কোটিরও বেশি</div></div>
+      <div class="ls-item-check"></div>
+    </div>
+    <div class="ls-item" onclick="selectLang('mr',this)">
+      <div class="ls-item-flag">🇮🇳</div>
+      <div class="ls-item-info"><div class="ls-item-name" style="font-family:var(--devanagari)">मराठी</div><div class="ls-item-sub">Marathi · 8 कोटींपेक्षा जास्त</div></div>
+      <div class="ls-item-check"></div>
+    </div>
+  </div>
+  <button class="ls-cta" id="ls-cta" onclick="confirmLang()">Continue →</button>
+</div>
+
 <!-- ════ LANDING PAGE (shown to unauthenticated visitors) ════ -->
 <div id="landing">
 
@@ -731,7 +900,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="tuser" id="t-user">Loading...</div>
     </div>
     <span class="trole owner" id="t-role">&#128081; Owner</span>
-    <button class="langbtn" id="langbtn" onclick="toggleLang()">&#2980;&#2990;&#3007;&#2996;&#3021;</button>
+    <button class="langbtn" id="langbtn" onclick="openLangPicker()">EN</button>
     <button class="tmenu" onclick="openM('menu-modal')">&#9776;</button>
   </div>
 
@@ -1064,6 +1233,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="dtab" onclick="setSdP('week',this)">This Week</div>
       <div class="dtab" onclick="setSdP('month',this)">This Month</div>
       <div class="dtab" onclick="setSdP('year',this)">This Year</div>
+      <div class="dtab" onclick="setSdP('custom',this)">📅 Custom</div>
+    </div>
+    <div class="cdrow" id="sd-cdrow">
+      <div class="fr"><div class="fg"><label>From</label><input type="date" id="sd-from" onchange="renderSd()"></div><div class="fg"><label>To</label><input type="date" id="sd-to" onchange="renderSd()"></div></div>
     </div>
     <div class="sgrid" id="sd-stats"></div>
     <div class="card"><div class="chd">&#128202; Breakdown</div><div id="sd-break"></div></div>
@@ -1077,13 +1250,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   </div>
 
   <div class="bnav">
-    <button class="nbt on" onclick="goPane('dash',this)"><span class="ni">&#128202;</span><span class="nl">Dashboard</span></button>
-    <button class="nbt" id="nav-scan" onclick="goPane('scan',this)"><span class="ni">&#128247;</span><span class="nl">Scan</span></button>
-    <button class="nbt" id="nav-finance" style="display:none" onclick="goPane('finance',this);loadFinanceData()"><span class="ni">&#128176;</span><span class="nl">Finance</span></button>
-    <button class="nbt" onclick="goPane('entry',this)"><span class="ni">&#9999;&#65039;</span><span class="nl">Entry</span></button>
-    <button class="nbt" onclick="goPane('ledger',this)"><span class="ni">&#128203;</span><span class="nl">Ledger</span></button>
-    <button class="nbt" id="nav-sup" onclick="goPane('sup',this)"><span class="ni">&#127991;&#65039;</span><span class="nl">Suppliers</span></button>
-    <button class="nbt" onclick="goPane('report',this)"><span class="ni">&#128200;</span><span class="nl">Reports</span></button>
+    <button class="nbt on" onclick="goPane('dash',this)"><span class="ni">&#128202;</span><span class="nl" id="nl-dash">Dashboard</span></button>
+    <button class="nbt" id="nav-scan" onclick="goPane('scan',this)"><span class="ni">&#128247;</span><span class="nl" id="nl-scan">Scan</span></button>
+    <button class="nbt" id="nav-finance" style="display:none" onclick="goPane('finance',this);loadFinanceData()"><span class="ni">&#128176;</span><span class="nl" id="nl-finance">Finance</span></button>
+    <button class="nbt" onclick="goPane('entry',this)"><span class="ni">&#9999;&#65039;</span><span class="nl" id="nl-entry">Entry</span></button>
+    <button class="nbt" onclick="goPane('ledger',this)"><span class="ni">&#128203;</span><span class="nl" id="nl-ledger">Ledger</span></button>
+    <button class="nbt" id="nav-sup" onclick="goPane('sup',this)"><span class="ni">&#127991;&#65039;</span><span class="nl" id="nl-sup">Suppliers</span></button>
+    <button class="nbt" onclick="goPane('report',this)"><span class="ni">&#128200;</span><span class="nl" id="nl-report">Reports</span></button>
   </div>
 </div>
 
@@ -1214,6 +1387,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     </div>
     <button class="btn R" onclick="doLogout()">&#128682; Sign Out</button>
     <button id="pwa-install-btn" onclick="installPWA()" style="display:none;width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-top:8px;align-items:center;justify-content:center;gap:8px;font-family:var(--sans)">📲 Install as App</button>
+    <div style="display:flex;justify-content:center;gap:20px;padding:14px 0 4px;border-top:1px solid var(--border);margin-top:12px">
+      <a href="privacy.html" target="_blank" style="font-size:11px;color:var(--muted);text-decoration:none;font-weight:600">🔒 Privacy Policy</a>
+      <a href="privacy.html" onclick="sessionStorage.setItem('pp-tab','terms')" target="_blank" style="font-size:11px;color:var(--muted);text-decoration:none;font-weight:600">📄 Terms of Service</a>
+    </div>
   </div>
 </div>
 
@@ -2200,8 +2377,17 @@ async function _finishAppSetup(user){
   // Set UI
   document.getElementById('t-user').textContent=ME.name;
   const roleLabels={owner:'👑 Owner',manager:'👔 Manager',cashier:'💵 Cashier'};
-  document.getElementById('t-role').textContent=roleLabels[ME.role]||ME.role;
-  document.getElementById('t-role').className='trole '+ME.role;
+  const isAdmin=ME.email===OWNER_EMAIL;
+  if(isAdmin){
+    document.getElementById('t-role').textContent='🔑 Admin';
+    document.getElementById('t-role').className='trole admin';
+  } else if(ME.pro){
+    document.getElementById('t-role').textContent='⭐ Pro';
+    document.getElementById('t-role').className='trole pro';
+  } else {
+    document.getElementById('t-role').textContent=roleLabels[ME.role]||ME.role;
+    document.getElementById('t-role').className='trole '+ME.role;
+  }
   document.getElementById('mu-name').textContent=ME.name;
   document.getElementById('mu-email').textContent=ME.email;
   const psb=document.getElementById('pro-status-bar');
@@ -2618,18 +2804,128 @@ async function addNewShop(){
 }
 
 // ════════════════════════════════════════
-// LANGUAGE TOGGLE
 // ════════════════════════════════════════
-function toggleLang(){
-  _lang=_lang==='en'?'ta':'en';
+// MULTI-LANGUAGE SYSTEM
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+// INTRO SLIDESHOW
+// ════════════════════════════════════════
+let _introSlide=0;
+const INTRO_TOTAL=5;
+function goIntroSlide(n){
+  _introSlide=n;
+  const sl=document.getElementById('intro-slides');
+  if(sl) sl.scrollTo({left:sl.offsetWidth*n,behavior:'smooth'});
+  document.querySelectorAll('.intro-dot').forEach((d,i)=>d.classList.toggle('on',i===n));
+  const btn=document.getElementById('intro-next');
+  if(btn) btn.textContent=n===INTRO_TOTAL-1?'Get Started 🚀':'Next →';
+}
+function nextIntroSlide(){
+  if(_introSlide<INTRO_TOTAL-1){ goIntroSlide(_introSlide+1); }
+  else { finishIntro(); }
+}
+function onIntroScroll(){
+  const sl=document.getElementById('intro-slides');
+  if(!sl)return;
+  const n=Math.round(sl.scrollLeft/sl.offsetWidth);
+  if(n!==_introSlide) goIntroSlide(n);
+}
+function skipIntro(){ finishIntro(); }
+function finishIntro(){
+  localStorage.setItem('slv_intro_done','1');
+  document.getElementById('intro-screen').classList.remove('on');
+  // Show language selector if not yet selected, else go to landing
+  if(!localStorage.getItem('slv_lang_selected')){
+    // Pre-select current lang
+    document.querySelectorAll('.ls-item').forEach(el=>{
+      const lang=el.getAttribute('onclick')?.match(/selectLang\('(\w+)'/)?.[1];
+      el.classList.toggle('selected',lang===_lang);
+      el.querySelector('.ls-item-check').textContent=lang===_lang?'✓':'';
+    });
+    _pendingLang=_lang;
+    document.getElementById('lang-select-screen').classList.add('on');
+  } else {
+    document.getElementById('landing').classList.add('on');
+  }
+}
+
+// ════════════════════════════════════════
+// MULTI-LANGUAGE SYSTEM
+// ════════════════════════════════════════
+const LANG_META={
+  en:{label:'EN',name:'English',flag:'🇬🇧'},
+  hi:{label:'HI',name:'हिंदी',flag:'🇮🇳'},
+  ta:{label:'TA',name:'தமிழ்',flag:'🇮🇳'},
+  te:{label:'TE',name:'తెలుగు',flag:'🇮🇳'},
+  bn:{label:'BN',name:'বাংলা',flag:'🇮🇳'},
+  mr:{label:'MR',name:'मराठी',flag:'🇮🇳'},
+};
+const STRINGS={
+  en:{dashboard:'Dashboard',scan:'Scan',finance:'Finance',entry:'Entry',ledger:'Ledger',suppliers:'Suppliers',reports:'Reports',today:'Today',yesterday:'Yesterday',thisWeek:'This Week',thisMonth:'This Month',thisYear:'This Year',custom:'Custom',sales:'Sales',expense:'Expense',payment:'Payment',balance:'Balance',totalSales:'Total Sales',totalExpense:'Total Expense',netBalance:'Net Balance',save:'Save',cancel:'Cancel',signOut:'Sign Out',addEntry:'Add Entry',loading:'Loading...',noEntries:'No entries found',selectLang:'Select Language',continueLang:'Continue →',langSub:'Choose your preferred language'},
+  hi:{dashboard:'डैशबोर्ड',scan:'स्कैन',finance:'फाइनेंस',entry:'एंट्री',ledger:'खाता',suppliers:'आपूर्तिकर्ता',reports:'रिपोर्ट',today:'आज',yesterday:'कल',thisWeek:'इस सप्ताह',thisMonth:'इस महीने',thisYear:'इस साल',custom:'कस्टम',sales:'बिक्री',expense:'खर्च',payment:'भुगतान',balance:'बैलेंस',totalSales:'कुल बिक्री',totalExpense:'कुल खर्च',netBalance:'नेट बैलेंस',save:'सेव',cancel:'रद्द',signOut:'साइन आउट',addEntry:'एंट्री जोड़ें',loading:'लोड हो रहा है...',noEntries:'कोई एंट्री नहीं',selectLang:'भाषा चुनें',continueLang:'आगे बढ़ें →',langSub:'अपनी भाषा चुनें'},
+  ta:{dashboard:'டாஷ்போர்டு',scan:'ஸ்கேன்',finance:'நிதி',entry:'பதிவு',ledger:'கணக்கு',suppliers:'சப்ளையர்',reports:'அறிக்கை',today:'இன்று',yesterday:'நேற்று',thisWeek:'இந்த வாரம்',thisMonth:'இந்த மாதம்',thisYear:'இந்த ஆண்டு',custom:'தனிப்பயன்',sales:'விற்பனை',expense:'செலவு',payment:'கட்டணம்',balance:'இருப்பு',totalSales:'மொத்த விற்பனை',totalExpense:'மொத்த செலவு',netBalance:'நிகர இருப்பு',save:'சேமி',cancel:'ரத்து',signOut:'வெளியேறு',addEntry:'பதிவு சேர்',loading:'ஏற்றுகிறது...',noEntries:'பதிவுகள் இல்லை',selectLang:'மொழி தேர்வு',continueLang:'தொடர் →',langSub:'உங்கள் மொழியைத் தேர்ந்தெடுங்கள்'},
+  te:{dashboard:'డాష్‌బోర్డ్',scan:'స్కాన్',finance:'ఫైనాన్స్',entry:'ఎంట్రీ',ledger:'లెడ్జర్',suppliers:'సరఫరాదారులు',reports:'నివేదికలు',today:'ఈరోజు',yesterday:'నిన్న',thisWeek:'ఈ వారం',thisMonth:'ఈ నెల',thisYear:'ఈ సంవత్సరం',custom:'కస్టమ్',sales:'అమ్మకాలు',expense:'ఖర్చు',payment:'చెల్లింపు',balance:'బ్యాలెన్స్',totalSales:'మొత్తం అమ్మకాలు',totalExpense:'మొత్తం ఖర్చు',netBalance:'నికర బ్యాలెన్స్',save:'సేవ్',cancel:'రద్దు',signOut:'సైన్ అవుట్',addEntry:'ఎంట్రీ జోడించు',loading:'లోడ్ అవుతోంది...',noEntries:'ఎంట్రీలు లేవు',selectLang:'భాష ఎంచుకోండి',continueLang:'కొనసాగించు →',langSub:'మీకు ఇష్టమైన భాషను ఎంచుకోండి'},
+  bn:{dashboard:'ড্যাশবোর্ড',scan:'স্ক্যান',finance:'ফাইন্যান্স',entry:'এন্ট্রি',ledger:'খাতা',suppliers:'সরবরাহকারী',reports:'রিপোর্ট',today:'আজ',yesterday:'গতকাল',thisWeek:'এই সপ্তাহ',thisMonth:'এই মাস',thisYear:'এই বছর',custom:'কাস্টম',sales:'বিক্রয়',expense:'খরচ',payment:'পেমেন্ট',balance:'ব্যালেন্স',totalSales:'মোট বিক্রয়',totalExpense:'মোট খরচ',netBalance:'নেট ব্যালেন্স',save:'সেভ',cancel:'বাতিল',signOut:'সাইন আউট',addEntry:'এন্ট্রি যোগ করুন',loading:'লোড হচ্ছে...',noEntries:'কোন এন্ট্রি নেই',selectLang:'ভাষা নির্বাচন',continueLang:'চালিয়ে যান →',langSub:'আপনার পছন্দের ভাষা বেছে নিন'},
+  mr:{dashboard:'डॅशबोर्ड',scan:'स्कॅन',finance:'फायनान्स',entry:'नोंद',ledger:'खातेवही',suppliers:'पुरवठादार',reports:'अहवाल',today:'आज',yesterday:'काल',thisWeek:'या आठवड्यात',thisMonth:'या महिन्यात',thisYear:'या वर्षी',custom:'कस्टम',sales:'विक्री',expense:'खर्च',payment:'देय',balance:'शिल्लक',totalSales:'एकूण विक्री',totalExpense:'एकूण खर्च',netBalance:'निव्वळ शिल्लक',save:'जतन करा',cancel:'रद्द करा',signOut:'साइन आउट',addEntry:'नोंद जोडा',loading:'लोड होत आहे...',noEntries:'कोणत्याही नोंदी नाहीत',selectLang:'भाषा निवडा',continueLang:'पुढे जा →',langSub:'तुमची पसंतीची भाषा निवडा'},
+};
+function T(key){ return (STRINGS[_lang]||STRINGS.en)[key]||STRINGS.en[key]||key; }
+
+let _pendingLang='en';
+function selectLang(lang,el){
+  _pendingLang=lang;
+  document.querySelectorAll('.ls-item').forEach(i=>{i.classList.remove('selected');i.querySelector('.ls-item-check').textContent='';});
+  el.classList.add('selected'); el.querySelector('.ls-item-check').textContent='✓';
+  const cta=document.getElementById('ls-cta');
+  if(cta) cta.textContent=(STRINGS[lang]||STRINGS.en).continueLang;
+}
+function confirmLang(){
+  _lang=_pendingLang;
   localStorage.setItem('slv_lang',_lang);
+  localStorage.setItem('slv_lang_selected','1');
+  document.getElementById('lang-select-screen').classList.remove('on');
   applyLang();
+  // Show landing or app depending on auth state
+  if(!window._authUser){
+    document.getElementById('landing').classList.add('on');
+  }
+}
+function openLangPicker(){
+  // Pre-select current language
+  document.querySelectorAll('.ls-item').forEach(el=>{
+    const lang=el.getAttribute('onclick')?.match(/selectLang\('(\w+)'/)?.[1];
+    const isSelected=lang===_lang;
+    el.classList.toggle('selected',isSelected);
+    el.querySelector('.ls-item-check').textContent=isSelected?'✓':'';
+  });
+  _pendingLang=_lang;
+  const cta=document.getElementById('ls-cta'); if(cta) cta.textContent=T('continueLang');
+  document.getElementById('lang-select-screen').classList.add('on');
+  // Override confirm to just close
+  document.getElementById('ls-cta').onclick=()=>{
+    _lang=_pendingLang;
+    localStorage.setItem('slv_lang',_lang);
+    localStorage.setItem('slv_lang_selected','1');
+    document.getElementById('lang-select-screen').classList.remove('on');
+    applyLang();
+    document.getElementById('ls-cta').onclick=confirmLang;
+  };
 }
 function applyLang(){
-  const btn=document.getElementById('langbtn'); if(!btn)return;
-  btn.textContent=_lang==='ta'?'English':'தமிழ்';
-  btn.classList.toggle('ta',_lang==='ta');
-  document.body.classList.toggle('ta',_lang==='ta');
+  const s=STRINGS[_lang]||STRINGS.en;
+  const btn=document.getElementById('langbtn');
+  if(btn){ btn.textContent=(LANG_META[_lang]||LANG_META.en).label; btn.classList.remove('ta'); if(_lang==='ta') btn.classList.add('ta'); }
+  // Body font class
+  document.body.className=document.body.className.replace(/\b(en|hi|ta|te|bn|mr)\b/g,'').trim();
+  if(_lang!=='en') document.body.classList.add(_lang);
+  // Nav labels
+  const nl={dash:s.dashboard,scan:s.scan,finance:s.finance,entry:s.entry,ledger:s.ledger,sup:s.suppliers,report:s.reports};
+  Object.entries(nl).forEach(([k,v])=>{const el=document.getElementById('nl-'+k);if(el)el.textContent=v;});
+  // Date tabs in dashboard
+  const dtMap=[['today',s.today],['yesterday',s.yesterday],['week',s.thisWeek],['month',s.thisMonth],['custom','📅 '+s.custom]];
+  document.querySelectorAll('#dash-tabs .dtab').forEach((el,i)=>{if(dtMap[i])el.textContent=dtMap[i][1];});
+  // Language selector header
+  const lt=document.getElementById('ls-title'); if(lt) lt.textContent=s.selectLang;
+  const ls=document.getElementById('ls-sub'); if(ls) ls.textContent=s.langSub;
 }
 
 // Single function that keeps slv_cats, kp_cfg_cache, and Firestore in sync
@@ -3050,7 +3346,15 @@ function openSd(k){
 function setSdP(m,el){
   _sdP=m;
   document.querySelectorAll('#pane-shop-detail .dtab').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on'); renderSd();
+  el.classList.add('on');
+  const cr=document.getElementById('sd-cdrow');
+  if(cr) cr.style.display=m==='custom'?'block':'none';
+  if(m==='custom'){
+    const sf=document.getElementById('sd-from'),st=document.getElementById('sd-to');
+    if(sf&&!sf.value){ sf.value=new Date(Date.now()-7*864e5).toISOString().split('T')[0]; }
+    if(st&&!st.value){ st.value=tod(); }
+  }
+  renderSd();
 }
 function renderSd(){
   const t=tod(), y=new Date(); y.setDate(y.getDate()-1); const ys=y.toISOString().split('T')[0];
@@ -3061,6 +3365,7 @@ function renderSd(){
   else if(_sdP==='week') txs=txs.filter(x=>x.date>=ws.toISOString().split('T')[0]);
   else if(_sdP==='month')txs=txs.filter(x=>x.date>=t.substring(0,7)+'-01');
   else if(_sdP==='year') txs=txs.filter(x=>x.date>=t.substring(0,4)+'-01-01');
+  else if(_sdP==='custom'){ const sf=v('sd-from'),st=v('sd-to'); if(sf) txs=txs.filter(x=>x.date>=sf); if(st) txs=txs.filter(x=>x.date<=st); }
   const s=sum(txs,'sales'),e=sum(txs,'expense'),p=sum(txs,'payment'),net=s-e-p;
   document.getElementById('sd-stats').innerHTML=`
     <div class="stile"><div class="slbl">Sales</div><div class="sval cg">₹${fmt(s)}</div></div>
@@ -5097,17 +5402,35 @@ function renderNewUserTip(){
   const tip=document.getElementById('d-new-user-tip');
   if(!tip)return;
   const myTxs=TXS.filter(t=>t.businessId===(ME.businessId||ME.uid));
-  if(myTxs.length>=10){tip.style.display='none';return;}
-  const bc=BIZ_CATS[_bizType]||BIZ_CATS.other;
-  const expList=bc.expense.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
-  const salList=bc.sales.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
-  tip.style.display='block';
-  tip.innerHTML=`<div class="card" style="border-left:3px solid var(--green)">
-    <div class="chd">💡 Getting Started — Popular for ${esc((BTYPE_CONFIG[_bizType]||BTYPE_CONFIG.other).dashTitle)} shops</div>
-    <div style="margin-bottom:6px"><span style="font-size:11px;color:var(--muted);font-weight:600">Common Expenses:</span><div>${expList}</div></div>
-    <div><span style="font-size:11px;color:var(--muted);font-weight:600">Sales Types:</span><div>${salList}</div></div>
-    <div style="font-size:10px;color:var(--muted);margin-top:8px">This tip hides after your first 10 entries.</div>
-  </div>`;
+  let html='';
+
+  // Getting started tip (< 10 entries)
+  if(myTxs.length<10){
+    const bc=BIZ_CATS[_bizType]||BIZ_CATS.other;
+    const expList=bc.expense.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
+    const salList=bc.sales.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
+    html+=`<div class="card" style="border-left:3px solid var(--green);margin-bottom:10px">
+      <div class="chd">💡 Getting Started — Popular for ${esc((BTYPE_CONFIG[_bizType]||BTYPE_CONFIG.other).dashTitle)} shops</div>
+      <div style="margin-bottom:6px"><span style="font-size:11px;color:var(--muted);font-weight:600">Common Expenses:</span><div>${expList}</div></div>
+      <div><span style="font-size:11px;color:var(--muted);font-weight:600">Sales Types:</span><div>${salList}</div></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px">This tip hides after your first 10 entries.</div>
+    </div>`;
+  }
+
+  // Pro upgrade nudge for free users
+  if(!isProUser()&&ME.email!==OWNER_EMAIL){
+    html+=`<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px;flex-shrink:0">⭐</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:2px">Upgrade to Pro — ₹99/month</div>
+        <div style="font-size:11px;color:#78350f;line-height:1.5">Unlimited shops · Full report history · CSV export · Finance & Chit Fund</div>
+      </div>
+      <button onclick="openPaywall('Unlock Pro features for ₹99/month.')" style="background:#d97706;color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(217,119,6,.35)">Upgrade →</button>
+    </div>`;
+  }
+
+  tip.style.display=html?'block':'none';
+  tip.innerHTML=html;
 }
 
 // ── API CONFIGURATION ──
@@ -5365,10 +5688,14 @@ window.onload=async ()=>{
   const sd=document.getElementById('sc-date');
   if(sd) sd.value=new Date().toISOString().split('T')[0];
 
+  // Apply saved language immediately
+  applyLang();
+
   let _started=false;
   async function doStart(user){
     if(_started) return;
     _started=true;
+    window._authUser=user;
     console.log('✅ doStart:', user.email);
     document.getElementById('login-screen').style.display='none';
     try{ await startApp(user); }
@@ -5378,11 +5705,29 @@ window.onload=async ()=>{
   // Show landing page for unauthenticated visitors
   AUTH.onAuthStateChanged(async user=>{
     console.log('Auth:', user?user.email:'null');
+    window._authUser=user||null;
     if(user){
+      // Logged-in users skip intro/lang/landing entirely
+      document.getElementById('intro-screen').classList.remove('on');
       document.getElementById('landing').classList.remove('on');
+      document.getElementById('lang-select-screen').classList.remove('on');
       await doStart(user);
     } else {
-      document.getElementById('landing').classList.add('on');
+      // New user flow: intro → lang selector → landing
+      if(!localStorage.getItem('slv_intro_done')){
+        document.getElementById('intro-screen').classList.add('on');
+      } else if(!localStorage.getItem('slv_lang_selected')){
+        const curLang=_lang||'en';
+        document.querySelectorAll('.ls-item').forEach(el=>{
+          const lang=el.getAttribute('onclick')?.match(/selectLang\('(\w+)'/)?.[1];
+          el.classList.toggle('selected',lang===curLang);
+          el.querySelector('.ls-item-check').textContent=lang===curLang?'✓':'';
+        });
+        _pendingLang=curLang;
+        document.getElementById('lang-select-screen').classList.add('on');
+      } else {
+        document.getElementById('landing').classList.add('on');
+      }
     }
   });
 };
