@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy & Terms — ArthaNote</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'DM Sans',sans-serif;background:#f9fafb;color:#111827;line-height:1.7}
+    .top-bar{background:#065f46;padding:14px 20px;display:flex;align-items:center;gap:12px}
+    .top-bar a{color:#6ee7b7;text-decoration:none;font-size:13px}
+    .top-bar .brand{color:#fff;font-weight:800;font-size:18px;margin-left:auto}
+    .hero{background:#065f46;color:#fff;padding:48px 20px 40px;text-align:center}
+    .hero h1{font-size:28px;font-weight:800;margin-bottom:8px}
+    .hero p{color:#a7f3d0;font-size:14px}
+    .tabs{display:flex;background:#fff;border-bottom:2px solid #e5e7eb;position:sticky;top:0;z-index:10}
+    .tab{flex:1;padding:14px;text-align:center;font-weight:600;font-size:14px;cursor:pointer;color:#6b7280;border-bottom:3px solid transparent;transition:all .2s}
+    .tab.active{color:#065f46;border-bottom-color:#065f46}
+    .content{max-width:720px;margin:0 auto;padding:32px 20px 64px}
+    h2{font-size:20px;font-weight:800;color:#065f46;margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid #d1fae5}
+    h3{font-size:15px;font-weight:700;color:#111827;margin:20px 0 8px}
+    p{font-size:14px;color:#374151;margin-bottom:12px}
+    ul{margin:0 0 14px 20px}
+    li{font-size:14px;color:#374151;margin-bottom:6px}
+    .highlight{background:#f0fdf4;border-left:4px solid #059669;padding:12px 16px;border-radius:6px;margin:16px 0}
+    .highlight p{margin:0;font-size:13px;color:#065f46}
+    .badge{display:inline-block;background:#d1fae5;color:#065f46;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;margin-right:4px}
+    .last-updated{font-size:12px;color:#9ca3af;text-align:right;margin-bottom:24px}
+    .footer{background:#065f46;color:#a7f3d0;text-align:center;padding:20px;font-size:12px;margin-top:40px}
+    .footer a{color:#6ee7b7;text-decoration:none}
+    .section{display:none}
+    .section.active{display:block}
+    @media(max-width:480px){.hero h1{font-size:22px}.content{padding:24px 16px 48px}}
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="index.html">← Back to App</a>
+  <span class="brand">ArthaNote</span>
+</div>
+
+<div class="hero">
+  <h1>Legal & Privacy</h1>
+  <p>Transparent policies for your peace of mind</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('privacy',this)">Privacy Policy</div>
+  <div class="tab" onclick="showTab('terms',this)">Terms of Service</div>
+</div>
+
+<!-- PRIVACY POLICY -->
+<div class="section active" id="section-privacy">
+  <div class="content">
+    <p class="last-updated">Last updated: 18 May 2026</p>
+
+    <div class="highlight">
+      <p><strong>Summary:</strong> We collect only what's needed to run your business ledger. We don't sell your data. You can delete your account and all data at any time.</p>
+    </div>
+
+    <h2>1. Who We Are</h2>
+    <p>ArthaNote ("we", "our", "the app") is a digital ledger product operated by <strong>Selva Vishnu M</strong>, based in Tuticorin, Tamil Nadu, India. ArthaNote helps small retailers track daily sales, expenses, supplier payments, and generate business reports.</p>
+    <p>Contact: <a href="mailto:selvavishnu.m@gmail.com">selvavishnu.m@gmail.com</a></p>
+
+    <h2>2. Data We Collect</h2>
+
+    <h3>2.1 Account Information</h3>
+    <ul>
+      <li>Email address (required for login)</li>
+      <li>Display name (optional, used as your profile name)</li>
+      <li>Google profile photo (only if you sign in with Google)</li>
+    </ul>
+
+    <h3>2.2 Business Data</h3>
+    <ul>
+      <li>Shop names, business type (e.g. grocery, tea shop)</li>
+      <li>Daily ledger entries: sales, expenses, payments (amounts, dates, descriptions)</li>
+      <li>Supplier names and payment records</li>
+      <li>Staff names and roles (added by you)</li>
+      <li>Finance / Chit Fund member names and payment history</li>
+      <li>GST rate preferences</li>
+    </ul>
+
+    <h3>2.3 Usage & Technical Data</h3>
+    <ul>
+      <li>Login timestamps</li>
+      <li>App crash logs (browser console only — not sent to us)</li>
+      <li>Device type / browser (not stored — used only for PWA compatibility)</li>
+    </ul>
+
+    <h3>2.4 OCR Images</h3>
+    <p>When you use the OCR scan feature, your photo is sent to <strong>Google Gemini API</strong> for text extraction. Images are processed in real-time and <strong>not stored</strong> by us or by Google after processing. See Google's data policy at <a href="https://ai.google.dev/gemini-api/terms" target="_blank">ai.google.dev/gemini-api/terms</a>.</p>
+
+    <h2>3. How We Use Your Data</h2>
+    <ul>
+      <li>To provide the ledger and reporting features you use</li>
+      <li>To sync your data across devices using Firebase</li>
+      <li>To identify your account and restore data on new devices</li>
+      <li>To verify Pro subscription status</li>
+    </ul>
+    <p>We do <strong>not</strong> use your data for advertising, profiling, or any purpose beyond operating ArthaNote for you.</p>
+
+    <h2>4. Data Storage & Security</h2>
+    <p>Your data is stored in <strong>Google Firebase Firestore</strong> (Google Cloud Platform, servers in Asia-South region). Firebase enforces:</p>
+    <ul>
+      <li>Encryption at rest (AES-256)</li>
+      <li>Encryption in transit (TLS 1.3)</li>
+      <li>Authentication required to read or write your data</li>
+    </ul>
+    <p>A local cache is stored in your browser's <code>localStorage</code> for offline use. This data stays on your device and is not shared.</p>
+
+    <h2>5. Third-Party Services</h2>
+    <ul>
+      <li><span class="badge">Firebase Auth</span> Google — user authentication</li>
+      <li><span class="badge">Firestore</span> Google — cloud database</li>
+      <li><span class="badge">Gemini API</span> Google — OCR image processing</li>
+      <li><span class="badge">Razorpay</span> Razorpay Payments Pvt. Ltd. — payment processing for Pro subscription</li>
+      <li><span class="badge">Google Fonts</span> Google — typography (no personal data shared)</li>
+    </ul>
+    <p>We do not use Facebook Pixel, Google Analytics, or any other tracking service.</p>
+
+    <h2>6. Payments (Pro Plan)</h2>
+    <p>Payments for the Pro plan (₹99/month) are processed by <strong>Razorpay</strong>. We do not store your card or UPI details. Razorpay's privacy policy applies to payment data: <a href="https://razorpay.com/privacy/" target="_blank">razorpay.com/privacy</a>.</p>
+    <p>After a successful payment, we store only your Razorpay Payment ID and Pro expiry date in your account record to verify subscription status.</p>
+
+    <h2>7. Your Rights</h2>
+    <ul>
+      <li><strong>Access:</strong> You can view all your data inside the app at any time</li>
+      <li><strong>Export:</strong> Use the CSV export feature in Reports to download your data</li>
+      <li><strong>Correction:</strong> Edit any entry directly in the app</li>
+      <li><strong>Deletion:</strong> Email us to delete your account and all associated data permanently. We will complete deletion within 7 business days.</li>
+      <li><strong>Portability:</strong> Export your data as CSV at any time</li>
+    </ul>
+
+    <h2>8. Children</h2>
+    <p>ArthaNote is intended for business use by adults (18+). We do not knowingly collect data from persons under 18.</p>
+
+    <h2>9. Cookies & Local Storage</h2>
+    <p>ArthaNote does <strong>not</strong> use cookies for tracking. We use browser <code>localStorage</code> only to cache your business data for offline access and to remember your preferences (language, GST settings). This data never leaves your device except when synced to Firebase.</p>
+
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this policy as the app evolves. The "Last updated" date at the top will reflect any changes. Continued use of ArthaNote after a policy update constitutes acceptance.</p>
+
+    <h2>11. Contact</h2>
+    <p>For privacy questions, data deletion requests, or concerns: <a href="mailto:selvavishnu.m@gmail.com">selvavishnu.m@gmail.com</a></p>
+    <p>We aim to respond within 2 business days.</p>
+  </div>
+</div>
+
+<!-- TERMS OF SERVICE -->
+<div class="section" id="section-terms">
+  <div class="content">
+    <p class="last-updated">Last updated: 18 May 2026</p>
+
+    <div class="highlight">
+      <p><strong>Summary:</strong> Use ArthaNote for legal business purposes. Free plan is limited to 1 shop. Pro plan is ₹99/month, non-refundable. We're not liable for business losses. Tamil Nadu courts govern disputes.</p>
+    </div>
+
+    <h2>1. Acceptance</h2>
+    <p>By creating an account or using ArthaNote, you agree to these Terms of Service. If you do not agree, do not use the app.</p>
+    <p>These terms form a binding agreement between you and Selva Vishnu M (operator of ArthaNote), governed by the laws of India.</p>
+
+    <h2>2. Description of Service</h2>
+    <p>ArthaNote is a Progressive Web App (PWA) that provides:</p>
+    <ul>
+      <li>Digital ledger for daily sales, expenses, and payments</li>
+      <li>Supplier management and payment tracking</li>
+      <li>Staff management and QR attendance</li>
+      <li>Business reports and data export</li>
+      <li>OCR scanning of handwritten ledger pages (Pro)</li>
+      <li>Finance and Chit Fund management (Pro after trial)</li>
+    </ul>
+
+    <h2>3. Free Plan</h2>
+    <p>The Free plan includes:</p>
+    <ul>
+      <li>1 shop / business</li>
+      <li>Unlimited daily ledger transactions</li>
+      <li>Report history: last 30 days only</li>
+      <li>Supplier management (1 shop)</li>
+      <li>Staff accounts (1 shop)</li>
+      <li>Finance & Chit Fund module: <strong>free for the first 30 days</strong></li>
+    </ul>
+    <p>The Free plan is provided as-is without any service level guarantee.</p>
+
+    <h2>4. Pro Plan</h2>
+
+    <h3>4.1 Pricing</h3>
+    <p>Pro plan: <strong>₹99 per month</strong> per account.</p>
+
+    <h3>4.2 Pro Features</h3>
+    <ul>
+      <li>Unlimited shops</li>
+      <li>Full report history (no date limit)</li>
+      <li>OCR scan feature</li>
+      <li>CSV data export</li>
+      <li>Finance & Chit Fund module (continued access)</li>
+    </ul>
+
+    <h3>4.3 Payment</h3>
+    <p>Payments are processed securely via Razorpay. Pro access is activated immediately upon successful payment and valid for 30 days from the payment date.</p>
+
+    <h3>4.4 Renewal</h3>
+    <p>Pro plans do <strong>not</strong> auto-renew. You must manually renew each month. You will receive an in-app reminder 3 days before expiry.</p>
+
+    <h3>4.5 Refunds</h3>
+    <p>All Pro plan payments are <strong>non-refundable</strong>. If you experience a technical issue preventing Pro features from working, contact us within 7 days and we will extend your subscription.</p>
+
+    <h2>5. User Responsibilities</h2>
+    <p>You agree to:</p>
+    <ul>
+      <li>Provide accurate business information</li>
+      <li>Use ArthaNote only for lawful business purposes</li>
+      <li>Not share your account credentials with unauthorized persons</li>
+      <li>Not attempt to reverse-engineer, scrape, or abuse the service</li>
+      <li>Comply with Indian tax laws (GST, income tax) — ArthaNote is a record-keeping tool, not a tax advisory service</li>
+    </ul>
+    <p>You are solely responsible for the accuracy of data you enter and for your tax compliance.</p>
+
+    <h2>6. Prohibited Uses</h2>
+    <p>ArthaNote must not be used to:</p>
+    <ul>
+      <li>Record transactions for illegal goods or services</li>
+      <li>Commit tax fraud or financial misrepresentation</li>
+      <li>Harass, impersonate, or harm any person</li>
+      <li>Attempt to gain unauthorized access to other users' data</li>
+    </ul>
+    <p>Violation of these terms will result in immediate account termination without refund.</p>
+
+    <h2>7. Data Ownership</h2>
+    <p>You own all business data you enter into ArthaNote. We do not claim any rights over your transaction records, supplier data, or any other business information.</p>
+    <p>By using the app, you grant us a limited license to store and process your data solely for the purpose of providing the service to you.</p>
+
+    <h2>8. Service Availability</h2>
+    <p>We aim to keep ArthaNote available, but we do not guarantee 100% uptime. The service may be unavailable due to maintenance, Firebase outages, or other factors outside our control.</p>
+    <p>ArthaNote works offline for data entry; syncing requires an internet connection.</p>
+
+    <h2>9. Limitation of Liability</h2>
+    <p>To the maximum extent permitted by Indian law:</p>
+    <ul>
+      <li>ArthaNote is provided "as is" without warranty of any kind</li>
+      <li>We are not liable for any business loss, data loss, or financial damage arising from use of the app</li>
+      <li>Our total liability to you shall not exceed the amount you paid for the Pro plan in the preceding 3 months</li>
+    </ul>
+
+    <h2>10. Account Termination</h2>
+    <p>You may delete your account at any time by contacting us. We will delete all your data within 7 business days.</p>
+    <p>We reserve the right to suspend or terminate accounts that violate these Terms, with or without notice.</p>
+
+    <h2>11. Changes to Terms</h2>
+    <p>We may update these Terms as the app evolves. The "Last updated" date reflects the most recent version. Continued use after an update constitutes acceptance of the new terms.</p>
+
+    <h2>12. Governing Law & Jurisdiction</h2>
+    <p>These Terms are governed by the laws of the <strong>Republic of India</strong>, including the Information Technology Act, 2000 and applicable rules thereunder.</p>
+    <p>Any disputes arising from these Terms or your use of ArthaNote shall be subject to the exclusive jurisdiction of the courts in <strong>Tuticorin (Thoothukudi), Tamil Nadu, India</strong>.</p>
+
+    <h2>13. Contact</h2>
+    <p>For questions about these Terms: <a href="mailto:selvavishnu.m@gmail.com">selvavishnu.m@gmail.com</a></p>
+
+    <div class="highlight">
+      <p><strong>தமிழில் சுருக்கம்:</strong> ArthaNote-ஐ சட்டப்பூர்வமான தொழில் நோக்கங்களுக்கு மட்டும் பயன்படுத்துங்கள். இலவச திட்டம்: 1 கடை மட்டும். Pro திட்டம்: ₹99/மாதம், திரும்பப் பெற முடியாது. தகராறுகளுக்கு தூத்துக்குடி நீதிமன்றங்கள் பொருந்தும்.</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  © 2026 ArthaNote · Tuticorin, Tamil Nadu, India ·
+  <a href="index.html">Back to App</a> ·
+  <a href="mailto:selvavishnu.m@gmail.com">Contact</a>
+</div>
+
+<script>
+function showTab(name, el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  el.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
