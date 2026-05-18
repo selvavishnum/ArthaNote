@@ -2243,7 +2243,8 @@ function buildUI(){
   if(sed) sed.innerHTML=Object.entries(SHOPS).map(([k,vv])=>`
     <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:18px">${vv.icon}</span>
-      <div class="fg" style="flex:1"><input type="text" id="se-${k}" value="${vv.name}" style="font-size:13px;padding:8px 10px"></div>
+      <div class="fg" style="flex:1"><input type="text" id="se-${k}" value="${escAttr(vv.name)}" style="font-size:13px;padding:8px 10px"></div>
+      <button onclick="deleteShop('${k}')" style="background:none;border:1px solid var(--red);border-radius:8px;color:var(--red);padding:6px 8px;font-size:13px;cursor:pointer;flex-shrink:0" title="Delete ${escAttr(vv.name)}">🗑️</button>
     </div>`).join('');
 
   // Categories editor in settings
@@ -2260,9 +2261,21 @@ function setShop(s,el){
 async function saveShops(){
   Object.keys(SHOPS).forEach(k=>{const i=document.getElementById('se-'+k);if(i&&i.value.trim())SHOPS[k].name=i.value.trim();});
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
-  localStorage.removeItem('kp_cfg_cache'); // clear cache so next load re-fetches
+  localStorage.removeItem('kp_cfg_cache');
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
   buildUI(); toast('✅ Shop names saved!');
+}
+async function deleteShop(key){
+  if(Object.keys(SHOPS).length<=1){toast('குறைந்தது 1 shop இருக்கணும்!','warn');return;}
+  const shop=SHOPS[key]; if(!shop)return;
+  const typeLbl=shop.type?` (${shop.type})`:'';
+  if(!confirm(`"${shop.name}"${typeLbl} delete பண்ணணுமா?\n\nTransactions data இருக்கும் — shop மட்டும் remove ஆகும்.`))return;
+  delete SHOPS[key];
+  delete CATS[key];
+  localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
+  await persistCats();
+  buildUI(); buildShopStrip(); applyBizTypeUI();
+  toast('🗑️ '+shop.name+' deleted!');
 }
 
 function loadSettingsCats(){
