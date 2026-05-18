@@ -54,62 +54,65 @@ body.ta{font-family:var(--tamil)}
 /* ── LANDING PAGE ── */
 #landing{display:none;font-family:var(--sans);background:#fff;overflow-x:hidden}
 #landing.on{display:block}
-.lp-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#fff;position:sticky;top:0;z-index:100;border-bottom:1px solid #f3f4f6}
-.lp-logo{font-size:20px;font-weight:800;color:#065f46}
+.lp-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#fff;position:sticky;top:0;z-index:100;border-bottom:1px solid #f0e8d5}
+.lp-logo{font-size:20px;font-weight:800;color:#111827}
 .lp-logo span{color:#d97706}
-.lp-nav-cta{background:#065f46;color:#fff;border:none;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s}
-.lp-nav-cta:hover{background:#047857}
-.lp-hero{background:linear-gradient(145deg,#022c22,#065f46);min-height:90vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:60px 24px 80px;position:relative;overflow:hidden}
-.lp-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% 30%,rgba(217,119,6,.15),transparent 60%);pointer-events:none}
+.lp-nav-cta{background:#d97706;color:#fff;border:none;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s;box-shadow:0 2px 8px rgba(217,119,6,.3)}
+.lp-nav-cta:hover{background:#b45309}
+.lp-hero{background:linear-gradient(160deg,#fffef7 0%,#fef9ee 60%,#fef3c7 100%);min-height:90vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:60px 24px 80px;position:relative;overflow:hidden;border-bottom:3px solid #fcd34d}
+.lp-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(217,119,6,.12),transparent 70%);pointer-events:none}
+.lp-hero::after{content:'';position:absolute;bottom:-40px;left:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(217,119,6,.08),transparent 70%);pointer-events:none}
 .lp-hero-inner{max-width:580px;position:relative;z-index:1}
-.lp-eyebrow{display:inline-block;background:rgba(217,119,6,.2);color:#fbbf24;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:20px;margin-bottom:20px}
-.lp-hero h1{font-size:clamp(32px,7vw,52px);font-weight:800;color:#fff;line-height:1.15;margin-bottom:16px}
-.lp-hero h1 em{color:#fbbf24;font-style:normal}
-.lp-hero p{font-size:16px;color:#a7f3d0;margin-bottom:32px;line-height:1.6}
+.lp-eyebrow{display:inline-block;background:#d97706;color:#fff;font-size:13px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:7px 20px;border-radius:30px;margin-bottom:24px;box-shadow:0 3px 12px rgba(217,119,6,.35)}
+.lp-hero h1{font-size:clamp(40px,9vw,64px);font-weight:800;color:#111827;line-height:1.1;margin-bottom:16px;letter-spacing:-1px}
+.lp-hero h1 em{color:#d97706;font-style:normal}
+.lp-hero p{font-size:16px;color:#4b5563;margin-bottom:36px;line-height:1.65}
 .lp-cta-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.lp-btn-primary{background:#d97706;color:#fff;border:none;padding:14px 28px;border-radius:30px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 4px 20px rgba(217,119,6,.4)}
-.lp-btn-primary:hover{background:#b45309;transform:translateY(-1px)}
-.lp-btn-ghost{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.3);padding:13px 24px;border-radius:30px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
-.lp-btn-ghost:hover{border-color:#fff;background:rgba(255,255,255,.1)}
-.lp-trust{background:#f0fdf4;padding:16px 24px;display:flex;justify-content:center;gap:24px;flex-wrap:wrap;border-bottom:1px solid #d1fae5}
-.lp-trust-item{font-size:12px;color:#065f46;font-weight:600;display:flex;align-items:center;gap:6px}
-.lp-features{padding:72px 24px;max-width:960px;margin:0 auto}
-.lp-sec-label{text-align:center;font-size:11px;font-weight:800;color:#d97706;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
-.lp-sec-title{text-align:center;font-size:clamp(24px,5vw,36px);font-weight:800;color:#065f46;margin-bottom:48px;line-height:1.2}
+.lp-btn-primary{background:#d97706;color:#fff;border:none;padding:16px 32px;border-radius:30px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 6px 24px rgba(217,119,6,.4)}
+.lp-btn-primary:hover{background:#b45309;transform:translateY(-2px);box-shadow:0 8px 28px rgba(217,119,6,.5)}
+.lp-btn-ghost{background:#fff;color:#111827;border:2px solid #d97706;padding:14px 26px;border-radius:30px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+.lp-btn-ghost:hover{background:#fef3c7}
+.lp-trust{background:#fff;padding:18px 24px;display:flex;justify-content:center;gap:28px;flex-wrap:wrap;border-bottom:1px solid #f0e8d5}
+.lp-trust-item{font-size:12px;color:#374151;font-weight:600;display:flex;align-items:center;gap:6px}
+.lp-features{padding:80px 24px;max-width:960px;margin:0 auto}
+.lp-sec-label{text-align:center;font-size:12px;font-weight:800;color:#d97706;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.lp-sec-title{text-align:center;font-size:clamp(26px,5vw,40px);font-weight:800;color:#111827;margin-bottom:48px;line-height:1.2}
 .lp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
-.lp-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:20px;padding:28px;transition:all .2s}
-.lp-card:hover{border-color:#065f46;box-shadow:0 8px 32px rgba(6,95,70,.12);transform:translateY(-2px)}
+.lp-card{background:#fff;border:2px solid #f0e8d5;border-radius:20px;padding:28px;transition:all .2s}
+.lp-card:hover{border-color:#d97706;box-shadow:0 8px 32px rgba(217,119,6,.12);transform:translateY(-2px)}
 .lp-card-icon{font-size:36px;margin-bottom:14px}
 .lp-card h3{font-size:17px;font-weight:800;color:#111827;margin-bottom:8px}
 .lp-card p{font-size:13px;color:#6b7280;line-height:1.6}
-.lp-how{background:linear-gradient(135deg,#022c22,#064e3b);padding:72px 24px;text-align:center}
+.lp-how{background:linear-gradient(145deg,#1c1008,#3d1f00);padding:72px 24px;text-align:center}
+.lp-how .lp-sec-label{color:#fbbf24}
 .lp-how .lp-sec-title{color:#fff;margin-bottom:48px}
 .lp-steps{display:flex;justify-content:center;gap:0;flex-wrap:wrap;max-width:720px;margin:0 auto}
 .lp-step{flex:1;min-width:160px;padding:24px 16px;position:relative}
-.lp-step:not(:last-child)::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:#6ee7b7;font-size:20px;font-weight:800}
-.lp-step-num{width:44px;height:44px;background:#d97706;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;margin:0 auto 12px}
+.lp-step:not(:last-child)::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:#fbbf24;font-size:20px;font-weight:800}
+.lp-step-num{width:44px;height:44px;background:#d97706;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;margin:0 auto 12px;box-shadow:0 4px 16px rgba(217,119,6,.4)}
 .lp-step h4{font-size:14px;font-weight:700;color:#fff;margin-bottom:6px}
-.lp-step p{font-size:12px;color:#a7f3d0;line-height:1.5}
-.lp-pricing{padding:72px 24px;max-width:720px;margin:0 auto;text-align:center}
+.lp-step p{font-size:12px;color:#fcd34d;line-height:1.5;opacity:.85}
+.lp-pricing{padding:80px 24px;max-width:720px;margin:0 auto;text-align:center}
 .lp-plans{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px}
-.lp-plan{border:2px solid #e5e7eb;border-radius:20px;padding:28px;text-align:left;position:relative}
-.lp-plan.pro{border-color:#065f46;background:#f0fdf4}
-.lp-plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#d97706;color:#fff;font-size:11px;font-weight:800;padding:4px 14px;border-radius:20px;white-space:nowrap}
+.lp-plan{border:2px solid #e5e7eb;border-radius:20px;padding:28px;text-align:left;position:relative;background:#fff}
+.lp-plan.pro{border-color:#d97706;background:linear-gradient(145deg,#fffef7,#fef9ee)}
+.lp-plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#d97706;color:#fff;font-size:11px;font-weight:800;padding:4px 14px;border-radius:20px;white-space:nowrap;box-shadow:0 3px 10px rgba(217,119,6,.4)}
 .lp-plan-name{font-size:16px;font-weight:800;color:#111827;margin-bottom:4px}
-.lp-plan-price{font-size:28px;font-weight:800;color:#065f46;margin-bottom:4px}
+.lp-plan-price{font-size:28px;font-weight:800;color:#d97706;margin-bottom:4px}
 .lp-plan-price span{font-size:13px;font-weight:500;color:#6b7280}
 .lp-plan-desc{font-size:12px;color:#6b7280;margin-bottom:16px}
 .lp-plan-features{list-style:none;margin:0;padding:0}
 .lp-plan-features li{font-size:13px;color:#374151;padding:5px 0;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:8px}
-.lp-plan-features li::before{content:'✓';color:#059669;font-weight:800;flex-shrink:0}
+.lp-plan-features li::before{content:'✓';color:#d97706;font-weight:800;flex-shrink:0}
 .lp-plan-features li.no::before{content:'✗';color:#d1d5db}
 .lp-plan-features li.no{color:#9ca3af}
-.lp-plan-cta{width:100%;margin-top:20px;padding:12px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:background .2s}
+.lp-plan-cta{width:100%;margin-top:20px;padding:13px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all .2s}
 .lp-plan.free .lp-plan-cta{background:#f3f4f6;color:#374151}
-.lp-plan.pro .lp-plan-cta{background:#065f46;color:#fff}
-.lp-plan.pro .lp-plan-cta:hover{background:#047857}
-.lp-footer{background:#022c22;color:#a7f3d0;text-align:center;padding:32px 24px;font-size:13px}
-.lp-footer a{color:#6ee7b7;text-decoration:none;margin:0 10px}
+.lp-plan.free .lp-plan-cta:hover{background:#e5e7eb}
+.lp-plan.pro .lp-plan-cta{background:#d97706;color:#fff;box-shadow:0 4px 16px rgba(217,119,6,.35)}
+.lp-plan.pro .lp-plan-cta:hover{background:#b45309}
+.lp-footer{background:#111827;color:#9ca3af;text-align:center;padding:32px 24px;font-size:13px}
+.lp-footer a{color:#fcd34d;text-decoration:none;margin:0 10px}
 @media(max-width:520px){.lp-plans{grid-template-columns:1fr}.lp-steps{flex-direction:column;align-items:center}.lp-step:not(:last-child)::after{content:'↓';right:auto;top:auto;bottom:-8px;left:50%;transform:translateX(-50%)}}
 
 /* ── LOGIN ── */
@@ -480,9 +483,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <!-- Hero -->
   <section class="lp-hero">
     <div class="lp-hero-inner">
-      <div class="lp-eyebrow">Tamil Nadu's Business Ledger App</div>
+      <div class="lp-eyebrow">Business Ledger App</div>
       <h1>Your Wealth,<br><em>Noted.</em></h1>
-      <p>Track daily sales, expenses & supplier payments. Smart reports, offline-ready, OCR scanning — built for small businesses in Tamil Nadu.</p>
+      <p>Track daily sales, expenses & supplier payments. Smart reports, offline-ready — built for small businesses.</p>
       <div class="lp-cta-group">
         <button class="lp-btn-primary" onclick="showLoginFromLanding()">Start Free → No card needed</button>
         <button class="lp-btn-ghost" onclick="document.getElementById('lp-features').scrollIntoView({behavior:'smooth'})">See Features ↓</button>
@@ -494,7 +497,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <div class="lp-trust">
     <div class="lp-trust-item">🔒 Firebase Secured</div>
     <div class="lp-trust-item">📴 Works Offline</div>
-    <div class="lp-trust-item">🇮🇳 Made in Tamil Nadu</div>
     <div class="lp-trust-item">🌐 Tamil + English</div>
     <div class="lp-trust-item">💸 Free to Start</div>
   </div>
@@ -508,11 +510,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div class="lp-card-icon">📒</div>
         <h3>Digital Cash Book</h3>
         <p>Record sales, expenses, and payments instantly. Date-grouped entries, just like your physical ledger — but smarter.</p>
-      </div>
-      <div class="lp-card">
-        <div class="lp-card-icon">📸</div>
-        <h3>OCR Scan</h3>
-        <p>Take a photo of your handwritten ledger. Our AI reads the numbers and adds them automatically. No more manual re-entry.</p>
       </div>
       <div class="lp-card">
         <div class="lp-card-icon">📊</div>
@@ -539,7 +536,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 
   <!-- How it works -->
   <section class="lp-how">
-    <div class="lp-sec-label" style="color:#fbbf24">How It Works</div>
+    <div class="lp-sec-label">How It Works</div>
     <div class="lp-sec-title">Up and running in 60 seconds</div>
     <div class="lp-steps">
       <div class="lp-step">
@@ -595,8 +592,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
           <li>Supplier management</li>
           <li>Staff & attendance</li>
           <li>Finance & Chit Fund</li>
-          <li>Multiple shops</li>
-          <li>OCR scan</li>
           <li>CSV export</li>
           <li>Priority support</li>
         </ul>
@@ -607,14 +602,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 
   <!-- Footer -->
   <div class="lp-footer">
-    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">ArthaNote</div>
-    <div>கணக்கபிள்ளை · Tamil Nadu's Digital Ledger</div>
-    <div style="margin-top:12px">
+    <div style="font-size:20px;font-weight:800;color:#fcd34d;margin-bottom:6px">Artha<span style="color:#fff">Note</span></div>
+    <div style="margin-bottom:12px">Your Wealth, Noted.</div>
+    <div>
       <a href="privacy.html">Privacy Policy</a>
       <a href="privacy.html#terms" onclick="sessionStorage.setItem('pp-tab','terms')">Terms of Service</a>
       <a href="mailto:selvavishnu.m@gmail.com">Contact</a>
     </div>
-    <div style="margin-top:12px;font-size:11px;color:#6b7280">© 2026 ArthaNote · Tuticorin, Tamil Nadu, India</div>
+    <div style="margin-top:14px;font-size:11px;color:#4b5563">© 2026 ArthaNote</div>
   </div>
 
 </div>
