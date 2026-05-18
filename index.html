@@ -199,6 +199,7 @@ body.bn{font-family:var(--bengali)}
 .trole.cashier{background:var(--gl);color:var(--green)}
 .trole.admin{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff}
 .trole.pro{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}
+.trole.free{background:#e5e7eb;color:#6b7280}
 .langbtn{background:var(--bl);color:var(--blue);border:1.5px solid var(--blue);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:var(--sans)}
 .langbtn.ta{background:var(--green);color:#fff;border-color:var(--green)}
 .tmenu{background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;flex-shrink:0}
@@ -2228,7 +2229,7 @@ async function startProPayment(){
       const expiry=Date.now()+30*24*60*60*1000;
       await DB.collection('staff').doc(ME.uid).update({pro:true,proExpiry:expiry,lastPaymentId:response.razorpay_payment_id});
       ME.pro=true; ME.proExpiry=expiry;
-      localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,role:ME.role,businessId:ME.businessId,pro:true,proExpiry:expiry}));
+      localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,name:ME.name,role:ME.role,businessId:ME.businessId,pro:true,proExpiry:expiry}));
       closeM('paywall-modal');
       toast('🎉 Pro activated! Valid for 30 days.');
     }
@@ -2338,7 +2339,7 @@ async function startApp(user){
   const cachedMe=localStorage.getItem('kp_me_cache');
   const cachedCfg=localStorage.getItem('kp_cfg_cache');
   let staffLoaded=false, configLoaded=false;
-  if(cachedMe){ try{ const m=JSON.parse(cachedMe); if(m.uid===user.uid){ME.role=m.role||'owner';ME.shop=m.shop||'all';if(m.businessId)ME.businessId=m.businessId;ME.pro=!!(m.pro&&m.proExpiry>Date.now());ME.proExpiry=m.proExpiry||0;staffLoaded=true;} }catch(e){} }
+  if(cachedMe){ try{ const m=JSON.parse(cachedMe); if(m.uid===user.uid){ME.role=m.role||'owner';ME.shop=m.shop||'all';if(m.businessId)ME.businessId=m.businessId;ME.pro=!!(m.pro&&m.proExpiry>Date.now());ME.proExpiry=m.proExpiry||0;if(m.name)ME.name=m.name;staffLoaded=true;} }catch(e){} }
   if(cachedCfg){ try{ const c=JSON.parse(cachedCfg); if(c.shops)SHOPS=c.shops; if(c.cats)CATS=c.cats; if(c.gstOn!==undefined)_gstOn=c.gstOn; if(c.gstRate)_gstRate=c.gstRate; if(c.bizType)_bizType=c.bizType; configLoaded=true; }catch(e){} }
 
   if(!staffLoaded||!configLoaded){
@@ -2361,7 +2362,7 @@ async function startApp(user){
       }
       if(cfg.exists){ const d=cfg.data(); if(d.shops)SHOPS=d.shops; if(d.cats)CATS=d.cats; if(d.bizType){_bizType=d.bizType;localStorage.setItem('slv_biztype',d.bizType);} localStorage.setItem('slv_cats',JSON.stringify(CATS)); localStorage.setItem('kp_cfg_cache',JSON.stringify({shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate,bizType:_bizType})); }
       else if(!localStorage.getItem('slv_onboarded')){ document.getElementById('login-screen').style.display='none'; document.getElementById('onboard-screen').classList.add('on'); return; }
-      localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,role:ME.role,businessId:ME.businessId,pro:ME.pro||false,proExpiry:ME.proExpiry||0}));
+      localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,name:ME.name,role:ME.role,businessId:ME.businessId,pro:ME.pro||false,proExpiry:ME.proExpiry||0}));
     }catch(e){
       console.warn('Firestore read failed:',e.code);
       if(!localStorage.getItem('slv_onboarded')){ document.getElementById('login-screen').style.display='none'; document.getElementById('onboard-screen').classList.add('on'); return; }
@@ -2377,7 +2378,6 @@ async function startApp(user){
 async function _finishAppSetup(user){
   // Set UI
   document.getElementById('t-user').textContent=ME.name;
-  const roleLabels={owner:'👑 Owner',manager:'👔 Manager',cashier:'💵 Cashier'};
   const isAdmin=ME.email===OWNER_EMAIL;
   if(isAdmin){
     document.getElementById('t-role').textContent='🔑 Admin';
@@ -2386,8 +2386,8 @@ async function _finishAppSetup(user){
     document.getElementById('t-role').textContent='⭐ Pro';
     document.getElementById('t-role').className='trole pro';
   } else {
-    document.getElementById('t-role').textContent=roleLabels[ME.role]||ME.role;
-    document.getElementById('t-role').className='trole '+ME.role;
+    document.getElementById('t-role').textContent='Free';
+    document.getElementById('t-role').className='trole free';
   }
   document.getElementById('mu-name').textContent=ME.name;
   document.getElementById('mu-email').textContent=ME.email;
@@ -2796,7 +2796,7 @@ async function addNewShop(){
   await persistCats();
   applyBizTypeUI();
   ['ns-name','ns-icon','ns-sc','ns-ec'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  closeM('add-shop-modal'); buildUI(); toast('✅ '+name+' added!');
+  closeM('add-shop-modal'); buildUI(); renderDash(); toast('✅ '+name+' added!');
   if(type==='finance'||type==='chit'){
     await loadFinanceData();
     const nf=document.getElementById('nav-finance');
@@ -5688,6 +5688,9 @@ window.onload=async ()=>{
   document.getElementById('app').style.display='none';
   const sd=document.getElementById('sc-date');
   if(sd) sd.value=new Date().toISOString().split('T')[0];
+
+  // Pre-populate name from cache before Firebase fires (avoids "Loading..." flash)
+  try{ const _cm=localStorage.getItem('kp_me_cache'); if(_cm){ const _m=JSON.parse(_cm); if(_m.name) document.getElementById('t-user').textContent=_m.name; } }catch(e){}
 
   // Apply saved language immediately
   applyLang();
