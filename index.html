@@ -1602,6 +1602,39 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         </div>
       </div>
 
+      <!-- 7. Backup & Restore -->
+      <div class="sett-row">
+        <div class="sett-row-hd" onclick="toggleSacc('backup')">
+          <div class="sett-ic" style="background:#f0f9ff">💾</div>
+          <div style="flex:1">
+            <div class="sett-row-lbl">Backup & Restore</div>
+            <div class="sett-row-sub" id="backup-last-lbl">Export or restore your data</div>
+          </div>
+          <div class="sett-row-arr" id="sarr-backup">›</div>
+        </div>
+        <div class="sett-row-body" id="sbody-backup">
+          <div style="background:linear-gradient(135deg,#f0fdf4,#d1fae5);border:1.5px solid #6ee7b7;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">☁️</span>
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#065f46">Cloud Sync</div>
+                <div style="font-size:10px;color:#059669" id="backup-cloud-status">Your data is stored securely in Firebase</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#374151;line-height:1.5">All entries are auto-saved to Firebase cloud. Use the options below to export a local copy or restore from file.</div>
+          </div>
+          <button class="btn G" onclick="backupForceSync()" style="margin-bottom:8px">🔄 Force Sync to Cloud</button>
+          <button class="btn B" onclick="exportBackupJSON()" style="margin-bottom:8px">📤 Export JSON Backup</button>
+          <div style="position:relative;margin-bottom:8px">
+            <input type="file" id="restore-file-inp" accept=".json" onchange="restoreFromJSON(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%">
+            <button class="btn B" style="margin:0;pointer-events:none;background:#eff6ff;color:#1d4ed8;border:2px solid #93c5fd">📂 Import JSON Backup</button>
+          </div>
+          <button class="btn B" onclick="exportCSVBackup()" style="margin-bottom:8px;background:#fff7ed;color:#c2410c;border:2px solid #fed7aa">📊 Export CSV</button>
+          <button class="btn R" onclick="clearLocalCache()" style="margin-top:4px">🗑️ Clear Local Cache</button>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center">Cache cleared = fresh load from Firebase on next open</div>
+        </div>
+      </div>
+
     </div><!-- end sett-acc / owner-only -->
 
     <!-- ── Logout ── -->
@@ -2051,6 +2084,65 @@ async function loadAttendance(){
   }catch(e){
     body.innerHTML=`<div class="empty">Error: ${String(e.code||e.message||"error").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
   }
+}
+function backupForceSync(){
+  const BID=ME.businessId||ME.uid;
+  closeM('menu-modal');
+  document.getElementById('sync-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  firstTimeSync(BID);
+  localStorage.setItem('kp_backup_ts',Date.now().toString());
+  const lbl=document.getElementById('backup-last-lbl');
+  if(lbl) lbl.textContent='Last sync: '+new Date().toLocaleString('en-IN');
+}
+function exportBackupJSON(){
+  try{
+    const backup={version:1,exportedAt:new Date().toISOString(),user:{uid:ME.uid,email:ME.email},txs:TXS,sups:SUPS,bills:BILLS,shops:SHOPS};
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='arthanote-backup-'+tod()+'.json';
+    a.click();
+    localStorage.setItem('kp_backup_ts',Date.now().toString());
+    const lbl=document.getElementById('backup-last-lbl');
+    if(lbl) lbl.textContent='Last backup: '+new Date().toLocaleString('en-IN');
+    toast('✅ Backup downloaded!');
+  }catch(e){ toast('Export failed: '+e.message,'warn'); }
+}
+function restoreFromJSON(inp){
+  const file=inp.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.txs) throw new Error('Invalid backup file');
+      if(data.txs) TXS=data.txs;
+      if(data.sups) SUPS=data.sups;
+      if(data.bills) BILLS=data.bills;
+      saveCacheLocal();
+      toast('✅ Restored '+TXS.length+' entries from backup!');
+      renderDash(); renderLedger();
+    }catch(e){ toast('Restore failed: '+e.message,'warn'); }
+  };
+  reader.readAsText(file);
+  inp.value='';
+}
+function exportCSVBackup(){
+  if(!TXS.length){ toast('No data to export','warn'); return; }
+  const rows=[['Date','Type','Shop','Description','Category','Amount','By']];
+  TXS.forEach(t=>rows.push([t.date||'',t.type||'',SHOPS[t.shop]?.name||t.shop||'',t.desc||'',t.category||'',t.amount||0,t.by||'']));
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='arthanote-'+tod()+'.csv';
+  a.click();
+  toast('✅ CSV exported!');
+}
+function clearLocalCache(){
+  if(!confirm('Clear local cache? App will reload fresh data from Firebase on next open.')) return;
+  ['kp_txs_cache','kp_sups_cache','kp_bills_cache','kp_cache_ts','kp_cfg_cache'].forEach(k=>localStorage.removeItem(k));
+  toast('✅ Local cache cleared. Restart the app to reload.');
 }
 function setAttTab(tab){
   document.querySelectorAll('.att-tab').forEach(t=>t.classList.remove('active'));
