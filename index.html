@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="description" content="கணக்கபிள்ளை — உங்கள் டிஜிட்டல் கணக்கபிள்ளை. Retail shop ledger app.">
+<meta name="description" content="ArthaNote — Smart ledger for Tamil Nadu businesses. Track sales, expenses, suppliers & reports. Your wealth, noted.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="கணக்கபிள்ளை">
+<meta name="apple-mobile-web-app-title" content="ArthaNote">
 <meta name="theme-color" content="#065f46">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -23,13 +23,14 @@
   }
 }
 </style>
-<title>கணக்கபிள்ளை — Your Digital Accountant</title>
+<title>ArthaNote — Your Wealth, Noted</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
 :root{
   --bg:#f0f4f8;--card:#fff;--border:#e2e8f0;--soft:#f7fafc;
@@ -49,6 +50,67 @@
 html,body{height:100%}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding-bottom:72px;overflow-x:hidden}
 body.ta{font-family:var(--tamil)}
+
+/* ── LANDING PAGE ── */
+#landing{display:none;font-family:var(--sans);background:#fff;overflow-x:hidden}
+#landing.on{display:block}
+.lp-nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#fff;position:sticky;top:0;z-index:100;border-bottom:1px solid #f3f4f6}
+.lp-logo{font-size:20px;font-weight:800;color:#065f46}
+.lp-logo span{color:#d97706}
+.lp-nav-cta{background:#065f46;color:#fff;border:none;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s}
+.lp-nav-cta:hover{background:#047857}
+.lp-hero{background:linear-gradient(145deg,#022c22,#065f46);min-height:90vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:60px 24px 80px;position:relative;overflow:hidden}
+.lp-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% 30%,rgba(217,119,6,.15),transparent 60%);pointer-events:none}
+.lp-hero-inner{max-width:580px;position:relative;z-index:1}
+.lp-eyebrow{display:inline-block;background:rgba(217,119,6,.2);color:#fbbf24;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:20px;margin-bottom:20px}
+.lp-hero h1{font-size:clamp(32px,7vw,52px);font-weight:800;color:#fff;line-height:1.15;margin-bottom:16px}
+.lp-hero h1 em{color:#fbbf24;font-style:normal}
+.lp-hero p{font-size:16px;color:#a7f3d0;margin-bottom:32px;line-height:1.6}
+.lp-cta-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.lp-btn-primary{background:#d97706;color:#fff;border:none;padding:14px 28px;border-radius:30px;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s;box-shadow:0 4px 20px rgba(217,119,6,.4)}
+.lp-btn-primary:hover{background:#b45309;transform:translateY(-1px)}
+.lp-btn-ghost{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.3);padding:13px 24px;border-radius:30px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.lp-btn-ghost:hover{border-color:#fff;background:rgba(255,255,255,.1)}
+.lp-trust{background:#f0fdf4;padding:16px 24px;display:flex;justify-content:center;gap:24px;flex-wrap:wrap;border-bottom:1px solid #d1fae5}
+.lp-trust-item{font-size:12px;color:#065f46;font-weight:600;display:flex;align-items:center;gap:6px}
+.lp-features{padding:72px 24px;max-width:960px;margin:0 auto}
+.lp-sec-label{text-align:center;font-size:11px;font-weight:800;color:#d97706;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.lp-sec-title{text-align:center;font-size:clamp(24px,5vw,36px);font-weight:800;color:#065f46;margin-bottom:48px;line-height:1.2}
+.lp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
+.lp-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:20px;padding:28px;transition:all .2s}
+.lp-card:hover{border-color:#065f46;box-shadow:0 8px 32px rgba(6,95,70,.12);transform:translateY(-2px)}
+.lp-card-icon{font-size:36px;margin-bottom:14px}
+.lp-card h3{font-size:17px;font-weight:800;color:#111827;margin-bottom:8px}
+.lp-card p{font-size:13px;color:#6b7280;line-height:1.6}
+.lp-how{background:linear-gradient(135deg,#022c22,#064e3b);padding:72px 24px;text-align:center}
+.lp-how .lp-sec-title{color:#fff;margin-bottom:48px}
+.lp-steps{display:flex;justify-content:center;gap:0;flex-wrap:wrap;max-width:720px;margin:0 auto}
+.lp-step{flex:1;min-width:160px;padding:24px 16px;position:relative}
+.lp-step:not(:last-child)::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:#6ee7b7;font-size:20px;font-weight:800}
+.lp-step-num{width:44px;height:44px;background:#d97706;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;margin:0 auto 12px}
+.lp-step h4{font-size:14px;font-weight:700;color:#fff;margin-bottom:6px}
+.lp-step p{font-size:12px;color:#a7f3d0;line-height:1.5}
+.lp-pricing{padding:72px 24px;max-width:720px;margin:0 auto;text-align:center}
+.lp-plans{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px}
+.lp-plan{border:2px solid #e5e7eb;border-radius:20px;padding:28px;text-align:left;position:relative}
+.lp-plan.pro{border-color:#065f46;background:#f0fdf4}
+.lp-plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#d97706;color:#fff;font-size:11px;font-weight:800;padding:4px 14px;border-radius:20px;white-space:nowrap}
+.lp-plan-name{font-size:16px;font-weight:800;color:#111827;margin-bottom:4px}
+.lp-plan-price{font-size:28px;font-weight:800;color:#065f46;margin-bottom:4px}
+.lp-plan-price span{font-size:13px;font-weight:500;color:#6b7280}
+.lp-plan-desc{font-size:12px;color:#6b7280;margin-bottom:16px}
+.lp-plan-features{list-style:none;margin:0;padding:0}
+.lp-plan-features li{font-size:13px;color:#374151;padding:5px 0;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:8px}
+.lp-plan-features li::before{content:'✓';color:#059669;font-weight:800;flex-shrink:0}
+.lp-plan-features li.no::before{content:'✗';color:#d1d5db}
+.lp-plan-features li.no{color:#9ca3af}
+.lp-plan-cta{width:100%;margin-top:20px;padding:12px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:background .2s}
+.lp-plan.free .lp-plan-cta{background:#f3f4f6;color:#374151}
+.lp-plan.pro .lp-plan-cta{background:#065f46;color:#fff}
+.lp-plan.pro .lp-plan-cta:hover{background:#047857}
+.lp-footer{background:#022c22;color:#a7f3d0;text-align:center;padding:32px 24px;font-size:13px}
+.lp-footer a{color:#6ee7b7;text-decoration:none;margin:0 10px}
+@media(max-width:520px){.lp-plans{grid-template-columns:1fr}.lp-steps{flex-direction:column;align-items:center}.lp-step:not(:last-child)::after{content:'↓';right:auto;top:auto;bottom:-8px;left:50%;transform:translateX(-50%)}}
 
 /* ── LOGIN ── */
 #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#f0fdf4,#dbeafe,#ede9fe)}
@@ -406,13 +468,163 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 <body>
 <div id="toast"></div>
 
+<!-- ════ LANDING PAGE (shown to unauthenticated visitors) ════ -->
+<div id="landing">
+
+  <!-- Nav -->
+  <nav class="lp-nav">
+    <div class="lp-logo">Artha<span>Note</span></div>
+    <button class="lp-nav-cta" onclick="showLoginFromLanding()">Get Started Free →</button>
+  </nav>
+
+  <!-- Hero -->
+  <section class="lp-hero">
+    <div class="lp-hero-inner">
+      <div class="lp-eyebrow">Tamil Nadu's Business Ledger App</div>
+      <h1>Your Wealth,<br><em>Noted.</em></h1>
+      <p>Track daily sales, expenses & supplier payments. Smart reports, offline-ready, OCR scanning — built for small businesses in Tamil Nadu.</p>
+      <div class="lp-cta-group">
+        <button class="lp-btn-primary" onclick="showLoginFromLanding()">Start Free → No card needed</button>
+        <button class="lp-btn-ghost" onclick="document.getElementById('lp-features').scrollIntoView({behavior:'smooth'})">See Features ↓</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust bar -->
+  <div class="lp-trust">
+    <div class="lp-trust-item">🔒 Firebase Secured</div>
+    <div class="lp-trust-item">📴 Works Offline</div>
+    <div class="lp-trust-item">🇮🇳 Made in Tamil Nadu</div>
+    <div class="lp-trust-item">🌐 Tamil + English</div>
+    <div class="lp-trust-item">💸 Free to Start</div>
+  </div>
+
+  <!-- Features -->
+  <section class="lp-features" id="lp-features">
+    <div class="lp-sec-label">Features</div>
+    <div class="lp-sec-title">Everything your business needs,<br>in one app</div>
+    <div class="lp-cards">
+      <div class="lp-card">
+        <div class="lp-card-icon">📒</div>
+        <h3>Digital Cash Book</h3>
+        <p>Record sales, expenses, and payments instantly. Date-grouped entries, just like your physical ledger — but smarter.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">📸</div>
+        <h3>OCR Scan</h3>
+        <p>Take a photo of your handwritten ledger. Our AI reads the numbers and adds them automatically. No more manual re-entry.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">📊</div>
+        <h3>MIS Reports</h3>
+        <p>15 report sections: daily summary, category breakdown, supplier balances, GST summary, profit trends, and more.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">🏪</div>
+        <h3>Supplier Ledger</h3>
+        <p>Track every supplier bill and payment. See outstanding balances at a glance. Never miss a payment again.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">👥</div>
+        <h3>Staff & Attendance</h3>
+        <p>Add staff with roles (owner, manager, cashier). QR code attendance — scan with any phone, no app needed.</p>
+      </div>
+      <div class="lp-card">
+        <div class="lp-card-icon">💰</div>
+        <h3>Finance & Chit Fund</h3>
+        <p>Manage monthly collections, track defaulters, record chit prize winners. Full finance module for your group.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="lp-how">
+    <div class="lp-sec-label" style="color:#fbbf24">How It Works</div>
+    <div class="lp-sec-title">Up and running in 60 seconds</div>
+    <div class="lp-steps">
+      <div class="lp-step">
+        <div class="lp-step-num">1</div>
+        <h4>Sign Up Free</h4>
+        <p>Google login or email — takes 10 seconds</p>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-num">2</div>
+        <h4>Add Your Shop</h4>
+        <p>Pick your business type from 12 categories</p>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-num">3</div>
+        <h4>Start Tracking</h4>
+        <p>Add daily entries, view reports, share with staff</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="lp-pricing" id="lp-pricing">
+    <div class="lp-sec-label">Pricing</div>
+    <div class="lp-sec-title">Simple, transparent pricing</div>
+    <div class="lp-plans">
+      <div class="lp-plan free">
+        <div class="lp-plan-name">Free</div>
+        <div class="lp-plan-price">₹0 <span>forever</span></div>
+        <div class="lp-plan-desc">Perfect to get started</div>
+        <ul class="lp-plan-features">
+          <li>1 shop</li>
+          <li>Unlimited transactions</li>
+          <li>Reports (last 30 days)</li>
+          <li>Supplier management</li>
+          <li>Staff & attendance</li>
+          <li>Finance module (30-day trial)</li>
+          <li class="no">Multiple shops</li>
+          <li class="no">Full report history</li>
+          <li class="no">OCR scan</li>
+          <li class="no">CSV export</li>
+        </ul>
+        <button class="lp-plan-cta" onclick="showLoginFromLanding()">Start Free →</button>
+      </div>
+      <div class="lp-plan pro">
+        <div class="lp-plan-badge">Most Popular</div>
+        <div class="lp-plan-name">Pro</div>
+        <div class="lp-plan-price">₹99 <span>/month</span></div>
+        <div class="lp-plan-desc">For growing businesses</div>
+        <ul class="lp-plan-features">
+          <li>Unlimited shops</li>
+          <li>Unlimited transactions</li>
+          <li>Full report history</li>
+          <li>Supplier management</li>
+          <li>Staff & attendance</li>
+          <li>Finance & Chit Fund</li>
+          <li>Multiple shops</li>
+          <li>OCR scan</li>
+          <li>CSV export</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="lp-plan-cta" onclick="showLoginFromLanding()">Get Pro →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <div class="lp-footer">
+    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">ArthaNote</div>
+    <div>கணக்கபிள்ளை · Tamil Nadu's Digital Ledger</div>
+    <div style="margin-top:12px">
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="privacy.html#terms" onclick="sessionStorage.setItem('pp-tab','terms')">Terms of Service</a>
+      <a href="mailto:selvavishnu.m@gmail.com">Contact</a>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:#6b7280">© 2026 ArthaNote · Tuticorin, Tamil Nadu, India</div>
+  </div>
+
+</div>
 <!-- ════ LOGIN ════ -->
 <div id="login-screen">
   <div class="lcard">
     <div class="lhdr">
       <div class="llogo">&#128210;</div>
-      <div class="ltitle">கணக்கபிள்ளை</div>
-      <div class="lsub">Your Digital Accountant &middot; உங்கள் டிஜிட்டல் கணக்கபிள்ளை</div>
+      <div class="ltitle">ArthaNote</div>
+      <div class="lsub">Your Wealth, Noted &middot; கணக்கபிள்ளை by ArthaNote</div>
       <div class="lsec">&#128274; Secure &middot; All data encrypted &middot; Firebase protected</div>
     </div>
     <div class="lerr" id="lerr"></div>
@@ -446,7 +658,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 <div id="onboard-screen">
   <div class="ob-card">
     <div style="text-align:center;font-size:48px;margin-bottom:8px">📒</div>
-    <div class="ob-title">கணக்கபிள்ளை</div>
+    <div class="ob-title">ArthaNote</div>
     <div class="ob-sub">உங்கள் கடையை 30 seconds-ல் setup பண்ணலாம்!</div>
     <div class="ob-dots"><div class="ob-dot on" id="obd1"></div><div class="ob-dot" id="obd2"></div><div class="ob-dot" id="obd3"></div></div>
 
@@ -496,7 +708,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         </div>
       </div>
       <div style="font-size:10px;color:var(--muted)">You can change this anytime in Settings</div>
-      <button class="ob-btn" onclick="finishOnboard()">🚀 Start Using கணக்கபிள்ளை</button>
+      <button class="ob-btn" onclick="finishOnboard()">🚀 Start Using ArthaNote</button>
     </div>
   </div>
 </div>
@@ -520,7 +732,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   <div class="topbar">
     <div class="tlogo">&#128210;</div>
     <div class="tinfo">
-      <div class="tname">கணக்கபிள்ளை</div>
+      <div class="tname">ArthaNote</div>
       <div class="tuser" id="t-user">Loading...</div>
     </div>
     <span class="trole owner" id="t-role">&#128081; Owner</span>
@@ -739,6 +951,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="fr"><div class="fg"><label>From</label><input type="date" id="rpt-from" onchange="renderReports()"></div><div class="fg"><label>To</label><input type="date" id="rpt-to" onchange="renderReports()"></div></div>
     </div>
 
+    <!-- Free plan notice -->
+    <div id="rpt-free-notice" style="display:none;background:#fef3c7;border:1.5px solid #d97706;border-radius:10px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:8px;align-items:center;justify-content:space-between;gap:8px">
+      <span>⭐ Free plan: showing last 30 days only</span>
+      <button onclick="openPaywall('Upgrade to Pro for full report history.')" style="background:#d97706;color:#fff;border:none;padding:5px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">Upgrade →</button>
+    </div>
     <!-- Report Section Navigation -->
     <div class="rpt-nav" id="rpt-nav"></div>
 
@@ -875,14 +1092,37 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
   </div>
 </div>
 
+<!-- ════ PRO PAYWALL MODAL ════ -->
+<div class="mover" id="paywall-modal" style="z-index:10000">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div style="font-size:48px;margin-bottom:8px">⭐</div>
+    <div style="font-size:20px;font-weight:800;color:#065f46;margin-bottom:4px">Upgrade to Pro</div>
+    <div style="font-size:13px;color:#6b7280;margin-bottom:20px" id="pw-reason">Unlock all features</div>
+    <div style="background:#f0fdf4;border-radius:16px;padding:20px;margin-bottom:20px;text-align:left">
+      <div style="font-size:24px;font-weight:800;color:#065f46;margin-bottom:4px">₹99 <span style="font-size:13px;font-weight:500;color:#6b7280">/month</span></div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:14px">No auto-renewal · Pay when you need</div>
+      <ul style="list-style:none;padding:0;margin:0">
+        <li style="font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center"><span style="color:#059669;font-weight:800">✓</span> Unlimited shops</li>
+        <li style="font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center"><span style="color:#059669;font-weight:800">✓</span> Full report history</li>
+        <li style="font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center"><span style="color:#059669;font-weight:800">✓</span> OCR scan</li>
+        <li style="font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center"><span style="color:#059669;font-weight:800">✓</span> CSV export</li>
+        <li style="font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center"><span style="color:#059669;font-weight:800">✓</span> Finance & Chit Fund (continued)</li>
+      </ul>
+    </div>
+    <button onclick="startProPayment()" style="width:100%;background:#d97706;color:#fff;border:none;padding:14px;border-radius:20px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px">Pay ₹99 via Razorpay →</button>
+    <button onclick="closeM('paywall-modal')" style="width:100%;background:transparent;border:1.5px solid #e5e7eb;padding:10px;border-radius:20px;font-size:13px;cursor:pointer;color:#6b7280">Maybe Later</button>
+  </div>
+</div>
+
 <!-- ════ MODALS ════ -->
 <div class="mover" id="menu-modal">
   <div class="modal">
     <div class="mhd">Settings <button class="mclose" onclick="closeM('menu-modal')">&#10005;</button></div>
-    <div style="background:var(--soft);border-radius:10px;padding:12px;margin-bottom:14px">
+    <div style="background:var(--soft);border-radius:10px;padding:12px;margin-bottom:8px">
       <div style="font-weight:700;font-size:15px" id="mu-name">-</div>
       <div style="font-size:12px;color:var(--muted)" id="mu-email">-</div>
     </div>
+    <div id="pro-status-bar" style="margin-bottom:14px"></div>
     <div id="ocr-settings-section" style="display:none">
     <div class="stitle">&#128273; OCR API Keys</div>
 
@@ -975,10 +1215,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="stitle" style="margin-top:16px">&#9999;&#65039; Edit Categories</div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Sales & Expense categories for each shop. Separate by comma.</div>
       <div id="settings-cat-ed"></div>
-      <button class="btn G" style="margin-top:8px" onclick="saveShopCatsFromSettings()">&#10003; Save Categories</button>
+      <button class="btn G" style="margin-top:8px" onclick="saveShopCatsFromSettings()">&#10003; Save Categories ☁️</button>
     </div>
     <button class="btn R" onclick="doLogout()">&#128682; Sign Out</button>
-    <button class="btn B" onclick="window.location.href='finance.html'" style="margin-top:8px">💰 Finance & Chit Fund Module</button>
     <button id="pwa-install-btn" onclick="installPWA()" style="display:none;width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:15px;font-weight:800;cursor:pointer;margin-top:8px;align-items:center;justify-content:center;gap:8px;font-family:var(--sans)">📲 Install as App</button>
   </div>
 </div>
@@ -996,7 +1235,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <!-- Header -->
         <div style="background:#065f46;border-radius:10px;padding:10px;margin-bottom:12px;text-align:center">
           <div style="font-size:22px;margin-bottom:3px">📒</div>
-          <div style="font-family:'Noto Sans Tamil',sans-serif;font-size:16px;font-weight:800;color:#fff">கணக்கபிள்ளை</div>
+          <div style="font-size:16px;font-weight:800;color:#fff">ArthaNote</div>
           <div style="font-size:10px;color:#6ee7b7;margin-top:2px">Staff Attendance Scanner</div>
         </div>
         <!-- Shop + Date -->
@@ -1020,7 +1259,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         </div>
         <!-- Footer -->
         <div style="margin-top:10px;text-align:center;font-size:9px;color:#9ca3af">
-          Daily 12:00 AM-ல் புதுசா QR வரும் · கணக்கபிள்ளை
+          Daily 12:00 AM-ல் புதுசா QR வரும் · ArthaNote
         </div>
       </div>
 
@@ -1268,7 +1507,7 @@ function printQRCard(){
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Attendance QR — கணக்கபிள்ளை</title>
+      <title>Attendance QR — ArthaNote</title>
       <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@600;700;800&family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
       <style>
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -1292,7 +1531,7 @@ function printQRCard(){
       <div class="card">
         <div class="header">
           <div class="logo">📒</div>
-          <div class="brand">கணக்கபிள்ளை</div>
+          <div class="brand">ArthaNote</div>
           <div class="brand-sub">Staff Attendance Scanner</div>
         </div>
         <div class="shop-name">${document.getElementById('qr-card-shop')?.textContent||'Shop'}</div>
@@ -1307,7 +1546,7 @@ function printQRCard(){
             4️⃣ ✅ Attendance complete!
           </div>
         </div>
-        <div class="footer">தினமும் 12:00 AM-ல் புதுசா QR வரும் · கணக்கபிள்ளை</div>
+        <div class="footer">தினமும் 12:00 AM-ல் புதுசா QR வரும் · ArthaNote</div>
       </div>
       <script>window.onload=()=>{window.print();}<\/script>
     </body>
@@ -1559,7 +1798,7 @@ async function finishOnboard(){
   document.getElementById('onboard-screen').classList.remove('on');
   document.getElementById('app').style.display='block';
   buildShopStrip(); renderDash(); applyBizTypeUI();
-  toast('🎉 Welcome to கணக்கபிள்ளை!');
+  toast('🎉 Welcome to ArthaNote!');
 }
 
 // ════════════════════════════════════════
@@ -1789,6 +2028,40 @@ function checkMissingEntries(shop){
 // ════════════════════════════════════════
 function showLogin(){ document.getElementById('lform').style.display='block'; document.getElementById('rform').style.display='none'; }
 function showReg(){ document.getElementById('lform').style.display='none'; document.getElementById('rform').style.display='block'; }
+function showLoginFromLanding(){
+  document.getElementById('landing').classList.remove('on');
+  document.getElementById('login-screen').style.display='flex';
+}
+
+// ── PRO / PAYWALL ──
+function isProUser(){ return !!(ME&&ME.pro); }
+function openPaywall(reason){
+  document.getElementById('pw-reason').textContent=reason||'Unlock all features';
+  document.getElementById('paywall-modal').classList.add('on');
+}
+async function startProPayment(){
+  // Razorpay key to be configured when live account is ready
+  const rzpKey=localStorage.getItem('slv_rzp_key')||'';
+  if(!rzpKey){ toast('Payment coming soon! Contact selvavishnu.m@gmail.com to upgrade.','warn'); return; }
+  const rzp=new Razorpay({
+    key: rzpKey,
+    amount: 9900,
+    currency: 'INR',
+    name: 'ArthaNote',
+    description: 'Pro Plan — 1 Month',
+    prefill: { email: ME.email, name: ME.name },
+    theme: { color: '#065f46' },
+    handler: async function(response){
+      const expiry=Date.now()+30*24*60*60*1000;
+      await DB.collection('staff').doc(ME.uid).update({pro:true,proExpiry:expiry,lastPaymentId:response.razorpay_payment_id});
+      ME.pro=true; ME.proExpiry=expiry;
+      localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,role:ME.role,businessId:ME.businessId,pro:true,proExpiry:expiry}));
+      closeM('paywall-modal');
+      toast('🎉 Pro activated! Valid for 30 days.');
+    }
+  });
+  rzp.open();
+}
 
 async function loginGoogle(){
   // POPUP ONLY — redirect breaks on Android Chrome (sessionStorage partition issue)
@@ -1846,7 +2119,9 @@ async function doLogout(){
   await AUTH.signOut();
   closeM('menu-modal');
   document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('landing').classList.add('on');
+  window.scrollTo(0,0);
 }
 function showErr(m){
   const e=document.getElementById('lerr');
@@ -1890,7 +2165,7 @@ async function startApp(user){
   const cachedMe=localStorage.getItem('kp_me_cache');
   const cachedCfg=localStorage.getItem('kp_cfg_cache');
   let staffLoaded=false, configLoaded=false;
-  if(cachedMe){ try{ const m=JSON.parse(cachedMe); if(m.uid===user.uid){ME.role=m.role||'owner';ME.shop=m.shop||'all';if(m.businessId)ME.businessId=m.businessId;staffLoaded=true;} }catch(e){} }
+  if(cachedMe){ try{ const m=JSON.parse(cachedMe); if(m.uid===user.uid){ME.role=m.role||'owner';ME.shop=m.shop||'all';if(m.businessId)ME.businessId=m.businessId;ME.pro=!!(m.pro&&m.proExpiry>Date.now());ME.proExpiry=m.proExpiry||0;staffLoaded=true;} }catch(e){} }
   if(cachedCfg){ try{ const c=JSON.parse(cachedCfg); if(c.shops)SHOPS=c.shops; if(c.cats)CATS=c.cats; if(c.gstOn!==undefined)_gstOn=c.gstOn; if(c.gstRate)_gstRate=c.gstRate; if(c.bizType)_bizType=c.bizType; configLoaded=true; }catch(e){} }
 
   if(!staffLoaded||!configLoaded){
@@ -1899,11 +2174,21 @@ async function startApp(user){
         DB.collection('staff').doc(user.uid).get(),
         DB.collection('config').doc(user.uid).get()
       ]);
-      if(sd.exists){ const d=sd.data(); ME.role=d.role||'owner'; if(d.businessId)ME.businessId=d.businessId; }
-      else { await DB.collection('staff').doc(user.uid).set({uid:user.uid,name:ME.name,email:ME.email,role:'owner',businessId:user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()}); }
+      if(sd.exists){ const d=sd.data(); ME.role=d.role||'owner'; if(d.businessId)ME.businessId=d.businessId; ME.pro=!!(d.pro&&d.proExpiry>Date.now()); ME.proExpiry=d.proExpiry||0; }
+      else {
+        // Check if same email was registered under a different UID (e.g. email/pass → Google login)
+        const emailQ=await DB.collection('staff').where('email','==',user.email).limit(1).get();
+        if(!emailQ.empty){
+          const existing=emailQ.docs[0].data();
+          ME.businessId=existing.businessId; ME.role=existing.role||'owner';
+          await DB.collection('staff').doc(user.uid).set({...existing,uid:user.uid,linkedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        } else {
+          await DB.collection('staff').doc(user.uid).set({uid:user.uid,name:ME.name,email:ME.email,role:'owner',businessId:user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+        }
+      }
       if(cfg.exists){ const d=cfg.data(); if(d.shops)SHOPS=d.shops; if(d.cats)CATS=d.cats; if(d.bizType){_bizType=d.bizType;localStorage.setItem('slv_biztype',d.bizType);} localStorage.setItem('slv_cats',JSON.stringify(CATS)); localStorage.setItem('kp_cfg_cache',JSON.stringify({shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate,bizType:_bizType})); }
       else if(!localStorage.getItem('slv_onboarded')){ document.getElementById('login-screen').style.display='none'; document.getElementById('onboard-screen').classList.add('on'); return; }
-      localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,role:ME.role,businessId:ME.businessId}));
+      localStorage.setItem('kp_me_cache',JSON.stringify({uid:ME.uid,role:ME.role,businessId:ME.businessId,pro:ME.pro||false,proExpiry:ME.proExpiry||0}));
     }catch(e){
       console.warn('Firestore read failed:',e.code);
       if(!localStorage.getItem('slv_onboarded')){ document.getElementById('login-screen').style.display='none'; document.getElementById('onboard-screen').classList.add('on'); return; }
@@ -1924,6 +2209,11 @@ async function _finishAppSetup(user){
   document.getElementById('t-role').className='trole '+ME.role;
   document.getElementById('mu-name').textContent=ME.name;
   document.getElementById('mu-email').textContent=ME.email;
+  const psb=document.getElementById('pro-status-bar');
+  if(psb){
+    if(ME.pro){ const d=new Date(ME.proExpiry); psb.innerHTML=`<div style="background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;font-weight:700">⭐ Pro · expires ${d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>`; }
+    else { psb.innerHTML=`<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center"><span style="color:#92400e">Free Plan</span><button onclick="closeM('menu-modal');openPaywall('Unlock Pro features for ₹99/month.')" style="background:#d97706;color:#fff;border:none;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer">Upgrade ⭐</button></div>`; }
+  }
   document.getElementById('owner-only').style.display=ME.role==='owner'?'block':'none';
   document.getElementById('nav-scan').style.display=ME.role==='cashier'?'none':'flex';
   const bc=document.getElementById('biz-code'); if(bc) bc.textContent=ME.businessId.slice(0,8).toUpperCase();
@@ -2243,7 +2533,8 @@ function buildUI(){
   if(sed) sed.innerHTML=Object.entries(SHOPS).map(([k,vv])=>`
     <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:18px">${vv.icon}</span>
-      <div class="fg" style="flex:1"><input type="text" id="se-${k}" value="${vv.name}" style="font-size:13px;padding:8px 10px"></div>
+      <div class="fg" style="flex:1"><input type="text" id="se-${k}" value="${escAttr(vv.name)}" style="font-size:13px;padding:8px 10px"></div>
+      <button onclick="deleteShop('${k}')" style="background:none;border:1px solid var(--red);border-radius:8px;color:var(--red);padding:6px 8px;font-size:13px;cursor:pointer;flex-shrink:0" title="Delete ${escAttr(vv.name)}">🗑️</button>
     </div>`).join('');
 
   // Categories editor in settings
@@ -2260,9 +2551,21 @@ function setShop(s,el){
 async function saveShops(){
   Object.keys(SHOPS).forEach(k=>{const i=document.getElementById('se-'+k);if(i&&i.value.trim())SHOPS[k].name=i.value.trim();});
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
-  localStorage.removeItem('kp_cfg_cache'); // clear cache so next load re-fetches
+  localStorage.removeItem('kp_cfg_cache');
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
   buildUI(); toast('✅ Shop names saved!');
+}
+async function deleteShop(key){
+  if(Object.keys(SHOPS).length<=1){toast('குறைந்தது 1 shop இருக்கணும்!','warn');return;}
+  const shop=SHOPS[key]; if(!shop)return;
+  const typeLbl=shop.type?` (${shop.type})`:'';
+  if(!confirm(`"${shop.name}"${typeLbl} delete பண்ணணுமா?\n\nTransactions data இருக்கும் — shop மட்டும் remove ஆகும்.`))return;
+  delete SHOPS[key];
+  delete CATS[key];
+  localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
+  await persistCats();
+  buildUI(); buildShopStrip(); applyBizTypeUI();
+  toast('🗑️ '+shop.name+' deleted!');
 }
 
 function loadSettingsCats(){
@@ -2294,7 +2597,7 @@ async function saveShopCatsFromSettings(){
   });
   await persistCats();
   loadQB();
-  toast('✅ Categories saved!');
+  toast('✅ Categories saved & synced to cloud! ☁️');
 }
 async function addNewShop(){
   const type=_nsType||'other';
@@ -2302,6 +2605,7 @@ async function addNewShop(){
   const sc=v('ns-sc').split(',').map(x=>x.trim()).filter(Boolean);
   const ec=v('ns-ec').split(',').map(x=>x.trim()).filter(Boolean);
   if(!name){toast('Enter shop name','warn');return;}
+  if(!isProUser()&&Object.keys(SHOPS).length>=1){ closeM('add-shop-modal'); openPaywall('Free plan allows 1 shop. Upgrade to Pro for unlimited shops.'); return; }
   const keys=Object.keys(SHOPS),nk='s'+(keys.length+1);
   SHOPS[nk]={name,icon,type};
   const bc=BIZ_CATS[type]||BIZ_CATS.other;
@@ -3743,8 +4047,14 @@ function renderReports(){
   const nav=document.getElementById('rpt-nav');
   nav.innerHTML=RPT_SECTIONS.map((s,i)=>`<div class="rpt-chip${i===0?' on':''}" onclick="showRptSection('${s.id}',this)">${s.label}</div>`).join('');
 
+  // Free plan: limit report history to 30 days
+  const cutoff30=!isProUser()?new Date(Date.now()-30*24*60*60*1000).toISOString().split('T')[0]:null;
+  const fn=document.getElementById('rpt-free-notice');
+  if(fn) fn.style.display=cutoff30?'flex':'none';
+
   const ff=getRptFilter();
   let txs=TXS.filter(ff);
+  if(cutoff30) txs=txs.filter(x=>!x.date||x.date>=cutoff30);
   if(_shop!=='all') txs=txs.filter(x=>x.shop===_shop);
   const pf=getPrevFilter();
   let ptxs=TXS.filter(pf);
@@ -4422,6 +4732,7 @@ function fmtM(m){const[y,mo]=m.split('-');return['','Jan','Feb','Mar','Apr','May
 
 // ── EXCEL DOWNLOAD ──
 function downloadExcel(mode){
+  if(!isProUser()){ openPaywall('CSV export is a Pro feature. Upgrade to download your data.'); return; }
   let txs=[...TXS], label='All';
   const t=new Date(), y=t.getFullYear(), mo=String(t.getMonth()+1).padStart(2,'0');
   if(mode==='month'){
@@ -4478,7 +4789,7 @@ function downloadExcel(mode){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  a.download='Kanakkupillai_'+label+'_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.download='ArthaNote_'+label+'_'+new Date().toISOString().split('T')[0]+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('✅ Excel file downloaded! ('+txs.length+' entries)');
@@ -5054,7 +5365,7 @@ window.addEventListener('beforeunload', e=>{
 });
 
 window.onload=async ()=>{
-  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='none';
   const sd=document.getElementById('sc-date');
   if(sd) sd.value=new Date().toISOString().split('T')[0];
@@ -5069,10 +5380,15 @@ window.onload=async ()=>{
     catch(e){ console.error('startApp err:',e.message); }
   }
 
-  // Listen for auth state
+  // Show landing page for unauthenticated visitors
   AUTH.onAuthStateChanged(async user=>{
     console.log('Auth:', user?user.email:'null');
-    if(user) await doStart(user);
+    if(user){
+      document.getElementById('landing').classList.remove('on');
+      await doStart(user);
+    } else {
+      document.getElementById('landing').classList.add('on');
+    }
   });
 };
 </script>

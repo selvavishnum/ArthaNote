@@ -1,7 +1,7 @@
 {
-  "name": "கணக்கபிள்ளை — Digital Accountant",
-  "short_name": "கணக்கபிள்ளை",
-  "description": "உங்கள் கடை கணக்கு, இப்போது டிஜிட்டல். Your retail shop ledger app.",
+  "name": "ArthaNote — Your Wealth, Noted",
+  "short_name": "ArthaNote",
+  "description": "Smart ledger for Tamil Nadu businesses. Track sales, expenses, suppliers & reports. Artha = Wealth.",
   "start_url": "/Kannakupilai/index.html",
   "scope": "/Kannakupilai/",
   "display": "standalone",
