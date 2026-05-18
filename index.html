@@ -149,6 +149,8 @@ body.ta{font-family:var(--tamil)}
 .trole.owner{background:var(--yl);color:var(--yellow)}
 .trole.manager{background:var(--bl);color:var(--blue)}
 .trole.cashier{background:var(--gl);color:var(--green)}
+.trole.admin{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff}
+.trole.pro{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}
 .langbtn{background:var(--bl);color:var(--blue);border:1.5px solid var(--blue);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:var(--sans)}
 .langbtn.ta{background:var(--green);color:#fff;border-color:var(--green)}
 .tmenu{background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;flex-shrink:0}
@@ -1064,6 +1066,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="dtab" onclick="setSdP('week',this)">This Week</div>
       <div class="dtab" onclick="setSdP('month',this)">This Month</div>
       <div class="dtab" onclick="setSdP('year',this)">This Year</div>
+      <div class="dtab" onclick="setSdP('custom',this)">📅 Custom</div>
+    </div>
+    <div class="cdrow" id="sd-cdrow">
+      <div class="fr"><div class="fg"><label>From</label><input type="date" id="sd-from" onchange="renderSd()"></div><div class="fg"><label>To</label><input type="date" id="sd-to" onchange="renderSd()"></div></div>
     </div>
     <div class="sgrid" id="sd-stats"></div>
     <div class="card"><div class="chd">&#128202; Breakdown</div><div id="sd-break"></div></div>
@@ -2200,8 +2206,17 @@ async function _finishAppSetup(user){
   // Set UI
   document.getElementById('t-user').textContent=ME.name;
   const roleLabels={owner:'👑 Owner',manager:'👔 Manager',cashier:'💵 Cashier'};
-  document.getElementById('t-role').textContent=roleLabels[ME.role]||ME.role;
-  document.getElementById('t-role').className='trole '+ME.role;
+  const isAdmin=ME.email===OWNER_EMAIL;
+  if(isAdmin){
+    document.getElementById('t-role').textContent='🔑 Admin';
+    document.getElementById('t-role').className='trole admin';
+  } else if(ME.pro){
+    document.getElementById('t-role').textContent='⭐ Pro';
+    document.getElementById('t-role').className='trole pro';
+  } else {
+    document.getElementById('t-role').textContent=roleLabels[ME.role]||ME.role;
+    document.getElementById('t-role').className='trole '+ME.role;
+  }
   document.getElementById('mu-name').textContent=ME.name;
   document.getElementById('mu-email').textContent=ME.email;
   const psb=document.getElementById('pro-status-bar');
@@ -3050,7 +3065,15 @@ function openSd(k){
 function setSdP(m,el){
   _sdP=m;
   document.querySelectorAll('#pane-shop-detail .dtab').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on'); renderSd();
+  el.classList.add('on');
+  const cr=document.getElementById('sd-cdrow');
+  if(cr) cr.style.display=m==='custom'?'block':'none';
+  if(m==='custom'){
+    const sf=document.getElementById('sd-from'),st=document.getElementById('sd-to');
+    if(sf&&!sf.value){ sf.value=new Date(Date.now()-7*864e5).toISOString().split('T')[0]; }
+    if(st&&!st.value){ st.value=tod(); }
+  }
+  renderSd();
 }
 function renderSd(){
   const t=tod(), y=new Date(); y.setDate(y.getDate()-1); const ys=y.toISOString().split('T')[0];
@@ -3061,6 +3084,7 @@ function renderSd(){
   else if(_sdP==='week') txs=txs.filter(x=>x.date>=ws.toISOString().split('T')[0]);
   else if(_sdP==='month')txs=txs.filter(x=>x.date>=t.substring(0,7)+'-01');
   else if(_sdP==='year') txs=txs.filter(x=>x.date>=t.substring(0,4)+'-01-01');
+  else if(_sdP==='custom'){ const sf=v('sd-from'),st=v('sd-to'); if(sf) txs=txs.filter(x=>x.date>=sf); if(st) txs=txs.filter(x=>x.date<=st); }
   const s=sum(txs,'sales'),e=sum(txs,'expense'),p=sum(txs,'payment'),net=s-e-p;
   document.getElementById('sd-stats').innerHTML=`
     <div class="stile"><div class="slbl">Sales</div><div class="sval cg">₹${fmt(s)}</div></div>
@@ -5097,17 +5121,35 @@ function renderNewUserTip(){
   const tip=document.getElementById('d-new-user-tip');
   if(!tip)return;
   const myTxs=TXS.filter(t=>t.businessId===(ME.businessId||ME.uid));
-  if(myTxs.length>=10){tip.style.display='none';return;}
-  const bc=BIZ_CATS[_bizType]||BIZ_CATS.other;
-  const expList=bc.expense.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
-  const salList=bc.sales.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
-  tip.style.display='block';
-  tip.innerHTML=`<div class="card" style="border-left:3px solid var(--green)">
-    <div class="chd">💡 Getting Started — Popular for ${esc((BTYPE_CONFIG[_bizType]||BTYPE_CONFIG.other).dashTitle)} shops</div>
-    <div style="margin-bottom:6px"><span style="font-size:11px;color:var(--muted);font-weight:600">Common Expenses:</span><div>${expList}</div></div>
-    <div><span style="font-size:11px;color:var(--muted);font-weight:600">Sales Types:</span><div>${salList}</div></div>
-    <div style="font-size:10px;color:var(--muted);margin-top:8px">This tip hides after your first 10 entries.</div>
-  </div>`;
+  let html='';
+
+  // Getting started tip (< 10 entries)
+  if(myTxs.length<10){
+    const bc=BIZ_CATS[_bizType]||BIZ_CATS.other;
+    const expList=bc.expense.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
+    const salList=bc.sales.slice(0,5).map(c=>`<span style="display:inline-block;background:var(--soft);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;margin:3px 3px 0 0">${esc(c)}</span>`).join('');
+    html+=`<div class="card" style="border-left:3px solid var(--green);margin-bottom:10px">
+      <div class="chd">💡 Getting Started — Popular for ${esc((BTYPE_CONFIG[_bizType]||BTYPE_CONFIG.other).dashTitle)} shops</div>
+      <div style="margin-bottom:6px"><span style="font-size:11px;color:var(--muted);font-weight:600">Common Expenses:</span><div>${expList}</div></div>
+      <div><span style="font-size:11px;color:var(--muted);font-weight:600">Sales Types:</span><div>${salList}</div></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px">This tip hides after your first 10 entries.</div>
+    </div>`;
+  }
+
+  // Pro upgrade nudge for free users
+  if(!isProUser()&&ME.email!==OWNER_EMAIL){
+    html+=`<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px;flex-shrink:0">⭐</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:2px">Upgrade to Pro — ₹99/month</div>
+        <div style="font-size:11px;color:#78350f;line-height:1.5">Unlimited shops · Full report history · CSV export · Finance & Chit Fund</div>
+      </div>
+      <button onclick="openPaywall('Unlock Pro features for ₹99/month.')" style="background:#d97706;color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(217,119,6,.35)">Upgrade →</button>
+    </div>`;
+  }
+
+  tip.style.display=html?'block':'none';
+  tip.innerHTML=html;
 }
 
 // ── API CONFIGURATION ──
