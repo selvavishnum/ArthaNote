@@ -383,7 +383,31 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .stitle{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin:14px 0 8px}
 
 /* ── PREMIUM SETTINGS MODAL ── */
-.sett-modal{padding:0 0 40px;border-radius:24px 24px 0 0}
+.sett-modal{padding:0 0 40px;border-radius:24px 24px 0 0;max-height:82vh}
+.att-tabs{display:flex;background:var(--soft);border-radius:12px;padding:4px;margin-bottom:14px;gap:4px}
+.att-tab{flex:1;text-align:center;padding:9px 6px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);transition:all .2s}
+.att-tab.active{background:#fff;color:#065f46;box-shadow:0 1px 6px rgba(0,0,0,.1)}
+.att-staff-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px}
+.att-staff-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.att-staff-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.att-staff-name{font-size:14px;font-weight:800;color:#111827}
+.att-staff-period{font-size:10px;color:var(--muted)}
+.att-staff-days{margin-left:auto;text-align:right}
+.att-days-count{font-size:22px;font-weight:800;color:#ef4444;line-height:1}
+.att-days-label{font-size:9px;color:var(--muted)}
+.att-rate-bar{height:6px;background:#e5e7eb;border-radius:6px;margin:6px 0 8px;overflow:hidden}
+.att-rate-fill{height:100%;border-radius:6px;background:#ef4444;transition:width .5s}
+.att-rate-fill.good{background:#059669}
+.att-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:1px solid var(--border);padding-top:8px}
+.att-stat{text-align:center;padding:4px 0}
+.att-stat:not(:last-child){border-right:1px solid var(--border)}
+.att-stat-val{font-size:18px;font-weight:800}
+.att-stat-val.green{color:#059669}
+.att-stat-val.red{color:#ef4444}
+.att-stat-val.amber{color:#d97706}
+.att-stat-lbl{font-size:8px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.att-day-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.att-day-chip{background:var(--gl);color:var(--green);border:1px solid #6ee7b7;border-radius:20px;font-size:10px;font-weight:700;padding:2px 8px}
 .sett-top{background:linear-gradient(135deg,#065f46,#047857);padding:18px 18px 16px;border-radius:24px 24px 0 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:0}
 .sett-top-title{color:#fff;font-size:17px;font-weight:800;letter-spacing:.3px}
 .sett-top .mclose{background:rgba(255,255,255,.18);color:#fff;width:30px;height:30px;font-size:14px}
@@ -1406,23 +1430,45 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
           <div class="sett-row-arr" id="sarr-profile">›</div>
         </div>
         <div class="sett-row-body" id="sbody-profile">
-          <div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#065f46,#047857);color:#fff;font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;text-transform:uppercase" id="sett-av2">A</div>
-              <div>
-                <div style="font-size:14px;font-weight:700" id="sett-pname2">-</div>
-                <div style="font-size:11px;color:var(--muted)" id="sett-pemail2">-</div>
-              </div>
-            </div>
-            <div style="background:var(--soft);border-radius:8px;padding:10px;margin-bottom:8px">
-              <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Business ID</div>
-              <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:#065f46" id="sett-bid">-</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">
-              <span style="font-size:12px;font-weight:600">Language</span>
-              <button class="langbtn" onclick="closeM('menu-modal');openLangPicker()" id="sett-langbtn">EN</button>
+          <!-- Avatar + name header -->
+          <div style="display:flex;align-items:center;gap:12px;padding:4px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px">
+            <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#065f46,#047857);color:#fff;font-size:20px;font-weight:800;display:flex;align-items:center;justify-content:center;text-transform:uppercase;flex-shrink:0" id="sett-av2">A</div>
+            <div>
+              <div style="font-size:15px;font-weight:800;color:#111827" id="sett-pname2">-</div>
+              <div style="font-size:11px;color:var(--muted);font-family:var(--mono)" id="sett-pemail2">-</div>
             </div>
           </div>
+          <!-- Editable fields -->
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Display Name</div>
+              <input type="text" id="prof-name" placeholder="Your name" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:var(--sans)">
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Phone Number</div>
+              <input type="tel" id="prof-phone" placeholder="+91 9876543210" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:var(--sans)">
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Business Name</div>
+              <input type="text" id="prof-bizname" placeholder="e.g. Tulsi Groups" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:var(--sans)">
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">City / Location</div>
+              <input type="text" id="prof-city" placeholder="e.g. Tuticorin, Tamil Nadu" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:var(--sans)">
+            </div>
+          </div>
+          <!-- Business ID (read-only) -->
+          <div style="background:var(--soft);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+            <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Business ID</div>
+            <div style="font-family:var(--mono);font-size:14px;font-weight:800;color:#065f46;letter-spacing:2px" id="sett-bid">-</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">Share with staff to join your business</div>
+          </div>
+          <!-- Language -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);margin-bottom:10px">
+            <span style="font-size:13px;font-weight:600">App Language</span>
+            <button class="langbtn" onclick="closeM('menu-modal');openLangPicker()" id="sett-langbtn">EN</button>
+          </div>
+          <button class="btn G" onclick="saveProfile()" style="margin-top:0">✓ Save Profile</button>
         </div>
       </div>
 
@@ -1617,15 +1663,29 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 
 <!-- ATTENDANCE VIEW MODAL -->
 <div class="mover center-modal" id="attendance-view-modal">
-  <div class="modal">
-    <div class="mhd">📋 Attendance Records <button class="mclose" onclick="closeM('attendance-view-modal')">✕</button></div>
-    <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
-      <input type="date" id="att-date-filter" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:var(--sans)">
-      <select id="att-shop-filter" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-family:var(--sans);background:var(--soft)"></select>
-      <button class="btn G sm" style="margin:0" onclick="loadAttendance()">&#128269;</button>
+  <div class="modal" style="max-height:88vh">
+    <div class="mhd">📋 Attendance <button class="mclose" onclick="closeM('attendance-view-modal')">✕</button></div>
+    <!-- Tabs -->
+    <div class="att-tabs">
+      <div class="att-tab active" id="att-tab-mark" onclick="setAttTab('mark')">✅ Mark Attendance</div>
+      <div class="att-tab" id="att-tab-summary" onclick="setAttTab('summary')">📊 Summary</div>
     </div>
-    <div id="attendance-body">
-      <div class="empty">Select date to view attendance</div>
+    <!-- Mark Attendance pane -->
+    <div id="att-pane-mark">
+      <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
+        <input type="date" id="att-date-filter" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;font-family:var(--sans);font-size:13px">
+        <select id="att-shop-filter" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;font-family:var(--sans);background:var(--soft);font-size:13px"></select>
+        <button class="btn G sm" style="margin:0;padding:8px 10px" onclick="loadAttendance()">🔍</button>
+      </div>
+      <div id="attendance-body"><div class="empty">Select date to view attendance</div></div>
+    </div>
+    <!-- Summary pane -->
+    <div id="att-pane-summary" style="display:none">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+        <input type="month" id="att-month-filter" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:var(--sans);font-size:13px">
+        <button class="btn G sm" style="margin:0;padding:9px 12px;flex-shrink:0" onclick="loadAttSummary()">🔍</button>
+      </div>
+      <div id="att-summary-body"><div class="empty">Select month to view summary</div></div>
     </div>
   </div>
 </div>
@@ -1793,7 +1853,9 @@ function openM(id){
   if(id==='attendance-view-modal'){
     const df=document.getElementById('att-date-filter');
     if(df&&!df.value) df.value=tod();
-    loadAttendance();
+    const mf=document.getElementById('att-month-filter');
+    if(mf&&!mf.value) mf.value=tod().slice(0,7);
+    setAttTab('mark');
   }
 }
 
@@ -1976,6 +2038,109 @@ async function loadAttendance(){
     body.innerHTML=`<div class="empty">Error: ${String(e.code||e.message||"error").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
   }
 }
+function setAttTab(tab){
+  document.querySelectorAll('.att-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('att-tab-'+tab).classList.add('active');
+  document.getElementById('att-pane-mark').style.display=tab==='mark'?'block':'none';
+  document.getElementById('att-pane-summary').style.display=tab==='summary'?'block':'none';
+  if(tab==='summary') loadAttSummary();
+}
+
+async function loadAttSummary(){
+  const monthVal=document.getElementById('att-month-filter')?.value||tod().slice(0,7);
+  const BID=ME.businessId||ME.uid;
+  const body=document.getElementById('att-summary-body');
+  body.innerHTML=`<div style="text-align:center;padding:20px;color:var(--muted)">Loading...</div>`;
+
+  try{
+    // Query all attendance records for this month
+    const startDate=monthVal+'-01';
+    const [yr,mo]=monthVal.split('-').map(Number);
+    const endDate=monthVal+'-'+(new Date(yr,mo,0).getDate()).toString().padStart(2,'0');
+
+    const snap=await DB.collection('attendance')
+      .where('businessId','==',BID)
+      .where('date','>=',startDate)
+      .where('date','<=',endDate)
+      .get();
+
+    const records=snap.docs.map(d=>d.data());
+    if(!records.length){ body.innerHTML=`<div class="empty">No attendance records for ${monthVal}</div>`; return; }
+
+    // Calculate working days elapsed in month (up to today)
+    const today=tod();
+    const lastDay=today<endDate?today:endDate;
+    let workingDays=0;
+    for(let d=new Date(startDate+'T00:00');d<=new Date(lastDay+'T00:00');d.setDate(d.getDate()+1)) workingDays++;
+
+    // Group by staffName
+    const staffMap={};
+    records.forEach(r=>{
+      const n=r.staffName||'Unknown';
+      if(!staffMap[n]) staffMap[n]={dates:new Set(),times:[]};
+      staffMap[n].dates.add(r.date);
+      if(r.time) staffMap[n].times.push(r.time);
+    });
+
+    const html=Object.entries(staffMap).sort((a,b)=>b[1].dates.size-a[1].dates.size).map(([name,data])=>{
+      const present=data.dates.size;
+      const absent=Math.max(0,workingDays-present);
+      const rate=workingDays>0?Math.round((present/workingDays)*100):0;
+      const rateClass=rate>=75?'good':'';
+      const letter=name[0].toUpperCase();
+      const sortedDates=[...data.dates].sort();
+      const dayChips=sortedDates.map(d=>`<span class="att-day-chip">${parseInt(d.split('-')[2])}</span>`).join('');
+      return `<div class="att-staff-card">
+        <div class="att-staff-hd">
+          <div class="att-staff-av">${letter}</div>
+          <div>
+            <div class="att-staff-name">${esc(name)}</div>
+            <div class="att-staff-period">${monthVal}</div>
+          </div>
+          <div class="att-staff-days">
+            <div class="att-days-count">${present}</div>
+            <div class="att-days-label">days / ${workingDays} working</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <span style="font-size:11px;font-weight:700;color:#374151">Attendance Rate</span>
+          <span style="font-size:12px;font-weight:800;color:${rate>=75?'#059669':'#ef4444'}">${rate}%</span>
+        </div>
+        <div class="att-rate-bar"><div class="att-rate-fill ${rateClass}" style="width:${rate}%"></div></div>
+        <div class="att-stats">
+          <div class="att-stat"><div class="att-stat-val green">${present}</div><div class="att-stat-lbl">Present</div></div>
+          <div class="att-stat"><div class="att-stat-val red">${absent}</div><div class="att-stat-lbl">Absent</div></div>
+          <div class="att-stat"><div class="att-stat-val amber">—</div><div class="att-stat-lbl">Avg Hrs</div></div>
+        </div>
+        ${dayChips?`<div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:8px;margin-bottom:4px">வந்த நாட்கள்</div><div class="att-day-chips">${dayChips}</div>`:''}
+      </div>`;
+    }).join('');
+
+    body.innerHTML=html;
+  }catch(e){
+    body.innerHTML=`<div class="empty">Error loading: ${String(e.message||e).replace(/</g,'&lt;')}</div>`;
+  }
+}
+
+async function saveProfile(){
+  const name=document.getElementById('prof-name')?.value.trim()||ME.name;
+  const phone=document.getElementById('prof-phone')?.value.trim()||'';
+  const bizName=document.getElementById('prof-bizname')?.value.trim()||'';
+  const city=document.getElementById('prof-city')?.value.trim()||'';
+  try{
+    await DB.collection('staff').doc(ME.uid).update({name,phone,businessName:bizName,city,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    ME.name=name;
+    document.getElementById('t-user').textContent=name;
+    document.getElementById('mu-name').textContent=name;
+    const av=document.getElementById('sett-av'); if(av) av.textContent=name[0].toUpperCase();
+    const av2=document.getElementById('sett-av2'); if(av2) av2.textContent=name[0].toUpperCase();
+    const pn2=document.getElementById('sett-pname2'); if(pn2) pn2.textContent=name;
+    const cm=localStorage.getItem('kp_me_cache');
+    if(cm){ try{ const m=JSON.parse(cm); m.name=name; localStorage.setItem('kp_me_cache',JSON.stringify(m)); }catch(e){} }
+    toast('✅ Profile saved!');
+  }catch(e){ toast('Error saving profile: '+e.message,'warn'); }
+}
+
 function levenshtein(a,b){
   const m=a.length,n=b.length;
   const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
@@ -2575,6 +2740,15 @@ async function _finishAppSetup(user){
   const _pe2=document.getElementById('sett-pemail2'); if(_pe2) _pe2.textContent=ME.email;
   const _sbid=document.getElementById('sett-bid'); if(_sbid) _sbid.textContent=(ME.businessId||'').slice(0,8).toUpperCase();
   const _slb=document.getElementById('sett-langbtn'); if(_slb) _slb.textContent=(_lang||'en').toUpperCase();
+  // Pre-fill profile form from Firestore in background
+  const _pn=document.getElementById('prof-name'); if(_pn) _pn.value=ME.name||'';
+  DB.collection('staff').doc(ME.uid).get().then(sd=>{
+    if(!sd.exists) return;
+    const d=sd.data();
+    const ph=document.getElementById('prof-phone'); if(ph) ph.value=d.phone||'';
+    const bn=document.getElementById('prof-bizname'); if(bn) bn.value=d.businessName||'';
+    const ct=document.getElementById('prof-city'); if(ct) ct.value=d.city||'';
+  }).catch(()=>{});
   const psb=document.getElementById('pro-status-bar');
   if(psb){
     if(ME.pro){ const d=new Date(ME.proExpiry); psb.innerHTML=`<div style="background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;font-weight:700">⭐ Pro · expires ${d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>`; }
