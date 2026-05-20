@@ -14,7 +14,6 @@ ThemeData appTheme() => ThemeData(
     primary: kPrimary,
     secondary: kSecondary,
     surface: Colors.white,
-    background: kBg,
   ),
   scaffoldBackgroundColor: kBg,
   appBarTheme: const AppBarTheme(
