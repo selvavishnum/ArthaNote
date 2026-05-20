@@ -15,7 +15,9 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    kotlinOptions { jvmTarget = "1.8" }
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
 
     defaultConfig {
         applicationId "com.arthanote.app"
@@ -29,17 +31,17 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.debug
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }
 
-flutter { source "../.." }
+flutter {
+    source "../.."
+}
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation platform("com.google.firebase:firebase-bom:33.0.0")
     implementation "com.google.firebase:firebase-analytics"
     implementation "com.google.android.gms:play-services-auth:21.0.0"
