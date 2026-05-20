@@ -21,8 +21,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String get lang => context.read<AppProvider>().lang;
 
-  void _showErr(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg), backgroundColor: kRed));
+  void _showErr(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: kRed));
+  }
 
   Future<void> _submit() async {
     if (_email.text.trim().isEmpty || _pass.text.isEmpty) {
@@ -53,12 +56,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     try {
       final cred = await _auth.signInGoogle();
-      if (cred == null) { setState(() => _loading = false); return; }
+      if (cred == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       final user = cred.user!;
       final existing = await _auth.getProfile(user.uid);
       if (existing == null) {
-        // Check if email already registered
-        // ignore: invalid_use_of_protected_member
         await _auth.saveProfile(user.uid, {
           'uid': user.uid,
           'email': user.email ?? '',
@@ -84,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(children: [
             const SizedBox(height: 32),
-            // Logo
             Container(
               width: 90, height: 90,
               decoration: const BoxDecoration(
@@ -102,7 +105,6 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(t('app_name', l), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: kPrimary)),
             Text(t('tagline', l), style: TextStyle(fontSize: 15, color: Colors.grey.shade600)),
             const SizedBox(height: 40),
-            // Toggle
             Row(children: [
               _tab(t('login', l), _isLogin, () => setState(() => _isLogin = true)),
               const SizedBox(width: 12),
