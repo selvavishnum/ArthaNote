@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.arthanote.app",
+    "sha256_cert_fingerprints": ["62:1D:ED:27:EB:17:B6:77:2E:60:6C:4B:41:9C:0C:DA:E3:A7:CE:FC:1A:8B:82:CE:91:9B:4C:49:34:1C:D6:B7"]
+  }
+}]

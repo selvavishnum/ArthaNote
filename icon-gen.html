@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArthaNote Icon Generator</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:24px}
+  h1{font-size:22px;font-weight:800;color:#6ee7b7;letter-spacing:.5px}
+  .preview-row{display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap;justify-content:center}
+  .preview-box{text-align:center}
+  .preview-box canvas{border-radius:18px;box-shadow:0 8px 32px rgba(0,0,0,.5);display:block;margin:0 auto 10px}
+  .preview-box canvas.sm{border-radius:10px}
+  .preview-label{font-size:12px;color:#94a3b8;font-weight:600;margin-bottom:8px}
+  .btn{display:block;padding:12px 24px;border-radius:12px;border:none;font-size:14px;font-weight:800;cursor:pointer;width:100%;font-family:inherit;transition:all .2s}
+  .btn-green{background:linear-gradient(135deg,#059669,#065f46);color:#fff}
+  .btn-green:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(5,150,105,.4)}
+  .note{font-size:11px;color:#64748b;text-align:center;max-width:400px;line-height:1.6}
+  .steps{background:#1e293b;border-radius:14px;padding:20px 24px;max-width:480px;width:100%}
+  .steps h2{font-size:14px;font-weight:700;color:#6ee7b7;margin-bottom:12px}
+  .steps ol{padding-left:18px}
+  .steps li{font-size:12px;color:#94a3b8;margin-bottom:8px;line-height:1.5}
+  .steps code{background:#0f172a;padding:2px 6px;border-radius:4px;font-size:11px;color:#a5f3fc}
+</style>
+</head>
+<body>
+<h1>🎨 ArthaNote Icon Generator</h1>
+
+<div class="preview-row">
+  <div class="preview-box">
+    <div class="preview-label">512 × 512 (Play Store)</div>
+    <canvas id="c512" width="512" height="512"></canvas>
+    <button class="btn btn-green" onclick="download(512)">⬇ Download icon-512.png</button>
+  </div>
+  <div class="preview-box">
+    <div class="preview-label">192 × 192 (Home Screen)</div>
+    <canvas id="c192" class="sm" width="192" height="192" style="width:120px;height:120px"></canvas>
+    <button class="btn btn-green" onclick="download(192)" style="margin-top:10px">⬇ Download icon-192.png</button>
+  </div>
+</div>
+
+<p class="note">
+  Download both files → replace existing <code>icon-512.png</code> and <code>icon-192.png</code>
+  in the Kannakupilai repo folder → commit & push.
+</p>
+
+<div class="steps">
+  <h2>📋 After downloading:</h2>
+  <ol>
+    <li>Save both files into your <code>Kannakupilai/</code> folder (overwrite existing icons)</li>
+    <li>Run: <code>git add icon-512.png icon-192.png</code></li>
+    <li>Run: <code>git commit -m "New app icon — ArthaNote Shop Ledger"</code></li>
+    <li>Run: <code>git push</code></li>
+    <li>Go to <strong>pwabuilder.com</strong> → enter <code>https://arthanote.com</code></li>
+    <li>Build → Android → package name <code>com.arthanote.app</code></li>
+    <li>Download .aab file → upload to Google Play Console</li>
+  </ol>
+</div>
+
+<script>
+function drawIcon(size){
+  const c = document.getElementById('c'+size);
+  const ctx = c.getContext('2d');
+  const s = size;
+  const r = s * 0.18;
+
+  ctx.clearRect(0,0,s,s);
+
+  // ── 1. White background ──
+  roundRect(ctx, 0, 0, s, s, r);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // ── 2. Green radial gradient texture overlay ──
+  const grad = ctx.createRadialGradient(s*0.5, s*0.5, s*0.1, s*0.5, s*0.5, s*0.75);
+  grad.addColorStop(0, 'rgba(255,255,255,0)');
+  grad.addColorStop(1, 'rgba(209,250,229,0.55)');
+  roundRect(ctx, 0, 0, s, s, r);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // ── 3. Subtle diagonal stripe texture ──
+  ctx.save();
+  roundRect(ctx, 0, 0, s, s, r);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(6,95,70,0.04)';
+  ctx.lineWidth = s * 0.012;
+  for(let i = -s; i < s*2; i += s*0.06){
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + s, s);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── 4. Center green circle with shadow ──
+  const cx = s * 0.5, cy = s * 0.42, cr = s * 0.28;
+  ctx.save();
+  ctx.shadowColor = 'rgba(6,95,70,0.22)';
+  ctx.shadowBlur = s * 0.06;
+  ctx.shadowOffsetY = s * 0.03;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cr, 0, Math.PI*2);
+  const cg = ctx.createLinearGradient(cx-cr, cy-cr, cx+cr, cy+cr);
+  cg.addColorStop(0, '#059669');
+  cg.addColorStop(1, '#065f46');
+  ctx.fillStyle = cg;
+  ctx.fill();
+  ctx.restore();
+
+  // ── 5. White "AN" inside circle ──
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${s*0.22}px Georgia, serif`;
+  ctx.fillText('AN', cx, cy);
+
+  // ── 6. "ArthaNote" text below circle in green ──
+  ctx.fillStyle = '#065f46';
+  ctx.font = `700 ${s*0.075}px system-ui, sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ArthaNote', s/2, s * 0.74);
+
+  // ── Thin green separator line ──
+  ctx.strokeStyle = 'rgba(6,95,70,0.18)';
+  ctx.lineWidth = s * 0.003;
+  ctx.beginPath();
+  ctx.moveTo(s*0.15, s*0.81);
+  ctx.lineTo(s*0.85, s*0.81);
+  ctx.stroke();
+
+  // ── 7. Bottom green rounded strip ──
+  const stripH = s * 0.155;
+  const stripY = s - stripH - s*0.025;
+  const stripR = s * 0.045;
+  const sg = ctx.createLinearGradient(0, stripY, 0, stripY+stripH);
+  sg.addColorStop(0, '#059669');
+  sg.addColorStop(1, '#065f46');
+  ctx.save();
+  ctx.shadowColor = 'rgba(6,95,70,0.18)';
+  ctx.shadowBlur = s*0.03;
+  roundRect(ctx, s*0.1, stripY, s*0.8, stripH, stripR);
+  ctx.fillStyle = sg;
+  ctx.fill();
+  ctx.restore();
+
+  // ── 8. "SHOP LEDGER" bold white in strip ──
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `800 ${s*0.078}px system-ui, sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.fillText('SHOP LEDGER', s/2, stripY + stripH/2);
+
+  return c;
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  if(typeof r === 'number') r = {tl:r,tr:r,br:r,bl:r};
+  const {tl=0,tr=0,br=0,bl=0} = r;
+  ctx.beginPath();
+  ctx.moveTo(x+tl, y);
+  ctx.lineTo(x+w-tr, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+tr);
+  ctx.lineTo(x+w, y+h-br);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+  ctx.lineTo(x+bl, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-bl);
+  ctx.lineTo(x, y+tl);
+  ctx.quadraticCurveTo(x, y, x+tl, y);
+  ctx.closePath();
+}
+
+function download(size){
+  const c = document.getElementById('c'+size);
+  const a = document.createElement('a');
+  a.download = 'icon-'+size+'.png';
+  a.href = c.toDataURL('image/png');
+  a.click();
+}
+
+// Draw both on load
+drawIcon(512);
+drawIcon(192);
+</script>
+</body>
+</html>

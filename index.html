@@ -200,6 +200,7 @@ body.bn{font-family:var(--bengali)}
 .trole.admin{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff}
 .trole.pro{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}
 .trole.free{background:#e5e7eb;color:#6b7280}
+.sync-dot{font-size:9px;flex-shrink:0;cursor:default;line-height:1}
 .langbtn{background:var(--bl);color:var(--blue);border:1.5px solid var(--blue);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:var(--sans)}
 .langbtn.ta{background:var(--green);color:#fff;border-color:var(--green)}
 .tmenu{background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;flex-shrink:0}
@@ -978,6 +979,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="tuser" id="t-user">Loading...</div>
     </div>
     <span class="trole owner" id="t-role">&#128081; Owner</span>
+    <span id="sync-dot" class="sync-dot" title="Live sync">🟢</span>
     <button class="langbtn" id="langbtn" onclick="openLangPicker()">EN</button>
     <button class="tmenu" onclick="openM('menu-modal')">&#9776;</button>
   </div>
@@ -1269,6 +1271,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <button class="btn G sm" style="margin-top:0" onclick="downloadExcel('month')">&#128229; Monthly Excel</button>
         <button class="btn B sm" style="margin-top:0" onclick="downloadExcel('week')">&#128229; Weekly Excel</button>
         <button class="btn S sm" style="margin-top:0" onclick="downloadExcel('all')">&#128229; All Data</button>
+      </div>
+    </div>
+    <!-- Share Reports -->
+    <div class="card" style="margin-top:6px">
+      <div class="chd">&#128241; Share Summary</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn G sm" style="margin-top:0;background:#25d366;border-color:#25d366" onclick="shareWhatsApp('today')">&#128241; WhatsApp Today</button>
+        <button class="btn G sm" style="margin-top:0;background:#25d366;border-color:#25d366" onclick="shareWhatsApp('week')">&#128241; WhatsApp Week</button>
+        <button class="btn B sm" style="margin-top:0" onclick="shareEmail()">&#128140; Email Report</button>
       </div>
     </div>
     <div class="card">
@@ -2874,6 +2885,10 @@ async function _finishAppSetup(user){
   API_CONFIG.reset();
   updSyncBar(); updAI();
   setTimeout(syncNow,3000);
+  // Feature 20: live sync dot + real-time listener
+  startLiveSync();
+  // Feature 18: push notification setup
+  requestNotifPermission().then(()=>{ checkMissingEntry(); scheduleReminder(); });
   console.log('✅ App ready. BID:',ME.businessId);
   toast('✅ Connected — '+ME.name);
   try{
@@ -3204,15 +3219,52 @@ async function saveShops(){
 }
 async function deleteShop(key){
   if(Object.keys(SHOPS).length<=1){toast('குறைந்தது 1 shop இருக்கணும்!','warn');return;}
-  const shop=SHOPS[key]; if(!shop)return;
-  const typeLbl=shop.type?` (${shop.type})`:'';
-  if(!confirm(`"${shop.name}"${typeLbl} delete பண்ணணுமா?\n\nTransactions data இருக்கும் — shop மட்டும் remove ஆகும்.`))return;
-  delete SHOPS[key];
-  delete CATS[key];
-  localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
-  await persistCats();
-  buildUI(); buildShopStrip(); applyBizTypeUI();
-  toast('🗑️ '+shop.name+' deleted!');
+  const shop=SHOPS[key]; if(!shop) return;
+  // Custom confirm modal
+  document.getElementById('confirm-overlay')?.remove();
+  const modal=document.createElement('div');
+  modal.id='confirm-overlay';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  const sName=shop.name.replace(/'/g,"\\'");
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+      <div style="font-size:18px;font-weight:800;margin-bottom:6px">Remove Shop</div>
+      <div style="font-size:13px;color:#6b7280;margin-bottom:6px">
+        "<b>${shop.icon} ${esc(shop.name)}</b>" delete பண்ணணுமா?
+      </div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:14px">
+        ⚠️ Transactions data இருக்கும் — shop மட்டும் remove ஆகும்.
+      </div>
+      <input id="confirm-name-inp" type="text" placeholder="${esc(shop.name)}" autocomplete="off"
+        style="width:100%;padding:12px 14px;border:2px solid #e5e7eb;border-radius:12px;font-size:14px;font-family:var(--sans);outline:none;margin-bottom:6px"
+        oninput="checkConfirmName('${sName}')">
+      <div style="font-size:10px;color:#9ca3af;margin-bottom:12px">Shop பேரை சரியாக type பண்ணுங்க</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('confirm-overlay')?.remove()"
+          style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;font-size:14px;font-weight:700;cursor:pointer">Cancel</button>
+        <button id="confirm-del-btn" onclick="doDeleteShop('${key}',this)" disabled
+          style="flex:1;padding:12px;border-radius:12px;border:none;background:#fee2e2;color:#dc2626;font-size:14px;font-weight:800;cursor:pointer;opacity:.5">Delete</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal) modal.remove();});
+  setTimeout(()=>modal.querySelector('#confirm-name-inp').focus(),100);
+}
+async function doDeleteShop(key, btn){
+  btn.textContent='Deleting...'; btn.disabled=true;
+  try{
+    document.getElementById('confirm-overlay')?.remove();
+    const name=SHOPS[key]?.name||'Shop';
+    delete SHOPS[key];
+    delete CATS[key];
+    localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
+    await persistCats();
+    buildUI(); buildShopStrip(); applyBizTypeUI(); renderDash();
+    toast('🗑️ '+name+' deleted!');
+  }catch(e){
+    toast('Error: '+e.message,'bad');
+    btn.textContent='Delete'; btn.disabled=false;
+  }
 }
 
 function loadSettingsCats(){
@@ -5609,6 +5661,111 @@ function downloadExcel(mode){
 }
 
 // ════════════════════════════════════════
+// FEATURE 16 — WHATSAPP & EMAIL SHARE
+// ════════════════════════════════════════
+function _buildShareText(period){
+  const today=new Date().toISOString().split('T')[0];
+  let txs, label;
+  if(period==='today'){
+    txs=TXS.filter(x=>x.date===today && x.businessId===BID);
+    label=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+  } else {
+    const ws=new Date(); ws.setDate(ws.getDate()-6);
+    const wStr=ws.toISOString().split('T')[0];
+    txs=TXS.filter(x=>x.date>=wStr && x.businessId===BID);
+    label='Last 7 Days';
+  }
+  const s=sum(txs,'sales'), e=sum(txs,'expense'), p=sum(txs,'payment'), net=s-e-p;
+  let shopLines='';
+  Object.keys(SHOPS).forEach(k=>{
+    const st=txs.filter(t=>t.shop===k);
+    const ss=sum(st,'sales'), se=sum(st,'expense')+sum(st,'payment');
+    if(ss>0||se>0) shopLines+=`\n• ${SHOPS[k]?.name||k}: ₹${fmt(ss)} sales, ₹${fmt(se)} exp`;
+  });
+  return `*ArthaNote — ${label}*\n\n🏪 Total Sales: ₹${fmt(s)}\n💸 Total Expenses: ₹${fmt(e+p)}\n💰 Net Profit: ₹${fmt(net)}\n${shopLines?'\n📊 Shop-wise:'+shopLines:''}\n\n_Sent from ArthaNote App_`;
+}
+
+function shareWhatsApp(period){
+  const text=_buildShareText(period);
+  window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
+}
+
+function shareEmail(){
+  const text=_buildShareText('today');
+  const subj=encodeURIComponent('ArthaNote Daily Summary — '+new Date().toLocaleDateString('en-IN'));
+  const body=encodeURIComponent(text.replace(/\*/g,'').replace(/_/g,''));
+  window.open('mailto:?subject='+subj+'&body='+body);
+}
+
+// ════════════════════════════════════════
+// FEATURE 18 — PUSH NOTIFICATIONS
+// ════════════════════════════════════════
+async function requestNotifPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission==='default'){
+    await Notification.requestPermission();
+  }
+}
+
+function checkMissingEntry(){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  if(localStorage.getItem('kp_notif_on')==='false') return;
+  const hour=new Date().getHours();
+  if(hour<18) return;
+  const today=new Date().toISOString().split('T')[0];
+  const todayTxs=TXS.filter(t=>t.date===today&&t.businessId===BID);
+  if(todayTxs.length===0){
+    new Notification('⚠️ ArthaNote Reminder',{body:"Today's transactions not entered yet. Tap to open.",icon:'/icon-192.png',badge:'/icon-192.png',tag:'missing-entry'});
+  }
+}
+
+function scheduleReminder(){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  if(localStorage.getItem('kp_notif_on')==='false') return;
+  const now=new Date();
+  const target=new Date(); target.setHours(20,0,0,0);
+  if(now>=target) target.setDate(target.getDate()+1);
+  const delay=target-now;
+  setTimeout(()=>{
+    if(localStorage.getItem('kp_notif_on')==='false') return;
+    const today=new Date().toISOString().split('T')[0];
+    const todayTxs=TXS.filter(t=>t.date===today&&t.businessId===BID);
+    if(todayTxs.length===0){
+      new Notification('📒 ArthaNote — Daily Reminder',{body:"Don't forget to enter today's sales & expenses!",icon:'/icon-192.png',badge:'/icon-192.png',tag:'daily-reminder'});
+    }
+  }, delay);
+}
+
+// ════════════════════════════════════════
+// FEATURE 20 — LIVE SYNC INDICATOR
+// ════════════════════════════════════════
+function setSyncDot(online){
+  const dot=document.getElementById('sync-dot');
+  if(!dot) return;
+  dot.textContent=online?'🟢':'🔴';
+  dot.title=online?'Live — synced':'Offline';
+}
+
+function startLiveSync(){
+  if(!BID||!DB) return;
+  setSyncDot(navigator.onLine);
+  window.addEventListener('online', ()=>setSyncDot(true));
+  window.addEventListener('offline', ()=>setSyncDot(false));
+  // Real-time listener — only fires on remote changes
+  DB.collection('transactions').where('businessId','==',BID)
+    .onSnapshot(snap=>{
+      if(snap.metadata.hasPendingWrites) return;
+      const freshTxs=snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(freshTxs.length!==TXS.length){
+        TXS=freshTxs;
+        saveCacheLocal();
+        renderDash(); renderLedger();
+        setSyncDot(true);
+      }
+    }, ()=>setSyncDot(false));
+}
+
+// ════════════════════════════════════════
 // STAFF
 // ════════════════════════════════════════
 async function loadStaffList(){
@@ -5636,22 +5793,30 @@ async function loadStaffList(){
 }
 
 function confirmRemoveStaff(docId, staffName){
-  // Show confirm dialog with name input
+  // Remove any existing overlay
+  document.getElementById('confirm-overlay')?.remove();
   const modal=document.createElement('div');
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.id='confirm-overlay';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
   modal.innerHTML=`
     <div style="background:#fff;border-radius:20px;padding:24px 20px;width:100%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
       <div style="font-size:18px;font-weight:800;margin-bottom:6px">Remove Staff</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:16px">
         "<b>${staffName}</b>"-ஐ remove பண்ண staff பேரை type பண்ணுங்க:
       </div>
-      <input id="confirm-name-inp" type="text" placeholder="${staffName}" style="width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:12px;font-size:14px;font-family:var(--sans);outline:none;margin-bottom:12px" oninput="checkConfirmName('${staffName}')">
+      <input id="confirm-name-inp" type="text" placeholder="${staffName}" autocomplete="off"
+        style="width:100%;padding:12px 14px;border:2px solid #e5e7eb;border-radius:12px;font-size:14px;font-family:var(--sans);outline:none;margin-bottom:12px"
+        oninput="checkConfirmName('${staffName}')">
       <div style="display:flex;gap:8px">
-        <button onclick="this.closest('[style]').remove()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-size:14px;font-weight:700;cursor:pointer">Cancel</button>
-        <button id="confirm-del-btn" onclick="doRemoveStaff('${docId}','${staffName}',this)" disabled style="flex:1;padding:12px;border-radius:12px;border:none;background:#fee2e2;color:var(--red);font-size:14px;font-weight:800;cursor:pointer;opacity:.5">Remove</button>
+        <button onclick="document.getElementById('confirm-overlay')?.remove()"
+          style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;font-size:14px;font-weight:700;cursor:pointer">Cancel</button>
+        <button id="confirm-del-btn" onclick="doRemoveStaff('${docId}','${staffName}',this)" disabled
+          style="flex:1;padding:12px;border-radius:12px;border:none;background:#fee2e2;color:#dc2626;font-size:14px;font-weight:800;cursor:pointer;opacity:.5">Remove</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
+  // Tap backdrop to cancel
+  modal.addEventListener('click',e=>{if(e.target===modal) modal.remove();});
   setTimeout(()=>modal.querySelector('#confirm-name-inp').focus(),100);
 }
 
@@ -5670,7 +5835,7 @@ async function doRemoveStaff(docId, staffName, btn){
   btn.textContent='Removing...'; btn.disabled=true;
   try{
     await DB.collection('staff').doc(docId).delete();
-    btn.closest('[style*="position:fixed"]')?.remove(); // close modal
+    document.getElementById('confirm-overlay')?.remove();
     await loadStaffList();
     toast('✅ '+staffName+' removed!');
   }catch(e){
