@@ -50,7 +50,7 @@ jobs:
 
       - name: Build release APK
         working-directory: flutter_app
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --split-per-abi --verbose
 
       - name: Build release AAB (Play Store)
         working-directory: flutter_app
