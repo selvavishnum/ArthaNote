@@ -63,65 +63,92 @@ function drawIcon(size){
   const c = document.getElementById('c'+size);
   const ctx = c.getContext('2d');
   const s = size;
-  const pad = s * 0.1;
+  const r = s * 0.18;
 
-  // ── Background ──
-  const r = s * 0.18; // corner radius
   ctx.clearRect(0,0,s,s);
+
+  // ── 1. White background ──
   roundRect(ctx, 0, 0, s, s, r);
-  const bg = ctx.createLinearGradient(0,0,s,s);
-  bg.addColorStop(0, '#065f46');
-  bg.addColorStop(1, '#047857');
-  ctx.fillStyle = bg;
+  ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  // ── Subtle inner glow ──
-  const glow = ctx.createRadialGradient(s*.3,s*.3,0,s*.5,s*.5,s*.6);
-  glow.addColorStop(0, 'rgba(110,231,183,0.12)');
-  glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow;
-  roundRect(ctx,0,0,s,s,r);
+  // ── 2. Green radial gradient texture overlay ──
+  const grad = ctx.createRadialGradient(s*0.5, s*0.5, s*0.1, s*0.5, s*0.5, s*0.75);
+  grad.addColorStop(0, 'rgba(255,255,255,0)');
+  grad.addColorStop(1, 'rgba(209,250,229,0.55)');
+  roundRect(ctx, 0, 0, s, s, r);
+  ctx.fillStyle = grad;
   ctx.fill();
 
-  // ── "AN" lettermark ──
-  const topY = s * 0.19;
+  // ── 3. Subtle diagonal stripe texture ──
+  ctx.save();
+  roundRect(ctx, 0, 0, s, s, r);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(6,95,70,0.04)';
+  ctx.lineWidth = s * 0.012;
+  for(let i = -s; i < s*2; i += s*0.06){
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + s, s);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── 4. Center green circle with shadow ──
+  const cx = s * 0.5, cy = s * 0.42, cr = s * 0.28;
+  ctx.save();
+  ctx.shadowColor = 'rgba(6,95,70,0.22)';
+  ctx.shadowBlur = s * 0.06;
+  ctx.shadowOffsetY = s * 0.03;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cr, 0, Math.PI*2);
+  const cg = ctx.createLinearGradient(cx-cr, cy-cr, cx+cr, cy+cr);
+  cg.addColorStop(0, '#059669');
+  cg.addColorStop(1, '#065f46');
+  ctx.fillStyle = cg;
+  ctx.fill();
+  ctx.restore();
+
+  // ── 5. White "AN" inside circle ──
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.font = `800 ${s*0.38}px Georgia, serif`;
-  ctx.fillText('AN', s/2, topY);
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${s*0.22}px Georgia, serif`;
+  ctx.fillText('AN', cx, cy);
 
-  // ── Thin separator line ──
-  const lineY = s * 0.64;
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.lineWidth = s * 0.004;
+  // ── 6. "ArthaNote" text below circle in green ──
+  ctx.fillStyle = '#065f46';
+  ctx.font = `700 ${s*0.075}px system-ui, sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ArthaNote', s/2, s * 0.74);
+
+  // ── Thin green separator line ──
+  ctx.strokeStyle = 'rgba(6,95,70,0.18)';
+  ctx.lineWidth = s * 0.003;
   ctx.beginPath();
-  ctx.moveTo(s*0.12, lineY);
-  ctx.lineTo(s*0.88, lineY);
+  ctx.moveTo(s*0.15, s*0.81);
+  ctx.lineTo(s*0.85, s*0.81);
   ctx.stroke();
 
-  // ── "ArthaNote" label ──
-  ctx.fillStyle = 'rgba(255,255,255,0.78)';
-  ctx.textBaseline = 'middle';
-  ctx.font = `600 ${s*0.082}px system-ui, sans-serif`;
-  ctx.letterSpacing = `${s*0.003}px`;
-  ctx.fillText('ArthaNote', s/2, s*0.70);
-
-  // ── Bottom strip background ──
-  const stripH = s * 0.18;
-  const stripY = s - stripH;
-  const sg = ctx.createLinearGradient(0, stripY, 0, s);
-  sg.addColorStop(0, 'rgba(255,255,255,0.12)');
-  sg.addColorStop(1, 'rgba(255,255,255,0.20)');
+  // ── 7. Bottom green rounded strip ──
+  const stripH = s * 0.155;
+  const stripY = s - stripH - s*0.025;
+  const stripR = s * 0.045;
+  const sg = ctx.createLinearGradient(0, stripY, 0, stripY+stripH);
+  sg.addColorStop(0, '#059669');
+  sg.addColorStop(1, '#065f46');
+  ctx.save();
+  ctx.shadowColor = 'rgba(6,95,70,0.18)';
+  ctx.shadowBlur = s*0.03;
+  roundRect(ctx, s*0.1, stripY, s*0.8, stripH, stripR);
   ctx.fillStyle = sg;
-  roundRect(ctx, 0, stripY, s, stripH, {bl:r, br:r, tl:0, tr:0});
   ctx.fill();
+  ctx.restore();
 
-  // ── "SHOP LEDGER" bold text ──
+  // ── 8. "SHOP LEDGER" bold white in strip ──
   ctx.fillStyle = '#ffffff';
-  ctx.font = `800 ${s*0.096}px system-ui, sans-serif`;
+  ctx.font = `800 ${s*0.078}px system-ui, sans-serif`;
   ctx.textBaseline = 'middle';
-  ctx.letterSpacing = `${s*0.005}px`;
   ctx.fillText('SHOP LEDGER', s/2, stripY + stripH/2);
 
   return c;
