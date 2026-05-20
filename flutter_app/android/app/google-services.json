@@ -1,31 +1,36 @@
 {
   "project_info": {
-    "project_number": "123456789012",
+    "project_number": "546195090451",
     "project_id": "selva-ledger",
-    "storage_bucket": "selva-ledger.appspot.com"
+    "storage_bucket": "selva-ledger.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890abcd",
+        "mobilesdk_app_id": "1:546195090451:android:a4a704e73e3ccf1edae3e6",
         "android_client_info": {
           "package_name": "com.arthanote.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "123456789012-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com",
+          "client_id": "546195090451-ibq0hus5jh17b6qm1pg4u17lr6snt4i4.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyB5q3fFfl5aUXp8d9yb0K_qkI20vdTL2Xg"
+          "current_key": "AIzaSyAMj51_TuE30GHRDBP6wdS3osOQKcdJzzg"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "546195090451-ibq0hus5jh17b6qm1pg4u17lr6snt4i4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
