@@ -33,4 +33,18 @@ class Supplier {
     'balance':    balance,
     'updatedAt':  FieldValue.serverTimestamp(),
   };
+
+  Supplier copyWith({
+    String? id,
+    String? businessId,
+    String? name,
+    String? phone,
+    double? balance,
+  }) => Supplier(
+    id:         id         ?? this.id,
+    businessId: businessId ?? this.businessId,
+    name:       name       ?? this.name,
+    phone:      phone      ?? this.phone,
+    balance:    balance    ?? this.balance,
+  );
 }

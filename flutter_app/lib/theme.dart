@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-// ── Color palette ───────────────────────────────────────────────────────────
-const kPrimary   = Color(0xFF065F46);  // deep forest green
-const kSecondary = Color(0xFF059669);  // emerald
-const kAccent    = Color(0xFFD97706);  // amber gold (CTAs)
+// ── Color palette ────────────────────────────────────────────────────────────
+const kPrimary   = Color(0xFF065F46);   // deep forest green
+const kSecondary = Color(0xFF059669);   // emerald
+const kAccent    = Color(0xFFD97706);   // amber gold (for CTAs)
 const kRed       = Color(0xFFDC2626);
 const kAmber     = Color(0xFFF59E0B);
 const kBg        = Color(0xFFF0FDF4);
@@ -20,16 +20,16 @@ const kGradient = LinearGradient(
 
 const kBoxShadow = [
   BoxShadow(
-    color: Color(0x14000000),
-    blurRadius: 12,
+    color: Color(0x18000000),
+    blurRadius: 16,
     offset: Offset(0, 4),
   ),
 ];
 
 const kCardShadow = [
   BoxShadow(
-    color: Color(0x0A000000),
-    blurRadius: 8,
+    color: Color(0x0D000000),
+    blurRadius: 10,
     offset: Offset(0, 2),
   ),
 ];
@@ -40,12 +40,20 @@ ThemeData appTheme() {
     brightness: Brightness.light,
     primary: kPrimary,
     onPrimary: Colors.white,
+    primaryContainer: Color(0xFFD1FAE5),
+    onPrimaryContainer: kPrimary,
     secondary: kSecondary,
     onSecondary: Colors.white,
+    secondaryContainer: Color(0xFFD1FAE5),
+    onSecondaryContainer: kSecondary,
+    tertiary: kAccent,
+    onTertiary: Colors.white,
     error: kRed,
     onError: Colors.white,
     surface: Colors.white,
     onSurface: kText,
+    surfaceContainerHighest: Color(0xFFF3F4F6),
+    outline: Color(0xFFE5E7EB),
   );
 
   return ThemeData(
@@ -59,14 +67,17 @@ ThemeData appTheme() {
       backgroundColor: kPrimary,
       foregroundColor: Colors.white,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
         color: Colors.white,
         fontSize: 18,
         fontWeight: FontWeight.w700,
         fontFamily: 'Roboto',
+        letterSpacing: 0.3,
       ),
       iconTheme: IconThemeData(color: Colors.white),
+      actionsIconTheme: IconThemeData(color: Colors.white),
     ),
 
     // ── Bottom navigation ────────────────────────────────────────────────────
@@ -75,7 +86,7 @@ ThemeData appTheme() {
       selectedItemColor: kPrimary,
       unselectedItemColor: Color(0xFF9CA3AF),
       type: BottomNavigationBarType.fixed,
-      elevation: 12,
+      elevation: 16,
       selectedLabelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
       unselectedLabelStyle: TextStyle(fontSize: 11),
     ),
@@ -85,14 +96,17 @@ ThemeData appTheme() {
       style: ElevatedButton.styleFrom(
         backgroundColor: kAccent,
         foregroundColor: Colors.white,
+        disabledBackgroundColor: const Color(0xFFE5E7EB),
+        disabledForegroundColor: kMuted,
         minimumSize: const Size(double.infinity, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         elevation: 2,
-        shadowColor: kAccent.withOpacity(0.4),
+        shadowColor: Color(0x66D97706),
         textStyle: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w700,
           fontFamily: 'Roboto',
+          letterSpacing: 0.2,
         ),
       ),
     ),
@@ -100,6 +114,7 @@ ThemeData appTheme() {
     // ── OutlinedButton ───────────────────────────────────────────────────────
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
+        foregroundColor: kPrimary,
         minimumSize: const Size(double.infinity, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         side: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -132,9 +147,14 @@ ThemeData appTheme() {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: kRed),
       ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: kRed, width: 2),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      labelStyle: const TextStyle(color: kMuted),
-      hintStyle: TextStyle(color: Colors.grey.shade400),
+      labelStyle: const TextStyle(color: kMuted, fontSize: 14),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+      prefixIconColor: kMuted,
     ),
 
     // ── Cards ────────────────────────────────────────────────────────────────
@@ -153,25 +173,37 @@ ThemeData appTheme() {
       side: const BorderSide(color: Color(0xFFE5E7EB)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
     ),
 
     // ── FAB ──────────────────────────────────────────────────────────────────
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: kPrimary,
       foregroundColor: Colors.white,
-      elevation: 4,
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
     ),
 
     // ── Dialog ───────────────────────────────────────────────────────────────
     dialogTheme: DialogTheme(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       elevation: 24,
+      titleTextStyle: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: kText,
+        fontFamily: 'Roboto',
+      ),
     ),
 
     // ── SnackBar ─────────────────────────────────────────────────────────────
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     ),
 
     // ── Divider ──────────────────────────────────────────────────────────────
@@ -181,18 +213,47 @@ ThemeData appTheme() {
       space: 1,
     ),
 
+    // ── ListTile ─────────────────────────────────────────────────────────────
+    listTileTheme: const ListTileThemeData(
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      minVerticalPadding: 8,
+    ),
+
+    // ── Bottom sheet ─────────────────────────────────────────────────────────
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      showDragHandle: true,
+    ),
+
     // ── Typography ───────────────────────────────────────────────────────────
     textTheme: const TextTheme(
-      displayLarge:  TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kText),
-      displayMedium: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: kText),
-      headlineLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kText),
-      headlineMedium:TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kText),
-      titleLarge:    TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kText),
-      titleMedium:   TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: kText),
-      bodyLarge:     TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: kText),
-      bodyMedium:    TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: kText),
-      labelLarge:    TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText),
-      labelMedium:   TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
+      displayLarge:   TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kText, letterSpacing: -0.5),
+      displayMedium:  TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: kText),
+      headlineLarge:  TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kText),
+      headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kText),
+      titleLarge:     TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kText),
+      titleMedium:    TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: kText),
+      bodyLarge:      TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: kText),
+      bodyMedium:     TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: kText),
+      labelLarge:     TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText),
+      labelMedium:    TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMuted),
+      labelSmall:     TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: kMuted),
     ),
   );
 }
+
+// ── Reusable decoration helpers ───────────────────────────────────────────────
+BoxDecoration kChipDecoration({required bool active, Color? color}) => BoxDecoration(
+  color: active ? (color ?? kPrimary) : Colors.white,
+  borderRadius: BorderRadius.circular(20),
+  border: Border.all(color: active ? (color ?? kPrimary) : const Color(0xFFE5E7EB)),
+);
+
+BoxDecoration kSurfaceDecoration({double radius = 16}) => BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(radius),
+  boxShadow: kCardShadow,
+);

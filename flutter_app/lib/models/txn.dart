@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Txn {
-  final String id;
-  final String businessId;
-  final String shop;
-  final String shopName;
+  final String   id;
+  final String   businessId;
+  final String   shop;
+  final String   shopName;
   final DateTime date;
-  final String type; // sale | expense | payment
-  final double amount;
-  final String desc;
+  final String   type;   // sale | expense | payment
+  final double   amount;
+  final String   desc;
 
   const Txn({
     required this.id,
@@ -45,4 +45,24 @@ class Txn {
     'desc':       desc,
     'createdAt':  FieldValue.serverTimestamp(),
   };
+
+  Txn copyWith({
+    String?   id,
+    String?   businessId,
+    String?   shop,
+    String?   shopName,
+    DateTime? date,
+    String?   type,
+    double?   amount,
+    String?   desc,
+  }) => Txn(
+    id:         id         ?? this.id,
+    businessId: businessId ?? this.businessId,
+    shop:       shop       ?? this.shop,
+    shopName:   shopName   ?? this.shopName,
+    date:       date       ?? this.date,
+    type:       type       ?? this.type,
+    amount:     amount     ?? this.amount,
+    desc:       desc       ?? this.desc,
+  );
 }

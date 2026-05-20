@@ -23,6 +23,13 @@ class Shop {
     'icon': icon,
     'type': type,
   };
+
+  Shop copyWith({String? id, String? name, String? icon, String? type}) => Shop(
+    id:   id   ?? this.id,
+    name: name ?? this.name,
+    icon: icon ?? this.icon,
+    type: type ?? this.type,
+  );
 }
 
 const List<Map<String, String>> kShopTypes = [
