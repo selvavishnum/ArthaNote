@@ -10,7 +10,7 @@ class Txn {
   final double amount;
   final String desc;
 
-  Txn({
+  const Txn({
     required this.id,
     required this.businessId,
     required this.shop,
@@ -21,28 +21,28 @@ class Txn {
     required this.desc,
   });
 
-  factory Txn.fromFirestore(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+  factory Txn.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final d = doc.data()!;
     return Txn(
-      id: doc.id,
-      businessId: d['businessId'] ?? '',
-      shop: d['shop'] ?? '',
-      shopName: d['shopName'] ?? '',
-      date: (d['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      type: d['type'] ?? 'sale',
-      amount: (d['amount'] as num?)?.toDouble() ?? 0,
-      desc: d['desc'] ?? '',
+      id:         doc.id,
+      businessId: d['businessId'] as String? ?? '',
+      shop:       d['shop']       as String? ?? '',
+      shopName:   d['shopName']   as String? ?? '',
+      date:       (d['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      type:       d['type']       as String? ?? 'sale',
+      amount:     (d['amount']    as num?)?.toDouble() ?? 0,
+      desc:       d['desc']       as String? ?? '',
     );
   }
 
   Map<String, dynamic> toFirestore() => {
     'businessId': businessId,
-    'shop': shop,
-    'shopName': shopName,
-    'date': Timestamp.fromDate(date),
-    'type': type,
-    'amount': amount,
-    'desc': desc,
-    'createdAt': FieldValue.serverTimestamp(),
+    'shop':       shop,
+    'shopName':   shopName,
+    'date':       Timestamp.fromDate(date),
+    'type':       type,
+    'amount':     amount,
+    'desc':       desc,
+    'createdAt':  FieldValue.serverTimestamp(),
   };
 }
