@@ -86,7 +86,17 @@ jobs:
 
       - name: Build release APK
         working-directory: flutter_app
-        run: flutter build apk --release --split-per-abi
+        run: |
+          set -o pipefail
+          flutter build apk --release --split-per-abi 2>&1 | tee /tmp/flutter_build.log
+
+      - name: Show Gradle error (on failure)
+        if: failure()
+        run: |
+          echo "========== GRADLE BUILD ERROR =========="
+          grep -E "^(.*error:|.*Error:|FAILURE:|> |Caused by:|What went wrong)" /tmp/flutter_build.log | head -60
+          echo "========== LAST 80 LINES ==============="
+          tail -80 /tmp/flutter_build.log
 
       - name: Build release AAB (Play Store)
         working-directory: flutter_app
