@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/txn.dart';
-import '../models/shop.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
 
