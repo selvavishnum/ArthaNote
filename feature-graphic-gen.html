@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArthaNote Feature Graphic Generator</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:20px}
+  h1{font-size:20px;font-weight:800;color:#6ee7b7;letter-spacing:.5px}
+  .canvas-wrap{border-radius:12px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.6);max-width:100%;width:fit-content}
+  canvas{display:block;max-width:100%;height:auto}
+  .btn{padding:14px 32px;border-radius:12px;border:none;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#059669,#065f46);color:#fff;transition:all .2s}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(5,150,105,.4)}
+  .note{font-size:12px;color:#64748b;text-align:center;max-width:500px;line-height:1.6}
+  .size-badge{background:#1e293b;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;color:#6ee7b7;border:1px solid #334155}
+</style>
+</head>
+<body>
+<h1>🎨 ArthaNote — Play Store Feature Graphic</h1>
+<span class="size-badge">1024 × 500 px</span>
+
+<div class="canvas-wrap">
+  <canvas id="fg" width="1024" height="500"></canvas>
+</div>
+
+<button class="btn" onclick="download()">⬇ Download feature-graphic.png</button>
+
+<p class="note">
+  Play Store requires a Feature Graphic (1024×500 px, JPG or PNG, no transparency).<br>
+  Upload this in Play Console → Store listing → Graphic assets → Feature Graphic.
+</p>
+
+<script>
+function roundRect(ctx, x, y, w, h, r){
+  if(typeof r === 'number') r = {tl:r,tr:r,br:r,bl:r};
+  const {tl=0,tr=0,br=0,bl=0} = r;
+  ctx.beginPath();
+  ctx.moveTo(x+tl, y);
+  ctx.lineTo(x+w-tr, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+tr);
+  ctx.lineTo(x+w, y+h-br);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+  ctx.lineTo(x+bl, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-bl);
+  ctx.lineTo(x, y+tl);
+  ctx.quadraticCurveTo(x, y, x+tl, y);
+  ctx.closePath();
+}
+
+function draw(){
+  const c = document.getElementById('fg');
+  const ctx = c.getContext('2d');
+  const W = 1024, H = 500;
+
+  // ── 1. Background gradient ──
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#064e3b');
+  bg.addColorStop(0.5, '#065f46');
+  bg.addColorStop(1, '#047857');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── 2. Diagonal stripe texture ──
+  ctx.save();
+  ctx.rect(0, 0, W, H);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+  ctx.lineWidth = 10;
+  for(let i = -H; i < W + H; i += 38){
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + H, H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── 3. Left radial glow ──
+  const glow = ctx.createRadialGradient(220, 200, 20, 220, 200, 320);
+  glow.addColorStop(0, 'rgba(110,231,183,0.13)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── 4. AN circle (left zone) ──
+  const cx = 210, cy = 195, cr = 110;
+  // Outer white ring
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 30;
+  ctx.shadowOffsetY = 8;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cr + 8, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // Circle fill
+  ctx.beginPath();
+  ctx.arc(cx, cy, cr, 0, Math.PI*2);
+  const cg = ctx.createLinearGradient(cx-cr, cy-cr, cx+cr, cy+cr);
+  cg.addColorStop(0, '#059669');
+  cg.addColorStop(1, '#064e3b');
+  ctx.fillStyle = cg;
+  ctx.fill();
+  ctx.restore();
+
+  // ── 5. "AN" inside circle ──
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '900 86px Georgia, serif';
+  ctx.fillText('AN', cx, cy);
+
+  // ── 6. "ArthaNote" below circle ──
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 38px Georgia, serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText('ArthaNote', cx, cy + cr + 22);
+
+  // ── 7. Tamil subtitle ──
+  ctx.fillStyle = 'rgba(167,243,208,0.85)';
+  ctx.font = '500 18px system-ui, sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText('கணக்கபிள்ளை — உங்கள் கடை கணக்கு', cx, cy + cr + 70);
+
+  // ── 8. Vertical divider ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(420, 48);
+  ctx.lineTo(420, H - 70);
+  ctx.stroke();
+
+  // ── 9. "SHOP LEDGER" title (right zone) ──
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.font = '900 54px system-ui, sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.fillText('SHOP LEDGER', 728, 55);
+
+  // Thin underline under title
+  ctx.strokeStyle = 'rgba(110,231,183,0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(490, 120);
+  ctx.lineTo(966, 120);
+  ctx.stroke();
+
+  // ── 10. Feature pills (2×2 grid) ──
+  const pills = [
+    { icon: '📊', label: 'MIS Reports' },
+    { icon: '📷', label: 'OCR Scan' },
+    { icon: '🏪', label: 'Multi-Shop' },
+    { icon: '📴', label: 'Works Offline' },
+  ];
+  const pillW = 185, pillH = 52, pillR = 26;
+  const startX = 490, startY = 148, gapX = 210, gapY = 70;
+
+  pills.forEach((p, i) => {
+    const px = startX + (i % 2) * gapX;
+    const py = startY + Math.floor(i / 2) * gapY;
+    // Pill background
+    roundRect(ctx, px, py, pillW, pillH, pillR);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fill();
+    roundRect(ctx, px, py, pillW, pillH, pillR);
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Pill text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 18px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.icon + '  ' + p.label, px + pillW/2, py + pillH/2);
+  });
+
+  // ── 11. Tagline ──
+  ctx.fillStyle = 'rgba(209,250,229,0.75)';
+  ctx.font = '500 16px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Built for Tamil Nadu small retailers', 728, 316);
+
+  // ── Second row pills ──
+  const pills2 = [
+    { icon: '🤝', label: 'Supplier Ledger' },
+    { icon: '📅', label: 'Staff Attendance' },
+  ];
+  const startY2 = 345;
+  pills2.forEach((p, i) => {
+    const px = startX + i * gapX;
+    const py = startY2;
+    roundRect(ctx, px, py, pillW, pillH, pillR);
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fill();
+    roundRect(ctx, px, py, pillW, pillH, pillR);
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 18px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.icon + '  ' + p.label, px + pillW/2, py + pillH/2);
+  });
+
+  // ── 12. Bottom strip ──
+  const stripY = H - 58;
+  const sg = ctx.createLinearGradient(0, stripY, 0, H);
+  sg.addColorStop(0, 'rgba(0,0,0,0.18)');
+  sg.addColorStop(1, 'rgba(0,0,0,0.30)');
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, stripY, W, H - stripY);
+
+  // Separator line above strip
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, stripY);
+  ctx.lineTo(W, stripY);
+  ctx.stroke();
+
+  // arthanote.com text
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.font = '500 16px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('arthanote.com', 32, stripY + 29);
+
+  // Free trial badge
+  roundRect(ctx, W - 220, stripY + 10, 188, 36, 18);
+  ctx.fillStyle = 'rgba(5,150,105,0.7)';
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 14px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('✦ 30-day FREE trial', W - 220 + 94, stripY + 28);
+
+  // Divider between url and badge zone
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(W/2, stripY + 8);
+  ctx.lineTo(W/2, H - 8);
+  ctx.stroke();
+
+  // Center: "For Android & Web"
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.font = '400 14px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Available on Android & Web', W/2, stripY + 29);
+}
+
+function download(){
+  const c = document.getElementById('fg');
+  const a = document.createElement('a');
+  a.download = 'feature-graphic.png';
+  a.href = c.toDataURL('image/png');
+  a.click();
+}
+
+draw();
+</script>
+</body>
+</html>
