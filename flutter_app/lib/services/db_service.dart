@@ -7,13 +7,13 @@ class DbService {
 
   // ── Transactions ──────────────────────────────────────────
   Stream<List<Txn>> txnStream(String businessId, {String? shop}) {
-    Query q = _db
+    Query<Map<String, dynamic>> q = _db
         .collection('transactions')
         .where('businessId', isEqualTo: businessId)
         .orderBy('date', descending: true)
         .limit(500);
     if (shop != null) q = q.where('shop', isEqualTo: shop);
-    return q.snapshots().map((s) => s.docs.map(Txn.fromFirestore).toList());
+    return q.snapshots().map((s) => s.docs.map((d) => Txn.fromFirestore(d)).toList());
   }
 
   Future<void> addTxn(Txn txn) =>
@@ -28,7 +28,7 @@ class DbService {
           .where('businessId', isEqualTo: businessId)
           .orderBy('name')
           .snapshots()
-          .map((s) => s.docs.map(Supplier.fromFirestore).toList());
+          .map((s) => s.docs.map((d) => Supplier.fromFirestore(d)).toList());
 
   Future<void> addSupplier(Supplier s) =>
       _db.collection('suppliers').add(s.toFirestore());

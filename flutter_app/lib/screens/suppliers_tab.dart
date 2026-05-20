@@ -21,25 +21,30 @@ class SuppliersTab extends StatelessWidget {
       builder: (ctx, snap) {
         final suppliers = snap.data ?? [];
 
-        return Scaffold(
-          backgroundColor: kBg,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showAddSheet(context, p, db),
-            backgroundColor: kPrimary,
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: Text(t('add_supplier', l), style: const TextStyle(color: Colors.white)),
-          ),
-          body: suppliers.isEmpty
-              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Text('🤝', style: TextStyle(fontSize: 48)),
-                  const SizedBox(height: 12),
-                  Text(t('no_suppliers', l), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: kPrimary)),
-                ]))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
-                  itemCount: suppliers.length,
-                  itemBuilder: (_, i) => _supplierCard(context, suppliers[i], db, l),
-                ),
+        return Stack(
+          children: [
+            suppliers.isEmpty
+                ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Text('🤝', style: TextStyle(fontSize: 48)),
+                    const SizedBox(height: 12),
+                    Text(t('no_suppliers', l), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: kPrimary)),
+                  ]))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
+                    itemCount: suppliers.length,
+                    itemBuilder: (_, i) => _supplierCard(context, suppliers[i], db, l),
+                  ),
+            Positioned(
+              right: 16, bottom: 16,
+              child: FloatingActionButton.extended(
+                heroTag: 'add_supplier',
+                onPressed: () => _showAddSheet(context, p, db),
+                backgroundColor: kPrimary,
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: Text(t('add_supplier', l), style: const TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
         );
       },
     );
