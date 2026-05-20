@@ -60,8 +60,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: IndexedStack(index: _tab, children: _tabs),
-      floatingActionButton: _tab == 0 || _tab == 1
+      floatingActionButton: (_tab == 0 || _tab == 1)
           ? FloatingActionButton(
+              heroTag: 'add_entry',
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EntryScreen())),
               backgroundColor: kPrimary,
               child: const Icon(Icons.add, color: Colors.white),
