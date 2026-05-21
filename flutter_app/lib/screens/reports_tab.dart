@@ -1,13 +1,72 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
+// ignore: unused_import
 import '../l10n.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
+import '../models/shop.dart';
 import 'dashboard_tab.dart' show rupee;
+
+// ── Enums & constants ─────────────────────────────────────────────────────────
+
+enum _Period { week, month, lastMonth, custom }
+
+const _kSections = [
+  {'id': 'exec',     'label': '📊 Summary'},
+  {'id': 'shopwise', 'label': '🏪 Shop P&L'},
+  {'id': 'daily',    'label': '📅 Daily'},
+  {'id': 'weekly',   'label': '📆 Weekly'},
+  {'id': 'monthly',  'label': '📈 Monthly'},
+  {'id': 'expense',  'label': '💸 Expense'},
+  {'id': 'credit',   'label': '💳 Credit'},
+  {'id': 'salary',   'label': '👤 Salary'},
+  {'id': 'staff',    'label': '⚡ Staff'},
+  {'id': 'payment',  'label': '💰 Payment'},
+  {'id': 'variance', 'label': '📉 Variance'},
+  {'id': 'charts',   'label': '📊 Charts'},
+  {'id': 'alerts',   'label': '🚨 Alerts'},
+  {'id': 'insights', 'label': '✅ Insights'},
+  {'id': 'actions',  'label': '📌 Actions'},
+];
+
+// ── Module-level helpers ──────────────────────────────────────────────────────
+
+double _sumSales(List<Txn> txns) =>
+    txns.where((t) => t.type == 'sale').fold(0.0, (s, t) => s + t.amount);
+
+double _sumExp(List<Txn> txns) =>
+    txns.where((t) => t.type == 'expense' || t.type == 'payment').fold(0.0, (s, t) => s + t.amount);
+
+double _sumNet(List<Txn> txns) => _sumSales(txns) - _sumExp(txns);
+
+String _pct(double part, double total) =>
+    total > 0 ? '${(part / total * 100).toStringAsFixed(1)}%' : '0%';
+
+String _chg(double cur, double prev) {
+  if (prev == 0) return '-';
+  final p = ((cur - prev) / prev.abs() * 100);
+  return '${p >= 0 ? '+' : ''}${p.toStringAsFixed(0)}%';
+}
+
+String _fmtDate(DateTime d) => DateFormat('dd MMM').format(d);
+
+String _fmtMonth(String ym) {
+  try {
+    return DateFormat('MMM yyyy').format(DateTime.parse('$ym-01'));
+  } catch (_) {
+    return ym;
+  }
+}
+
+// ── Main widget ───────────────────────────────────────────────────────────────
 
 class ReportsTab extends StatefulWidget {
   const ReportsTab({super.key});
@@ -16,380 +75,2119 @@ class ReportsTab extends StatefulWidget {
 }
 
 class _ReportsTabState extends State<ReportsTab> {
-  final _db    = DbService();
-  int   _months = 1;
+  final _db = DbService();
+  List<Txn> _txns = [];
+  bool _loading = true;
+  bool _fromCache = false;
+  StreamSubscription<List<Txn>>? _sub;
+  _Period _period = _Period.month;
+  DateTimeRange? _customRange;
+  String _section = 'exec';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initData());
+  }
+
+  Future<void> _initData() async {
+    // 1. Load from cache
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('kp_txs_cache');
+    if (cached != null) {
+      try {
+        final list = (jsonDecode(cached) as List)
+            .map((e) => Txn.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (mounted) {
+          setState(() {
+            _txns = list;
+            _loading = false;
+            _fromCache = true;
+          });
+        }
+      } catch (_) {}
+    }
+
+    // 2. Subscribe to live stream
+    final p = context.read<AppProvider>();
+    _sub?.cancel();
+    _sub = _db.txnStream(p.businessId).listen((data) async {
+      // Persist to cache
+      final prefs2 = await SharedPreferences.getInstance();
+      await prefs2.setString(
+        'kp_txs_cache',
+        jsonEncode(data.map((t) => t.toJson()).toList()),
+      );
+      if (mounted) {
+        setState(() {
+          _txns = data;
+          _loading = false;
+          _fromCache = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _forceRefresh() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Syncing from cloud...')),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('kp_txs_cache');
+    _sub?.cancel();
+    _sub = null;
+    setState(() {
+      _fromCache = false;
+      _loading = true;
+    });
+    await _initData();
+  }
+
+  DateTimeRange _getRange() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+
+    switch (_period) {
+      case _Period.week:
+        final weekday = today.weekday; // 1=Mon, 7=Sun
+        final startOfWeek = today.subtract(Duration(days: weekday - 1));
+        return DateTimeRange(start: startOfWeek, end: tomorrow);
+      case _Period.month:
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, 1),
+          end: tomorrow,
+        );
+      case _Period.lastMonth:
+        final firstOfMonth = DateTime(now.year, now.month, 1);
+        final firstOfLastMonth = DateTime(now.year, now.month - 1, 1);
+        return DateTimeRange(start: firstOfLastMonth, end: firstOfMonth);
+      case _Period.custom:
+        return _customRange ??
+            DateTimeRange(
+              start: DateTime(now.year, now.month, 1),
+              end: tomorrow,
+            );
+    }
+  }
+
+  DateTimeRange _getPrevRange() {
+    final r = _getRange();
+    final duration = r.end.difference(r.start);
+    return DateTimeRange(
+      start: r.start.subtract(duration),
+      end: r.start,
+    );
+  }
+
+  List<Txn> get _filteredTxns {
+    final r = _getRange();
+    return _txns
+        .where((t) => !t.date.isBefore(r.start) && t.date.isBefore(r.end))
+        .toList();
+  }
+
+  List<Txn> get _prevTxns {
+    final r = _getPrevRange();
+    return _txns
+        .where((t) => !t.date.isBefore(r.start) && t.date.isBefore(r.end))
+        .toList();
+  }
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 2),
+      lastDate: now,
+      initialDateRange: _customRange ??
+          DateTimeRange(
+            start: DateTime(now.year, now.month, 1),
+            end: now,
+          ),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: Theme.of(ctx)
+              .colorScheme
+              .copyWith(primary: kPrimary, onPrimary: Colors.white),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _customRange = picked;
+        _period = _Period.custom;
+      });
+    }
+  }
+
+  void _shareWhatsApp(String period, List<Txn> txns) async {
+    final r = _getRange();
+    final sales = _sumSales(txns);
+    final expense = _sumExp(txns);
+    final net = _sumNet(txns);
+
+    String dateRange;
+    if (period == 'today') {
+      dateRange = _fmtDate(DateTime.now());
+    } else {
+      dateRange = '${_fmtDate(r.start)} – ${_fmtDate(r.end.subtract(const Duration(days: 1)))}';
+    }
+
+    final text = '*ArthaNote — $period Summary*\n'
+        '📅 $dateRange\n'
+        '💚 Total Sales: ${rupee(sales)}\n'
+        '💸 Total Expenses: ${rupee(expense)}\n'
+        '💰 Net Profit: ${rupee(net)}\n'
+        '_Sent from ArthaNote_';
+
+    final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
-    final l = p.lang;
 
-    return StreamBuilder<List<Txn>>(
-      stream: _db.txnStream(p.businessId),
-      builder: (ctx, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: kPrimary));
-        }
+    if (_loading && _txns.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: kPrimary));
+    }
 
-        final all  = snap.data ?? [];
-        final now  = DateTime.now();
-        final from = DateTime(now.year, now.month - (_months - 1), 1);
-        final txns = all.where((tx) => !tx.date.isBefore(from)).toList();
+    final txns = _filteredTxns;
+    final prevTxns = _prevTxns;
 
-        final sales   = txns.where((tx) => tx.type == 'sale')
-            .fold(0.0, (s, tx) => s + tx.amount);
-        final expense = txns.where((tx) => tx.type == 'expense')
-            .fold(0.0, (s, tx) => s + tx.amount);
-        final net = sales - expense;
+    Widget content = Column(
+      children: [
+        // Period tabs
+        Container(
+          color: Colors.white,
+          child: _buildPeriodTabs(context),
+        ),
+        // Section nav
+        Container(
+          color: Colors.white,
+          child: _buildSectionNav(),
+        ),
+        // Section content
+        Expanded(
+          child: _buildSectionContent(txns, prevTxns, p),
+        ),
+      ],
+    );
 
-        final chartData = _buildChartData(all);
-        final maxY      = chartData.fold(
-            0.0, (m, d) => d['value'] > m ? d['value'] as double : m);
-
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          children: [
-            // ── Period selector ───────────────────────────────────────────
-            Center(
+    if (_fromCache) {
+      content = Stack(
+        children: [
+          content,
+          Positioned(
+            top: 8,
+            right: 12,
+            child: GestureDetector(
+              onTap: _forceRefresh,
               child: Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(14),
+                  color: kAmber.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: kAmber.withOpacity(0.4)),
                 ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [1, 3, 6].map((m) {
-                  final active = _months == m;
-                  return GestureDetector(
-                    onTap: () => setState(() => _months = m),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 22, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: active ? kPrimary : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: active ? [
-                          BoxShadow(
-                            color: kPrimary.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ] : null,
-                      ),
-                      child: Text(
-                        m == 1 ? '1 Month' : '$m Months',
-                        style: TextStyle(
-                          color: active ? Colors.white : Colors.grey.shade600,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList()),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Summary stat pair ─────────────────────────────────────────
-            Row(children: [
-              _StatCard(
-                label: t('total_sales', l),
-                value: rupee(sales),
-                color: kSecondary,
-                icon: '📈',
-              ),
-              const SizedBox(width: 10),
-              _StatCard(
-                label: t('total_expense', l),
-                value: rupee(expense),
-                color: kRed,
-                icon: '📉',
-              ),
-            ]),
-            const SizedBox(height: 10),
-
-            // ── Net profit gradient card ──────────────────────────────────
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: net >= 0
-                      ? [kPrimary, kSecondary]
-                      : [kRed, const Color(0xFFEF4444)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+                child: const Text(
+                  '📦 Cached · ↻ Sync',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: kAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: (net >= 0 ? kPrimary : kRed).withOpacity(0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(t('net_profit', l),
-                        style: const TextStyle(
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13)),
-                    const SizedBox(height: 4),
-                    Text(
-                      net >= 0 ? 'Profitable period 🎉' : 'Loss period',
-                      style: TextStyle(
-                          color: Colors.white.withOpacity(0.6), fontSize: 11),
-                    ),
-                  ]),
-                  Text(
-                    rupee(net),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800),
-                  ),
-                ],
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+        ],
+      );
+    }
 
-            // ── Bar chart ─────────────────────────────────────────────────
-            _SectionHeader(label: t('last_14_days', l)),
-            const SizedBox(height: 10),
-            Container(
-              height: 190,
-              padding: const EdgeInsets.fromLTRB(8, 14, 8, 8),
+    return content;
+  }
+
+  Widget _buildPeriodTabs(BuildContext context) {
+    final tabs = [
+      {'period': _Period.week,      'label': '📆 This Week'},
+      {'period': _Period.month,     'label': '📅 This Month'},
+      {'period': _Period.lastMonth, 'label': '⏮ Last Month'},
+      {'period': _Period.custom,    'label': '📅 Custom'},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: tabs.map((tab) {
+          final active = _period == tab['period'] as _Period;
+          return GestureDetector(
+            onTap: () {
+              if (tab['period'] == _Period.custom) {
+                _pickCustomRange();
+              } else {
+                setState(() => _period = tab['period'] as _Period);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: kCardShadow,
+                color: active ? kPrimary : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: chartData.isEmpty
-                  ? const Center(
-                      child: Text('No data',
-                          style: TextStyle(color: kMuted)))
-                  : BarChart(
-                      BarChartData(
-                        maxY: maxY > 0 ? maxY * 1.2 : 1000,
-                        gridData: FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        barTouchData: BarTouchData(
-                          touchTooltipData: BarTouchTooltipData(
-                            tooltipRoundedRadius: 8,
-                            getTooltipColor: (_) => kPrimary,
-                            getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                              rupee(rod.toY),
-                              const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ),
-                        titlesData: FlTitlesData(
-                          leftTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles:    AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles:  AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 22,
-                              getTitlesWidget: (v, _) {
-                                final idx = v.toInt();
-                                if (idx < 0 || idx >= chartData.length) {
-                                  return const Text('');
-                                }
-                                final label = chartData[idx]['label'] as String;
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    label,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: label == 'T'
-                                          ? kPrimary
-                                          : Colors.grey.shade400,
-                                      fontWeight: label == 'T'
-                                          ? FontWeight.w800
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        barGroups: chartData.asMap().entries.map((e) {
-                          final isToday = chartData[e.key]['label'] == 'T';
-                          return BarChartGroupData(
-                            x: e.key,
-                            barRods: [
-                              BarChartRodData(
-                                toY: e.value['value'] as double,
-                                color: isToday ? kAccent : kSecondary,
-                                width: 12,
-                                borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(5)),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
+              child: Text(
+                tab['label'] as String,
+                style: TextStyle(
+                  color: active ? Colors.white : Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: const [
-              _Legend(color: kAccent, label: 'Today'),
-              SizedBox(width: 14),
-              _Legend(color: kSecondary, label: 'Past days'),
-            ]),
-            const SizedBox(height: 24),
-
-            // ── Shop breakdown ────────────────────────────────────────────
-            if (p.shops.length > 1) ...[
-              _SectionHeader(label: t('shop_breakdown', l)),
-              const SizedBox(height: 10),
-              ...p.shops.values.map((shop) {
-                final shopSales = txns
-                    .where((tx) => tx.shop == shop.id && tx.type == 'sale')
-                    .fold(0.0, (s, tx) => s + tx.amount);
-                final pct = sales > 0 ? (shopSales / sales).clamp(0.0, 1.0) : 0.0;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: kCardShadow,
-                  ),
-                  child: Column(children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(children: [
-                          Text(shop.icon, style: const TextStyle(fontSize: 18)),
-                          const SizedBox(width: 8),
-                          Text(shop.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 14)),
-                        ]),
-                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                          Text(rupee(shopSales),
-                              style: const TextStyle(
-                                  color: kSecondary,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15)),
-                          Text(
-                            '${(pct * 100).toStringAsFixed(1)}%',
-                            style: TextStyle(
-                                color: Colors.grey.shade500,
-                                fontSize: 11),
-                          ),
-                        ]),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: pct,
-                        backgroundColor: Colors.grey.shade100,
-                        color: kSecondary,
-                        minHeight: 7,
-                      ),
-                    ),
-                  ]),
-                );
-              }),
-            ],
-          ],
-        );
-      },
+          );
+        }).toList(),
+      ),
     );
   }
 
-  List<Map<String, dynamic>> _buildChartData(List<Txn> all) {
-    final now    = DateTime.now();
-    final result = <Map<String, dynamic>>[];
-    for (int i = 13; i >= 0; i--) {
-      final day   = DateTime(now.year, now.month, now.day - i);
-      final total = all.where((tx) {
-        final d = DateTime(tx.date.year, tx.date.month, tx.date.day);
-        return d == day && tx.type == 'sale';
-      }).fold(0.0, (s, tx) => s + tx.amount);
-      result.add({
-        'label': i == 0 ? 'T' : DateFormat('dd').format(day),
-        'value': total,
-      });
+  Widget _buildSectionNav() {
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        itemCount: _kSections.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, i) {
+          final sec = _kSections[i];
+          final active = _section == sec['id'];
+          return GestureDetector(
+            onTap: () => setState(() => _section = sec['id']!),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: active ? kPrimary : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: active ? kPrimary : const Color(0xFFE5E7EB),
+                ),
+              ),
+              child: Text(
+                sec['label']!,
+                style: TextStyle(
+                  color: active ? Colors.white : kMuted,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionContent(
+      List<Txn> txns, List<Txn> prevTxns, AppProvider p) {
+    switch (_section) {
+      case 'exec':
+        return _ExecSection(
+          txns: txns,
+          prevTxns: prevTxns,
+          allTxns: _txns,
+          shops: p.shops,
+          onShareToday: () => _shareWhatsApp('Today', txns),
+          onShareMonth: () => _shareWhatsApp('Month', txns),
+        );
+      case 'shopwise':
+        return _ShopwiseSection(txns: txns, shops: p.shops);
+      case 'daily':
+        return _DailySection(txns: txns);
+      case 'weekly':
+        return _WeeklySection(txns: txns);
+      case 'monthly':
+        return _MonthlySection(allTxns: _txns);
+      case 'expense':
+        return _ExpenseSection(txns: txns);
+      case 'credit':
+        return _CreditSection(txns: txns);
+      case 'salary':
+        return _SalarySection(txns: txns);
+      case 'staff':
+        return _StaffSection(txns: txns, shops: p.shops);
+      case 'payment':
+        return _PaymentSection(txns: txns);
+      case 'variance':
+        return _VarianceSection(txns: txns, prevTxns: prevTxns, shops: p.shops);
+      case 'charts':
+        return _ChartsSection(txns: txns, allTxns: _txns);
+      case 'alerts':
+        return _AlertsSection(txns: txns, prevTxns: prevTxns);
+      case 'insights':
+        return _InsightsSection(txns: txns, allTxns: _txns);
+      case 'actions':
+        return _ActionsSection(txns: txns, prevTxns: prevTxns);
+      default:
+        return _ExecSection(
+          txns: txns,
+          prevTxns: prevTxns,
+          allTxns: _txns,
+          shops: p.shops,
+          onShareToday: () => _shareWhatsApp('Today', txns),
+          onShareMonth: () => _shareWhatsApp('Month', txns),
+        );
     }
-    return result;
   }
 }
 
-// ── Supporting widgets ────────────────────────────────────────────────────────
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color  color;
-  final String icon;
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.icon,
+// ── Section 1: Executive Summary ──────────────────────────────────────────────
+
+class _ExecSection extends StatelessWidget {
+  final List<Txn> txns;
+  final List<Txn> prevTxns;
+  final List<Txn> allTxns;
+  final Map<String, Shop> shops;
+  final VoidCallback onShareToday;
+  final VoidCallback onShareMonth;
+
+  const _ExecSection({
+    required this.txns,
+    required this.prevTxns,
+    required this.allTxns,
+    required this.shops,
+    required this.onShareToday,
+    required this.onShareMonth,
   });
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.18)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('$icon  $label',
-            style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 7),
-        Text(value,
-            style: TextStyle(
-                color: color, fontSize: 17, fontWeight: FontWeight.w800)),
-      ]),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final sales = _sumSales(txns);
+    final expense = _sumExp(txns);
+    final net = _sumNet(txns);
+    final prevSales = _sumSales(prevTxns);
+    final prevNet = _sumNet(prevTxns);
+    final margin = sales > 0 ? (net / sales * 100) : 0.0;
+
+    // Days active
+    final days = txns.map((t) => DateFormat('yyyy-MM-dd').format(t.date)).toSet().length;
+    final avgDay = days > 0 ? sales / days : 0.0;
+
+    final totalSales = sales > 0 ? sales : 1.0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        // Profit/Loss pill
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: net >= 0
+                ? kSecondary.withOpacity(0.1)
+                : kRed.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: net >= 0 ? kSecondary : kRed,
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                net >= 0
+                    ? '✓ Profitable — ${rupee(net)} net'
+                    : '✗ Loss — ${rupee(net.abs())} deficit',
+                style: TextStyle(
+                  color: net >= 0 ? kSecondary : kRed,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // 2x2 KPI grid
+        _SectionCard(
+          title: 'Key Metrics',
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _KpiBox(
+                      label: 'Total Sales',
+                      value: rupee(sales),
+                      color: kSecondary,
+                      delta: _chg(sales, prevSales),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _KpiBox(
+                      label: 'Total Expenses',
+                      value: rupee(expense),
+                      color: kRed,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _KpiBox(
+                      label: 'Net Profit',
+                      value: rupee(net),
+                      color: net >= 0 ? kPrimary : kRed,
+                      delta: _chg(net, prevNet),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _KpiBox(
+                      label: 'Margin %',
+                      value: '${margin.toStringAsFixed(1)}%',
+                      color: margin >= 10 ? kPrimary : kAmber,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // 3-column activity
+        _SectionCard(
+          title: 'Activity',
+          child: Row(
+            children: [
+              Expanded(
+                child: _KpiBox(label: 'Days Active', value: '$days', color: kPrimary),
+              ),
+              Expanded(
+                child: _KpiBox(label: 'Avg/Day', value: rupee(avgDay), color: kSecondary),
+              ),
+              Expanded(
+                child: _KpiBox(label: '# Entries', value: '${txns.length}', color: kMuted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Shop-wise mini list
+        if (shops.isNotEmpty)
+          _SectionCard(
+            title: 'Shop Performance',
+            child: Column(
+              children: shops.entries.map((entry) {
+                final shop = entry.value;
+                final shopTxns = txns.where((t) => t.shop == shop.id).toList();
+                final shopSales = _sumSales(shopTxns);
+                final shopNet = _sumNet(shopTxns);
+                final pct = shopSales / totalSales;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(children: [
+                            Text(shop.icon, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(width: 6),
+                            Text(
+                              shop.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ]),
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text(
+                              rupee(shopNet),
+                              style: TextStyle(
+                                color: shopNet >= 0 ? kPrimary : kRed,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              '${rupee(shopSales)} · ${_pct(shopSales, totalSales)}',
+                              style: const TextStyle(
+                                color: kMuted,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ]),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      _ProgressBar(value: pct.clamp(0.0, 1.0), color: kSecondary),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        const SizedBox(height: 12),
+
+        // WhatsApp Share
+        _SectionCard(
+          title: '📱 Share Report',
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onShareToday,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 42),
+                    side: const BorderSide(color: Color(0xFF25D366)),
+                    foregroundColor: const Color(0xFF25D366),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('📱 WhatsApp Today',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onShareMonth,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 42),
+                    side: const BorderSide(color: Color(0xFF25D366)),
+                    foregroundColor: const Color(0xFF25D366),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('📱 WhatsApp Month',
+                      style: TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String label;
-  const _SectionHeader({required this.label});
+// ── Section 2: Shop P&L ───────────────────────────────────────────────────────
+
+class _ShopwiseSection extends StatelessWidget {
+  final List<Txn> txns;
+  final Map<String, Shop> shops;
+
+  const _ShopwiseSection({required this.txns, required this.shops});
+
   @override
-  Widget build(BuildContext context) => Row(children: [
-    Container(width: 4, height: 18,
-        decoration: BoxDecoration(
-          color: kPrimary, borderRadius: BorderRadius.circular(2))),
-    const SizedBox(width: 8),
-    Text(label,
-        style: const TextStyle(
-            fontWeight: FontWeight.w700, color: kPrimary, fontSize: 15)),
-  ]);
+  Widget build(BuildContext context) {
+    final totalSales = _sumSales(txns);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: shops.entries.map((entry) {
+        final shop = entry.value;
+        final shopTxns = txns.where((t) => t.shop == shop.id).toList();
+        final shopSales = _sumSales(shopTxns);
+        final shopExp = _sumExp(shopTxns);
+        final shopNet = shopSales - shopExp;
+        final pct = totalSales > 0 ? shopSales / totalSales : 0.0;
+        final recent = shopTxns.take(10).toList();
+
+        return _SectionCard(
+          title: '${shop.icon} ${shop.name}',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _KpiBox(label: 'Sales', value: rupee(shopSales), color: kSecondary),
+                  ),
+                  Expanded(
+                    child: _KpiBox(label: 'Expenses', value: rupee(shopExp), color: kRed),
+                  ),
+                  Expanded(
+                    child: _KpiBox(
+                      label: 'Net',
+                      value: rupee(shopNet),
+                      color: shopNet >= 0 ? kPrimary : kRed,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _ProgressBar(value: pct.clamp(0.0, 1.0), color: kSecondary),
+              const SizedBox(height: 6),
+              Text(
+                '${_pct(shopSales, totalSales > 0 ? totalSales : 1)} of total sales',
+                style: const TextStyle(color: kMuted, fontSize: 11),
+              ),
+              if (recent.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _DataRow(const ['Date', 'Type', 'Amount', 'Desc'], isHeader: true),
+                ...recent.map((t) => _DataRow([
+                  _fmtDate(t.date),
+                  t.type,
+                  rupee(t.amount),
+                  t.desc.length > 15 ? '${t.desc.substring(0, 15)}…' : t.desc,
+                ])),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ── Section 3: Daily ──────────────────────────────────────────────────────────
+
+class _DailySection extends StatelessWidget {
+  final List<Txn> txns;
+
+  const _DailySection({required this.txns});
+
+  @override
+  Widget build(BuildContext context) {
+    // Group by date
+    final Map<String, List<Txn>> byDay = {};
+    for (final t in txns) {
+      final key = DateFormat('yyyy-MM-dd').format(t.date);
+      byDay.putIfAbsent(key, () => []).add(t);
+    }
+    final sortedKeys = byDay.keys.toList()..sort();
+
+    if (sortedKeys.isEmpty) {
+      return const Center(
+        child: Text('No data in this period', style: TextStyle(color: kMuted)),
+      );
+    }
+
+    // Build day rows
+    final rows = sortedKeys.map((k) {
+      final dayTxns = byDay[k]!;
+      final daySales = _sumSales(dayTxns);
+      final dayExp = _sumExp(dayTxns);
+      final dayNet = daySales - dayExp;
+      return {'key': k, 'sales': daySales, 'exp': dayExp, 'net': dayNet};
+    }).toList();
+
+    // Best / lowest by sales
+    final bestDay = rows.reduce(
+        (a, b) => (a['sales'] as double) >= (b['sales'] as double) ? a : b);
+    final lowestDay = rows.reduce(
+        (a, b) => (a['sales'] as double) <= (b['sales'] as double) ? a : b);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        // Best / Lowest KPI
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: kSecondary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kSecondary.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🏆 Best Day',
+                        style: TextStyle(
+                            color: kSecondary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Text(
+                      _fmtDate(DateTime.parse(bestDay['key'] as String)),
+                      style: const TextStyle(color: kMuted, fontSize: 11),
+                    ),
+                    Text(
+                      rupee(bestDay['sales'] as double),
+                      style: const TextStyle(
+                          color: kSecondary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: kRed.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kRed.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('📉 Lowest Day',
+                        style: TextStyle(
+                            color: kRed,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Text(
+                      _fmtDate(DateTime.parse(lowestDay['key'] as String)),
+                      style: const TextStyle(color: kMuted, fontSize: 11),
+                    ),
+                    Text(
+                      rupee(lowestDay['sales'] as double),
+                      style: const TextStyle(
+                          color: kRed,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        _SectionCard(
+          title: 'Daily Breakdown',
+          child: Column(
+            children: [
+              _DataRow(const ['Date', 'Sales', 'Expense', 'Profit', '↑↓'],
+                  isHeader: true),
+              ...List.generate(rows.length, (i) {
+                final row = rows[i];
+                final net = row['net'] as double;
+                final prevNet = i > 0 ? rows[i - 1]['net'] as double : 0.0;
+                final trend = i == 0
+                    ? '-'
+                    : net >= prevNet
+                        ? '▲'
+                        : '▼';
+                return _DataRow([
+                  _fmtDate(DateTime.parse(row['key'] as String)),
+                  rupee(row['sales'] as double),
+                  rupee(row['exp'] as double),
+                  rupee(net),
+                  trend,
+                ]);
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 4: Weekly ─────────────────────────────────────────────────────────
+
+class _WeeklySection extends StatelessWidget {
+  final List<Txn> txns;
+
+  const _WeeklySection({required this.txns});
+
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, List<Txn>> byWeek = {};
+    for (final t in txns) {
+      final d = t.date;
+      final week =
+          '${d.year}-W${((d.difference(DateTime(d.year, 1, 1)).inDays / 7) + 1).floor()}';
+      byWeek.putIfAbsent(week, () => []).add(t);
+    }
+    final sortedKeys = byWeek.keys.toList()..sort();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _SectionCard(
+          title: 'Weekly Summary',
+          child: Column(
+            children: [
+              _DataRow(const ['Week', 'Sales', 'Avg/Day', 'Expense', 'Net'],
+                  isHeader: true),
+              ...sortedKeys.map((k) {
+                final weekTxns = byWeek[k]!;
+                final sales = _sumSales(weekTxns);
+                final exp = _sumExp(weekTxns);
+                final net = sales - exp;
+                final days = weekTxns
+                    .map((t) => DateFormat('yyyy-MM-dd').format(t.date))
+                    .toSet()
+                    .length;
+                final avg = days > 0 ? sales / days : 0.0;
+                return _DataRow([
+                  k,
+                  rupee(sales),
+                  rupee(avg),
+                  rupee(exp),
+                  rupee(net),
+                ]);
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 5: Monthly ────────────────────────────────────────────────────────
+
+class _MonthlySection extends StatelessWidget {
+  final List<Txn> allTxns;
+
+  const _MonthlySection({required this.allTxns});
+
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, List<Txn>> byMonth = {};
+    for (final t in allTxns) {
+      final key = DateFormat('yyyy-MM').format(t.date);
+      byMonth.putIfAbsent(key, () => []).add(t);
+    }
+    final sortedKeys = (byMonth.keys.toList()..sort()).reversed.take(6).toList().reversed.toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _SectionCard(
+          title: 'Monthly Trend (Last 6 Months)',
+          child: Column(
+            children: [
+              _DataRow(
+                  const ['Month', 'Sales', 'Expense', 'Net', 'Margin', '↑↓'],
+                  isHeader: true),
+              ...List.generate(sortedKeys.length, (i) {
+                final k = sortedKeys[i];
+                final mTxns = byMonth[k]!;
+                final sales = _sumSales(mTxns);
+                final exp = _sumExp(mTxns);
+                final net = sales - exp;
+                final margin = sales > 0 ? (net / sales * 100) : 0.0;
+                final prevNet = i > 0
+                    ? _sumNet(byMonth[sortedKeys[i - 1]]!)
+                    : 0.0;
+                final trend = i == 0
+                    ? '-'
+                    : net >= prevNet
+                        ? '▲'
+                        : '▼';
+                return _DataRow([
+                  _fmtMonth(k),
+                  rupee(sales),
+                  rupee(exp),
+                  rupee(net),
+                  '${margin.toStringAsFixed(1)}%',
+                  trend,
+                ]);
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 6: Expense ────────────────────────────────────────────────────────
+
+class _ExpenseSection extends StatelessWidget {
+  final List<Txn> txns;
+
+  const _ExpenseSection({required this.txns});
+
+  @override
+  Widget build(BuildContext context) {
+    final expTxns =
+        txns.where((t) => t.type == 'expense' || t.type == 'payment').toList();
+    final total = expTxns.fold(0.0, (s, t) => s + t.amount);
+
+    // Group by desc
+    final Map<String, double> byCat = {};
+    for (final t in expTxns) {
+      final cat = t.desc.trim().isEmpty ? 'Uncategorised' : t.desc.trim();
+      byCat[cat] = (byCat[cat] ?? 0) + t.amount;
+    }
+    final sorted = byCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final maxAmt = sorted.isEmpty ? 1.0 : sorted.first.value;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _KpiBox(
+                  label: 'Total Expense', value: rupee(total), color: kRed),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _KpiBox(
+                  label: '# Categories',
+                  value: '${byCat.length}',
+                  color: kAmber),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _SectionCard(
+          title: 'Expense Breakdown',
+          child: Column(
+            children: sorted.map((e) {
+              final barPct = maxAmt > 0 ? e.value / maxAmt : 0.0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e.key,
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${rupee(e.value)} · ${_pct(e.value, total > 0 ? total : 1)}',
+                          style: const TextStyle(
+                              color: kMuted, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    _ProgressBar(value: barPct.clamp(0.0, 1.0), color: kRed),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 7: Credit ─────────────────────────────────────────────────────────
+
+class _CreditSection extends StatelessWidget {
+  final List<Txn> txns;
+
+  const _CreditSection({required this.txns});
+
+  @override
+  Widget build(BuildContext context) {
+    final creditTxns = txns.where((t) {
+      final d = t.desc.toLowerCase();
+      return t.type == 'sale' && (d.contains('credit') || d.contains('கடன்'));
+    }).toList();
+    final total = creditTxns.fold(0.0, (s, t) => s + t.amount);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _KpiBox(label: 'Total Credit Given', value: rupee(total), color: kAmber),
+        const SizedBox(height: 14),
+        if (creditTxns.isEmpty)
+          _SectionCard(
+            title: 'Credit Entries',
+            child: Column(
+              children: const [
+                Text('No credit entries in this period',
+                    style: TextStyle(color: kMuted, fontSize: 14)),
+                SizedBox(height: 6),
+                Text(
+                  'Tag sales with "credit" or "கடன்" in description to track here.',
+                  style: TextStyle(color: kMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          )
+        else
+          _SectionCard(
+            title: 'Credit Entries',
+            child: Column(
+              children: [
+                _DataRow(const ['Date', 'Amount', 'Description'], isHeader: true),
+                ...creditTxns.map((t) => _DataRow([
+                  _fmtDate(t.date),
+                  rupee(t.amount),
+                  t.desc.length > 20 ? '${t.desc.substring(0, 20)}…' : t.desc,
+                ])),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Section 8: Salary ─────────────────────────────────────────────────────────
+
+class _SalarySection extends StatelessWidget {
+  final List<Txn> txns;
+
+  const _SalarySection({required this.txns});
+
+  @override
+  Widget build(BuildContext context) {
+    final salTxns = txns.where((t) {
+      final d = t.desc.toLowerCase();
+      return (t.type == 'expense' || t.type == 'payment') &&
+          (d.contains('salary') || d.contains('sal ') || d.startsWith('sal'));
+    }).toList();
+    final total = salTxns.fold(0.0, (s, t) => s + t.amount);
+    final sales = _sumSales(txns);
+    final pctRevenue = sales > 0 ? (total / sales * 100) : 0.0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _KpiBox(
+                  label: 'Total Salary', value: rupee(total), color: kPrimary),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _KpiBox(
+                  label: '% of Revenue',
+                  value: '${pctRevenue.toStringAsFixed(1)}%',
+                  color: pctRevenue > 15 ? kRed : kSecondary),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _SectionCard(
+          title: 'Salary Entries',
+          child: salTxns.isEmpty
+              ? const Text('No salary entries. Add "salary" in description.',
+                  style: TextStyle(color: kMuted, fontSize: 13))
+              : Column(
+                  children: [
+                    _DataRow(const ['Date', 'Shop', 'Amount', 'Desc'],
+                        isHeader: true),
+                    ...salTxns.map((t) => _DataRow([
+                      _fmtDate(t.date),
+                      t.shopName.length > 10
+                          ? '${t.shopName.substring(0, 10)}…'
+                          : t.shopName,
+                      rupee(t.amount),
+                      t.desc.length > 12
+                          ? '${t.desc.substring(0, 12)}…'
+                          : t.desc,
+                    ])),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 9: Staff ──────────────────────────────────────────────────────────
+
+class _StaffSection extends StatelessWidget {
+  final List<Txn> txns;
+  final Map<String, Shop> shops;
+
+  const _StaffSection({required this.txns, required this.shops});
+
+  @override
+  Widget build(BuildContext context) {
+    final Map<String, List<Txn>> byShop = {};
+    for (final t in txns) {
+      byShop.putIfAbsent(t.shopName.isNotEmpty ? t.shopName : t.shop, () => []).add(t);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _SectionCard(
+          title: '⚡ Staff / Shop Activity',
+          child: byShop.isEmpty
+              ? const Text('No entries in this period',
+                  style: TextStyle(color: kMuted))
+              : Column(
+                  children: [
+                    _DataRow(const ['Shop', 'Entries', 'Sales', 'Best Day'],
+                        isHeader: true),
+                    ...byShop.entries.map((entry) {
+                      final shopTxns = entry.value;
+                      final sales = _sumSales(shopTxns);
+
+                      // Find best day
+                      final Map<String, double> byDay = {};
+                      for (final t in shopTxns) {
+                        if (t.type == 'sale') {
+                          final key = DateFormat('yyyy-MM-dd').format(t.date);
+                          byDay[key] = (byDay[key] ?? 0) + t.amount;
+                        }
+                      }
+                      String bestDay = '-';
+                      if (byDay.isNotEmpty) {
+                        final best = byDay.entries.reduce(
+                            (a, b) => a.value >= b.value ? a : b);
+                        bestDay =
+                            '${_fmtDate(DateTime.parse(best.key))} ${rupee(best.value)}';
+                      }
+
+                      return _DataRow([
+                        entry.key.length > 10
+                            ? '${entry.key.substring(0, 10)}…'
+                            : entry.key,
+                        '${shopTxns.length}',
+                        rupee(sales),
+                        bestDay.length > 14
+                            ? '${bestDay.substring(0, 14)}…'
+                            : bestDay,
+                      ]);
+                    }),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 10: Payment modes ─────────────────────────────────────────────────
+
+class _PaymentSection extends StatelessWidget {
+  final List<Txn> txns;
+
+  const _PaymentSection({required this.txns});
+
+  String _getMode(String desc) {
+    final d = desc.toLowerCase();
+    if (d.contains('gpay') || d.contains('g pay')) return 'GPay';
+    if (d.contains('upi') || d.contains('phonepe') || d.contains('paytm')) {
+      return 'UPI';
+    }
+    if (d.contains('card') || d.contains('swipe')) return 'Card';
+    if (d.contains('cash')) return 'Cash';
+    return 'Other';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final saleTxns = txns.where((t) => t.type == 'sale').toList();
+    final Map<String, double> byMode = {};
+    for (final t in saleTxns) {
+      final mode = _getMode(t.desc);
+      byMode[mode] = (byMode[mode] ?? 0) + t.amount;
+    }
+
+    final cash = byMode['Cash'] ?? 0.0;
+    final gpay = (byMode['GPay'] ?? 0.0) + (byMode['UPI'] ?? 0.0);
+    final card = byMode['Card'] ?? 0.0;
+    final total = saleTxns.fold(0.0, (s, t) => s + t.amount);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _KpiBox(label: 'Cash', value: rupee(cash), color: kPrimary),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _KpiBox(label: 'GPay/UPI', value: rupee(gpay), color: kSecondary),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _KpiBox(label: 'Card', value: rupee(card), color: kAmber),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _SectionCard(
+          title: 'Payment Mode Breakdown',
+          child: byMode.isEmpty
+              ? const Text(
+                  'No sales in this period.\nTag descriptions with Cash / GPay / UPI / Card.',
+                  style: TextStyle(color: kMuted, fontSize: 13))
+              : Column(
+                  children: byMode.entries.map((e) {
+                    final barPct = total > 0 ? e.value / total : 0.0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(e.key,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13)),
+                              Text(
+                                '${rupee(e.value)} · ${_pct(e.value, total > 0 ? total : 1)}',
+                                style: const TextStyle(
+                                    color: kMuted, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          _ProgressBar(
+                              value: barPct.clamp(0.0, 1.0), color: kSecondary),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 11: Variance ──────────────────────────────────────────────────────
+
+class _VarianceSection extends StatelessWidget {
+  final List<Txn> txns;
+  final List<Txn> prevTxns;
+  final Map<String, Shop> shops;
+
+  const _VarianceSection(
+      {required this.txns, required this.prevTxns, required this.shops});
+
+  Widget _varRow(String label, double cur, double prev) {
+    final chg = prev == 0 ? 0.0 : ((cur - prev) / prev.abs() * 100);
+    final improved = cur >= prev;
+    final chgStr = prev == 0
+        ? '-'
+        : '${chg >= 0 ? '+' : ''}${chg.toStringAsFixed(1)}%';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(
+              flex: 3,
+              child: Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13))),
+          Expanded(
+              flex: 2,
+              child: Text(rupee(prev),
+                  style: const TextStyle(color: kMuted, fontSize: 12))),
+          Expanded(
+              flex: 2,
+              child: Text(rupee(cur),
+                  style: const TextStyle(fontSize: 12))),
+          Expanded(
+            flex: 2,
+            child: Text(
+              chgStr,
+              style: TextStyle(
+                color: improved ? kSecondary : kRed,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final curSales = _sumSales(txns);
+    final curExp = _sumExp(txns);
+    final curNet = _sumNet(txns);
+    final curMargin = curSales > 0 ? (curNet / curSales * 100) : 0.0;
+
+    final prevSales = _sumSales(prevTxns);
+    final prevExp = _sumExp(prevTxns);
+    final prevNet = _sumNet(prevTxns);
+    final prevMargin = prevSales > 0 ? (prevNet / prevSales * 100) : 0.0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _SectionCard(
+          title: 'Period vs Previous Period',
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: const [
+                    Expanded(flex: 3, child: Text('')),
+                    Expanded(
+                        flex: 2,
+                        child: Text('Previous',
+                            style: TextStyle(
+                                color: kMuted,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11))),
+                    Expanded(
+                        flex: 2,
+                        child: Text('Current',
+                            style: TextStyle(
+                                color: kPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11))),
+                    Expanded(
+                        flex: 2,
+                        child: Text('Change',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 11))),
+                  ],
+                ),
+              ),
+              _varRow('Sales', curSales, prevSales),
+              _varRow('Expenses', curExp, prevExp),
+              _varRow('Net Profit', curNet, prevNet),
+              _varRow('Margin %', curMargin, prevMargin),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (shops.isNotEmpty)
+          _SectionCard(
+            title: 'Shop-wise Variance',
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: const [
+                      Expanded(flex: 3, child: Text('Shop', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: kMuted))),
+                      Expanded(flex: 2, child: Text('Prev', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: kMuted))),
+                      Expanded(flex: 2, child: Text('Cur', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: kMuted))),
+                      Expanded(flex: 2, child: Text('Δ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: kMuted))),
+                    ],
+                  ),
+                ),
+                ...shops.values.map((shop) {
+                  final cur =
+                      _sumSales(txns.where((t) => t.shop == shop.id).toList());
+                  final prev = _sumSales(
+                      prevTxns.where((t) => t.shop == shop.id).toList());
+                  return _varRow('${shop.icon} ${shop.name}', cur, prev);
+                }),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Section 12: Charts ────────────────────────────────────────────────────────
+
+class _ChartsSection extends StatelessWidget {
+  final List<Txn> txns;
+  final List<Txn> allTxns;
+
+  const _ChartsSection({required this.txns, required this.allTxns});
+
+  List<Map<String, dynamic>> _last14Days() {
+    final now = DateTime.now();
+    return List.generate(14, (i) {
+      final day = DateTime(now.year, now.month, now.day - (13 - i));
+      final total = allTxns.where((t) {
+        final d = DateTime(t.date.year, t.date.month, t.date.day);
+        return d == day && t.type == 'sale';
+      }).fold(0.0, (s, t) => s + t.amount);
+      return {
+        'label': i == 13 ? 'T' : DateFormat('dd').format(day),
+        'value': total,
+        'isToday': i == 13,
+      };
+    });
+  }
+
+  List<Map<String, dynamic>> _last6Months() {
+    final now = DateTime.now();
+    return List.generate(6, (i) {
+      final m = DateTime(now.year, now.month - (5 - i), 1);
+      final key = DateFormat('yyyy-MM').format(m);
+      final total = allTxns
+          .where((t) => DateFormat('yyyy-MM').format(t.date) == key && t.type == 'sale')
+          .fold(0.0, (s, t) => s + t.amount);
+      return {
+        'label': DateFormat('MMM').format(m),
+        'value': total,
+        'isToday': i == 5,
+      };
+    });
+  }
+
+  Widget _buildBarChart(List<Map<String, dynamic>> data, double height) {
+    final maxY = data.fold(0.0, (m, d) => (d['value'] as double) > m ? d['value'] as double : m);
+    if (data.every((d) => (d['value'] as double) == 0)) {
+      return SizedBox(
+        height: height,
+        child: const Center(
+            child: Text('No data', style: TextStyle(color: kMuted))),
+      );
+    }
+
+    return SizedBox(
+      height: height,
+      child: BarChart(
+        BarChartData(
+          maxY: maxY > 0 ? maxY * 1.25 : 1000,
+          gridData: FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              getTooltipColor: (_) => kPrimary,
+              getTooltipItem: (group, _, rod, __) => BarTooltipItem(
+                rupee(rod.toY),
+                const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11),
+              ),
+            ),
+          ),
+          titlesData: FlTitlesData(
+            leftTitles:
+                AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 22,
+                getTitlesWidget: (v, _) {
+                  final idx = v.toInt();
+                  if (idx < 0 || idx >= data.length) {
+                    return const Text('');
+                  }
+                  final label = data[idx]['label'] as String;
+                  final isToday = data[idx]['isToday'] as bool;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: isToday ? kPrimary : Colors.grey.shade400,
+                        fontWeight: isToday
+                            ? FontWeight.w800
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          barGroups: data.asMap().entries.map((e) {
+            final isToday = e.value['isToday'] as bool;
+            return BarChartGroupData(
+              x: e.key,
+              barRods: [
+                BarChartRodData(
+                  toY: e.value['value'] as double,
+                  color: isToday ? kAccent : kSecondary,
+                  width: 14,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(5)),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final daily = _last14Days();
+    final monthly = _last6Months();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _SectionCard(
+          title: 'Daily Sales — Last 14 Days',
+          child: Column(
+            children: [
+              _buildBarChart(daily, 220),
+              const SizedBox(height: 8),
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                _Legend(color: kAccent, label: 'Today'),
+                const SizedBox(width: 14),
+                _Legend(color: kSecondary, label: 'Past days'),
+              ]),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SectionCard(
+          title: 'Monthly Sales — Last 6 Months',
+          child: _buildBarChart(monthly, 200),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Section 13: Alerts ────────────────────────────────────────────────────────
+
+class _AlertsSection extends StatelessWidget {
+  final List<Txn> txns;
+  final List<Txn> prevTxns;
+
+  const _AlertsSection({required this.txns, required this.prevTxns});
+
+  @override
+  Widget build(BuildContext context) {
+    final sales = _sumSales(txns);
+    final expense = _sumExp(txns);
+    final net = _sumNet(txns);
+    final margin = sales > 0 ? (net / sales * 100) : 0.0;
+    final prevSales = _sumSales(prevTxns);
+
+    // Expense by category
+    final Map<String, double> byCat = {};
+    for (final t in txns) {
+      if (t.type == 'expense' || t.type == 'payment') {
+        final cat = t.desc.trim().isEmpty ? 'Uncategorised' : t.desc.trim();
+        byCat[cat] = (byCat[cat] ?? 0) + t.amount;
+      }
+    }
+
+    final alerts = <Map<String, dynamic>>[];
+
+    if (net < 0) {
+      alerts.add({'msg': '🔴 Net Loss of ${rupee(net.abs())}', 'level': 'red'});
+    }
+    if (sales > 0 && margin < 5) {
+      alerts.add({
+        'msg': '🔴 Profit margin only ${margin.toStringAsFixed(1)}% — very low',
+        'level': 'red'
+      });
+    }
+    if (sales > 0 && expense > sales * 0.9) {
+      alerts.add({
+        'msg': '🟡 Expenses at ${_pct(expense, sales)} of sales',
+        'level': 'amber'
+      });
+    }
+    if (expense > 0) {
+      for (final e in byCat.entries) {
+        if (e.value / expense > 0.3) {
+          alerts.add({
+            'msg':
+                '🟡 \'${e.key}\' is ${_pct(e.value, expense)} of expenses',
+            'level': 'amber'
+          });
+        }
+      }
+    }
+    if (prevSales > 0 && sales < prevSales * 0.9) {
+      final drop = ((prevSales - sales) / prevSales * 100).toStringAsFixed(0);
+      alerts.add({
+        'msg': '🔴 Sales dropped $drop% vs previous period',
+        'level': 'red'
+      });
+    }
+    // No entries today check
+    final today = DateTime.now();
+    final todayKey = DateFormat('yyyy-MM-dd').format(today);
+    final hasTodayEntry = txns.any(
+        (t) => DateFormat('yyyy-MM-dd').format(t.date) == todayKey);
+    if (!hasTodayEntry) {
+      alerts.add({
+        'msg': '🟡 No entries today — add before closing',
+        'level': 'amber'
+      });
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        if (alerts.isEmpty)
+          _AlertBox(
+            msg: '✅ All parameters normal. Business looks healthy!',
+            color: kSecondary,
+          )
+        else
+          ...alerts.map((a) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _AlertBox(
+                  msg: a['msg'] as String,
+                  color: a['level'] == 'red' ? kRed : kAmber,
+                ),
+              )),
+      ],
+    );
+  }
+}
+
+// ── Section 14: Insights ──────────────────────────────────────────────────────
+
+class _InsightsSection extends StatelessWidget {
+  final List<Txn> txns;
+  final List<Txn> allTxns;
+
+  const _InsightsSection({required this.txns, required this.allTxns});
+
+  @override
+  Widget build(BuildContext context) {
+    final sales = _sumSales(txns);
+    final net = _sumNet(txns);
+    final margin = sales > 0 ? (net / sales * 100) : 0.0;
+
+    // Best day
+    final Map<String, double> byDay = {};
+    for (final t in txns) {
+      if (t.type == 'sale') {
+        final key = DateFormat('yyyy-MM-dd').format(t.date);
+        byDay[key] = (byDay[key] ?? 0) + t.amount;
+      }
+    }
+    String bestDayText = '-';
+    if (byDay.isNotEmpty) {
+      final best = byDay.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      bestDayText =
+          '${_fmtDate(DateTime.parse(best.key))} — ${rupee(best.value)}';
+    }
+
+    final days = byDay.keys.length;
+    final avgDay = days > 0 ? sales / days : 0.0;
+
+    // Biggest expense category
+    final Map<String, double> byCat = {};
+    for (final t in txns) {
+      if (t.type == 'expense' || t.type == 'payment') {
+        final cat = t.desc.trim().isEmpty ? 'Uncategorised' : t.desc.trim();
+        byCat[cat] = (byCat[cat] ?? 0) + t.amount;
+      }
+    }
+    String bigExpCat = '';
+    double bigExpPct = 0.0;
+    if (byCat.isNotEmpty) {
+      final topCat =
+          byCat.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      final totalExp = _sumExp(txns);
+      bigExpCat = topCat.key;
+      bigExpPct = totalExp > 0 ? topCat.value / totalExp * 100 : 0.0;
+    }
+
+    // Top shop
+    final Map<String, double> byShop = {};
+    for (final t in txns) {
+      if (t.type == 'sale') {
+        byShop[t.shopName.isNotEmpty ? t.shopName : t.shop] =
+            (byShop[t.shopName.isNotEmpty ? t.shopName : t.shop] ?? 0) +
+                t.amount;
+      }
+    }
+    String topShop = '';
+    if (byShop.isNotEmpty) {
+      topShop =
+          byShop.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    }
+
+    // Monthly growth (last 2 months from allTxns)
+    final now = DateTime.now();
+    final curMonthKey = DateFormat('yyyy-MM').format(now);
+    final prevMonthKey =
+        DateFormat('yyyy-MM').format(DateTime(now.year, now.month - 1, 1));
+    final curMSales = _sumSales(
+        allTxns.where((t) => DateFormat('yyyy-MM').format(t.date) == curMonthKey).toList());
+    final prevMSales = _sumSales(
+        allTxns.where((t) => DateFormat('yyyy-MM').format(t.date) == prevMonthKey).toList());
+    final monthlyGrowth = _chg(curMSales, prevMSales);
+
+    final insights = <String>[
+      '📅 Best sales day: $bestDayText',
+      '📊 Average daily sales: ${rupee(avgDay)}',
+      if (net > 0) '🎉 You are profitable at ${margin.toStringAsFixed(1)}% margin',
+      if (bigExpCat.isNotEmpty)
+        '💸 \'$bigExpCat\' is your biggest expense at ${bigExpPct.toStringAsFixed(1)}%',
+      if (topShop.isNotEmpty) '🏆 \'$topShop\' is your top performer',
+      if (prevMSales > 0)
+        '📈 Monthly growth vs last month: $monthlyGrowth',
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: insights.map((text) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kPrimary.withOpacity(0.15)),
+              ),
+              child: Text(text,
+                  style: const TextStyle(fontSize: 13, color: kText)),
+            ),
+          )).toList(),
+    );
+  }
+}
+
+// ── Section 15: Actions ───────────────────────────────────────────────────────
+
+class _ActionsSection extends StatelessWidget {
+  final List<Txn> txns;
+  final List<Txn> prevTxns;
+
+  const _ActionsSection({required this.txns, required this.prevTxns});
+
+  @override
+  Widget build(BuildContext context) {
+    final sales = _sumSales(txns);
+    final net = _sumNet(txns);
+    final margin = sales > 0 ? (net / sales * 100) : 0.0;
+
+    // Salary
+    final salary = txns
+        .where((t) {
+          final d = t.desc.toLowerCase();
+          return (t.type == 'expense' || t.type == 'payment') &&
+              (d.contains('salary') || d.contains('sal'));
+        })
+        .fold(0.0, (s, t) => s + t.amount);
+    final salaryPct = sales > 0 ? (salary / sales * 100) : 0.0;
+
+    // Top expense cat
+    final Map<String, double> byCat = {};
+    for (final t in txns) {
+      if (t.type == 'expense' || t.type == 'payment') {
+        final cat = t.desc.trim().isEmpty ? 'Uncategorised' : t.desc.trim();
+        byCat[cat] = (byCat[cat] ?? 0) + t.amount;
+      }
+    }
+    String topExpCat = '';
+    double topExpPct = 0.0;
+    if (byCat.isNotEmpty) {
+      final top = byCat.entries.reduce((a, b) => a.value >= b.value ? a : b);
+      final totalExp = _sumExp(txns);
+      topExpCat = top.key;
+      topExpPct = totalExp > 0 ? top.value / totalExp * 100 : 0.0;
+    }
+
+    // Today check
+    final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final hasTodayEntry = txns.any(
+        (t) => DateFormat('yyyy-MM-dd').format(t.date) == todayKey);
+
+    final actions = <String>[];
+    int n = 1;
+
+    if (margin < 10 && sales > 0) {
+      actions.add(
+          '$n. Review pricing — margin is only ${margin.toStringAsFixed(1)}%');
+      n++;
+    }
+    if (salaryPct > 15 && salary > 0) {
+      actions.add(
+          '$n. Salary is ${salaryPct.toStringAsFixed(1)}% of revenue — ideally below 15%');
+      n++;
+    }
+    if (net < 0) {
+      actions.add('$n. Cut expenses urgently — currently in loss');
+      n++;
+    }
+    if (!hasTodayEntry) {
+      actions.add("$n. Add today's entries before closing shop");
+      n++;
+    }
+    if (topExpCat.isNotEmpty && topExpPct > 30) {
+      actions.add(
+          "$n. Review '$topExpCat' spending — ${topExpPct.toStringAsFixed(1)}% of expenses");
+      n++;
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: actions.isEmpty
+          ? [
+              _AlertBox(
+                msg: '✅ Business is on track. Keep tracking daily!',
+                color: kSecondary,
+              ),
+            ]
+          : actions.map((a) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: kAmber.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kAmber.withOpacity(0.3)),
+                  ),
+                  child: Text(a,
+                      style: const TextStyle(fontSize: 13, color: kText)),
+                ),
+              )).toList(),
+    );
+  }
+}
+
+// ── Shared helper widgets ─────────────────────────────────────────────────────
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _SectionCard({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: kCardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: kPrimary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: kPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final String? delta;
+
+  const _KpiBox({
+    required this.label,
+    required this.value,
+    this.color = kText,
+    this.delta,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final deltaVal = delta;
+    Color deltaColor = kMuted;
+    if (deltaVal != null && deltaVal != '-') {
+      deltaColor = deltaVal.startsWith('+') ? kSecondary : kRed;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(color: kMuted, fontSize: 10, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (deltaVal != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              deltaVal,
+              style: TextStyle(
+                color: deltaColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DataRow extends StatelessWidget {
+  final List<String> cells;
+  final bool isHeader;
+  final bool isTotal;
+
+  const _DataRow(this.cells, {this.isHeader = false, this.isTotal = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = isHeader
+        ? const TextStyle(color: kMuted, fontWeight: FontWeight.w700, fontSize: 11)
+        : isTotal
+            ? const TextStyle(color: kText, fontWeight: FontWeight.w700, fontSize: 12)
+            : const TextStyle(color: kText, fontSize: 12);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: const Color(0xFFF3F4F6),
+            width: isHeader ? 1.5 : 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        children: cells.map((c) {
+          return Expanded(
+            child: Text(
+              c,
+              style: style,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _AlertBox extends StatelessWidget {
+  final String msg;
+  final Color color;
+
+  const _AlertBox({required this.msg, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Text(
+        msg,
+        style: TextStyle(
+          color: color == kSecondary ? kPrimary : color,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  final double value;
+  final Color color;
+
+  const _ProgressBar({required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: LinearProgressIndicator(
+        value: value,
+        backgroundColor: Colors.grey.shade100,
+        color: color,
+        minHeight: 7,
+      ),
+    );
+  }
 }
 
 class _Legend extends StatelessWidget {
-  final Color  color;
+  final Color color;
   final String label;
+
   const _Legend({required this.color, required this.label});
+
   @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Container(width: 10, height: 10,
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-    const SizedBox(width: 4),
-    Text(label, style: const TextStyle(fontSize: 11, color: kMuted)),
-  ]);
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11, color: kMuted)),
+      ],
+    );
+  }
 }
