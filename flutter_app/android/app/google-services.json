@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "546195090451-6v4nlctmdk84h8k6qui4hhop4h5utf08.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.arthanote.app",
+            "certificate_hash": "09090bd27f941b88630f297d6df0157750059f89"
+          }
+        },
+        {
           "client_id": "546195090451-ibq0hus5jh17b6qm1pg4u17lr6snt4i4.apps.googleusercontent.com",
           "client_type": 3
         }

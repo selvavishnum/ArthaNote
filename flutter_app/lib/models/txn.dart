@@ -46,6 +46,28 @@ class Txn {
     'createdAt':  FieldValue.serverTimestamp(),
   };
 
+  Map<String, dynamic> toJson() => {
+    'id':         id,
+    'businessId': businessId,
+    'shop':       shop,
+    'shopName':   shopName,
+    'date':       date.toIso8601String(),
+    'type':       type,
+    'amount':     amount,
+    'desc':       desc,
+  };
+
+  factory Txn.fromJson(Map<String, dynamic> m) => Txn(
+    id:         m['id']         as String? ?? '',
+    businessId: m['businessId'] as String? ?? '',
+    shop:       m['shop']       as String? ?? '',
+    shopName:   m['shopName']   as String? ?? '',
+    date:       DateTime.tryParse(m['date'] as String? ?? '') ?? DateTime.now(),
+    type:       m['type']       as String? ?? 'sale',
+    amount:     (m['amount']    as num?)?.toDouble() ?? 0,
+    desc:       m['desc']       as String? ?? '',
+  );
+
   Txn copyWith({
     String?   id,
     String?   businessId,
