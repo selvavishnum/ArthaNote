@@ -36,15 +36,17 @@ const kCardShadow = [
 
 // ── Premium ThemeData ────────────────────────────────────────────────────────
 ThemeData appTheme() {
-  const scheme = ColorScheme(
+  final scheme = ColorScheme.fromSeed(
+    seedColor: kPrimary,
     brightness: Brightness.light,
+  ).copyWith(
     primary: kPrimary,
     onPrimary: Colors.white,
-    primaryContainer: Color(0xFFD1FAE5),
+    primaryContainer: const Color(0xFFD1FAE5),
     onPrimaryContainer: kPrimary,
     secondary: kSecondary,
     onSecondary: Colors.white,
-    secondaryContainer: Color(0xFFD1FAE5),
+    secondaryContainer: const Color(0xFFD1FAE5),
     onSecondaryContainer: kSecondary,
     tertiary: kAccent,
     onTertiary: Colors.white,
@@ -52,8 +54,7 @@ ThemeData appTheme() {
     onError: Colors.white,
     surface: Colors.white,
     onSurface: kText,
-    surfaceContainerHighest: Color(0xFFF3F4F6),
-    outline: Color(0xFFE5E7EB),
+    outline: const Color(0xFFE5E7EB),
   );
 
   return ThemeData(
