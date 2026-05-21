@@ -78,6 +78,9 @@ const Map<String, Map<String, String>> kStrings = {
     'biz_type_title':   'What type of business?',
     'welcome':          'Welcome back!',
     'new_account':      'Create new account',
+    'my_shops':         'My Shops',
+    'no_shops':         'No shops added yet',
+    'about':            'About',
   },
   'ta': {
     'app_name':         'ArthaNote',
@@ -157,6 +160,9 @@ const Map<String, Map<String, String>> kStrings = {
     'biz_type_title':   'என்ன வகை வணிகம்?',
     'welcome':          'வரவேற்கிறோம்!',
     'new_account':      'புதிய கணக்கு உருவாக்கு',
+    'my_shops':         'என் கடைகள்',
+    'no_shops':         'கடைகள் இல்லை',
+    'about':            'பற்றி',
   },
 };
 

@@ -10,6 +10,7 @@ import 'ledger_tab.dart';
 import 'suppliers_tab.dart';
 import 'reports_tab.dart';
 import 'login_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -111,9 +112,24 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.more_vert, color: Colors.white),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             onSelected: (v) async {
-              if (v == 'logout') await _logout();
+              if (v == 'settings') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              } else if (v == 'logout') {
+                await _logout();
+              }
             },
             itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'settings',
+                child: Row(children: [
+                  const Icon(Icons.settings_outlined, size: 18, color: kPrimary),
+                  const SizedBox(width: 10),
+                  Text(t('settings', l),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                ]),
+              ),
               PopupMenuItem(
                 value: 'logout',
                 child: Row(children: [
