@@ -30,9 +30,9 @@ android {
             } else {
                 // Default: use the committed release keystore (consistent signing across all builds)
                 storeFile     file("arthanote-release.keystore")
-                storePassword "ArthaNote2024!"
+                storePassword "ArthaNote2024"
                 keyAlias      "arthanote"
-                keyPassword   "ArthaNote2024!"
+                keyPassword   "ArthaNote2024"
             }
         }
     }
