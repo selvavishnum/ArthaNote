@@ -21,7 +21,7 @@ class _LedgerTabState extends State<LedgerTab> {
   final _db     = DbService();
   final _search = TextEditingController();
   String  _typeFilter  = 'all';
-  _Period _period      = _Period.today;
+  _Period _period      = _Period.all;
   DateTimeRange? _customRange;
 
   static const _typeOptions = [

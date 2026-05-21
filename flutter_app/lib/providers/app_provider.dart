@@ -76,6 +76,17 @@ class AppProvider extends ChangeNotifier {
     _persistShops();
   }
 
+  void updateShop(String id, Shop shop) {
+    _shops = Map.from(_shops)..[id] = shop;
+    notifyListeners();
+    _persistShops();
+  }
+
+  void updateProfileField(String key, dynamic value) {
+    _profile = Map<String, dynamic>.from(_profile)..[key] = value;
+    notifyListeners();
+  }
+
   Future<void> _persistShops() async {
     if (_businessId.isEmpty) return;
     final shopsMap = _shops.map((k, v) => MapEntry(k, v.toMap()));

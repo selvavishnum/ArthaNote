@@ -13,8 +13,7 @@ class DbService {
   Stream<List<Txn>> txnStream(String businessId, {String? shop}) {
     Query<Map<String, dynamic>> q = _db
         .collection('transactions')
-        .where('businessId', isEqualTo: businessId)
-        .limit(500);
+        .where('businessId', isEqualTo: businessId);
 
     if (shop != null && shop.isNotEmpty) {
       q = q.where('shop', isEqualTo: shop);

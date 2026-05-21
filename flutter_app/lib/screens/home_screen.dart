@@ -158,17 +158,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const Spacer(),
-              // Role badge
+              // Plan badge: Admin / Pro / Free
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3E8FF),
+                  color: _badgeBg(p),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _formatRole(role),
-                  style: const TextStyle(
-                    color: Color(0xFF7C3AED),
+                  _badgeLabel(p),
+                  style: TextStyle(
+                    color: _badgeFg(p),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -298,17 +298,23 @@ class _HomeScreenState extends State<HomeScreen> {
     ],
   );
 
-  String _formatRole(String role) {
-    switch (role.toLowerCase()) {
-      case 'owner':   return 'Admin';
-      case 'manager': return 'Manager';
-      case 'cashier': return 'Cashier';
-      default:        return role.isEmpty ? 'Admin' : _capitalize(role);
-    }
+  String _badgeLabel(AppProvider p) {
+    if (p.isAdmin) return 'Admin';
+    if (p.profile['pro'] == true) return 'Pro';
+    return 'Free';
   }
 
-  String _capitalize(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  Color _badgeBg(AppProvider p) {
+    if (p.isAdmin) return const Color(0xFFF3E8FF);
+    if (p.profile['pro'] == true) return const Color(0xFFFEF3C7);
+    return const Color(0xFFDCFCE7);
+  }
+
+  Color _badgeFg(AppProvider p) {
+    if (p.isAdmin) return const Color(0xFF7C3AED);
+    if (p.profile['pro'] == true) return const Color(0xFFD97706);
+    return const Color(0xFF16A34A);
+  }
 }
 
 // ── Shop chip widget ──────────────────────────────────────────────────────────
