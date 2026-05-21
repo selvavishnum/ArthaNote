@@ -257,10 +257,10 @@ class _SuppliersTabState extends State<SuppliersTab> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _SheetHandle(),
             const SizedBox(height: 16),
-            Row(children: [
+            Row(children: const [
               _CircleIcon(icon: Icons.store_outlined, color: kPrimary),
-              const SizedBox(width: 12),
-              const Text('Add Supplier',
+              SizedBox(width: 12),
+              Text('Add Supplier',
                   style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
@@ -379,12 +379,12 @@ class _AddBillSheetState extends State<_AddBillSheet> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             _SheetHandle(),
             const SizedBox(height: 16),
-            Row(children: [
+            Row(children: const [
               _CircleIcon(
                   icon: Icons.receipt_long_outlined,
-                  color: const Color(0xFF2563EB)),
-              const SizedBox(width: 12),
-              const Text('Bill / Payment',
+                  color: Color(0xFF2563EB)),
+              SizedBox(width: 12),
+              Text('Bill / Payment',
                   style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,

@@ -243,9 +243,9 @@ class _ReportsTabState extends State<ReportsTab> {
                     ),
             ),
             const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: const [
               _Legend(color: kAccent, label: 'Today'),
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
               _Legend(color: kSecondary, label: 'Past days'),
             ]),
             const SizedBox(height: 24),
