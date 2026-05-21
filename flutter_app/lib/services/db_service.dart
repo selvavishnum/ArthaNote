@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/txn.dart';
 import '../models/supplier.dart';
+import '../models/supplier_bill.dart';
 
 class DbService {
   final _db = FirebaseFirestore.instance;
@@ -61,4 +62,44 @@ class DbService {
 
   Future<void> deleteSupplier(String id) =>
       _db.collection('suppliers').doc(id).delete();
+
+  // ── Supplier Bills ────────────────────────────────────────────────────────
+
+  /// Stream all supplier_bills for [businessId], sorted by date descending.
+  Stream<List<SupplierBill>> allSupplierBillStream(String businessId) {
+    return _db
+        .collection('supplier_bills')
+        .where('businessId', isEqualTo: businessId)
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map((d) => SupplierBill.fromFirestore(d)).toList();
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
+    });
+  }
+
+  /// Add a bill/payment and atomically adjust supplier balance.
+  /// 'bill' → balance increases (we owe more); 'payment' → balance decreases.
+  Future<void> addSupplierBill(SupplierBill bill) async {
+    final batch = _db.batch();
+    batch.set(_db.collection('supplier_bills').doc(), bill.toFirestore());
+    final delta = bill.type == 'bill' ? bill.amount : -bill.amount;
+    batch.update(_db.collection('suppliers').doc(bill.supplierId), {
+      'balance':   FieldValue.increment(delta),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+
+  /// Delete a bill and reverse its balance effect on the supplier.
+  Future<void> deleteSupplierBill(SupplierBill bill) async {
+    final batch = _db.batch();
+    batch.delete(_db.collection('supplier_bills').doc(bill.id));
+    final delta = bill.type == 'bill' ? -bill.amount : bill.amount;
+    batch.update(_db.collection('suppliers').doc(bill.supplierId), {
+      'balance':   FieldValue.increment(delta),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
 }
