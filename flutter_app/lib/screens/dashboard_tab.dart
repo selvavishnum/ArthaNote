@@ -4,9 +4,9 @@ import 'package:intl/intl.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/txn.dart';
+import '../models/shop.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
-import 'entry_screen.dart';
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 final _inrFmt = NumberFormat('#,##,##0', 'en_IN');
@@ -53,22 +53,39 @@ class _DashboardTabState extends State<DashboardTab> {
     final p       = context.watch<AppProvider>();
     final l       = p.lang;
     final periods = [
-      t('today', l),
-      t('yesterday', l),
-      t('this_week', l),
-      t('this_month', l),
+      '📅 ${t("today", l)}',
+      '◀◀ ${t("yesterday", l)}',
+      '📅 ${t("this_week", l)}',
+      '📅 ${t("this_month", l)}',
     ];
 
     return StreamBuilder<List<Txn>>(
       stream: _db.txnStream(p.businessId),
       builder: (ctx, snap) {
-        final all   = snap.data ?? [];
-        final txns  = _filter(all, p);
-        final sales   = txns.where((x) => x.type == 'sale')
+        final all    = snap.data ?? [];
+        final txns   = _filter(all, p);
+        final sales  = txns.where((x) => x.type == 'sale')
             .fold(0.0, (s, x) => s + x.amount);
         final expense = txns.where((x) => x.type == 'expense')
             .fold(0.0, (s, x) => s + x.amount);
         final net = sales - expense;
+
+        // Most sold: find the most common desc in sales
+        final saleTxns = txns.where((x) => x.type == 'sale').toList();
+        String mostSold = '';
+        if (saleTxns.isNotEmpty) {
+          final freq = <String, int>{};
+          for (final tx in saleTxns) {
+            if (tx.desc.isNotEmpty) {
+              freq[tx.desc] = (freq[tx.desc] ?? 0) + 1;
+            }
+          }
+          if (freq.isNotEmpty) {
+            mostSold = freq.entries
+                .reduce((a, b) => a.value >= b.value ? a : b)
+                .key;
+          }
+        }
 
         return RefreshIndicator(
           color: kPrimary,
@@ -76,127 +93,235 @@ class _DashboardTabState extends State<DashboardTab> {
           onRefresh: () async => setState(() {}),
           child: CustomScrollView(slivers: [
             SliverToBoxAdapter(
-              child: Column(children: [
-                // ── Shop filter chips ─────────────────────────────────────
-                if (p.shops.isNotEmpty)
-                  _ShopChips(p: p, l: l),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
 
-                // ── Period selector ───────────────────────────────────────
-                SizedBox(
-                  height: 44,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                    itemCount: periods.length,
-                    itemBuilder: (_, i) => GestureDetector(
-                      onTap: () => setState(() => _period = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
-                        decoration: BoxDecoration(
-                          color: _period == i ? kPrimary : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _period == i ? kPrimary : const Color(0xFFE5E7EB)),
+                  // ── Entry count + Refresh row ─────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${all.length} entries · synced',
+                          style: const TextStyle(
+                            color: kMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                        child: Center(
-                          child: Text(
-                            periods[i],
-                            style: TextStyle(
-                              color: _period == i ? Colors.white : Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                        GestureDetector(
+                          onTap: () => setState(() {}),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: kPrimary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(children: [
+                              Icon(Icons.refresh, color: kPrimary, size: 14),
+                              SizedBox(width: 4),
+                              Text(
+                                'Refresh',
+                                style: TextStyle(
+                                    color: kPrimary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ── Period selector ───────────────────────────────────────
+                  SizedBox(
+                    height: 40,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                      itemCount: periods.length,
+                      itemBuilder: (_, i) => GestureDetector(
+                        onTap: () => setState(() => _period = i),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: _period == i ? kPrimary : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _period == i
+                                  ? kPrimary
+                                  : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              periods[i],
+                              style: TextStyle(
+                                color: _period == i
+                                    ? Colors.white
+                                    : Colors.grey.shade700,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
-                // ── Summary cards ─────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(children: [
-                    _SummaryCard(
-                      label: t('total_sales', l),
-                      amount: sales,
-                      color: kSecondary,
-                      icon: Icons.trending_up_rounded,
-                    ),
-                    const SizedBox(width: 10),
-                    _SummaryCard(
-                      label: t('total_expense', l),
-                      amount: expense,
-                      color: kRed,
-                      icon: Icons.trending_down_rounded,
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 10),
-
-                // ── Net profit card ───────────────────────────────────────
-                _NetCard(label: t('net_profit', l), net: net),
-                const SizedBox(height: 14),
-
-                // ── Recent entries header ─────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        t('recent_entries', l),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: kPrimary,
-                        ),
-                      ),
-                      Container(
+                  // ── No-entries yellow banner ──────────────────────────────
+                  if (txns.isEmpty && snap.connectionState != ConnectionState.waiting)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
+                            horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: kPrimary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFBBF24)),
                         ),
-                        child: Text(
-                          '${txns.length} ${t("entries", l)}',
-                          style: const TextStyle(
-                              color: kPrimary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600),
+                        child: Row(children: [
+                          const Text('⚠️', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'No entries — scan ledger or add manually',
+                              style: TextStyle(
+                                color: Colors.amber.shade800,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+
+                  // ── 4-box stats grid ──────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(children: [
+                      // Sales box
+                      Expanded(
+                        child: _StatBox(
+                          label: 'SALES',
+                          value: rupee(sales),
+                          valueColor: kSecondary,
+                          icon: '💰',
                         ),
                       ),
-                    ],
+                      const SizedBox(width: 10),
+                      // Expenses box
+                      Expanded(
+                        child: _StatBox(
+                          label: 'EXPENSES',
+                          value: rupee(expense),
+                          valueColor: kRed,
+                          icon: '📉',
+                        ),
+                      ),
+                    ]),
                   ),
-                ),
-                const SizedBox(height: 4),
-              ]),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(children: [
+                      // Net Profit box
+                      Expanded(
+                        child: _StatBox(
+                          label: t('net_profit', l).toUpperCase(),
+                          value: net >= 0 ? '+ ${rupee(net)}' : '− ${rupee(net)}',
+                          valueColor: net >= 0 ? kSecondary : kRed,
+                          icon: net >= 0 ? '📈' : '📊',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Most Sold box
+                      Expanded(
+                        child: _StatBox(
+                          label: t('most_sold', l).toUpperCase(),
+                          value: mostSold.isEmpty ? 'NONE' : mostSold,
+                          valueColor: mostSold.isEmpty
+                              ? kAmber
+                              : kText,
+                          icon: '⭐',
+                          valueSmall: mostSold.isNotEmpty,
+                        ),
+                      ),
+                    ]),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Shop summary section header ────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          t('shop_summary', l).toUpperCase(),
+                          style: const TextStyle(
+                            color: kPrimary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.keyboard_arrow_down,
+                          color: kMuted,
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Per-shop summary cards ────────────────────────────────
+                  if (p.shops.isNotEmpty)
+                    ...p.shops.values.map((shop) {
+                      final shopTxns = txns.where((x) => x.shop == shop.id).toList();
+                      final shopSales = shopTxns
+                          .where((x) => x.type == 'sale')
+                          .fold(0.0, (s, x) => s + x.amount);
+                      final shopExp = shopTxns
+                          .where((x) => x.type == 'expense')
+                          .fold(0.0, (s, x) => s + x.amount);
+                      final shopNet = shopSales - shopExp;
+                      return _ShopSummaryCard(
+                        shop: shop,
+                        entryCount: shopTxns.length,
+                        sales: shopSales,
+                        expense: shopExp,
+                        net: shopNet,
+                        l: l,
+                      );
+                    }),
+
+                  const SizedBox(height: 100),
+                ],
+              ),
             ),
 
-            // ── Transaction list ──────────────────────────────────────────
-            snap.connectionState == ConnectionState.waiting
-                ? const SliverFillRemaining(
-                    child: Center(
-                      child: CircularProgressIndicator(color: kPrimary),
-                    ),
-                  )
-                : txns.isEmpty
-                    ? SliverFillRemaining(
-                        child: _EmptyState(l: l),
-                      )
-                    : SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (_, i) => _TxnTile(txn: txns[i]),
-                          childCount: txns.length,
-                        ),
-                      ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            // ── Loading indicator ─────────────────────────────────────────
+            if (snap.connectionState == ConnectionState.waiting)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: kPrimary),
+                ),
+              ),
           ]),
         );
       },
@@ -204,239 +329,176 @@ class _DashboardTabState extends State<DashboardTab> {
   }
 }
 
-// ── Shop chips ────────────────────────────────────────────────────────────────
-class _ShopChips extends StatelessWidget {
-  final AppProvider p;
-  final String l;
-  const _ShopChips({required this.p, required this.l});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 48,
-    child: ListView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-      children: [
-        _chip(context, t('all_shops', l), p.selectedShop.isEmpty,
-            () => p.setSelectedShop('')),
-        ...p.shops.values.map((s) => _chip(
-              context,
-              '${s.icon} ${s.name}',
-              p.selectedShop == s.id,
-              () => p.setSelectedShop(s.id),
-            )),
-      ],
-    ),
-  );
-
-  Widget _chip(BuildContext ctx, String label, bool active, VoidCallback onTap) =>
-      GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.only(right: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: active ? kPrimary : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: active ? kPrimary : const Color(0xFFE5E7EB)),
-            boxShadow: active ? kBoxShadow : kCardShadow,
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? Colors.white : Colors.grey.shade700,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      );
-}
-
-// ── Summary card ──────────────────────────────────────────────────────────────
-class _SummaryCard extends StatelessWidget {
+// ── Stat box (2x2 grid cell) ──────────────────────────────────────────────────
+class _StatBox extends StatelessWidget {
   final String label;
-  final double amount;
-  final Color  color;
-  final IconData icon;
-  const _SummaryCard({
+  final String value;
+  final Color  valueColor;
+  final String icon;
+  final bool   valueSmall;
+
+  const _StatBox({
     required this.label,
-    required this.amount,
-    required this.color,
+    required this.value,
+    required this.valueColor,
     required this.icon,
+    this.valueSmall = false,
   });
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.18)),
-        boxShadow: kCardShadow,
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: kCardShadow,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Row(children: [
-          Icon(icon, color: color, size: 17),
+          Text(icon, style: const TextStyle(fontSize: 14)),
           const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: color, fontSize: 11, fontWeight: FontWeight.w700),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
             ),
           ),
         ]),
         const SizedBox(height: 8),
         Text(
-          rupee(amount),
+          value,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: color,
-            fontSize: 19,
+            color: valueColor,
+            fontSize: valueSmall ? 13 : 18,
             fontWeight: FontWeight.w800,
           ),
         ),
-      ]),
+      ],
     ),
   );
 }
 
-// ── Net card ──────────────────────────────────────────────────────────────────
-class _NetCard extends StatelessWidget {
-  final String label;
+// ── Shop summary card ─────────────────────────────────────────────────────────
+class _ShopSummaryCard extends StatelessWidget {
+  final Shop   shop;
+  final int    entryCount;
+  final double sales;
+  final double expense;
   final double net;
-  const _NetCard({required this.label, required this.net});
+  final String l;
+
+  const _ShopSummaryCard({
+    required this.shop,
+    required this.entryCount,
+    required this.sales,
+    required this.expense,
+    required this.net,
+    required this.l,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.symmetric(horizontal: 16),
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [
-          net >= 0 ? kPrimary : kRed,
-          net >= 0 ? kSecondary : const Color(0xFFEF4444),
-        ],
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-      ),
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: (net >= 0 ? kPrimary : kRed).withOpacity(0.35),
-          blurRadius: 14,
-          offset: const Offset(0, 4),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: kCardShadow,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(children: [
+              Text(shop.icon, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Text(
+                shop.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: kText,
+                ),
+              ),
+            ]),
+            Row(children: [
+              Text(
+                '$entryCount ${t("entries", l)}',
+                style: const TextStyle(
+                  color: kMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_ios, color: kMuted, size: 11),
+            ]),
+          ],
         ),
+        const SizedBox(height: 10),
+        Row(children: [
+          _MiniStat(
+            label: t('sales', l),
+            value: rupee(sales),
+            color: kSecondary,
+          ),
+          const SizedBox(width: 16),
+          _MiniStat(
+            label: t('expense', l),
+            value: rupee(expense),
+            color: kRed,
+          ),
+          const SizedBox(width: 16),
+          _MiniStat(
+            label: t('net', l),
+            value: rupee(net),
+            color: net >= 0 ? kSecondary : kRed,
+          ),
+        ]),
       ],
     ),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Row(children: [
-        Icon(
-          net >= 0 ? Icons.emoji_events_outlined : Icons.warning_amber_outlined,
-          color: Colors.white70, size: 20),
-        const SizedBox(width: 8),
-        Text(label,
-            style: const TextStyle(
-                color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 14)),
-      ]),
-      Text(
-        rupee(net),
-        style: const TextStyle(
-            color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
-      ),
-    ]),
   );
 }
 
-// ── Transaction tile ──────────────────────────────────────────────────────────
-class _TxnTile extends StatelessWidget {
-  final Txn txn;
-  const _TxnTile({required this.txn});
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color  color;
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    final isIncome = txn.type == 'sale' || txn.type == 'payment';
-    final color    = txn.type == 'expense' ? kRed : kSecondary;
-    final icon     = txn.type == 'sale' ? '📈' : txn.type == 'expense' ? '📉' : '💳';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
-        leading: Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Center(child: Text(icon, style: const TextStyle(fontSize: 19))),
-        ),
-        title: Text(
-          txn.desc.isEmpty ? txn.type.toUpperCase() : txn.desc,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          DateFormat('dd MMM, hh:mm a').format(txn.date),
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-        ),
-        trailing: Text(
-          '${isIncome ? "+" : "−"}${rupee(txn.amount)}',
-          style: TextStyle(
-              color: color, fontWeight: FontWeight.w800, fontSize: 15),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          color: Colors.grey.shade500,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
         ),
       ),
-    );
-  }
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  final String l;
-  const _EmptyState({required this.l});
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Container(
-          width: 80, height: 80,
-          decoration: BoxDecoration(
-            color: kPrimary.withOpacity(0.08),
-            shape: BoxShape.circle,
-          ),
-          child: const Center(
-            child: Text('📋', style: TextStyle(fontSize: 36)),
-          ),
+      const SizedBox(height: 2),
+      Text(
+        value,
+        style: TextStyle(
+          color: color,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 18),
-        Text(
-          t('no_entries', l),
-          style: const TextStyle(
-              fontWeight: FontWeight.w700, fontSize: 17, color: kPrimary),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          t('add_first', l),
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton.icon(
-          onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const EntryScreen())),
-          icon: const Icon(Icons.add, size: 18),
-          label: Text(t('add_entry', l)),
-          style: ElevatedButton.styleFrom(
-              minimumSize: const Size(180, 48)),
-        ),
-      ]),
-    ),
+      ),
+    ],
   );
 }

@@ -11,41 +11,51 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = context.watch<AppProvider>();
-    final l = p.lang;
+    final p     = context.watch<AppProvider>();
+    final l     = p.lang;
     final profile = p.profile;
-    final shops = p.shops;
-
-    final name  = (profile['name']  as String?) ?? '';
-    final email = (profile['email'] as String?) ?? '';
-    final role  = (profile['role']  as String?) ?? 'owner';
+    final name    = (profile['name']  as String?) ?? '';
+    final email   = (profile['email'] as String?) ?? '';
+    final role    = (profile['role']  as String?) ?? 'owner';
 
     return Scaffold(
+      backgroundColor: kBg,
       appBar: AppBar(
-        title: Text(t('settings', l)),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(gradient: kGradient),
-        ),
+        backgroundColor: Colors.white,
+        foregroundColor: kText,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: kText),
           onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          t('settings', l),
+          style: const TextStyle(
+            color: kText,
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(0),
         children: [
-          // ── Profile card ─────────────────────────────────────────────────
-          _SectionCard(children: [
-            Row(children: [
+          // ── Profile card ───────────────────────────────────────────────────
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
               CircleAvatar(
-                radius: 28,
+                radius: 26,
                 backgroundColor: kPrimary.withOpacity(0.12),
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : 'U',
                   style: const TextStyle(
                     color: kPrimary,
                     fontWeight: FontWeight.w800,
-                    fontSize: 22,
+                    fontSize: 20,
                   ),
                 ),
               ),
@@ -58,24 +68,24 @@ class SettingsScreen extends StatelessWidget {
                       Text(name,
                           style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              fontSize: 16,
+                              fontSize: 15,
                               color: kText)),
                     if (email.isNotEmpty)
                       Text(email,
                           style: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 13)),
+                              color: Colors.grey.shade500, fontSize: 12)),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: kPrimary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFFF3E8FF),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         role.toUpperCase(),
                         style: const TextStyle(
-                            color: kPrimary,
+                            color: Color(0xFF7C3AED),
                             fontSize: 10,
                             fontWeight: FontWeight.w700),
                       ),
@@ -84,137 +94,118 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ]),
-          ]),
-
-          const SizedBox(height: 16),
-
-          // ── Language ─────────────────────────────────────────────────────
-          _SectionHeader(t('language', l)),
-          _SectionCard(children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(children: [
-                  const Icon(Icons.language, color: kPrimary, size: 22),
-                  const SizedBox(width: 12),
-                  Text(t('language', l),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 15)),
-                ]),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'en', label: Text('EN')),
-                    ButtonSegment(value: 'ta', label: Text('தமிழ்')),
-                  ],
-                  selected: {l},
-                  onSelectionChanged: (s) => p.setLang(s.first),
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) return kPrimary;
-                      return Colors.white;
-                    }),
-                    foregroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) return Colors.white;
-                      return kText;
-                    }),
-                  ),
-                ),
-              ],
-            ),
-          ]),
-
-          const SizedBox(height: 16),
-
-          // ── Shops ─────────────────────────────────────────────────────────
-          _SectionHeader(t('my_shops', l)),
-          _SectionCard(
-            children: shops.isEmpty
-                ? [
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          t('no_shops', l),
-                          style: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 14),
-                        ),
-                      ),
-                    ),
-                  ]
-                : shops.entries.map((e) {
-                    final shop = e.value;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(children: [
-                        Text(shop.icon, style: const TextStyle(fontSize: 22)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(shop.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: kText)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: kSecondary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            shop.type,
-                            style: const TextStyle(
-                                color: kSecondary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ]),
-                    );
-                  }).toList(),
           ),
+          const SizedBox(height: 12),
 
-          const SizedBox(height: 16),
-
-          // ── App info ──────────────────────────────────────────────────────
-          _SectionHeader(t('about', l)),
-          _SectionCard(children: [
-            _InfoRow(Icons.store, 'ArthaNote — Shop Ledger'),
-            const Divider(height: 16),
-            _InfoRow(Icons.info_outline, 'Version 1.0.0'),
-            const Divider(height: 16),
-            _InfoRow(Icons.business, 'Tulsi Groups, Tuticorin'),
-          ]),
+          // ── Settings list ──────────────────────────────────────────────────
+          Container(
+            color: Colors.white,
+            child: Column(children: [
+              _SettingsTile(
+                icon: '👤',
+                bgColor: const Color(0xFFEFF6FF),
+                title: t('profile', l),
+                subtitle: 'Your account details',
+                onTap: () => _comingSoon(context, l),
+              ),
+              const Divider(height: 1, indent: 72),
+              _SettingsTile(
+                icon: '🏪',
+                bgColor: const Color(0xFFF0FDF4),
+                title: t('shop_names', l),
+                subtitle: 'Edit or remove your shops',
+                onTap: () => _comingSoon(context, l),
+              ),
+              const Divider(height: 1, indent: 72),
+              _SettingsTile(
+                icon: '👥',
+                bgColor: const Color(0xFFEDE9FE),
+                title: t('staff', l),
+                subtitle: 'Add, edit or remove staff members',
+                onTap: () => _comingSoon(context, l),
+              ),
+              const Divider(height: 1, indent: 72),
+              _SettingsTile(
+                icon: '📷',
+                bgColor: const Color(0xFFFFF7ED),
+                title: t('qr_attendance', l),
+                subtitle: 'Generate QR & view attendance',
+                onTap: () => _comingSoon(context, l),
+              ),
+              const Divider(height: 1, indent: 72),
+              _SettingsTile(
+                icon: '🧾',
+                bgColor: const Color(0xFFF0FDF4),
+                title: t('gst_settings', l),
+                subtitle: 'Enable GST & choose tax rate',
+                onTap: () => _comingSoon(context, l),
+              ),
+              const Divider(height: 1, indent: 72),
+              _SettingsTile(
+                icon: '✏️',
+                bgColor: const Color(0xFFFFF7ED),
+                title: t('categories', l),
+                subtitle: 'Sales & expense categories per shop',
+                onTap: () => _comingSoon(context, l),
+              ),
+              const Divider(height: 1, indent: 72),
+              _SettingsTile(
+                icon: '💾',
+                bgColor: const Color(0xFFF1F5F9),
+                title: t('backup', l),
+                subtitle: 'Export or restore your data',
+                onTap: () => _comingSoon(context, l),
+              ),
+            ]),
+          ),
 
           const SizedBox(height: 24),
 
-          // ── Logout ────────────────────────────────────────────────────────
-          ElevatedButton.icon(
-            onPressed: () => _confirmLogout(context, p),
-            icon: const Icon(Icons.logout, color: Colors.white),
-            label: Text(t('logout', l),
-                style: const TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kRed,
-              minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+          // ── Sign Out ───────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: OutlinedButton.icon(
+              onPressed: () => _confirmSignOut(context, p),
+              icon: const Text('🚪', style: TextStyle(fontSize: 16)),
+              label: Text(
+                t('sign_out', l),
+                style: const TextStyle(
+                    color: kRed,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16),
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 52),
+                side: const BorderSide(color: kRed),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  Future<void> _confirmLogout(BuildContext context, AppProvider p) async {
+  void _comingSoon(BuildContext context, String l) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(t('coming_soon', l)),
+        backgroundColor: kPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, AppProvider p) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -222,7 +213,7 @@ class SettingsScreen extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: kRed),
-            child: const Text('Logout'),
+            child: const Text('Sign Out'),
           ),
         ],
       ),
@@ -238,56 +229,58 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Settings tile ─────────────────────────────────────────────────────────────
+class _SettingsTile extends StatelessWidget {
+  final String    icon;
+  final Color     bgColor;
+  final String    title;
+  final String    subtitle;
+  final VoidCallback onTap;
 
-class _SectionHeader extends StatelessWidget {
-  final String text;
-  const _SectionHeader(this.text);
+  const _SettingsTile({
+    required this.icon,
+    required this.bgColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 8),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2,
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(icon, style: const TextStyle(fontSize: 20)),
           ),
         ),
-      );
-}
-
-class _SectionCard extends StatelessWidget {
-  final List<Widget> children;
-  const _SectionCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: kCardShadow,
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: kText)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: TextStyle(
+                      color: Colors.grey.shade500, fontSize: 12)),
+            ],
+          ),
         ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
-      );
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _InfoRow(this.icon, this.text);
-
-  @override
-  Widget build(BuildContext context) => Row(children: [
-        Icon(icon, color: kPrimary, size: 20),
-        const SizedBox(width: 12),
-        Text(text,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      ]);
+        const Icon(Icons.chevron_right, color: kMuted, size: 20),
+      ]),
+    ),
+  );
 }
