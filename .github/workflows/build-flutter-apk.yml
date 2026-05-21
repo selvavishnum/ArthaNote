@@ -63,14 +63,21 @@ jobs:
           print("Launcher icons generated ✅")
           PYEOF
 
-      - name: Print debug keystore SHA-1 (for Firebase Console)
+      - name: Decode release keystore
         run: |
-          keytool -list -v \
-            -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android -keypass android 2>/dev/null \
-            | grep -E "SHA1|SHA256" \
-            || echo "keytool not found or keystore not yet generated"
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/arthanote-release.keystore
+            echo "KEYSTORE_PATH=/tmp/arthanote-release.keystore" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "✅ Release keystore loaded"
+            keytool -list -v -keystore /tmp/arthanote-release.keystore \
+              -storepass "${{ secrets.KEYSTORE_PASSWORD }}" 2>/dev/null \
+              | grep -E "SHA1|SHA256" || true
+          else
+            echo "⚠️  KEYSTORE_BASE64 secret not set — using debug keystore (Google Sign-In won't work)"
+          fi
 
       - name: Get Flutter dependencies
         working-directory: flutter_app
