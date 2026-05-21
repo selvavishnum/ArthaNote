@@ -20,7 +20,7 @@ android {
 
     defaultConfig {
         applicationId "com.arthanote.app"
-        minSdk 21
+        minSdk 23
         targetSdk flutter.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
