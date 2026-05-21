@@ -520,7 +520,7 @@ class _BreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (max > 0 ? value / max : 0).clamp(0.0, 1.0);
+    final pct = (max > 0 ? value / max : 0.0).clamp(0.0, 1.0);
     return Column(
       children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
