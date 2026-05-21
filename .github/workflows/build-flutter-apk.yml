@@ -78,13 +78,15 @@ jobs:
           set -o pipefail
           flutter build apk --release --split-per-abi 2>&1 | tee /tmp/flutter_build.log
 
-      - name: Show Gradle error (on failure)
+      - name: Show build error (on failure)
         if: failure()
         run: |
-          echo "========== GRADLE BUILD ERROR =========="
-          grep -E "^(.*error:|.*Error:|FAILURE:|> |Caused by:|What went wrong)" /tmp/flutter_build.log | head -60
-          echo "========== LAST 80 LINES ==============="
-          tail -80 /tmp/flutter_build.log
+          echo "========== FIRST 120 LINES (Dart errors appear here) =========="
+          head -120 /tmp/flutter_build.log
+          echo "========== GREP: error/Error/FAILURE/Exception =========="
+          grep -iE "(error:|FAILURE:|What went wrong|Caused by:|Exception|cannot find)" /tmp/flutter_build.log | head -60
+          echo "========== LAST 60 LINES =========="
+          tail -60 /tmp/flutter_build.log
 
       - name: Build release AAB (Play Store)
         working-directory: flutter_app
