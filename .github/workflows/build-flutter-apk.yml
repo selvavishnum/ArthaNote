@@ -63,6 +63,15 @@ jobs:
           print("Launcher icons generated ✅")
           PYEOF
 
+      - name: Print debug keystore SHA-1 (for Firebase Console)
+        run: |
+          keytool -list -v \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android -keypass android 2>/dev/null \
+            | grep -E "SHA1|SHA256" \
+            || echo "keytool not found or keystore not yet generated"
+
       - name: Get Flutter dependencies
         working-directory: flutter_app
         run: flutter pub get
