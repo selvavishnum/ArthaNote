@@ -8,6 +8,9 @@ import '../providers/app_provider.dart';
 import '../services/db_service.dart';
 import 'dashboard_tab.dart' show rupee;
 
+// ── Period enum ───────────────────────────────────────────────────────────────
+enum _Period { today, yesterday, week, month, custom, all }
+
 class LedgerTab extends StatefulWidget {
   const LedgerTab({super.key});
   @override
@@ -17,183 +20,476 @@ class LedgerTab extends StatefulWidget {
 class _LedgerTabState extends State<LedgerTab> {
   final _db     = DbService();
   final _search = TextEditingController();
-  String _filter = 'all';
+  String  _typeFilter  = 'all';
+  _Period _period      = _Period.today;
+  DateTimeRange? _customRange;
 
-  static const _filters = [
+  static const _typeOptions = [
     {'key': 'all',     'label': 'All'},
     {'key': 'sale',    'label': 'Sales'},
     {'key': 'expense', 'label': 'Expenses'},
     {'key': 'payment', 'label': 'Payments'},
   ];
 
+  // ── Date range for active period ──────────────────────────────────────────
+  DateTimeRange _range() {
+    final now   = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final eod   = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    switch (_period) {
+      case _Period.today:
+        return DateTimeRange(start: today, end: eod);
+      case _Period.yesterday:
+        final y = today.subtract(const Duration(days: 1));
+        return DateTimeRange(
+            start: y,
+            end: DateTime(y.year, y.month, y.day, 23, 59, 59));
+      case _Period.week:
+        return DateTimeRange(
+            start: today.subtract(const Duration(days: 6)), end: eod);
+      case _Period.month:
+        return DateTimeRange(
+            start: DateTime(now.year, now.month, 1), end: eod);
+      case _Period.custom:
+        return _customRange ??
+            DateTimeRange(
+                start: today.subtract(const Duration(days: 6)), end: eod);
+      case _Period.all:
+        return DateTimeRange(start: DateTime(2020), end: eod);
+    }
+  }
+
+  // ── Custom date range picker ──────────────────────────────────────────────
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: _customRange ??
+          DateTimeRange(
+              start: now.subtract(const Duration(days: 6)), end: now),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(primary: kPrimary),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _customRange = DateTimeRange(
+          start: picked.start,
+          end: DateTime(
+              picked.end.year, picked.end.month, picked.end.day, 23, 59, 59),
+        );
+        _period = _Period.custom;
+      });
+    }
+  }
+
+  // ── Apply all filters ─────────────────────────────────────────────────────
+  List<Txn> _applyFilters(List<Txn> all, String selectedShop) {
+    final r = _range();
+    var txns = all.where((tx) {
+      final inRange = !tx.date.isBefore(r.start) && !tx.date.isAfter(r.end);
+      final inShop  = selectedShop.isEmpty || tx.shop == selectedShop;
+      final inType  = _typeFilter == 'all' || tx.type == _typeFilter;
+      return inRange && inShop && inType;
+    }).toList();
+
+    final q = _search.text.toLowerCase().trim();
+    if (q.isNotEmpty) {
+      txns = txns.where((tx) =>
+          tx.desc.toLowerCase().contains(q) ||
+          tx.shopName.toLowerCase().contains(q) ||
+          tx.type.contains(q)).toList();
+    }
+    return txns;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
     final l = p.lang;
 
-    return Column(children: [
-      // ── Search bar ────────────────────────────────────────────────────────
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: TextFormField(
-          controller: _search,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: t('search_hint', l),
-            prefixIcon: const Icon(Icons.search_outlined, color: kPrimary),
-            suffixIcon: _search.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () { _search.clear(); setState(() {}); })
-                : null,
-            contentPadding: const EdgeInsets.symmetric(vertical: 10),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-        ),
-      ),
+    return StreamBuilder<List<Txn>>(
+      stream: _db.txnStream(p.businessId),
+      builder: (ctx, snap) {
+        final all  = snap.data ?? [];
+        final txns = _applyFilters(all, p.selectedShop);
 
-      // ── Type filter chips ─────────────────────────────────────────────────
-      SizedBox(
-        height: 44,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-          children: _filters.map((f) {
-            final active = _filter == f['key'];
-            return GestureDetector(
-              onTap: () => setState(() => _filter = f['key']!),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: active ? kPrimary : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: active ? kPrimary : const Color(0xFFE5E7EB)),
-                ),
-                child: Center(
-                  child: Text(
-                    f['label']!,
-                    style: TextStyle(
-                      color: active ? Colors.white : Colors.grey.shade700,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+        final totalSales   = txns.where((x) => x.type == 'sale')
+            .fold(0.0, (s, x) => s + x.amount);
+        final totalExpense = txns.where((x) => x.type == 'expense')
+            .fold(0.0, (s, x) => s + x.amount);
+
+        // Group by date (key = epoch day for sorting)
+        final groups = <DateTime, List<Txn>>{};
+        for (final tx in txns) {
+          final day = DateTime(tx.date.year, tx.date.month, tx.date.day);
+          groups.putIfAbsent(day, () => []).add(tx);
+        }
+        final days = groups.keys.toList()
+          ..sort((a, b) => b.compareTo(a)); // newest first
+
+        return Column(children: [
+          // ── Cash Book header ──────────────────────────────────────────────
+          _buildHeader(txns.length, totalSales, totalExpense, l),
+
+          // ── Search bar ────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: TextFormField(
+              controller: _search,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: t('search_hint', l),
+                prefixIcon:
+                    const Icon(Icons.search_outlined, color: kPrimary),
+                suffixIcon: _search.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _search.clear();
+                          setState(() {});
+                        })
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+          ),
+
+          // ── Period chips ─────────────────────────────────────────────────
+          _buildPeriodRow(l),
+
+          // ── Type filter chips ─────────────────────────────────────────────
+          _buildTypeRow(),
+
+          // ── Loading / Empty / List ────────────────────────────────────────
+          Expanded(
+            child: snap.connectionState == ConnectionState.waiting
+                ? const Center(
+                    child: CircularProgressIndicator(color: kPrimary))
+                : txns.isEmpty
+                    ? _buildEmpty(l)
+                    : _buildList(days, groups, l),
+          ),
+        ]);
+      },
+    );
+  }
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  Widget _buildHeader(
+      int count, double sales, double expense, String l) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Text('📒', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 6),
+                  Text(
+                    t('cash_book', l),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: kText,
                     ),
+                  ),
+                ]),
+                const SizedBox(height: 4),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 12),
+                    children: [
+                      TextSpan(
+                        text: '$count ${t("entries", l)}  ',
+                        style: const TextStyle(color: kMuted),
+                      ),
+                      TextSpan(
+                        text: '+${rupee(sales)}',
+                        style: const TextStyle(
+                            color: kSecondary, fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(
+                        text: '  -${rupee(expense)}',
+                        style: const TextStyle(
+                            color: kRed, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // CSV button (coming soon)
+          GestureDetector(
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('CSV export — coming soon'),
+                backgroundColor: kPrimary,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: const Row(children: [
+                Icon(Icons.download_outlined, size: 15, color: kPrimary),
+                SizedBox(width: 4),
+                Text(
+                  'CSV',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: kPrimary,
+                  ),
+                ),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Period chips row ──────────────────────────────────────────────────────
+  Widget _buildPeriodRow(String l) {
+    final chips = [
+      ('📅 ${t("today", l)}',     _Period.today),
+      ('◀ ${t("yesterday", l)}',  _Period.yesterday),
+      ('📅 ${t("this_week", l)}', _Period.week),
+      ('📅 ${t("this_month", l)}',_Period.month),
+      ('📅 Custom',               _Period.custom),
+      ('📋 ${t("all", l)}',       _Period.all),
+    ];
+
+    return SizedBox(
+      height: 42,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        children: chips.map((chip) {
+          final label  = chip.$1;
+          final period = chip.$2;
+          final active = _period == period;
+
+          return GestureDetector(
+            onTap: () async {
+              if (period == _Period.custom) {
+                await _pickCustomRange();
+              } else {
+                setState(() => _period = period);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: active ? kPrimary : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: active ? kPrimary : const Color(0xFFE5E7EB),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  _period == _Period.custom && period == _Period.custom &&
+                          _customRange != null
+                      ? '${DateFormat("d MMM").format(_customRange!.start)} – ${DateFormat("d MMM").format(_customRange!.end)}'
+                      : label,
+                  style: TextStyle(
+                    color: active ? Colors.white : Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
                   ),
                 ),
               ),
-            );
-          }).toList(),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── Type filter row ───────────────────────────────────────────────────────
+  Widget _buildTypeRow() {
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),
+        children: _typeOptions.map((f) {
+          final active = _typeFilter == f['key'];
+          return GestureDetector(
+            onTap: () => setState(() => _typeFilter = f['key']!),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: active ? kText : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: active ? kText : const Color(0xFFE5E7EB),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  f['label']!,
+                  style: TextStyle(
+                    color: active ? Colors.white : Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  Widget _buildEmpty(String l) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Container(
+        width: 80, height: 80,
+        decoration: BoxDecoration(
+          color: kPrimary.withOpacity(0.06),
+          shape: BoxShape.circle,
+        ),
+        child: const Center(
+          child: Text('📬', style: TextStyle(fontSize: 36)),
         ),
       ),
+      const SizedBox(height: 16),
+      Text(
+        'No transactions',
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 17,
+          color: kText,
+        ),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        'Tap Entry tab to add your first entry',
+        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+      ),
+    ]),
+  );
 
-      // ── Transaction list ──────────────────────────────────────────────────
-      Expanded(
-        child: StreamBuilder<List<Txn>>(
-          stream: _db.txnStream(p.businessId),
-          builder: (ctx, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(
-                  child: CircularProgressIndicator(color: kPrimary));
-            }
+  // ── Grouped list ──────────────────────────────────────────────────────────
+  Widget _buildList(
+      List<DateTime> days, Map<DateTime, List<Txn>> groups, String l) {
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 100),
+      itemCount: days.length,
+      itemBuilder: (_, i) {
+        final day   = days[i];
+        final items = groups[day]!;
 
-            var txns = snap.data ?? [];
+        final daySales   = items.where((x) => x.type == 'sale')
+            .fold(0.0, (s, x) => s + x.amount);
+        final dayExpense = items.where((x) => x.type == 'expense')
+            .fold(0.0, (s, x) => s + x.amount);
+        final dayNet = daySales - dayExpense;
 
-            // Apply type filter
-            if (_filter != 'all') {
-              txns = txns.where((tx) => tx.type == _filter).toList();
-            }
-
-            // Apply search
-            final q = _search.text.toLowerCase().trim();
-            if (q.isNotEmpty) {
-              txns = txns.where((tx) =>
-                  tx.desc.toLowerCase().contains(q) ||
-                  tx.shopName.toLowerCase().contains(q) ||
-                  tx.type.contains(q)).toList();
-            }
-
-            if (txns.isEmpty) {
-              return Center(
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Text('🔍', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 12),
-                  Text(
-                    t('no_entries', l),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 16, color: kPrimary)),
-                ]),
-              );
-            }
-
-            // Group by date
-            final groups = <String, List<Txn>>{};
-            for (final txn in txns) {
-              final key = DateFormat('dd MMM yyyy').format(txn.date);
-              groups.putIfAbsent(key, () => []).add(txn);
-            }
-            final keys = groups.keys.toList();
-
-            return ListView.builder(
-              padding: const EdgeInsets.only(bottom: 100),
-              itemCount: keys.length,
-              itemBuilder: (_, i) {
-                final key   = keys[i];
-                final items = groups[key]!;
-                final dayNet = items.fold(0.0, (s, tx) {
-                  if (tx.type == 'sale') return s + tx.amount;
-                  if (tx.type == 'expense') return s - tx.amount;
-                  return s;
-                });
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date header
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            key,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: kPrimary,
-                              fontSize: 12,
-                            ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Day group header ─────────────────────────────────────────
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Row(
+                children: [
+                  // Colored triangle indicator
+                  Container(
+                    width: 8, height: 8,
+                    decoration: BoxDecoration(
+                      color: dayNet >= 0 ? kSecondary : kRed,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat('EEE, d MMM, yyyy').format(day),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: kText,
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: (dayNet >= 0 ? kSecondary : kRed)
-                                  .withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${dayNet >= 0 ? "+" : ""}${rupee(dayNet)}',
-                              style: TextStyle(
-                                color: dayNet >= 0 ? kSecondary : kRed,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${items.length} ${t("entries", l)}',
+                          style: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Text(
+                      '${dayNet >= 0 ? "+" : "-"}${rupee(dayNet.abs())}',
+                      style: TextStyle(
+                        color: dayNet >= 0 ? kSecondary : kRed,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
                       ),
                     ),
-                    ...items.map((txn) => _LedgerTile(txn: txn)),
-                  ],
-                );
-              },
-            );
-          },
-        ),
-      ),
-    ]);
+                    const SizedBox(height: 2),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text('↑${rupee(daySales)}',
+                          style: TextStyle(
+                              color: kSecondary.withOpacity(0.8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 6),
+                      Text('↓${rupee(dayExpense)}',
+                          style: TextStyle(
+                              color: kRed.withOpacity(0.8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600)),
+                    ]),
+                  ]),
+                ],
+              ),
+            ),
+            // ── Entries ──────────────────────────────────────────────────
+            ...items.map((txn) => _LedgerTile(txn: txn)),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -203,32 +499,35 @@ class _LedgerTabState extends State<LedgerTab> {
   }
 }
 
-// ── Ledger tile with swipe-to-delete ─────────────────────────────────────────
+// ── Ledger tile ───────────────────────────────────────────────────────────────
 class _LedgerTile extends StatelessWidget {
   final Txn txn;
   const _LedgerTile({required this.txn});
 
   @override
   Widget build(BuildContext context) {
-    final isIncome = txn.type == 'sale' || txn.type == 'payment';
-    final color    = txn.type == 'expense' ? kRed : kSecondary;
-    final icon     = txn.type == 'sale' ? '📈' : txn.type == 'expense' ? '📉' : '💳';
+    final isSale    = txn.type == 'sale';
+    final isExpense = txn.type == 'expense';
+    final color     = isExpense ? kRed : isSale ? kSecondary : kAmber;
 
     return Dismissible(
       key: Key(txn.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
         decoration: BoxDecoration(
           color: kRed.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        child: const Column(mainAxisAlignment: MainAxisAlignment.center,
+            children: [
           Icon(Icons.delete_outline, color: kRed, size: 22),
           SizedBox(height: 2),
-          Text('Delete', style: TextStyle(color: kRed, fontSize: 10, fontWeight: FontWeight.w600)),
+          Text('Delete',
+              style: TextStyle(
+                  color: kRed, fontSize: 10, fontWeight: FontWeight.w600)),
         ]),
       ),
       confirmDismiss: (_) => showDialog<bool>(
@@ -236,48 +535,90 @@ class _LedgerTile extends StatelessWidget {
         builder: (_) => AlertDialog(
           title: const Text('Delete entry?'),
           content: Text(
-            'Delete "${txn.desc.isEmpty ? txn.type.toUpperCase() : txn.desc}"?'),
+              'Delete "${txn.desc.isEmpty ? txn.type.toUpperCase() : txn.desc}"?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
             TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: TextButton.styleFrom(foregroundColor: kRed),
-              child: const Text('Delete'),
-            ),
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: kRed),
+                child: const Text('Delete')),
           ],
         ),
       ),
       onDismissed: (_) => DbService().deleteTxn(txn.id),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-        child: ListTile(
-          leading: Container(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 2),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
+          ),
+        ),
+        child: Row(children: [
+          // ── Arrow icon ──────────────────────────────────────────────────
+          Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
+            child: Center(
+              child: Icon(
+                isExpense
+                    ? Icons.arrow_downward_rounded
+                    : isSale
+                        ? Icons.arrow_upward_rounded
+                        : Icons.swap_horiz_rounded,
+                color: color,
+                size: 20,
+              ),
+            ),
           ),
-          title: Text(
-            txn.desc.isEmpty ? txn.type.toUpperCase() : txn.desc,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-            overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 12),
+
+          // ── Name + subtitle ─────────────────────────────────────────────
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              Text(
+                txn.desc.isEmpty ? txn.type.toUpperCase() : txn.desc,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: kText,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                [
+                  if (txn.shopName.isNotEmpty) txn.shopName,
+                  _capitalise(txn.type),
+                  DateFormat('hh:mm a').format(txn.date),
+                ].join(' · '),
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ]),
           ),
-          subtitle: Text(
-            '${txn.shopName.isNotEmpty ? "${txn.shopName} · " : ""}${DateFormat("hh:mm a").format(txn.date)}',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-          ),
-          trailing: Text(
-            '${isIncome ? "+" : "−"}${rupee(txn.amount)}',
+
+          // ── Amount ──────────────────────────────────────────────────────
+          Text(
+            '${isExpense ? "-" : "+"}${rupee(txn.amount)}',
             style: TextStyle(
-                color: color, fontWeight: FontWeight.w800, fontSize: 14),
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
           ),
-        ),
+        ]),
       ),
     );
   }
+
+  String _capitalise(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }

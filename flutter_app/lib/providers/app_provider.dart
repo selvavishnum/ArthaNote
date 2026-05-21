@@ -22,6 +22,7 @@ class AppProvider extends ChangeNotifier {
   bool               get loaded       => _loaded;
 
   bool get isOnboarded => _profile['onboarded'] == true;
+  bool get isAdmin     => ((_profile['email'] as String?) ?? '') == 'selvavishnu.m@gmail.com';
 
   // ── init ──────────────────────────────────────────────────────────────────
   Future<void> init(String uid) async {
