@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
-import '../l10n.dart';
 import '../models/txn.dart';
 import '../models/shop.dart';
 import '../providers/app_provider.dart';
@@ -50,7 +49,6 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
-    final l = p.lang;
     final shop = widget.shop;
 
     final periods = ['Today', 'Yesterday', 'This Week', 'This Month', 'All'];
@@ -520,7 +518,7 @@ class _BreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (max > 0 ? value / max : 0.0).clamp(0.0, 1.0);
+    final double pct = max > 0 ? (value / max).clamp(0.0, 1.0) : 0.0;
     return Column(
       children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
