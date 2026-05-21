@@ -28,11 +28,11 @@ class _EntryTabState extends State<EntryTab> {
 
   static const _typeOptions = [
     {'type': 'sale',    'label': 'Sales / Income', 'icon': '💚', 'color': kSecondary},
-    {'type': 'expense', 'label': 'Expense',         'icon': '📉',  'color': kRed},
-    {'type': 'payment', 'label': 'Payment',         'icon': '💳',  'color': kAmber},
+    {'type': 'expense', 'label': 'Expense',         'icon': '📉', 'color': kRed},
+    {'type': 'payment', 'label': 'Payment',         'icon': '💳', 'color': kAmber},
   ];
 
-  static const _saleCategories  = ['Cash', 'GPay', 'Credit', 'Wholesale', 'Retail'];
+  static const _saleCategories    = ['Cash', 'GPay', 'Credit', 'Wholesale', 'Retail'];
   static const _expenseCategories = ['Purchase', 'Rent', 'Labour', 'Transport', 'Misc'];
   static const _paymentCategories = ['Supplier', 'Loan', 'Staff', 'Utility'];
 
@@ -41,6 +41,10 @@ class _EntryTabState extends State<EntryTab> {
     if (_type == 'expense') return _expenseCategories;
     return _paymentCategories;
   }
+
+  Map<String, dynamic> get _selectedTypeConfig =>
+      _typeOptions.firstWhere((c) => c['type'] == _type,
+          orElse: () => _typeOptions.first);
 
   Future<void> _save(AppProvider p) async {
     final raw = _amount.text.replaceAll(',', '').trim();
@@ -73,7 +77,7 @@ class _EntryTabState extends State<EntryTab> {
         amount:     amt,
         desc:       description,
       ));
-      _snack('✅ Entry saved successfully');
+      _snack('Entry saved ✅');
       _reset(p);
     } catch (e) {
       _snack(e.toString(), error: true);
@@ -113,34 +117,25 @@ class _EntryTabState extends State<EntryTab> {
       _shopId = p.shops.values.first.id;
     }
 
-    final selectedType = _typeOptions.firstWhere(
-      (c) => c['type'] == _type,
-      orElse: () => _typeOptions.first,
-    );
+    final typeColor = _selectedTypeConfig['color'] as Color;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 4),
 
           // ── Section title ──────────────────────────────────────────────────
-          Row(children: [
-            const Text('✏️', style: TextStyle(fontSize: 16)),
-            const SizedBox(width: 8),
-            Text(
-              t('add_transaction', l).toUpperCase(),
-              style: const TextStyle(
-                color: kPrimary,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-                letterSpacing: 1.1,
-              ),
+          Text(
+            '✏️ ${t("add_transaction", l).toUpperCase()}',
+            style: const TextStyle(
+              color: kPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
             ),
-          ]),
-          const Divider(height: 16),
-          const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 14),
 
           // ── DATE + SHOP row ────────────────────────────────────────────────
           Row(children: [
@@ -184,8 +179,11 @@ class _EntryTabState extends State<EntryTab> {
                 label: 'SHOP',
                 child: p.shops.isEmpty
                     ? _DropdownBox(
-                        child: Text('No shops',
-                            style: TextStyle(color: kMuted, fontSize: 13)))
+                        child: Text(
+                          'No shops',
+                          style: TextStyle(color: kMuted, fontSize: 13),
+                        ),
+                      )
                     : _DropdownBox(
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
@@ -200,8 +198,9 @@ class _EntryTabState extends State<EntryTab> {
                                       child: Text(
                                         '${s.icon} ${s.name}',
                                         style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ))
@@ -232,9 +231,10 @@ class _EntryTabState extends State<EntryTab> {
                           .map((c) => DropdownMenuItem<String>(
                                 value: c['type'] as String,
                                 child: Row(children: [
-                                  Text(c['icon'] as String,
-                                      style:
-                                          const TextStyle(fontSize: 14)),
+                                  Text(
+                                    c['icon'] as String,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
@@ -244,6 +244,7 @@ class _EntryTabState extends State<EntryTab> {
                                         fontWeight: FontWeight.w600,
                                         color: c['color'] as Color,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ]),
@@ -266,7 +267,7 @@ class _EntryTabState extends State<EntryTab> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: selectedType['color'] as Color,
+                    color: typeColor,
                   ),
                   decoration: InputDecoration(
                     hintText: '0',
@@ -277,8 +278,7 @@ class _EntryTabState extends State<EntryTab> {
                         horizontal: 12, vertical: 12),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(
-                          color: selectedType['color'] as Color, width: 2),
+                      borderSide: BorderSide(color: typeColor, width: 2),
                     ),
                   ),
                 ),
@@ -290,8 +290,8 @@ class _EntryTabState extends State<EntryTab> {
 
           // ── Quick select categories ────────────────────────────────────────
           Text(
-            'QUICK SELECT ${_type == 'sale' ? 'INCOME' : _type.toUpperCase()} TYPE',
-            style: TextStyle(
+            'QUICK SELECT ${_type == "sale" ? "INCOME" : _type.toUpperCase()} TYPE',
+            style: const TextStyle(
               color: kMuted,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -303,9 +303,12 @@ class _EntryTabState extends State<EntryTab> {
             spacing: 8,
             runSpacing: 6,
             children: [
-              // Custom chip (dashed border)
+              // Custom chip (outlined dashed-style)
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  _desc.clear();
+                  setState(() {});
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 7),
@@ -314,7 +317,6 @@ class _EntryTabState extends State<EntryTab> {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: const Color(0xFFD1D5DB),
-                      style: BorderStyle.solid,
                     ),
                   ),
                   child: const Text(
@@ -327,42 +329,52 @@ class _EntryTabState extends State<EntryTab> {
                   ),
                 ),
               ),
-              ..._categories.map((cat) => GestureDetector(
-                    onTap: () {
-                      if (_desc.text.isEmpty) {
-                        setState(() => _desc.text = cat);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: Text(
-                        cat,
-                        style: const TextStyle(
-                          color: kText,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+              // Category chips
+              ..._categories.map((cat) {
+                final isSelected = _desc.text == cat;
+                return GestureDetector(
+                  onTap: () => setState(() => _desc.text = cat),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? typeColor.withOpacity(0.1)
+                          : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? typeColor
+                            : const Color(0xFFE5E7EB),
                       ),
                     ),
-                  )),
+                    child: Text(
+                      cat,
+                      style: TextStyle(
+                        color: isSelected ? typeColor : kText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ],
           ),
 
           const SizedBox(height: 14),
 
           // ── Description ────────────────────────────────────────────────────
-          Text('DESCRIPTION',
-              style: TextStyle(
-                  color: kMuted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8)),
+          const Text(
+            'DESCRIPTION',
+            style: TextStyle(
+              color: kMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
           const SizedBox(height: 6),
           TextFormField(
             controller: _desc,
@@ -408,7 +420,7 @@ class _EntryTabState extends State<EntryTab> {
             ),
           ]),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
 
           // ── Add Entry button ───────────────────────────────────────────────
           SizedBox(
@@ -418,26 +430,24 @@ class _EntryTabState extends State<EntryTab> {
               onPressed: _saving ? null : () => _save(p),
               style: ElevatedButton.styleFrom(
                 backgroundColor: kPrimary,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               child: _saving
                   ? const SizedBox(
-                      width: 22, height: 22,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5))
-                  : const Text(
-                      '+ Add Entry',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                          color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text('+ Add Entry'),
             ),
           ),
-
-          const SizedBox(height: 40),
         ],
       ),
     );
@@ -464,12 +474,15 @@ class _LabelField extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  color: kMuted,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: kMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
           const SizedBox(height: 6),
           child,
         ],
@@ -487,6 +500,7 @@ class _DropdownBox extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFFE5E7EB)),
+          boxShadow: kCardShadow,
         ),
         child: Row(children: [
           Expanded(child: child),
