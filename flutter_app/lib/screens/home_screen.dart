@@ -22,14 +22,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
 
-  // IndexedStack preserves scroll state across tab switches
-  static const _bodies = [
-    DashboardTab(),
-    ScanTab(),
-    EntryTab(),
-    LedgerTab(),
-    SuppliersTab(),
-    ReportsTab(),
+  List<Widget> _bodies(bool isAdmin) => [
+    const DashboardTab(),
+    if (isAdmin) const ScanTab(),
+    const EntryTab(),
+    const LedgerTab(),
+    const SuppliersTab(),
+    const ReportsTab(),
   ];
 
   Future<void> _logout() async {
@@ -65,6 +64,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
 
+    final isAdmin = p.isAdmin;
+    final bodies  = _bodies(isAdmin);
+    final safeTab = _tab.clamp(0, bodies.length - 1);
+
     return Scaffold(
       backgroundColor: kBg,
       // No AppBar — we render a custom header inside the body column
@@ -75,13 +78,13 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildShopChipsRow(context, p),
           Expanded(
             child: IndexedStack(
-              index: _tab,
-              children: _bodies,
+              index: safeTab,
+              children: bodies,
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(p.lang),
+      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin),
     );
   }
 
@@ -250,8 +253,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l) => BottomNavigationBar(
-    currentIndex: _tab,
+  Widget _buildBottomNav(String l, bool isAdmin) => BottomNavigationBar(
+    currentIndex: _tab.clamp(0, isAdmin ? 5 : 4),
     onTap: (i) => setState(() => _tab = i),
     type: BottomNavigationBarType.fixed,
     backgroundColor: Colors.white,
@@ -266,11 +269,12 @@ class _HomeScreenState extends State<HomeScreen> {
         activeIcon: const Icon(Icons.dashboard),
         label: t('dashboard', l),
       ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.document_scanner_outlined),
-        activeIcon: const Icon(Icons.document_scanner),
-        label: t('scan', l),
-      ),
+      if (isAdmin)
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.document_scanner_outlined),
+          activeIcon: const Icon(Icons.document_scanner),
+          label: t('scan', l),
+        ),
       BottomNavigationBarItem(
         icon: const Icon(Icons.add_circle_outline),
         activeIcon: const Icon(Icons.add_circle),

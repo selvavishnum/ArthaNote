@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../providers/app_provider.dart';
@@ -17,6 +19,7 @@ class SettingsScreen extends StatelessWidget {
     final name    = (profile['name']  as String?) ?? '';
     final email   = (profile['email'] as String?) ?? '';
     final role    = (profile['role']  as String?) ?? 'owner';
+    final isAdmin = p.isAdmin;
 
     return Scaffold(
       backgroundColor: kBg,
@@ -170,8 +173,19 @@ class SettingsScreen extends StatelessWidget {
                 title: t('backup', l),
                 subtitle: 'Export or restore your data',
                 onTap: () => _comingSoon(context, l),
-                isLast: true,
+                isLast: !isAdmin,
               ),
+              if (isAdmin) ...[
+                _ItemDivider(),
+                _SettingsItem(
+                  icon: Icons.key_outlined,
+                  iconColor: const Color(0xFFD97706),
+                  title: '🔑 OCR API Keys',
+                  subtitle: 'Gemini & Claude API keys',
+                  onTap: () => _showOcrApiKeys(context),
+                  isLast: true,
+                ),
+              ],
             ]),
           ),
 
@@ -260,6 +274,15 @@ class SettingsScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showOcrApiKeys(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const _OcrApiKeysSheet(),
     );
   }
 
@@ -393,5 +416,342 @@ class _ItemDivider extends StatelessWidget {
   Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.only(left: 68),
     child: Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
+  );
+}
+
+// ── OCR API Keys bottom sheet (admin only) ────────────────────────────────────
+class _OcrApiKeysSheet extends StatefulWidget {
+  const _OcrApiKeysSheet();
+  @override
+  State<_OcrApiKeysSheet> createState() => _OcrApiKeysSheetState();
+}
+
+class _OcrApiKeysSheetState extends State<_OcrApiKeysSheet> {
+  final _geminiCtrl = TextEditingController();
+  final _claudeCtrl = TextEditingController();
+  bool  _geminiOn   = true;
+  bool  _claudeOn   = true;
+  bool  _saving     = false;
+  bool  _geminiObscure = true;
+  bool  _claudeObscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _geminiCtrl.text = prefs.getString('slv_gemini_key') ?? '';
+      _claudeCtrl.text = prefs.getString('slv_key')        ?? '';
+      _geminiOn        = prefs.getBool('slv_gemini_on')    ?? true;
+      _claudeOn        = prefs.getBool('slv_claude_on')    ?? true;
+    });
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('slv_gemini_key', _geminiCtrl.text.trim());
+    await prefs.setString('slv_key',        _claudeCtrl.text.trim());
+    await prefs.setBool('slv_gemini_on',    _geminiOn);
+    await prefs.setBool('slv_claude_on',    _claudeOn);
+    if (mounted) {
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('API keys saved ✅'),
+          backgroundColor: kSecondary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final geminiConfigured = _geminiCtrl.text.trim().isNotEmpty;
+    final claudeConfigured = _claudeCtrl.text.trim().isNotEmpty;
+    final anyConfigured    = (_geminiOn && geminiConfigured) ||
+                             (_claudeOn && claudeConfigured);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Handle
+        Container(
+          width: 40, height: 4,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(height: 18),
+
+        // Header
+        Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: kAccent.withOpacity(0.1),
+              shape: BoxShape.circle),
+            child: const Center(
+              child: Text('🔑', style: TextStyle(fontSize: 20)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'OCR API Keys',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    color: kPrimary,
+                  ),
+                ),
+                Text(
+                  'Admin only · Keys stored on device',
+                  style: TextStyle(color: kMuted, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ]),
+        const SizedBox(height: 20),
+
+        // Gemini row
+        _ApiKeyRow(
+          color: const Color(0xFF4285F4),
+          label: 'Gemini',
+          badge: 'FREE',
+          badgeColor: kSecondary,
+          controller: _geminiCtrl,
+          obscure: _geminiObscure,
+          enabled: _geminiOn,
+          configured: geminiConfigured,
+          onToggleObscure: () => setState(() => _geminiObscure = !_geminiObscure),
+          onToggleEnabled: (v) => setState(() => _geminiOn = v),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+
+        // Claude row
+        _ApiKeyRow(
+          color: const Color(0xFFD97706),
+          label: 'Claude',
+          badge: 'PAID',
+          badgeColor: kRed,
+          controller: _claudeCtrl,
+          obscure: _claudeObscure,
+          enabled: _claudeOn,
+          configured: claudeConfigured,
+          onToggleObscure: () => setState(() => _claudeObscure = !_claudeObscure),
+          onToggleEnabled: (v) => setState(() => _claudeOn = v),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+
+        // Status row
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: anyConfigured
+                ? kSecondary.withOpacity(0.08)
+                : kRed.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: anyConfigured
+                  ? kSecondary.withOpacity(0.2)
+                  : kRed.withOpacity(0.2),
+            ),
+          ),
+          child: Row(children: [
+            Text(
+              anyConfigured ? '✅' : '⚠️',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              anyConfigured
+                  ? 'OCR engine ready'
+                  : 'No OCR engine configured',
+              style: TextStyle(
+                color: anyConfigured ? kSecondary : kRed,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '🔒 Stored locally',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 18),
+
+        // Save button
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _saving ? null : _save,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              textStyle: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5))
+                : const Text('✅  Save API Keys'),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  @override
+  void dispose() {
+    _geminiCtrl.dispose();
+    _claudeCtrl.dispose();
+    super.dispose();
+  }
+}
+
+// ── Single API key input row ──────────────────────────────────────────────────
+class _ApiKeyRow extends StatelessWidget {
+  final Color                color;
+  final String               label;
+  final String               badge;
+  final Color                badgeColor;
+  final TextEditingController controller;
+  final bool                 obscure;
+  final bool                 enabled;
+  final bool                 configured;
+  final VoidCallback         onToggleObscure;
+  final ValueChanged<bool>   onToggleEnabled;
+  final ValueChanged<String> onChanged;
+
+  const _ApiKeyRow({
+    required this.color,
+    required this.label,
+    required this.badge,
+    required this.badgeColor,
+    required this.controller,
+    required this.obscure,
+    required this.enabled,
+    required this.configured,
+    required this.onToggleObscure,
+    required this.onToggleEnabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: enabled ? Colors.white : const Color(0xFFF9FAFB),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: enabled && configured
+            ? kSecondary.withOpacity(0.4)
+            : const Color(0xFFE5E7EB),
+      ),
+    ),
+    child: Column(children: [
+      // Header row
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
+        child: Row(children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: kText,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: badgeColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: badgeColor.withOpacity(0.3)),
+            ),
+            child: Text(
+              badge,
+              style: TextStyle(
+                color: badgeColor,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            configured ? 'Configured' : 'Not configured',
+            style: TextStyle(
+              color: configured ? kSecondary : Colors.grey.shade400,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Switch(
+            value: enabled,
+            onChanged: onToggleEnabled,
+            activeColor: kPrimary,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ]),
+      ),
+      // Key input
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        child: TextFormField(
+          controller: controller,
+          obscureText: obscure,
+          onChanged: onChanged,
+          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+          decoration: InputDecoration(
+            hintText: 'Paste your $label API key here',
+            hintStyle: const TextStyle(fontSize: 12),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 10),
+            suffixIcon: IconButton(
+              icon: Icon(
+                obscure
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                size: 18,
+                color: kMuted,
+              ),
+              onPressed: onToggleObscure,
+            ),
+            suffixIconConstraints: const BoxConstraints(
+                minWidth: 36, minHeight: 36),
+          ),
+        ),
+      ),
+    ]),
   );
 }
