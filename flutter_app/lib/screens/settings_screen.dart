@@ -126,7 +126,7 @@ class SettingsScreen extends StatelessWidget {
                   builder: (_) => _ProfileSheet(p: p),
                 ),
               ),
-              _ItemDivider(),
+              const _ItemDivider(),
               _SettingsItem(
                 icon: Icons.store_outlined,
                 iconColor: kSecondary,
@@ -141,7 +141,7 @@ class SettingsScreen extends StatelessWidget {
                   builder: (_) => _ShopNamesSheet(p: p),
                 ),
               ),
-              _ItemDivider(),
+              const _ItemDivider(),
               _SettingsItem(
                 icon: Icons.people_outline,
                 iconColor: const Color(0xFF8B5CF6),
@@ -156,7 +156,7 @@ class SettingsScreen extends StatelessWidget {
                   builder: (_) => _StaffSheet(businessId: p.businessId),
                 ),
               ),
-              _ItemDivider(),
+              const _ItemDivider(),
               _SettingsItem(
                 icon: Icons.qr_code_outlined,
                 iconColor: kPrimary,
@@ -169,7 +169,7 @@ class SettingsScreen extends StatelessWidget {
                   }
                 },
               ),
-              _ItemDivider(),
+              const _ItemDivider(),
               _SettingsItem(
                 icon: Icons.receipt_outlined,
                 iconColor: kAccent,
@@ -184,7 +184,7 @@ class SettingsScreen extends StatelessWidget {
                   builder: (_) => const _GstSheet(),
                 ),
               ),
-              _ItemDivider(),
+              const _ItemDivider(),
               _SettingsItem(
                 icon: Icons.edit_note_outlined,
                 iconColor: const Color(0xFF0EA5E9),
@@ -199,7 +199,7 @@ class SettingsScreen extends StatelessWidget {
                   builder: (_) => const _CategoriesSheet(),
                 ),
               ),
-              _ItemDivider(),
+              const _ItemDivider(),
               _SettingsItem(
                 icon: Icons.save_outlined,
                 iconColor: const Color(0xFF10B981),
@@ -216,7 +216,7 @@ class SettingsScreen extends StatelessWidget {
                 isLast: !isAdmin,
               ),
               if (isAdmin) ...[
-                _ItemDivider(),
+                const _ItemDivider(),
                 _SettingsItem(
                   icon: Icons.key_outlined,
                   iconColor: const Color(0xFFD97706),
@@ -404,6 +404,7 @@ class _SettingsItem extends StatelessWidget {
 }
 
 class _ItemDivider extends StatelessWidget {
+  const _ItemDivider();
   @override
   Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.only(left: 68),
@@ -463,7 +464,7 @@ class _ProfileSheetState extends State<_ProfileSheet> {
       padding: EdgeInsets.fromLTRB(
           20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _SheetHandle(),
+        const _SheetHandle(),
         const SizedBox(height: 18),
         Row(children: [
           CircleAvatar(
@@ -560,7 +561,7 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
       padding: EdgeInsets.fromLTRB(
           20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _SheetHandle(),
+        const _SheetHandle(),
         const SizedBox(height: 18),
         Row(children: [
           const Text('🏪', style: TextStyle(fontSize: 20)),
@@ -640,7 +641,7 @@ class _StaffSheet extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _SheetHandle(),
+        const _SheetHandle(),
         const SizedBox(height: 18),
         const Row(children: [
           Text('👥', style: TextStyle(fontSize: 20)),
@@ -739,10 +740,12 @@ class _GstSheetState extends State<_GstSheet> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) setState(() {
-      _gstOn = prefs.getBool('slv_gst')     ?? false;
-      _rate  = prefs.getDouble('slv_gstrate') ?? 18.0;
-    });
+    if (mounted) {
+      setState(() {
+        _gstOn = prefs.getBool('slv_gst')      ?? false;
+        _rate  = prefs.getDouble('slv_gstrate') ?? 18.0;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -768,7 +771,7 @@ class _GstSheetState extends State<_GstSheet> {
       padding: EdgeInsets.fromLTRB(
           20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _SheetHandle(),
+        const _SheetHandle(),
         const SizedBox(height: 18),
         Row(children: [
           const Text('🧾', style: TextStyle(fontSize: 20)),
@@ -869,7 +872,7 @@ class _CategoriesSheet extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _SheetHandle(),
+        const _SheetHandle(),
         const SizedBox(height: 18),
         const Row(children: [
           Text('📋', style: TextStyle(fontSize: 20)),
@@ -934,7 +937,7 @@ class _BackupSheet extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _SheetHandle(),
+        const _SheetHandle(),
         const SizedBox(height: 18),
         const Row(children: [
           Text('💾', style: TextStyle(fontSize: 22)),
@@ -1068,7 +1071,7 @@ class _OcrApiKeysSheetState extends State<_OcrApiKeysSheet> {
       padding: EdgeInsets.fromLTRB(
           20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _SheetHandle(),
+        const _SheetHandle(),
         const SizedBox(height: 18),
         Row(children: [
           Container(
@@ -1169,6 +1172,7 @@ class _OcrApiKeysSheetState extends State<_OcrApiKeysSheet> {
 
 // ── Shared handle widget ──────────────────────────────────────────────────────
 class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
   @override
   Widget build(BuildContext context) => Center(
     child: Container(
