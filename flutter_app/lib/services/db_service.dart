@@ -8,23 +8,22 @@ class DbService {
   // ── Transactions ──────────────────────────────────────────────────────────
 
   /// Stream of transactions for [businessId]. Optionally filtered by [shop].
-  /// Ordered by date descending, limited to 500 entries.
+  /// Sorted client-side to avoid requiring a composite Firestore index.
   Stream<List<Txn>> txnStream(String businessId, {String? shop}) {
     Query<Map<String, dynamic>> q = _db
         .collection('transactions')
         .where('businessId', isEqualTo: businessId)
-        .orderBy('date', descending: true)
         .limit(500);
 
     if (shop != null && shop.isNotEmpty) {
       q = q.where('shop', isEqualTo: shop);
     }
 
-    return q.snapshots().map(
-      (snapshot) => snapshot.docs
-          .map((doc) => Txn.fromFirestore(doc))
-          .toList(),
-    );
+    return q.snapshots().map((snapshot) {
+      final list = snapshot.docs.map((doc) => Txn.fromFirestore(doc)).toList();
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
+    });
   }
 
   Future<void> addTxn(Txn txn) =>
@@ -35,18 +34,19 @@ class DbService {
 
   // ── Suppliers ─────────────────────────────────────────────────────────────
 
-  /// Stream of all suppliers for [businessId], ordered by name.
+  /// Stream of all suppliers for [businessId], sorted client-side by name.
   Stream<List<Supplier>> supplierStream(String businessId) {
-    Query<Map<String, dynamic>> q = _db
+    return _db
         .collection('suppliers')
         .where('businessId', isEqualTo: businessId)
-        .orderBy('name');
-
-    return q.snapshots().map(
-      (snapshot) => snapshot.docs
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs
           .map((doc) => Supplier.fromFirestore(doc))
-          .toList(),
-    );
+          .toList();
+      list.sort((a, b) => a.name.compareTo(b.name));
+      return list;
+    });
   }
 
   Future<void> addSupplier(Supplier supplier) =>

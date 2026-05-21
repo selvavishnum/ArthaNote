@@ -77,7 +77,7 @@ class _EntryTabState extends State<EntryTab> {
         amount:     amt,
         desc:       description,
       ));
-      _snack('Entry saved ✅');
+      _snack('Entry saved');
       _reset(p);
     } catch (e) {
       _snack(e.toString(), error: true);
@@ -125,9 +125,8 @@ class _EntryTabState extends State<EntryTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ── Section title ──────────────────────────────────────────────────
           Text(
-            '✏️ ${t("add_transaction", l).toUpperCase()}',
+            '${t("add_transaction", l).toUpperCase()}',
             style: const TextStyle(
               color: kPrimary,
               fontSize: 11,
@@ -137,9 +136,56 @@ class _EntryTabState extends State<EntryTab> {
           ),
           const SizedBox(height: 14),
 
-          // ── DATE + SHOP row ────────────────────────────────────────────────
+          // Type selector — 3 tap cards (no Expanded inside DropdownMenuItem)
+          Row(
+            children: _typeOptions.map((cfg) {
+              final active = _type == cfg['type'];
+              final c      = cfg['color'] as Color;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _type = cfg['type'] as String;
+                    _desc.clear();
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: active ? c.withOpacity(0.12) : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: active ? c : const Color(0xFFE5E7EB),
+                        width: active ? 2 : 1,
+                      ),
+                      boxShadow: kCardShadow,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(cfg['icon'] as String,
+                            style: const TextStyle(fontSize: 18)),
+                        const SizedBox(height: 4),
+                        Text(
+                          (cfg['label'] as String).split('/').first.trim(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: active ? c : kMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 14),
+
+          // DATE + SHOP row
           Row(children: [
-            // Date picker
             Expanded(
               child: _LabelField(
                 label: 'DATE',
@@ -162,34 +208,44 @@ class _EntryTabState extends State<EntryTab> {
                       setState(() => _date = picked);
                     }
                   },
-                  child: _DropdownBox(
-                    child: Text(
-                      DateFormat('dd/MM/yyyy').format(_date),
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
+                  child: _FieldBox(
+                    child: Row(children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 14, color: kPrimary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          DateFormat('dd/MM/yyyy').format(_date),
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down,
+                          size: 18, color: kMuted),
+                    ]),
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            // Shop selector
             Expanded(
               child: _LabelField(
                 label: 'SHOP',
                 child: p.shops.isEmpty
-                    ? _DropdownBox(
+                    ? _FieldBox(
                         child: Text(
                           'No shops',
                           style: TextStyle(color: kMuted, fontSize: 13),
                         ),
                       )
-                    : _DropdownBox(
+                    : _FieldBox(
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: _shopId.isEmpty ? null : _shopId,
                             isExpanded: true,
                             isDense: true,
+                            icon: const Icon(Icons.arrow_drop_down,
+                                size: 18, color: kMuted),
                             onChanged: (v) =>
                                 setState(() => _shopId = v ?? ''),
                             items: p.shops.values
@@ -214,84 +270,44 @@ class _EntryTabState extends State<EntryTab> {
 
           const SizedBox(height: 14),
 
-          // ── TYPE + AMOUNT row ──────────────────────────────────────────────
-          Row(children: [
-            // Type dropdown
-            Expanded(
-              child: _LabelField(
-                label: 'TYPE',
-                child: _DropdownBox(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _type,
-                      isExpanded: true,
-                      isDense: true,
-                      onChanged: (v) => setState(() => _type = v ?? 'sale'),
-                      items: _typeOptions
-                          .map((c) => DropdownMenuItem<String>(
-                                value: c['type'] as String,
-                                child: Row(children: [
-                                  Text(
-                                    c['icon'] as String,
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      c['label'] as String,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: c['color'] as Color,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ]),
-                              ))
-                          .toList(),
-                    ),
-                  ),
+          // AMOUNT
+          _LabelField(
+            label: 'AMOUNT (${t("amount", l).split(" ").last})',
+            child: TextFormField(
+              controller: _amount,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: typeColor,
+              ),
+              decoration: InputDecoration(
+                hintText: '0',
+                prefixText: '₹ ',
+                prefixStyle: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: typeColor),
+                hintStyle: TextStyle(
+                    fontSize: 22, color: Colors.grey.shade300),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 14),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: typeColor, width: 2),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            // Amount field
-            Expanded(
-              child: _LabelField(
-                label: 'AMOUNT (₹)',
-                child: TextFormField(
-                  controller: _amount,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: typeColor,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: '0',
-                    hintStyle: TextStyle(
-                        fontSize: 16, color: Colors.grey.shade300),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 12),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: typeColor, width: 2),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ]),
+          ),
 
           const SizedBox(height: 14),
 
-          // ── Quick select categories ────────────────────────────────────────
-          Text(
-            'QUICK SELECT ${_type == "sale" ? "INCOME" : _type.toUpperCase()} TYPE',
-            style: const TextStyle(
+          // Quick categories
+          const Text(
+            'QUICK SELECT',
+            style: TextStyle(
               color: kMuted,
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -303,21 +319,15 @@ class _EntryTabState extends State<EntryTab> {
             spacing: 8,
             runSpacing: 6,
             children: [
-              // Custom chip (outlined dashed-style)
               GestureDetector(
-                onTap: () {
-                  _desc.clear();
-                  setState(() {});
-                },
+                onTap: () { _desc.clear(); setState(() {}); },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFD1D5DB),
-                    ),
+                    border: Border.all(color: const Color(0xFFD1D5DB)),
                   ),
                   child: const Text(
                     '+ Custom',
@@ -329,7 +339,6 @@ class _EntryTabState extends State<EntryTab> {
                   ),
                 ),
               ),
-              // Category chips
               ..._categories.map((cat) {
                 final isSelected = _desc.text == cat;
                 return GestureDetector(
@@ -365,7 +374,7 @@ class _EntryTabState extends State<EntryTab> {
 
           const SizedBox(height: 14),
 
-          // ── Description ────────────────────────────────────────────────────
+          // Description
           const Text(
             'DESCRIPTION',
             style: TextStyle(
@@ -387,7 +396,7 @@ class _EntryTabState extends State<EntryTab> {
 
           const SizedBox(height: 14),
 
-          // ── BILL/REF + NOTE row ────────────────────────────────────────────
+          // BILL/REF + NOTE
           Row(children: [
             Expanded(
               child: _LabelField(
@@ -422,7 +431,6 @@ class _EntryTabState extends State<EntryTab> {
 
           const SizedBox(height: 22),
 
-          // ── Add Entry button ───────────────────────────────────────────────
           SizedBox(
             width: double.infinity,
             height: 52,
@@ -445,7 +453,7 @@ class _EntryTabState extends State<EntryTab> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.5),
                     )
-                  : const Text('+ Add Entry'),
+                  : Text('+ ${t("add_entry", l)}'),
             ),
           ),
         ],
@@ -463,8 +471,6 @@ class _EntryTabState extends State<EntryTab> {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 class _LabelField extends StatelessWidget {
   final String label;
   final Widget child;
@@ -474,24 +480,22 @@ class _LabelField extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: kMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
+          Text(label,
+              style: const TextStyle(
+                color: kMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              )),
           const SizedBox(height: 6),
           child,
         ],
       );
 }
 
-class _DropdownBox extends StatelessWidget {
+class _FieldBox extends StatelessWidget {
   final Widget child;
-  const _DropdownBox({required this.child});
+  const _FieldBox({required this.child});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -502,9 +506,6 @@ class _DropdownBox extends StatelessWidget {
           border: Border.all(color: const Color(0xFFE5E7EB)),
           boxShadow: kCardShadow,
         ),
-        child: Row(children: [
-          Expanded(child: child),
-          const Icon(Icons.keyboard_arrow_down, size: 16, color: kMuted),
-        ]),
+        child: child,
       );
 }
