@@ -67,14 +67,20 @@ jobs:
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/arthanote-release.keystore
-            echo "KEYSTORE_PATH=/tmp/arthanote-release.keystore" >> $GITHUB_ENV
-            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-            echo "✅ Release keystore loaded"
-            keytool -list -v -keystore /tmp/arthanote-release.keystore \
-              -storepass "${{ secrets.KEYSTORE_PASSWORD }}" 2>/dev/null \
-              | grep -E "SHA1|SHA256" || true
+            # Verify the password is correct before committing to release signing
+            if keytool -list -keystore /tmp/arthanote-release.keystore \
+                -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null 2>&1; then
+              echo "KEYSTORE_PATH=/tmp/arthanote-release.keystore" >> $GITHUB_ENV
+              echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+              echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+              echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+              echo "✅ Release keystore verified and loaded"
+              keytool -list -v -keystore /tmp/arthanote-release.keystore \
+                -storepass "${{ secrets.KEYSTORE_PASSWORD }}" 2>/dev/null \
+                | grep -E "SHA1|SHA256" || true
+            else
+              echo "⚠️  Keystore password incorrect — falling back to debug signing"
+            fi
           else
             echo "⚠️  KEYSTORE_BASE64 secret not set — using debug keystore (Google Sign-In won't work)"
           fi
