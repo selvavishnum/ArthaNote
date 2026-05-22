@@ -29,11 +29,14 @@ class Txn {
       shop:       d['shop']       as String? ?? '',
       shopName:   d['shopName']   as String? ?? '',
       date:       _parseDate(d['date']),
-      type:       d['type']       as String? ?? 'sale',
+      type:       _normType(d['type'] as String? ?? 'sale'),
       amount:     (d['amount']    as num?)?.toDouble() ?? 0,
       desc:       d['desc']       as String? ?? '',
     );
   }
+
+  // Website stores 'sales'; Android uses 'sale'. Normalize on read.
+  static String _normType(String t) => t == 'sales' ? 'sale' : t;
 
   static DateTime _parseDate(dynamic v) {
     if (v is Timestamp) return v.toDate();
@@ -74,7 +77,7 @@ class Txn {
     shop:       m['shop']       as String? ?? '',
     shopName:   m['shopName']   as String? ?? '',
     date:       DateTime.tryParse(m['date'] as String? ?? '') ?? DateTime.now(),
-    type:       m['type']       as String? ?? 'sale',
+    type:       _normType(m['type'] as String? ?? 'sale'),
     amount:     (m['amount']    as num?)?.toDouble() ?? 0,
     desc:       m['desc']       as String? ?? '',
   );
