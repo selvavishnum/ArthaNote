@@ -45,6 +45,21 @@ class AuthService {
     return doc.exists ? doc.data() : null;
   }
 
+  /// Looks up a staff document by email — used to link a new Firebase UID
+  /// to an existing account's businessId when UIDs differ across auth methods.
+  Future<Map<String, dynamic>?> getProfileByEmail(String email) async {
+    final snap = await _db
+        .collection('staff')
+        .where('email', isEqualTo: email)
+        .limit(5)
+        .get();
+    for (final doc in snap.docs) {
+      final bid = doc.data()['businessId'] as String?;
+      if (bid != null && bid.isNotEmpty) return doc.data();
+    }
+    return snap.docs.isNotEmpty ? snap.docs.first.data() : null;
+  }
+
   Future<void> saveProfile(String uid, Map<String, dynamic> data) =>
       _db.collection('staff').doc(uid).set(data, SetOptions(merge: true));
 

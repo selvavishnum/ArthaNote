@@ -30,7 +30,25 @@ class AppProvider extends ChangeNotifier {
     _lang = prefs.getString('lang') ?? 'en';
 
     try {
-      final profileData = await _auth.getProfile(uid);
+      Map<String, dynamic>? profileData = await _auth.getProfile(uid);
+
+      // If no staff doc, or businessId is just the current UID (new/wrong account),
+      // do a secondary email lookup to find the original account's businessId.
+      final bid = profileData?['businessId'] as String?;
+      if (bid == null || bid.isEmpty || bid == uid) {
+        final email = _auth.currentUser?.email ?? '';
+        if (email.isNotEmpty) {
+          final emailProfile = await _auth.getProfileByEmail(email);
+          if (emailProfile != null) {
+            final emailBid = emailProfile['businessId'] as String?;
+            // Only switch if we found a DIFFERENT businessId (the original account)
+            if (emailBid != null && emailBid.isNotEmpty && emailBid != uid) {
+              profileData = emailProfile;
+            }
+          }
+        }
+      }
+
       if (profileData != null) {
         _profile    = profileData;
         _businessId = (profileData['businessId'] as String?)?.isNotEmpty == true
