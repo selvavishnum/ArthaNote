@@ -33,28 +33,29 @@ class AppProvider extends ChangeNotifier {
 
     try {
       Map<String, dynamic>? profileData = await _auth.getProfile(uid);
+      final email = _auth.currentUser?.email ?? '';
 
-      // If no staff doc, or businessId is just the current UID (new/wrong account),
-      // do a secondary email lookup to find the original account's businessId.
-      final bid = profileData?['businessId'] as String?;
-      if (bid == null || bid.isEmpty || bid == uid) {
-        final email = _auth.currentUser?.email ?? '';
-        if (email.isNotEmpty) {
-          final emailProfile = await _auth.getProfileByEmail(email);
-          if (emailProfile != null) {
-            final emailBid = emailProfile['businessId'] as String?;
-            // Only switch if we found a DIFFERENT businessId (the original account)
-            if (emailBid != null && emailBid.isNotEmpty && emailBid != uid) {
-              profileData = emailProfile;
-            }
+      // Always try email lookup — handles UID mismatch when the same email
+      // signs in via different auth methods (e.g. email/password on web vs
+      // Google on Android creates a different Firebase UID).
+      // Pass skipUid so the lookup prefers the ORIGINAL account's doc
+      // (businessId ≠ current uid) over any newly-created duplicate.
+      if (email.isNotEmpty) {
+        final emailProfile = await _auth.getProfileByEmail(email, skipUid: uid);
+        if (emailProfile != null) {
+          final emailBid = (emailProfile['businessId'] as String?)?.trim() ?? '';
+          // Use the email-found profile only if it points to a DIFFERENT businessId
+          // (the original account), not the current UID.
+          if (emailBid.isNotEmpty && emailBid != uid) {
+            profileData = emailProfile;
           }
         }
       }
 
       if (profileData != null) {
         _profile    = profileData;
-        _businessId = (profileData['businessId'] as String?)?.isNotEmpty == true
-            ? profileData['businessId'] as String
+        _businessId = ((profileData['businessId'] as String?)?.trim().isNotEmpty == true)
+            ? (profileData['businessId'] as String).trim()
             : uid;
 
         final configData = await _auth.getConfig(_businessId);

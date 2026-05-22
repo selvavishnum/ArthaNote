@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -8,6 +10,7 @@ import '../l10n.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
+import '../services/pattern_service.dart';
 
 class EntryTab extends StatefulWidget {
   const EntryTab({super.key});
@@ -17,15 +20,44 @@ class EntryTab extends StatefulWidget {
 
 class _EntryTabState extends State<EntryTab> {
   final _db     = DbService();
+  final _ai     = PatternService();
   final _amount = TextEditingController();
   final _desc   = TextEditingController();
   final _bill   = TextEditingController();
   final _note   = TextEditingController();
 
-  String   _type   = 'sale';
-  DateTime _date   = DateTime.now();
-  String   _shopId = '';
-  bool     _saving = false;
+  String        _type       = 'sale';
+  DateTime      _date       = DateTime.now();
+  String        _shopId     = '';
+  bool          _saving     = false;
+  AiPrediction  _prediction = AiPrediction.empty();
+  Timer?        _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _desc.addListener(_onDescChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPatterns());
+  }
+
+  Future<void> _loadPatterns() async {
+    final p    = context.read<AppProvider>();
+    final txns = await _db.loadLocalCache(p.businessId);
+    _ai.learnFromTxns(txns);
+  }
+
+  void _onDescChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      final pred = _ai.predict(_desc.text);
+      setState(() {
+        _prediction = pred;
+        // Auto-switch type when strongly predicted (≥70 % confidence, ≥2 past entries)
+        if (pred.isStrong) _type = pred.type;
+      });
+    });
+  }
 
   static const _typeOptions = [
     {'type': 'sale',    'label': 'Sales / Income', 'icon': '💚', 'color': kSecondary},
@@ -82,6 +114,8 @@ class _EntryTabState extends State<EntryTab> {
         desc:       description,
       ));
       _snack('Entry saved');
+      // Teach the AI about this entry before resetting
+      _ai.learn(description, savedType, savedDesc);
       _reset(p);
 
       // Track custom categories
@@ -111,9 +145,8 @@ class _EntryTabState extends State<EntryTab> {
       _desc.clear();
       _bill.clear();
       _note.clear();
-      // keep _type so user can add multiple entries of the same type consecutively
-      _date   = DateTime.now();
-      _shopId = p.shops.values.firstOrNull?.id ?? '';
+      // Keep _type, _date, _shopId so the next entry pre-fills with last-used values.
+      // User can still change them if needed.
     });
   }
 
@@ -391,6 +424,19 @@ class _EntryTabState extends State<EntryTab> {
             ],
           ),
 
+          // AI suggestion banner
+          if (_prediction.isGood) ...[
+            const SizedBox(height: 10),
+            _AiSuggestionBanner(
+              prediction: _prediction,
+              currentType: _type,
+              onApplyType: () => setState(() => _type = _prediction.type),
+              onApplyCategory: _prediction.category.isNotEmpty
+                  ? () => setState(() => _desc.text = _prediction.category)
+                  : null,
+            ),
+          ],
+
           const SizedBox(height: 14),
 
           // Description
@@ -482,6 +528,8 @@ class _EntryTabState extends State<EntryTab> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _desc.removeListener(_onDescChanged);
     _amount.dispose();
     _desc.dispose();
     _bill.dispose();
@@ -489,6 +537,105 @@ class _EntryTabState extends State<EntryTab> {
     super.dispose();
   }
 }
+
+// ── AI Suggestion Banner ───────────────────────────────────────────────────
+
+class _AiSuggestionBanner extends StatelessWidget {
+  final AiPrediction prediction;
+  final String       currentType;
+  final VoidCallback onApplyType;
+  final VoidCallback? onApplyCategory;
+
+  const _AiSuggestionBanner({
+    required this.prediction,
+    required this.currentType,
+    required this.onApplyType,
+    this.onApplyCategory,
+  });
+
+  static const _typeLabel = {'sale': 'Sale', 'expense': 'Expense', 'payment': 'Payment'};
+  static const _typeColor = {
+    'sale':    Color(0xFF059669),
+    'expense': Color(0xFFDC2626),
+    'payment': Color(0xFFD97706),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final typeLabel = _typeLabel[prediction.type] ?? prediction.type;
+    final typeColor = _typeColor[prediction.type] ?? kPrimary;
+    final alreadyApplied = currentType == prediction.type;
+    final pct = (prediction.confidence * 100).round();
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: typeColor.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: typeColor.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Text('🤖', style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 12, color: kText),
+                children: [
+                  TextSpan(
+                    text: '$typeLabel',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: typeColor,
+                    ),
+                  ),
+                  if (prediction.category.isNotEmpty &&
+                      prediction.category != prediction.type) ...[
+                    const TextSpan(text: ' · '),
+                    TextSpan(
+                      text: prediction.category,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                  TextSpan(
+                    text: '  $pct% · ${prediction.count}× past entries',
+                    style: const TextStyle(color: kMuted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (!alreadyApplied)
+            GestureDetector(
+              onTap: onApplyType,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: typeColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Apply',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            )
+          else
+            Icon(Icons.check_circle, size: 16, color: typeColor),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared helpers ─────────────────────────────────────────────────────────
 
 class _LabelField extends StatelessWidget {
   final String label;

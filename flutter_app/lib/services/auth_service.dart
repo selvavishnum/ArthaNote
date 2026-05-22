@@ -47,12 +47,23 @@ class AuthService {
 
   /// Looks up a staff document by email — used to link a new Firebase UID
   /// to an existing account's businessId when UIDs differ across auth methods.
-  Future<Map<String, dynamic>?> getProfileByEmail(String email) async {
+  /// [skipUid] — prefer docs whose businessId is NOT this uid (i.e. the original account).
+  Future<Map<String, dynamic>?> getProfileByEmail(String email,
+      {String skipUid = ''}) async {
     final snap = await _db
         .collection('staff')
         .where('email', isEqualTo: email)
         .limit(5)
         .get();
+    // First pass: prefer doc where businessId differs from the current uid
+    // (that doc is the original account, not the newly-created duplicate)
+    if (skipUid.isNotEmpty) {
+      for (final doc in snap.docs) {
+        final bid = doc.data()['businessId'] as String?;
+        if (bid != null && bid.isNotEmpty && bid != skipUid) return doc.data();
+      }
+    }
+    // Second pass: any doc with a non-empty businessId
     for (final doc in snap.docs) {
       final bid = doc.data()['businessId'] as String?;
       if (bid != null && bid.isNotEmpty) return doc.data();

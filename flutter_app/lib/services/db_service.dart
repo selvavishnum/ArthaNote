@@ -144,6 +144,13 @@ class DbService {
   Future<void> addSupplier(Supplier supplier) =>
       _db.collection('suppliers').add(supplier.toFirestore());
 
+  Future<void> updateSupplierInfo(String id, String name, String phone) =>
+      _db.collection('suppliers').doc(id).update({
+        'name':      name,
+        'phone':     phone,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
   Future<void> updateSupplierBalance(String id, double delta) =>
       _db.collection('suppliers').doc(id).update({
         'balance':   FieldValue.increment(delta),
@@ -184,6 +191,28 @@ class DbService {
     final delta = bill.type == 'bill' ? -bill.amount : bill.amount;
     batch.update(_db.collection('suppliers').doc(bill.supplierId), {
       'balance':   FieldValue.increment(delta),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+
+  /// Update a bill/payment entry and atomically re-adjust the supplier balance.
+  Future<void> updateSupplierBill(SupplierBill oldBill, SupplierBill newBill) async {
+    final oldDelta = oldBill.type == 'bill' ?  oldBill.amount : -oldBill.amount;
+    final newDelta = newBill.type == 'bill' ?  newBill.amount : -newBill.amount;
+    final adjust   = newDelta - oldDelta;
+    final batch = _db.batch();
+    batch.update(
+      _db.collection('supplier_bills').doc(oldBill.id),
+      {
+        'type':   newBill.type,
+        'amount': newBill.amount,
+        'desc':   newBill.desc,
+        'date':   Timestamp.fromDate(newBill.date),
+      },
+    );
+    batch.update(_db.collection('suppliers').doc(oldBill.supplierId), {
+      'balance':   FieldValue.increment(adjust),
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();
