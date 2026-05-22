@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1702,8 +1703,8 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
               child: Row(children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => SharePlus.instance.share(
-                      ShareParams(text: 'Attendance QR for ${shop.name}: $_qrUrl'),
+                    onPressed: () => Share.share(
+                      'Attendance QR for ${shop.name}: $_qrUrl',
                     ),
                     icon: const Icon(Icons.share_outlined, size: 16),
                     label: const Text('Share Link'),
@@ -2078,15 +2079,10 @@ class _BackupSheetState extends State<_BackupSheet> {
         'count':        data.length,
         'transactions': data,
       });
-      final file = XFile.fromData(
-        utf8.encode(json),
-        mimeType: 'application/json',
-        name: 'arthanote_backup_${DateFormat('yyyyMMdd').format(DateTime.now())}.json',
-      );
-      await SharePlus.instance.share(ShareParams(
-        files: [file],
-        subject: 'ArthaNote Backup',
-      ));
+      final fileName = 'arthanote_backup_${DateFormat('yyyyMMdd').format(DateTime.now())}.json';
+      final tempFile = File('${Directory.systemTemp.path}/$fileName');
+      await tempFile.writeAsString(json);
+      await Share.shareXFiles([XFile(tempFile.path)], subject: 'ArthaNote Backup');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -2184,15 +2180,10 @@ class _BackupSheetState extends State<_BackupSheet> {
         final desc = ((d['desc'] as String?) ?? '').replaceAll(',', ';');
         buf.writeln('$date,$shop,$type,$amt,$desc');
       }
-      final file = XFile.fromData(
-        utf8.encode(buf.toString()),
-        mimeType: 'text/csv',
-        name: 'arthanote_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
-      );
-      await SharePlus.instance.share(ShareParams(
-        files: [file],
-        subject: 'ArthaNote CSV Export',
-      ));
+      final csvName = 'arthanote_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      final tempFile = File('${Directory.systemTemp.path}/$csvName');
+      await tempFile.writeAsString(buf.toString());
+      await Share.shareXFiles([XFile(tempFile.path)], subject: 'ArthaNote CSV Export');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
