@@ -1867,6 +1867,14 @@ let CATS=JSON.parse(localStorage.getItem('slv_cats')||JSON.stringify(DC));
 let TXS=[],SUPS=[],BILLS=[],_unsubs=[];
 // Android app stores type='sale'; website uses type='sales'. Normalize on load.
 function _normType(t){return t.type==='sale'?{...t,type:'sales'}:t;}
+function _normDate(t){
+  const d=t.date;
+  if(!d||typeof d==='string')return t;
+  if(typeof d.toDate==='function')return{...t,date:d.toDate().toISOString().split('T')[0]};
+  if(d.seconds!=null)return{...t,date:new Date(d.seconds*1000).toISOString().split('T')[0]};
+  return t;
+}
+function _norm(t){return _normDate(_normType(t));}
 let _shop='all',_lang=localStorage.getItem('slv_lang')||'en';
 let _scanImg=null,_scanEntries=[];
 let _dd='today',_ld='today',_sdShop='s1',_sdP='today';
@@ -2129,7 +2137,7 @@ function restoreFromJSON(inp){
     try{
       const data=JSON.parse(ev.target.result);
       if(!data.txs) throw new Error('Invalid backup file');
-      if(data.txs) TXS=data.txs.map(_normType);
+      if(data.txs) TXS=data.txs.map(_norm);
       if(data.sups) SUPS=data.sups;
       if(data.bills) BILLS=data.bills;
       saveCacheLocal();
@@ -2938,7 +2946,7 @@ function loadFromCache(){
     const ts=parseInt(localStorage.getItem(CACHE_KEY_TS)||'0');
     const supRaw=localStorage.getItem(CACHE_KEY_SUPS);
     const billRaw=localStorage.getItem(CACHE_KEY_BILLS);
-    TXS=JSON.parse(txRaw).map(_normType);
+    TXS=JSON.parse(txRaw).map(_norm);
     if(supRaw) SUPS=JSON.parse(supRaw);
     if(billRaw) BILLS=JSON.parse(billRaw);
     const ageMin=Math.round((Date.now()-ts)/60000);
@@ -2997,7 +3005,7 @@ async function firstTimeSync(BID, attempt=1){
     const txSnap=await DB.collection('transactions')
       .where('businessId','==',BID)
       .get();
-    TXS=txSnap.docs.map(d=>({id:d.id,...d.data()})).map(_normType)
+    TXS=txSnap.docs.map(d=>({id:d.id,...d.data()})).map(_norm)
       .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
     _rptRendered=false;
     setStatus(`✅ ${TXS.length} transactions loaded! Loading suppliers...`, 60);
@@ -3065,7 +3073,7 @@ async function firstTimeSync(BID, attempt=1){
       try{
         const txSnap=await DB.collection('transactions')
           .where('businessId','==',BID).get();
-        TXS=txSnap.docs.map(d=>({id:d.id,...d.data()})).map(_normType);
+        TXS=txSnap.docs.map(d=>({id:d.id,...d.data()})).map(_norm);
         _rptRendered=false;
         saveCacheLocal();
         setTimeout(()=>{
@@ -3119,7 +3127,7 @@ async function silentCloudSync(BID){
 
     // Transactions
     if(results[0].status==='fulfilled'){
-      const newTXS=results[0].value.docs.map(d=>({id:d.id,...d.data()})).map(_normType)
+      const newTXS=results[0].value.docs.map(d=>({id:d.id,...d.data()})).map(_norm)
         .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
       const _newIds=newTXS.map(t=>t.id).sort().join(',');
       const _oldIds=TXS.filter(t=>t.id).map(t=>t.id).sort().join(',');
@@ -5764,7 +5772,7 @@ function startLiveSync(){
   DB.collection('transactions').where('businessId','==',BID)
     .onSnapshot(snap=>{
       if(snap.metadata.hasPendingWrites) return;
-      const freshTxs=snap.docs.map(d=>({id:d.id,...d.data()})).map(_normType);
+      const freshTxs=snap.docs.map(d=>({id:d.id,...d.data()})).map(_norm);
       if(freshTxs.length!==TXS.length){
         TXS=freshTxs;
         _rptRendered=false;
