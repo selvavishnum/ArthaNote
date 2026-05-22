@@ -116,6 +116,26 @@ class _LedgerTabState extends State<LedgerTab> {
     return StreamBuilder<List<Txn>>(
       stream: _db.txnStream(p.businessId),
       builder: (ctx, snap) {
+        if (snap.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.cloud_off_outlined, color: kRed, size: 40),
+                const SizedBox(height: 12),
+                const Text('Sync error — check connection',
+                    style: TextStyle(
+                        color: kRed,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15)),
+                const SizedBox(height: 6),
+                Text(snap.error.toString(),
+                    style: const TextStyle(color: kMuted, fontSize: 11),
+                    textAlign: TextAlign.center),
+              ]),
+            ),
+          );
+        }
         final all  = snap.data ?? [];
         final txns = _applyFilters(all, p.selectedShop);
 

@@ -46,3 +46,54 @@ const List<Map<String, String>> kShopTypes = [
   {'type': 'chit',       'icon': '🤝', 'label': 'Chit Fund'},
   {'type': 'other',      'icon': '🏪', 'label': 'Other'},
 ];
+
+const Map<String, Map<String, List<String>>> kBizCats = {
+  'vegetables': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Wholesale', 'Other'],
+    'expense': ['Purchase', 'Labour', 'Transport', 'Rent/EB', 'Other'],
+  },
+  'grocery': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Credit', 'Other'],
+    'expense': ['Purchase', 'Staff Salary', 'Rent/EB', 'Transport', 'Other'],
+  },
+  'bakery': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Wholesale', 'Other'],
+    'expense': ['Raw Material', 'Staff Salary', 'Gas', 'Rent/EB', 'Other'],
+  },
+  'tea': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Other'],
+    'expense': ['Milk', 'Sugar', 'Staff Salary', 'Gas', 'Rent/EB', 'Other'],
+  },
+  'textile': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Credit', 'Other'],
+    'expense': ['Purchase', 'Staff Salary', 'Rent/EB', 'Alteration', 'Other'],
+  },
+  'hardware': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Credit', 'Other'],
+    'expense': ['Purchase', 'Staff Salary', 'Rent/EB', 'Transport', 'Other'],
+  },
+  'jewellery': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Advance', 'Order', 'Other'],
+    'expense': ['Material', 'Staff Salary', 'Rent/EB', 'Maintenance', 'Other'],
+  },
+  'medical': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Insurance', 'Other'],
+    'expense': ['Purchase', 'Staff Salary', 'Rent/EB', 'Lab Charges', 'Other'],
+  },
+  'hotel': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Parcel', 'Delivery', 'Other'],
+    'expense': ['Raw Material', 'Staff Salary', 'Gas', 'Rent/EB', 'Other'],
+  },
+  'finance': {
+    'sales':   ['EMI Collected', 'Interest Income', 'Other'],
+    'expense': ['Loan Given', 'Capital Out', 'Expense'],
+  },
+  'chit': {
+    'sales':   ['Monthly Collection', 'Other'],
+    'expense': ['Chit Prize', 'Expense', 'Other'],
+  },
+  'other': {
+    'sales':   ['Cash', 'GPay', 'Card', 'Other'],
+    'expense': ['Purchase', 'Salary', 'Rent/EB', 'Other'],
+  },
+};

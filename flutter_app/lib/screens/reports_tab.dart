@@ -126,6 +126,16 @@ class _ReportsTabState extends State<ReportsTab> {
           _fromCache = false;
         });
       }
+    }, onError: (Object e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Sync error: $e'),
+          backgroundColor: kRed,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
     });
   }
 

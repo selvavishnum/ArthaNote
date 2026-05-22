@@ -12,6 +12,7 @@ class AppProvider extends ChangeNotifier {
   Map<String, Shop>  _shops        = {};
   Map<String, dynamic> _profile    = {};
   bool               _loaded       = false;
+  Map<String, Map<String, List<String>>> _cats = {};
 
   // ── Getters ───────────────────────────────────────────────────────────────
   String             get lang         => _lang;
@@ -20,6 +21,7 @@ class AppProvider extends ChangeNotifier {
   Map<String, Shop>  get shops        => Map.unmodifiable(_shops);
   Map<String, dynamic> get profile    => Map.unmodifiable(_profile);
   bool               get loaded       => _loaded;
+  Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
 
   bool get isOnboarded => _profile['onboarded'] == true;
   bool get isAdmin     => ((_profile['email'] as String?) ?? '') == 'selvavishnu.m@gmail.com';
@@ -30,7 +32,25 @@ class AppProvider extends ChangeNotifier {
     _lang = prefs.getString('lang') ?? 'en';
 
     try {
-      final profileData = await _auth.getProfile(uid);
+      Map<String, dynamic>? profileData = await _auth.getProfile(uid);
+
+      // If no staff doc, or businessId is just the current UID (new/wrong account),
+      // do a secondary email lookup to find the original account's businessId.
+      final bid = profileData?['businessId'] as String?;
+      if (bid == null || bid.isEmpty || bid == uid) {
+        final email = _auth.currentUser?.email ?? '';
+        if (email.isNotEmpty) {
+          final emailProfile = await _auth.getProfileByEmail(email);
+          if (emailProfile != null) {
+            final emailBid = emailProfile['businessId'] as String?;
+            // Only switch if we found a DIFFERENT businessId (the original account)
+            if (emailBid != null && emailBid.isNotEmpty && emailBid != uid) {
+              profileData = emailProfile;
+            }
+          }
+        }
+      }
+
       if (profileData != null) {
         _profile    = profileData;
         _businessId = (profileData['businessId'] as String?)?.isNotEmpty == true
@@ -43,6 +63,14 @@ class AppProvider extends ChangeNotifier {
           _shops = rawShops.map(
             (k, v) => MapEntry(k, Shop.fromMap(k, v as Map<String, dynamic>)),
           );
+          final rawCats = configData['cats'] as Map<String, dynamic>? ?? {};
+          _cats = rawCats.map((k, v) {
+            final vMap = v as Map<String, dynamic>? ?? {};
+            return MapEntry(k, {
+              'sales':   List<String>.from(vMap['sales']   as List? ?? []),
+              'expense': List<String>.from(vMap['expense'] as List? ?? []),
+            });
+          });
         }
       } else {
         _businessId = uid;
@@ -82,6 +110,43 @@ class AppProvider extends ChangeNotifier {
     _persistShops();
   }
 
+  void removeShop(String id) {
+    _shops = Map.from(_shops)..remove(id);
+    _cats  = Map.from(_cats)..remove(id);
+    if (_selectedShop == id) _selectedShop = '';
+    notifyListeners();
+    _persistShops();
+    _persistCats();
+  }
+
+  List<String> salesCats(String shopId) {
+    final custom = _cats[shopId]?['sales'];
+    if (custom != null && custom.isNotEmpty) return List.from(custom);
+    final shop = _shops[shopId];
+    if (shop != null) {
+      final bc = kBizCats[shop.type];
+      if (bc != null) return List.from(bc['sales']!);
+    }
+    return ['Cash', 'GPay', 'Card', 'Other'];
+  }
+
+  List<String> expenseCats(String shopId) {
+    final custom = _cats[shopId]?['expense'];
+    if (custom != null && custom.isNotEmpty) return List.from(custom);
+    final shop = _shops[shopId];
+    if (shop != null) {
+      final bc = kBizCats[shop.type];
+      if (bc != null) return List.from(bc['expense']!);
+    }
+    return ['Purchase', 'Salary', 'Rent/EB', 'Other'];
+  }
+
+  void updateShopCats(String shopId, List<String> sales, List<String> expense) {
+    _cats = Map.from(_cats)..[shopId] = {'sales': sales, 'expense': expense};
+    notifyListeners();
+    _persistCats();
+  }
+
   void updateProfileField(String key, dynamic value) {
     _profile = Map<String, dynamic>.from(_profile)..[key] = value;
     notifyListeners();
@@ -93,12 +158,22 @@ class AppProvider extends ChangeNotifier {
     await _auth.saveConfig(_businessId, {'shops': shopsMap});
   }
 
+  Future<void> _persistCats() async {
+    if (_businessId.isEmpty) return;
+    final catsMap = _cats.map((k, v) => MapEntry(k, {
+      'sales':   v['sales']   ?? [],
+      'expense': v['expense'] ?? [],
+    }));
+    await _auth.saveConfig(_businessId, {'cats': catsMap});
+  }
+
   // ── Reset (on logout) ─────────────────────────────────────────────────────
   void reset() {
     _businessId   = '';
     _selectedShop = '';
     _shops        = {};
     _profile      = {};
+    _cats         = {};
     _loaded       = false;
     notifyListeners();
   }
