@@ -4,11 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/shop.dart';
+import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
+import '../services/db_service.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -196,7 +199,7 @@ class SettingsScreen extends StatelessWidget {
                   useSafeArea: true,
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                  builder: (_) => const _CategoriesSheet(),
+                  builder: (_) => _CategoriesSheet(p: p),
                 ),
               ),
               const _ItemDivider(),
@@ -529,6 +532,12 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
   late final Map<String, TextEditingController> _ctrls;
   bool _saving = false;
 
+  // Add shop form state
+  bool _addingShop = false;
+  final _newIconCtrl = TextEditingController(text: '🏪');
+  final _newNameCtrl = TextEditingController();
+  String _newType = 'other';
+
   @override
   void initState() {
     super.initState();
@@ -541,6 +550,8 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
   @override
   void dispose() {
     for (final c in _ctrls.values) c.dispose();
+    _newIconCtrl.dispose();
+    _newNameCtrl.dispose();
     super.dispose();
   }
 
@@ -554,10 +565,104 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
     setState(() { _saving = false; _editingId = null; });
   }
 
+  void _addShop() {
+    final name = _newNameCtrl.text.trim();
+    if (name.isEmpty) return;
+    final icon = _newIconCtrl.text.trim().isEmpty ? '🏪' : _newIconCtrl.text.trim();
+
+    // Generate next shop ID: find highest s{n} number
+    final existing = widget.p.shops.keys;
+    int maxN = 0;
+    for (final k in existing) {
+      final m = RegExp(r'^s(\d+)$').firstMatch(k);
+      if (m != null) {
+        final n = int.tryParse(m.group(1)!) ?? 0;
+        if (n > maxN) maxN = n;
+      }
+    }
+    final newId = 's${maxN + 1}';
+    final newShop = Shop(id: newId, name: name, icon: icon, type: _newType);
+    final ctrl = TextEditingController(text: name);
+    setState(() {
+      _ctrls[newId] = ctrl;
+      _addingShop = false;
+      _newNameCtrl.clear();
+      _newIconCtrl.text = '🏪';
+      _newType = 'other';
+    });
+    widget.p.addShop(newId, newShop);
+  }
+
+  Future<void> _removeShop(String id) async {
+    final shop = widget.p.shops[id];
+    if (shop == null) return;
+    final confirmCtrl = TextEditingController();
+    bool canDelete = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Remove Shop'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Type "${shop.name}" to confirm removal.',
+                  style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: confirmCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Shop name',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onChanged: (v) {
+                  setDialogState(() => canDelete = v == shop.name);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: canDelete
+                  ? () {
+                      Navigator.pop(ctx);
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kRed,
+                foregroundColor: Colors.white,
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              child: const Text('Remove'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Dispose AFTER dialog returns
+    confirmCtrl.dispose();
+
+    if (canDelete) {
+      setState(() {
+        _ctrls[id]?.dispose();
+        _ctrls.remove(id);
+      });
+      widget.p.removeShop(id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final shops = widget.p.shops;
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
           20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -566,9 +671,96 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
         Row(children: [
           const Text('🏪', style: TextStyle(fontSize: 20)),
           const SizedBox(width: 8),
-          const Text('Shop Names',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          const Expanded(
+            child: Text('Shop Names',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          ),
+          TextButton.icon(
+            onPressed: () => setState(() {
+              _addingShop = !_addingShop;
+              if (!_addingShop) {
+                _newNameCtrl.clear();
+                _newIconCtrl.text = '🏪';
+                _newType = 'other';
+              }
+            }),
+            icon: Icon(_addingShop ? Icons.close : Icons.add, size: 16),
+            label: Text(_addingShop ? 'Cancel' : '+ Add Shop'),
+            style: TextButton.styleFrom(foregroundColor: kPrimary),
+          ),
         ]),
+
+        // Add shop inline form
+        if (_addingShop) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: kPrimary.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: kPrimary.withOpacity(0.25)),
+            ),
+            child: Column(children: [
+              Row(children: [
+                SizedBox(
+                  width: 64,
+                  child: TextField(
+                    controller: _newIconCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Icon',
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _newNameCtrl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Shop name',
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    ),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: _newType,
+                decoration: const InputDecoration(
+                  labelText: 'Business type',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                ),
+                items: kShopTypes
+                    .map((st) => DropdownMenuItem(
+                          value: st['type']!,
+                          child: Text('${st['icon']!} ${st['label']!}'),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _newType = v ?? 'other'),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _addShop,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                  child: const Text('Add Shop'),
+                ),
+              ),
+            ]),
+          ),
+        ],
+
         const SizedBox(height: 16),
         if (shops.isEmpty)
           const Padding(
@@ -622,6 +814,11 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
                         icon: const Icon(Icons.edit_outlined, size: 18, color: kMuted),
                         onPressed: () => setState(() => _editingId = e.key),
                       ),
+                      if (shops.length > 1)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18, color: kRed),
+                          onPressed: () => _removeShop(e.key),
+                        ),
                     ]),
             );
           }),
@@ -632,9 +829,98 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
 }
 
 // ── Staff sheet ───────────────────────────────────────────────────────────────
-class _StaffSheet extends StatelessWidget {
+class _StaffSheet extends StatefulWidget {
   final String businessId;
   const _StaffSheet({required this.businessId});
+  @override
+  State<_StaffSheet> createState() => _StaffSheetState();
+}
+
+class _StaffSheetState extends State<_StaffSheet> {
+  static const _roles = ['cashier', 'manager', 'worker'];
+
+  void _showStaffForm(BuildContext ctx, String? docId, Map<String, dynamic>? existing) {
+    final nameCtrl  = TextEditingController(text: (existing?['name']  as String?) ?? '');
+    final emailCtrl = TextEditingController(text: (existing?['email'] as String?) ?? '');
+    String role = (existing?['role'] as String?) ?? 'cashier';
+
+    showDialog<void>(
+      context: ctx,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) => AlertDialog(
+          title: Text(docId != null ? 'Edit Staff' : 'Add Staff'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Gmail / Email'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: role,
+                decoration: const InputDecoration(labelText: 'Role'),
+                items: _roles
+                    .map((r) => DropdownMenuItem(
+                          value: r,
+                          child: Text(r[0].toUpperCase() + r.substring(1)),
+                        ))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => role = v ?? 'cashier'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final data = {
+                  'name':       nameCtrl.text.trim(),
+                  'email':      emailCtrl.text.trim(),
+                  'role':       role,
+                  'businessId': widget.businessId,
+                };
+                final col = FirebaseFirestore.instance.collection('staff');
+                if (docId != null) {
+                  await col.doc(docId).update(data);
+                } else {
+                  await col.doc().set(data);
+                }
+                if (ctx.mounted) {
+                  Navigator.pop(dialogCtx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                    content: Text(docId != null ? 'Staff updated ✅' : 'Staff added ✅'),
+                    backgroundColor: kSecondary,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ));
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimary,
+                foregroundColor: Colors.white,
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      nameCtrl.dispose();
+      emailCtrl.dispose();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -643,18 +929,32 @@ class _StaffSheet extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const _SheetHandle(),
         const SizedBox(height: 18),
-        const Row(children: [
-          Text('👥', style: TextStyle(fontSize: 20)),
-          SizedBox(width: 8),
-          Text('Staff Members',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+        Row(children: [
+          const Text('👥', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Staff Members',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _showStaffForm(context, null, null),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('+ Add Staff'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimary,
+              foregroundColor: Colors.white,
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
         ]),
         const SizedBox(height: 16),
-        FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          future: FirebaseFirestore.instance
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
               .collection('staff')
-              .where('businessId', isEqualTo: businessId)
-              .get(),
+              .where('businessId', isEqualTo: widget.businessId)
+              .snapshots(),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const Padding(
@@ -678,8 +978,9 @@ class _StaffSheet extends StatelessWidget {
                 separatorBuilder: (_, __) =>
                     const Divider(height: 1, color: Color(0xFFF3F4F6)),
                 itemBuilder: (context, index) {
-                  final d    = docs[index].data();
-                  final name = (d['name']  as String?) ?? 'Unknown';
+                  final doc  = docs[index];
+                  final d    = doc.data();
+                  final name  = (d['name']  as String?) ?? 'Unknown';
                   final email = (d['email'] as String?) ?? '';
                   final role  = (d['role']  as String?) ?? 'staff';
                   return ListTile(
@@ -697,15 +998,24 @@ class _StaffSheet extends StatelessWidget {
                             fontWeight: FontWeight.w600, fontSize: 14)),
                     subtitle: Text(email,
                         style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: kPrimary.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(role,
-                          style: const TextStyle(
-                              color: kPrimary, fontSize: 10, fontWeight: FontWeight.w700)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: kPrimary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(role,
+                              style: const TextStyle(
+                                  color: kPrimary, fontSize: 10, fontWeight: FontWeight.w700)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: kMuted),
+                          onPressed: () => _showStaffForm(context, doc.id, d),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -864,66 +1174,299 @@ class _GstSheetState extends State<_GstSheet> {
 }
 
 // ── Categories sheet ──────────────────────────────────────────────────────────
-class _CategoriesSheet extends StatelessWidget {
-  const _CategoriesSheet();
+class _CategoriesSheet extends StatefulWidget {
+  final AppProvider p;
+  const _CategoriesSheet({required this.p});
+  @override
+  State<_CategoriesSheet> createState() => _CategoriesSheetState();
+}
+
+class _CategoriesSheetState extends State<_CategoriesSheet> {
+  final Map<String, TextEditingController> _salesCtrl  = {};
+  final Map<String, TextEditingController> _expCtrl    = {};
+  final Set<String> _saving = {};
+
+  @override
+  void initState() {
+    super.initState();
+    for (final e in widget.p.shops.entries) {
+      final shopId = e.key;
+      _salesCtrl[shopId] = TextEditingController(
+        text: widget.p.salesCats(shopId).join(', '),
+      );
+      _expCtrl[shopId] = TextEditingController(
+        text: widget.p.expenseCats(shopId).join(', '),
+      );
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCustomCats());
+  }
+
+  @override
+  void dispose() {
+    for (final c in _salesCtrl.values) c.dispose();
+    for (final c in _expCtrl.values) c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCustomCats() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final shopId in widget.p.shops.keys) {
+      final customSale = prefs.getStringList('kp_custom_${shopId}_sale') ?? [];
+      final customExp  = prefs.getStringList('kp_custom_${shopId}_expense') ?? [];
+
+      if (customSale.isNotEmpty && mounted) {
+        final ctrl = _salesCtrl[shopId];
+        if (ctrl != null) {
+          final existing = ctrl.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          for (final c in customSale) {
+            if (!existing.contains(c)) existing.add(c);
+          }
+          setState(() => ctrl.text = existing.join(', '));
+        }
+      }
+
+      if (customExp.isNotEmpty && mounted) {
+        final ctrl = _expCtrl[shopId];
+        if (ctrl != null) {
+          final existing = ctrl.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          for (final c in customExp) {
+            if (!existing.contains(c)) existing.add(c);
+          }
+          setState(() => ctrl.text = existing.join(', '));
+        }
+      }
+    }
+  }
+
+  Future<void> _saveShop(String shopId) async {
+    setState(() => _saving.add(shopId));
+    final sales = (_salesCtrl[shopId]?.text ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final expense = (_expCtrl[shopId]?.text ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    widget.p.updateShopCats(shopId, sales, expense);
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) {
+      setState(() => _saving.remove(shopId));
+      final shop = widget.p.shops[shopId];
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${shop?.name ?? ''} categories saved ✅'),
+        backgroundColor: kSecondary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
+  }
+
+  void _quickAdd(BuildContext context, String category, String type, Shop shop) {
+    final amtCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Text(type == 'sale' ? '💚' : '📉', style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 8),
+          Text(category,
+              style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(shop.name, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amtCtrl,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                prefixText: '₹ ',
+                hintText: '0',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: kPrimary, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final raw = amtCtrl.text.trim().replaceAll(',', '');
+              final amt = double.tryParse(raw);
+              if (amt == null || amt <= 0) return;
+              Navigator.pop(ctx);
+              await DbService().addTxn(Txn(
+                id:         const Uuid().v4(),
+                businessId: widget.p.businessId,
+                shop:       shop.id,
+                shopName:   shop.name,
+                date:       DateTime.now(),
+                type:       type,
+                amount:     amt,
+                desc:       category,
+              ));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('$category ₹${amt.toStringAsFixed(0)} saved ✅'),
+                  backgroundColor: kSecondary,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ));
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: type == 'sale' ? kSecondary : kRed,
+              foregroundColor: Colors.white,
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: Text(type == 'sale' ? 'Save Sales' : 'Save Expense'),
+          ),
+        ],
+      ),
+    ).then((_) => amtCtrl.dispose());
+  }
+
+  Widget _buildShopSection(Shop shop) {
+    final shopId = shop.id;
+    final isSaving = _saving.contains(shopId);
+    final salesText = _salesCtrl[shopId]?.text ?? '';
+    final expText   = _expCtrl[shopId]?.text ?? '';
+    final saleCats  = salesText.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    final expCats   = expText.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Shop header + save button
+          Row(children: [
+            Text(shop.icon, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(shop.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+            TextButton(
+              onPressed: isSaving ? null : () => _saveShop(shopId),
+              child: isSaving
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2))
+                  : const Text('Save', style: TextStyle(color: kPrimary)),
+            ),
+          ]),
+          const SizedBox(height: 12),
+
+          // SALES CATEGORIES
+          Row(children: [
+            Container(width: 8, height: 8,
+                decoration: const BoxDecoration(color: kSecondary, shape: BoxShape.circle)),
+            const SizedBox(width: 6),
+            const Text('SALES CATEGORIES',
+                style: TextStyle(color: kMuted, fontSize: 10,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          ]),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _salesCtrl[shopId],
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              hintText: 'Cash, GPay, Card, ...',
+              helperText: 'Separate each with comma',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6, runSpacing: 6,
+            children: saleCats
+                .map((cat) => _CategoryChip(
+                      label: cat,
+                      color: kSecondary,
+                      onTap: () => _quickAdd(context, cat, 'sale', shop),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 14),
+
+          // EXPENSE CATEGORIES
+          Row(children: [
+            Container(width: 8, height: 8,
+                decoration: const BoxDecoration(color: kRed, shape: BoxShape.circle)),
+            const SizedBox(width: 6),
+            const Text('EXPENSE CATEGORIES',
+                style: TextStyle(color: kMuted, fontSize: 10,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          ]),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _expCtrl[shopId],
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              hintText: 'Purchase, Salary, Rent/EB, ...',
+              helperText: 'Separate each with comma',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6, runSpacing: 6,
+            children: expCats
+                .map((cat) => _CategoryChip(
+                      label: cat,
+                      color: kRed,
+                      onTap: () => _quickAdd(context, cat, 'expense', shop),
+                    ))
+                .toList(),
+          ),
+        ]),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const _SheetHandle(),
-        const SizedBox(height: 18),
-        const Row(children: [
-          Text('📋', style: TextStyle(fontSize: 20)),
-          SizedBox(width: 8),
-          Text('Business Categories',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+    return SizedBox.expand(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+            20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const _SheetHandle(),
+          const SizedBox(height: 18),
+          const Row(children: [
+            Text('📋', style: TextStyle(fontSize: 20)),
+            SizedBox(width: 8),
+            Text('Categories',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          ]),
+          const SizedBox(height: 4),
+          Text('Tap a category to quick-add an entry',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          const SizedBox(height: 20),
+          ...widget.p.shops.values.map(_buildShopSection),
         ]),
-        const SizedBox(height: 8),
-        Text('Your business type determines available categories.',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-        const SizedBox(height: 20),
-        Wrap(
-          spacing: 8, runSpacing: 8,
-          children: kShopTypes.map((st) => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: kPrimary.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: kPrimary.withOpacity(0.15)),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(st['icon']!, style: const TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Text(st['label']!,
-                  style: const TextStyle(
-                      color: kPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
-            ]),
-          )).toList(),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ℹ️', style: TextStyle(fontSize: 14)),
-              SizedBox(width: 8),
-              Expanded(child: Text(
-                'Custom category management coming in v2. Currently uses your business type categories.',
-                style: TextStyle(color: Color(0xFF1D4ED8), fontSize: 12),
-              )),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-      ]),
+      ),
     );
   }
 }
@@ -1276,5 +1819,33 @@ class _ApiKeyRow extends StatelessWidget {
         ),
       ),
     ]),
+  );
+}
+
+// ── Category chip ─────────────────────────────────────────────────────────────
+class _CategoryChip extends StatelessWidget {
+  final String       label;
+  final Color        color;
+  final VoidCallback onTap;
+  const _CategoryChip({required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(label,
+            style: TextStyle(
+                color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 4),
+        Icon(Icons.add_circle_outline, size: 14, color: color),
+      ]),
+    ),
   );
 }

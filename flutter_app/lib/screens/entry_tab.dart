@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/txn.dart';
@@ -32,13 +33,11 @@ class _EntryTabState extends State<EntryTab> {
     {'type': 'payment', 'label': 'Payment',         'icon': '💳', 'color': kAmber},
   ];
 
-  static const _saleCategories    = ['Cash', 'GPay', 'Credit', 'Wholesale', 'Retail'];
-  static const _expenseCategories = ['Purchase', 'Rent', 'Labour', 'Transport', 'Misc'];
   static const _paymentCategories = ['Supplier', 'Loan', 'Staff', 'Utility'];
 
-  List<String> get _categories {
-    if (_type == 'sale')    return _saleCategories;
-    if (_type == 'expense') return _expenseCategories;
+  List<String> _getCategories(AppProvider p) {
+    if (_type == 'sale')    return p.salesCats(_shopId);
+    if (_type == 'expense') return p.expenseCats(_shopId);
     return _paymentCategories;
   }
 
@@ -60,6 +59,11 @@ class _EntryTabState extends State<EntryTab> {
         : _shopId;
     final shop = p.shops[shopId];
 
+    // Capture values BEFORE reset
+    final savedType   = _type;
+    final savedShopId = shopId;
+    final savedDesc   = _desc.text.trim();
+
     final description = [
       if (_desc.text.trim().isNotEmpty) _desc.text.trim(),
       if (_bill.text.trim().isNotEmpty) 'Ref: ${_bill.text.trim()}',
@@ -79,6 +83,21 @@ class _EntryTabState extends State<EntryTab> {
       ));
       _snack('Entry saved');
       _reset(p);
+
+      // Track custom categories
+      if (savedDesc.isNotEmpty && savedType != 'payment') {
+        final defaultCats = savedType == 'sale'
+            ? p.salesCats(savedShopId)
+            : p.expenseCats(savedShopId);
+        if (!defaultCats.contains(savedDesc)) {
+          final prefs2 = await SharedPreferences.getInstance();
+          final key = 'kp_custom_${savedShopId}_$savedType';
+          final existing = prefs2.getStringList(key) ?? [];
+          if (!existing.contains(savedDesc)) {
+            await prefs2.setStringList(key, [...existing, savedDesc]);
+          }
+        }
+      }
     } catch (e) {
       _snack(e.toString(), error: true);
     } finally {
@@ -339,7 +358,7 @@ class _EntryTabState extends State<EntryTab> {
                   ),
                 ),
               ),
-              ..._categories.map((cat) {
+              ..._getCategories(p).map((cat) {
                 final isSelected = _desc.text == cat;
                 return GestureDetector(
                   onTap: () => setState(() => _desc.text = cat),
