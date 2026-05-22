@@ -260,6 +260,60 @@ class _ReportsTabState extends State<ReportsTab> {
     }
   }
 
+  /// Opens a date picker and shares that single day's summary to WhatsApp.
+  Future<void> _shareDailyWhatsApp() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(now.year - 2),
+      lastDate: now,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+              primary: kPrimary, onPrimary: Colors.white),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked == null || !mounted) return;
+
+    final dayTxns = _txns.where((t) {
+      final d = t.date;
+      return d.year == picked.year &&
+          d.month == picked.month &&
+          d.day == picked.day;
+    }).toList();
+
+    // Per-shop breakdown for sales
+    final shopMap = <String, double>{};
+    for (final t in dayTxns) {
+      if (t.type == 'sale') {
+        final n = t.shopName.isNotEmpty ? t.shopName : 'Other';
+        shopMap[n] = (shopMap[n] ?? 0) + t.amount;
+      }
+    }
+    final shopLines = shopMap.entries
+        .map((e) => '🏪 ${e.key}: ${rupee(e.value)}')
+        .join('\n');
+
+    final dateStr = DateFormat('d MMM yyyy').format(picked);
+    final text = '*ArthaNote — Daily Report*\n'
+        '📅 $dateStr\n'
+        '💚 Sales: ${rupee(_sumSales(dayTxns))}\n'
+        '💸 Expenses: ${rupee(_sumExp(dayTxns))}\n'
+        '💰 Net: ${rupee(_sumNet(dayTxns))}'
+        '${shopLines.isNotEmpty ? '\n$shopLines' : ''}\n'
+        '📊 ${dayTxns.length} entries\n'
+        '_Sent from ArthaNote_';
+
+    final uri =
+        Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
@@ -422,8 +476,9 @@ class _ReportsTabState extends State<ReportsTab> {
           prevTxns: prevTxns,
           allTxns: _txns,
           shops: p.shops,
-          onShareToday: () => _shareWhatsApp('Today', txns),
-          onShareMonth: () => _shareWhatsApp('Month', txns),
+          onShareToday:  () => _shareWhatsApp('Today', txns),
+          onShareMonth:  () => _shareWhatsApp('Month', txns),
+          onShareDaily:  _shareDailyWhatsApp,
         );
       case 'shopwise':
         return _ShopwiseSection(txns: txns, shops: p.shops);
@@ -461,6 +516,7 @@ class _ReportsTabState extends State<ReportsTab> {
           shops: p.shops,
           onShareToday: () => _shareWhatsApp('Today', txns),
           onShareMonth: () => _shareWhatsApp('Month', txns),
+          onShareDaily: _shareDailyWhatsApp,
         );
     }
   }
@@ -475,6 +531,7 @@ class _ExecSection extends StatelessWidget {
   final Map<String, Shop> shops;
   final VoidCallback onShareToday;
   final VoidCallback onShareMonth;
+  final VoidCallback onShareDaily;
 
   const _ExecSection({
     required this.txns,
@@ -483,6 +540,7 @@ class _ExecSection extends StatelessWidget {
     required this.shops,
     required this.onShareToday,
     required this.onShareMonth,
+    required this.onShareDaily,
   });
 
   @override
@@ -664,38 +722,59 @@ class _ExecSection extends StatelessWidget {
 
         // WhatsApp Share
         _SectionCard(
-          title: '📱 Share Report',
-          child: Row(
+          title: '📱 Share via WhatsApp',
+          child: Column(
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onShareToday,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 42),
-                    side: const BorderSide(color: Color(0xFF25D366)),
-                    foregroundColor: const Color(0xFF25D366),
+              // Daily (date picker) — prominent
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onShareDaily,
+                  icon: const Text('📅', style: TextStyle(fontSize: 14)),
+                  label: const Text('Share Daily Report (pick date)',
+                      style: TextStyle(fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 46),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('📱 WhatsApp Today',
-                      style: TextStyle(fontSize: 12)),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onShareMonth,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 42),
-                    side: const BorderSide(color: Color(0xFF25D366)),
-                    foregroundColor: const Color(0xFF25D366),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+              const SizedBox(height: 10),
+              // Today + Period
+              Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onShareToday,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      side: const BorderSide(color: Color(0xFF25D366)),
+                      foregroundColor: const Color(0xFF25D366),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Today',
+                        style: TextStyle(fontSize: 12)),
                   ),
-                  child: const Text('📱 WhatsApp Month',
-                      style: TextStyle(fontSize: 12)),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onShareMonth,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      side: const BorderSide(color: Color(0xFF25D366)),
+                      foregroundColor: const Color(0xFF25D366),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('This Period',
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              ]),
             ],
           ),
         ),
@@ -1532,6 +1611,117 @@ class _ChartsSection extends StatelessWidget {
 
   const _ChartsSection({required this.txns, required this.allTxns});
 
+  // Donut chart color palette
+  static const _palette = [
+    Color(0xFF059669), Color(0xFFDC2626), Color(0xFFF59E0B),
+    Color(0xFF3B82F6), Color(0xFF8B5CF6), Color(0xFFEC4899),
+    Color(0xFF06B6D4), Color(0xFF84CC16), Color(0xFF6366F1),
+    Color(0xFFF97316),
+  ];
+
+  Map<String, double> _byCategory(List<Txn> list) {
+    final map = <String, double>{};
+    for (final t in list) {
+      final cat = t.desc.trim().isEmpty ? 'Other' : t.desc.trim();
+      map[cat] = (map[cat] ?? 0) + t.amount;
+    }
+    final sorted = map.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final result = <String, double>{};
+    double other = 0;
+    for (int i = 0; i < sorted.length; i++) {
+      if (i < 8) {
+        result[sorted[i].key] = sorted[i].value;
+      } else {
+        other += sorted[i].value;
+      }
+    }
+    if (other > 0) result['Other'] = other;
+    return result;
+  }
+
+  Widget _buildDonut(String title, Map<String, double> cats, double total) {
+    if (cats.isEmpty) {
+      return _SectionCard(
+        title: title,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+              child: Text('No data in this period',
+                  style: TextStyle(color: kMuted))),
+        ),
+      );
+    }
+
+    final entries = cats.entries.toList();
+    final sections = entries.asMap().entries.map((e) {
+      return PieChartSectionData(
+        value:  e.value.value,
+        color:  _palette[e.key % _palette.length],
+        title:  '',
+        radius: 40,
+      );
+    }).toList();
+
+    return _SectionCard(
+      title: title,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Donut
+          SizedBox(
+            width: 110,
+            height: 110,
+            child: PieChart(PieChartData(
+              sections:          sections,
+              centerSpaceRadius: 28,
+              sectionsSpace:     1.5,
+              borderData:        FlBorderData(show: false),
+            )),
+          ),
+          const SizedBox(width: 14),
+          // Legend
+          Expanded(
+            child: Column(
+              children: entries.asMap().entries.map((e) {
+                final color = _palette[e.key % _palette.length];
+                final pct   = total > 0 ? e.value.value / total * 100 : 0.0;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    Container(
+                      width: 8, height: 8,
+                      decoration: BoxDecoration(
+                          color: color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(e.value.key,
+                          style: const TextStyle(fontSize: 11),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    const SizedBox(width: 4),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('${pct.toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 11)),
+                        Text(rupee(e.value.value),
+                            style: const TextStyle(
+                                color: kMuted, fontSize: 10)),
+                      ],
+                    ),
+                  ]),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> _last14Days() {
     final now = DateTime.now();
     return List.generate(14, (i) {
@@ -1541,8 +1731,8 @@ class _ChartsSection extends StatelessWidget {
         return d == day && t.type == 'sale';
       }).fold(0.0, (s, t) => s + t.amount);
       return {
-        'label': i == 13 ? 'T' : DateFormat('dd').format(day),
-        'value': total,
+        'label':   i == 13 ? 'T' : DateFormat('dd').format(day),
+        'value':   total,
         'isToday': i == 13,
       };
     });
@@ -1551,125 +1741,198 @@ class _ChartsSection extends StatelessWidget {
   List<Map<String, dynamic>> _last6Months() {
     final now = DateTime.now();
     return List.generate(6, (i) {
-      final m = DateTime(now.year, now.month - (5 - i), 1);
+      final m   = DateTime(now.year, now.month - (5 - i), 1);
       final key = DateFormat('yyyy-MM').format(m);
       final total = allTxns
-          .where((t) => DateFormat('yyyy-MM').format(t.date) == key && t.type == 'sale')
+          .where((t) =>
+              DateFormat('yyyy-MM').format(t.date) == key &&
+              t.type == 'sale')
           .fold(0.0, (s, t) => s + t.amount);
       return {
-        'label': DateFormat('MMM').format(m),
-        'value': total,
+        'label':   DateFormat('MMM').format(m),
+        'value':   total,
         'isToday': i == 5,
       };
     });
   }
 
   Widget _buildBarChart(List<Map<String, dynamic>> data, double height) {
-    final maxY = data.fold(0.0, (m, d) => (d['value'] as double) > m ? d['value'] as double : m);
+    final maxY = data.fold(
+        0.0, (m, d) => (d['value'] as double) > m ? d['value'] as double : m);
     if (data.every((d) => (d['value'] as double) == 0)) {
       return SizedBox(
-        height: height,
-        child: const Center(
-            child: Text('No data', style: TextStyle(color: kMuted))),
-      );
+          height: height,
+          child: const Center(
+              child: Text('No data', style: TextStyle(color: kMuted))));
     }
 
     return SizedBox(
       height: height,
-      child: BarChart(
-        BarChartData(
-          maxY: maxY > 0 ? maxY * 1.25 : 1000,
-          gridData: FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          barTouchData: BarTouchData(
-            touchTooltipData: BarTouchTooltipData(
-              tooltipRoundedRadius: 8,
-              getTooltipColor: (_) => kPrimary,
-              getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                rupee(rod.toY),
-                const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11),
-              ),
+      child: BarChart(BarChartData(
+        maxY:       maxY > 0 ? maxY * 1.25 : 1000,
+        gridData:   FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            tooltipRoundedRadius: 8,
+            getTooltipColor: (_) => kPrimary,
+            getTooltipItem: (group, _, rod, __) => BarTooltipItem(
+              rupee(rod.toY),
+              const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
             ),
           ),
-          titlesData: FlTitlesData(
-            leftTitles:
-                AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles:
-                AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 22,
-                getTitlesWidget: (v, _) {
-                  final idx = v.toInt();
-                  if (idx < 0 || idx >= data.length) {
-                    return const Text('');
-                  }
-                  final label = data[idx]['label'] as String;
-                  final isToday = data[idx]['isToday'] as bool;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: isToday ? kPrimary : Colors.grey.shade400,
-                        fontWeight: isToday
-                            ? FontWeight.w800
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          barGroups: data.asMap().entries.map((e) {
-            final isToday = e.value['isToday'] as bool;
-            return BarChartGroupData(
-              x: e.key,
-              barRods: [
-                BarChartRodData(
-                  toY: e.value['value'] as double,
-                  color: isToday ? kAccent : kSecondary,
-                  width: 14,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(5)),
-                ),
-              ],
-            );
-          }).toList(),
         ),
-      ),
+        titlesData: FlTitlesData(
+          leftTitles:  AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles:   true,
+              reservedSize: 22,
+              getTitlesWidget: (v, _) {
+                final idx = v.toInt();
+                if (idx < 0 || idx >= data.length) return const Text('');
+                final label   = data[idx]['label'] as String;
+                final isToday = data[idx]['isToday'] as bool;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(label,
+                      style: TextStyle(
+                        fontSize:   9,
+                        color:      isToday ? kPrimary : Colors.grey.shade400,
+                        fontWeight: isToday ? FontWeight.w800 : FontWeight.normal,
+                      )),
+                );
+              },
+            ),
+          ),
+        ),
+        barGroups: data.asMap().entries.map((e) {
+          final isToday = e.value['isToday'] as bool;
+          return BarChartGroupData(x: e.key, barRods: [
+            BarChartRodData(
+              toY:          e.value['value'] as double,
+              color:        isToday ? kAccent : kSecondary,
+              width:        14,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+            ),
+          ]);
+        }).toList(),
+      )),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final daily = _last14Days();
+    final sales   = _sumSales(txns);
+    final expense = _sumExp(txns);
+    final net     = _sumNet(txns);
+
+    final salesCats = _byCategory(txns.where((t) => t.type == 'sale').toList());
+    final expCats   = _byCategory(
+        txns.where((t) => t.type == 'expense' || t.type == 'payment').toList());
+
+    final daily   = _last14Days();
     final monthly = _last6Months();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       children: [
-        _SectionCard(
-          title: 'Daily Sales — Last 14 Days',
+        // ── Trend totals header ────────────────────────────────────────────
+        Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: kCardShadow,
+          ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildBarChart(daily, 220),
-              const SizedBox(height: 8),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                _Legend(color: kAccent, label: 'Today'),
-                const SizedBox(width: 14),
-                _Legend(color: kSecondary, label: 'Past days'),
+              Row(children: [
+                Container(
+                  width: 4, height: 18,
+                  decoration: BoxDecoration(
+                      color: kPrimary, borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(width: 8),
+                const Text('TREND CHARTS',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: kPrimary,
+                        letterSpacing: 0.5)),
+              ]),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(
+                  child: Column(children: [
+                    Text(rupee(sales),
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: kSecondary)),
+                    const Text('SALES',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: kMuted,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+                Expanded(
+                  child: Column(children: [
+                    Text(rupee(expense),
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: kRed)),
+                    const Text('EXPENSES',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: kMuted,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+                Expanded(
+                  child: Column(children: [
+                    Text(rupee(net.abs()),
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: net >= 0 ? kPrimary : kRed)),
+                    Text(net >= 0 ? 'NET PROFIT' : 'NET LOSS',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: net >= 0 ? kPrimary : kRed,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                ),
               ]),
             ],
           ),
+        ),
+
+        // ── Sales by category donut ───────────────────────────────────────
+        _buildDonut('💚 SALES BY CATEGORY', salesCats, sales),
+
+        // ── Expense by category donut ─────────────────────────────────────
+        _buildDonut('💸 EXPENSE BY CATEGORY', expCats, expense),
+
+        // ── Bar charts ────────────────────────────────────────────────────
+        _SectionCard(
+          title: 'Daily Sales — Last 14 Days',
+          child: Column(children: [
+            _buildBarChart(daily, 220),
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              _Legend(color: kAccent, label: 'Today'),
+              const SizedBox(width: 14),
+              _Legend(color: kSecondary, label: 'Past days'),
+            ]),
+          ]),
         ),
         const SizedBox(height: 14),
         _SectionCard(
