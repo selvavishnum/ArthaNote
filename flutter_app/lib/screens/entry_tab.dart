@@ -111,9 +111,8 @@ class _EntryTabState extends State<EntryTab> {
       _desc.clear();
       _bill.clear();
       _note.clear();
-      // keep _type so user can add multiple entries of the same type consecutively
-      _date   = DateTime.now();
-      _shopId = p.shops.values.firstOrNull?.id ?? '';
+      // Keep _type, _date, _shopId so the next entry pre-fills with last-used values.
+      // User can still change them if needed.
     });
   }
 
