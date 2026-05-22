@@ -2814,7 +2814,12 @@ async function startApp(user){
         if(!emailQ.empty){
           const existing=emailQ.docs[0].data();
           ME.businessId=existing.businessId; ME.role=existing.role||'owner';
-          await DB.collection('staff').doc(user.uid).set({...existing,uid:user.uid,linkedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+          ME.pro=!!(existing.pro&&existing.proExpiry>Date.now()); ME.proExpiry=existing.proExpiry||0;
+          // Record new UID on the ORIGINAL doc — do NOT create a second staff doc
+          await DB.collection('staff').doc(emailQ.docs[0].id).set(
+            {altUids:firebase.firestore.FieldValue.arrayUnion(user.uid),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},
+            {merge:true}
+          );
         } else {
           await DB.collection('staff').doc(user.uid).set({uid:user.uid,name:ME.name,email:ME.email,role:'owner',businessId:user.uid,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
         }
