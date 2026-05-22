@@ -83,4 +83,15 @@ class AuthService {
 
   Future<void> saveConfig(String businessId, Map<String, dynamic> data) =>
       _db.collection('config').doc(businessId).set(data, SetOptions(merge: true));
+
+  /// Replaces the 'shops' field entirely — use when deleting shops so
+  /// removed keys are actually gone (set+merge only updates, never removes).
+  Future<void> saveShops(String businessId, Map<String, dynamic> shops) async {
+    try {
+      await _db.collection('config').doc(businessId).update({'shops': shops});
+    } catch (_) {
+      // Doc may not exist yet for a brand-new account — fall back to set
+      await _db.collection('config').doc(businessId).set({'shops': shops}, SetOptions(merge: true));
+    }
+  }
 }
