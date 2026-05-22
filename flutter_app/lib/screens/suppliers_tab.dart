@@ -231,6 +231,7 @@ class _SuppliersTabState extends State<SuppliersTab> {
           supplier: sup,
           bills:    supBills,
           db:       _db,
+          p:        p,
           l:        l,
         );
       },
@@ -346,7 +347,12 @@ class _SuppliersTabState extends State<SuppliersTab> {
 class _AddBillSheet extends StatefulWidget {
   final DbService   db;
   final AppProvider p;
-  const _AddBillSheet({required this.db, required this.p});
+  final Supplier?   presetSupplier; // pre-select a supplier when opened from ⋮ menu
+  const _AddBillSheet({
+    required this.db,
+    required this.p,
+    this.presetSupplier,
+  });
 
   @override
   State<_AddBillSheet> createState() => _AddBillSheetState();
@@ -354,11 +360,17 @@ class _AddBillSheet extends StatefulWidget {
 
 class _AddBillSheetState extends State<_AddBillSheet> {
   String?     _supplierId;
-  String      _type    = 'payment';
+  String      _type    = 'bill';
   final _amtCtrl       = TextEditingController();
   final _descCtrl      = TextEditingController();
   DateTime    _date    = DateTime.now();
   bool        _saving  = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _supplierId = widget.presetSupplier?.id;
+  }
 
   @override
   void dispose() {
@@ -585,17 +597,223 @@ class _AddBillSheetState extends State<_AddBillSheet> {
   }
 }
 
+// ── Edit Bill Sheet ───────────────────────────────────────────────────────────
+class _EditBillSheet extends StatefulWidget {
+  final DbService    db;
+  final SupplierBill oldBill;
+  const _EditBillSheet({required this.db, required this.oldBill});
+
+  @override
+  State<_EditBillSheet> createState() => _EditBillSheetState();
+}
+
+class _EditBillSheetState extends State<_EditBillSheet> {
+  late String   _type;
+  late DateTime _date;
+  late final TextEditingController _amtCtrl;
+  late final TextEditingController _descCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final b   = widget.oldBill;
+    _type     = b.type;
+    _date     = b.date;
+    _amtCtrl  = TextEditingController(text: b.amount.toStringAsFixed(
+        b.amount == b.amount.truncateToDouble() ? 0 : 2));
+    _descCtrl = TextEditingController(text: b.desc);
+  }
+
+  @override
+  void dispose() {
+    _amtCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final typeColor = _type == 'bill' ? kRed : kSecondary;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _SheetHandle(),
+        const SizedBox(height: 16),
+        Row(children: [
+          _CircleIcon(icon: Icons.edit_outlined, color: typeColor),
+          const SizedBox(width: 12),
+          const Text('Edit Entry',
+              style: TextStyle(
+                  fontWeight: FontWeight.w800, fontSize: 18, color: kText)),
+        ]),
+        const SizedBox(height: 20),
+
+        // Type toggle
+        Row(children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _type = 'bill'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _type == 'bill' ? kRed : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: _type == 'bill' ? kRed : const Color(0xFFE5E7EB)),
+                ),
+                child: Center(
+                  child: Text('BILL',
+                      style: TextStyle(
+                          color: _type == 'bill'
+                              ? Colors.white
+                              : Colors.grey.shade600,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _type = 'payment'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _type == 'payment' ? kSecondary : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: _type == 'payment'
+                          ? kSecondary
+                          : const Color(0xFFE5E7EB)),
+                ),
+                child: Center(
+                  child: Text('PAYMENT',
+                      style: TextStyle(
+                          color: _type == 'payment'
+                              ? Colors.white
+                              : Colors.grey.shade600,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13)),
+                ),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+
+        TextFormField(
+          controller: _amtCtrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: TextStyle(
+              fontSize: 20, fontWeight: FontWeight.w800, color: typeColor),
+          decoration: const InputDecoration(
+              labelText: 'Amount ₹',
+              prefixIcon: Icon(Icons.payments_outlined)),
+        ),
+        const SizedBox(height: 12),
+
+        TextFormField(
+          controller: _descCtrl,
+          decoration: const InputDecoration(
+              labelText: 'Description (optional)',
+              prefixIcon: Icon(Icons.notes_outlined)),
+        ),
+        const SizedBox(height: 12),
+
+        // Date picker
+        GestureDetector(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _date,
+              firstDate: DateTime(2020),
+              lastDate: DateTime.now().add(const Duration(days: 1)),
+              builder: (ctx, child) => Theme(
+                data: Theme.of(ctx).copyWith(
+                    colorScheme: const ColorScheme.light(primary: kPrimary)),
+                child: child!,
+              ),
+            );
+            if (picked != null) setState(() => _date = picked);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+                borderRadius: BorderRadius.circular(10)),
+            child: Row(children: [
+              const Icon(Icons.calendar_today_outlined,
+                  size: 18, color: kMuted),
+              const SizedBox(width: 10),
+              Text(DateFormat('d MMM yyyy').format(_date),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              const Icon(Icons.chevron_right, size: 18, color: kMuted),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _saving
+                ? null
+                : () async {
+                    final amount =
+                        double.tryParse(_amtCtrl.text.trim());
+                    if (amount == null || amount <= 0) return;
+                    setState(() => _saving = true);
+                    final newBill = SupplierBill(
+                      id:           widget.oldBill.id,
+                      businessId:   widget.oldBill.businessId,
+                      supplierId:   widget.oldBill.supplierId,
+                      supplierName: widget.oldBill.supplierName,
+                      date:         _date,
+                      type:         _type,
+                      amount:       amount,
+                      desc:         _descCtrl.text.trim(),
+                    );
+                    await widget.db.updateSupplierBill(widget.oldBill, newBill);
+                    if (mounted) Navigator.pop(context);
+                  },
+            style: ElevatedButton.styleFrom(backgroundColor: typeColor),
+            child: _saving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5))
+                : const Text('Update Entry',
+                    style: TextStyle(color: Colors.white)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 // ── Supplier card ─────────────────────────────────────────────────────────────
 class _SupplierCard extends StatefulWidget {
   final Supplier           supplier;
   final List<SupplierBill> bills;
   final DbService          db;
+  final AppProvider        p;
   final String             l;
 
   const _SupplierCard({
     required this.supplier,
     required this.bills,
     required this.db,
+    required this.p,
     required this.l,
   });
 
@@ -605,6 +823,138 @@ class _SupplierCard extends StatefulWidget {
 
 class _SupplierCardState extends State<_SupplierCard> {
   bool _expanded = false;
+
+  // ── Edit supplier sheet ──────────────────────────────────────────────────
+  void _showEditSheet(BuildContext context) {
+    final sup       = widget.supplier;
+    final nameCtrl  = TextEditingController(text: sup.name);
+    final phoneCtrl = TextEditingController(text: sup.phone);
+    bool saving     = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            _SheetHandle(),
+            const SizedBox(height: 16),
+            Row(children: [
+              _CircleIcon(icon: Icons.edit_outlined, color: kPrimary),
+              const SizedBox(width: 12),
+              const Text('Edit Supplier',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: kPrimary)),
+            ]),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: nameCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                  labelText: 'Supplier Name',
+                  prefixIcon: Icon(Icons.person_outline)),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                  labelText: 'Phone (optional)',
+                  prefixIcon: Icon(Icons.phone_outlined)),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (nameCtrl.text.trim().isEmpty) return;
+                        setSt(() => saving = true);
+                        await widget.db.updateSupplierInfo(
+                          sup.id,
+                          nameCtrl.text.trim(),
+                          phoneCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+                child: saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5))
+                    : const Text('Save Changes',
+                        style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // ── Add bill for this specific supplier ───────────────────────────────────
+  void _showAddBillHere(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => _AddBillSheet(
+        db:             widget.db,
+        p:              widget.p,
+        presetSupplier: widget.supplier,
+      ),
+    );
+  }
+
+  // ── Delete supplier ───────────────────────────────────────────────────────
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Supplier?'),
+        content: Text(
+            'This will permanently delete "${widget.supplier.name}".\nBill history will remain but the supplier card will be removed.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await widget.db.deleteSupplier(widget.supplier.id);
+            },
+            child:
+                const Text('Delete', style: TextStyle(color: kRed)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Edit bill/payment entry ───────────────────────────────────────────────
+  void _showEditBillSheet(BuildContext context, SupplierBill oldBill) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) =>
+          _EditBillSheet(db: widget.db, oldBill: oldBill),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -630,7 +980,7 @@ class _SupplierCardState extends State<_SupplierCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1: avatar, name/phone, balance
+              // Row 1: avatar, name/phone, balance, ⋮ menu
               Row(children: [
                 CircleAvatar(
                   radius: 22,
@@ -681,6 +1031,45 @@ class _SupplierCardState extends State<_SupplierCard> {
                             fontSize: 10,
                             fontWeight: FontWeight.w700),
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 4),
+                // ⋮ context menu
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert,
+                      size: 18, color: kMuted),
+                  onSelected: (v) {
+                    if (v == 'edit')   _showEditSheet(context);
+                    if (v == 'bill')   _showAddBillHere(context);
+                    if (v == 'delete') _confirmDelete(context);
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(children: [
+                        Icon(Icons.edit_outlined, size: 16, color: kPrimary),
+                        SizedBox(width: 10),
+                        Text('Edit Supplier'),
+                      ]),
+                    ),
+                    const PopupMenuItem(
+                      value: 'bill',
+                      child: Row(children: [
+                        Icon(Icons.receipt_long_outlined,
+                            size: 16, color: Color(0xFF2563EB)),
+                        SizedBox(width: 10),
+                        Text('Add Bill / Payment'),
+                      ]),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(children: [
+                        Icon(Icons.delete_outline, size: 16, color: kRed),
+                        SizedBox(width: 10),
+                        Text('Delete Supplier',
+                            style: TextStyle(color: kRed)),
+                      ]),
                     ),
                   ],
                 ),
@@ -748,7 +1137,11 @@ class _SupplierCardState extends State<_SupplierCard> {
                     ),
                   )
                 else
-                  ...bills.map((b) => _BillRow(bill: b, db: widget.db)),
+                  ...bills.map((b) => _BillRow(
+                        bill: b,
+                        db:   widget.db,
+                        onEdit: () => _showEditBillSheet(context, b),
+                      )),
               ],
             ],
           ),
@@ -762,7 +1155,33 @@ class _SupplierCardState extends State<_SupplierCard> {
 class _BillRow extends StatelessWidget {
   final SupplierBill bill;
   final DbService    db;
-  const _BillRow({required this.bill, required this.db});
+  final VoidCallback onEdit;
+  const _BillRow({required this.bill, required this.db, required this.onEdit});
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete entry?'),
+        content: Text(
+            '${bill.type == 'bill' ? 'Bill' : 'Payment'} of ${rupee(bill.amount)}'
+            '${bill.desc.isNotEmpty ? ' (${bill.desc})' : ''}\n'
+            '${DateFormat('d MMM yyyy').format(bill.date)}'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await db.deleteSupplierBill(bill);
+            },
+            child: const Text('Delete', style: TextStyle(color: kRed)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -778,41 +1197,60 @@ class _BillRow extends StatelessWidget {
         color: kRed.withOpacity(0.1),
         child: const Icon(Icons.delete_outline, color: kRed),
       ),
-      onDismissed: (_) => db.deleteSupplierBill(bill),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  bill.desc.isEmpty
-                      ? (isBill ? 'Bill' : 'Payment')
-                      : bill.desc,
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  DateFormat('d MMM').format(bill.date),
-                  style: TextStyle(
-                      color: Colors.grey.shade500, fontSize: 11),
-                ),
-              ],
+      confirmDismiss: (_) async {
+        _confirmDelete(context);
+        return false; // let the dialog handle deletion
+      },
+      child: InkWell(
+        onTap: onEdit,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: Row(children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
-          ),
-          Text(
-            '${isBill ? '+' : '-'}${rupee(bill.amount)}',
-            style: TextStyle(
-                color: color, fontWeight: FontWeight.w700, fontSize: 13),
-          ),
-        ]),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    bill.desc.isEmpty
+                        ? (isBill ? 'Bill' : 'Payment')
+                        : bill.desc,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    DateFormat('d MMM').format(bill.date),
+                    style:
+                        TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${isBill ? '+' : '-'}${rupee(bill.amount)}',
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onEdit,
+              child: const Icon(Icons.edit_outlined,
+                  size: 14, color: kMuted),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: () => _confirmDelete(context),
+              child: const Icon(Icons.delete_outline,
+                  size: 14, color: kRed),
+            ),
+          ]),
+        ),
       ),
     );
   }
