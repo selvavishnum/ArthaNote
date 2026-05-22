@@ -568,7 +568,7 @@ class _ScanTabState extends State<ScanTab> {
   }
 }
 
-// ── Parsed entries confirmation sheet ─────────────────────────────────────────
+// ── Parsed entries review & edit sheet ────────────────────────────────────────
 class _ParsedEntriesSheet extends StatefulWidget {
   final List<Map<String, dynamic>> entries;
   final String    shopId;
@@ -591,40 +591,44 @@ class _ParsedEntriesSheet extends StatefulWidget {
 }
 
 class _ParsedEntriesSheetState extends State<_ParsedEntriesSheet> {
-  late List<Map<String, dynamic>> _entries;
+  late List<_EntryModel> _entries;
   bool _saving = false;
+
+  static const _typeOptions = ['sale', 'expense', 'payment'];
 
   @override
   void initState() {
     super.initState();
-    _entries = widget.entries.map((e) => {
-      'desc':   (e['desc']   ?? '').toString(),
-      'amount': (e['amount'] is num)
-          ? (e['amount'] as num).toDouble()
-          : double.tryParse(e['amount'].toString()) ?? 0.0,
-      'type':   (e['type']   ?? 'sale').toString(),
-    }).toList();
+    _entries = widget.entries.map((e) => _EntryModel.fromMap(e)).toList();
+  }
+
+  @override
+  void dispose() {
+    for (final e in _entries) e.dispose();
+    super.dispose();
   }
 
   Future<void> _saveAll() async {
     setState(() => _saving = true);
     try {
-      for (final entry in _entries) {
+      for (final e in _entries) {
+        final amt = double.tryParse(e.amtCtrl.text.replaceAll(',', '').trim()) ?? 0;
+        if (amt <= 0) continue;
         await widget.db.addTxn(Txn(
           id:         '',
           businessId: widget.businessId,
           shop:       widget.shopId,
           shopName:   widget.shopName,
           date:       widget.date,
-          type:       entry['type'] as String,
-          amount:     entry['amount'] as double,
-          desc:       entry['desc'] as String,
+          type:       e.type,
+          amount:     amt,
+          desc:       e.descCtrl.text.trim(),
         ));
       }
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ ${_entries.length} entries saved'),
+          content: Text('✅ ${_entries.length} entries saved to cloud'),
           backgroundColor: kSecondary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -645,112 +649,333 @@ class _ParsedEntriesSheetState extends State<_ParsedEntriesSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 24),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Center(
-          child: Container(width: 40, height: 4,
+    final dateStr = DateFormat('yyyy-MM-dd').format(widget.date);
+    return SizedBox.expand(
+      child: Column(children: [
+        // Handle
+        const SizedBox(height: 8),
+        Center(child: Container(
+          width: 40, height: 4,
+          decoration: BoxDecoration(color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2)),
+        )),
+        const SizedBox(height: 14),
+
+        // Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2))),
-        ),
-        const SizedBox(height: 16),
-        Row(children: [
-          const Text('📋', style: TextStyle(fontSize: 20)),
-          const SizedBox(width: 8),
-          Text(
-            'Detected Entries (${_entries.length})',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kPrimary),
-          ),
-          const Spacer(),
-          Text('Tap badge to change type',
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 10)),
-        ]),
-        const SizedBox(height: 12),
-
-        // Entries list
-        ConstrainedBox(
-          constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.45),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _entries.length,
-            itemBuilder: (context, index) {
-              final entry = _entries[index];
-              final type  = entry['type'] as String;
-              final color = type == 'sale'
-                  ? kSecondary
-                  : type == 'expense'
-                      ? kRed
-                      : kAccent;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: color.withOpacity(0.2)),
-                ),
-                child: Row(children: [
-                  GestureDetector(
-                    onTap: () {
-                      const types = ['sale', 'expense', 'payment'];
-                      final idx = types.indexOf(type);
-                      setState(() => _entries[index]['type'] = types[(idx + 1) % 3]);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: color, borderRadius: BorderRadius.circular(6)),
-                      child: Text(type.toUpperCase(),
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      entry['desc'] as String,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    '₹${(entry['amount'] as double).toStringAsFixed(0)}',
-                    style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 14),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => setState(() => _entries.removeAt(index)),
-                    child: const Icon(Icons.close, size: 18, color: Colors.grey),
-                  ),
-                ]),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: (_saving || _entries.isEmpty) ? null : _saveAll,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                color: kPrimary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text('✏️ REVIEW & EDIT ENTRIES',
+                  style: TextStyle(color: kPrimary, fontWeight: FontWeight.w800,
+                      fontSize: 11, letterSpacing: 0.8)),
             ),
-            child: _saving
-                ? const SizedBox(
-                    width: 22, height: 22,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                : Text('Save ${_entries.length} Entries to Ledger'),
+          ]),
+        ),
+        const SizedBox(height: 8),
+
+        // Date info
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: kAccent.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(children: [
+              const Text('📅', style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 6),
+              Text('Entries will be saved for: $dateStr',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                      color: kAccent)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 6),
+
+        // Count badge
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: kSecondary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(children: [
+              const Text('✓', style: TextStyle(color: kSecondary, fontWeight: FontWeight.w800)),
+              const SizedBox(width: 6),
+              Text('${_entries.length} entries extracted successfully. Edit if needed.',
+                  style: const TextStyle(fontSize: 12, color: kSecondary,
+                      fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Entries scroll list
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _entries.length,
+            itemBuilder: (ctx, i) => _buildEntryCard(i),
+          ),
+        ),
+
+        // Save button
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+              16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: (_saving || _entries.isEmpty) ? null : _saveAll,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              child: _saving
+                  ? const SizedBox(width: 22, height: 22,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  : Text('💾 Save ${_entries.length} Entries to Cloud'),
+            ),
           ),
         ),
       ]),
     );
+  }
+
+  Widget _buildEntryCard(int i) {
+    final e     = _entries[i];
+    final type  = e.type;
+    final color = type == 'sale' ? kSecondary : type == 'expense' ? kRed : kAccent;
+    final typeLabel = type == 'sale' ? '💚 Sales' : type == 'expense' ? '📉 Expense' : '💳 Payment';
+    final amtSign   = type == 'sale' ? '+' : '-';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: kCardShadow,
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Card header row
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 0),
+          child: Row(children: [
+            // Entry number
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text('#${i + 1}',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: kMuted)),
+            ),
+            const SizedBox(width: 6),
+            // Type badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(type == 'sale' ? 'SALES' : type.toUpperCase(),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 10, color: color)),
+            ),
+            const Spacer(),
+            // Amount preview
+            Text(
+              '$amtSign₹${e.amtCtrl.text.isNotEmpty ? e.amtCtrl.text : '0'}',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: color),
+            ),
+            const SizedBox(width: 4),
+            // Delete button
+            IconButton(
+              icon: const Icon(Icons.close, size: 18, color: kRed),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: () => setState(() {
+                _entries[i].dispose();
+                _entries.removeAt(i);
+              }),
+            ),
+          ]),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Description
+            const Text('DESCRIPTION',
+                style: TextStyle(color: kMuted, fontSize: 9,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            const SizedBox(height: 4),
+            TextFormField(
+              controller: e.descCtrl,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: color, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Amount
+            const Text('AMOUNT (₹)',
+                style: TextStyle(color: kMuted, fontSize: 9,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            const SizedBox(height: 4),
+            TextFormField(
+              controller: e.amtCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) => setState(() {}),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
+              decoration: InputDecoration(
+                isDense: true,
+                prefixText: '₹ ',
+                prefixStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: color, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Type + Category row
+            Row(children: [
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('TYPE',
+                      style: TextStyle(color: kMuted, fontSize: 9,
+                          fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    value: type,
+                    isDense: true,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: [
+                      DropdownMenuItem(value: 'sale',    child: Text('💚 Sales',   style: const TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'expense', child: Text('📉 Expense', style: const TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'payment', child: Text('💳 Payment', style: const TextStyle(fontSize: 12))),
+                    ],
+                    onChanged: (v) => setState(() => e.type = v ?? 'sale'),
+                  ),
+                ]),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('CATEGORY',
+                      style: TextStyle(color: kMuted, fontSize: 9,
+                          fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    value: e.category,
+                    isDense: true,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '',       child: Text('— Select —', style: TextStyle(fontSize: 12, color: kMuted))),
+                      DropdownMenuItem(value: 'Cash',   child: Text('Cash',   style: TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'GPay',   child: Text('GPay',   style: TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'Card',   child: Text('Card',   style: TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'Credit', child: Text('Credit', style: TextStyle(fontSize: 12))),
+                      DropdownMenuItem(value: 'Other',  child: Text('Other',  style: TextStyle(fontSize: 12))),
+                    ],
+                    onChanged: (v) => setState(() => e.category = v ?? ''),
+                  ),
+                ]),
+              ),
+            ]),
+
+            // Supplier row (payment only)
+            if (e.type == 'payment') ...[
+              const SizedBox(height: 10),
+              const Text('SUPPLIER (IF PAYMENT)',
+                  style: TextStyle(color: kMuted, fontSize: 9,
+                      fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+              const SizedBox(height: 4),
+              DropdownButtonFormField<String>(
+                value: e.supplier,
+                isDense: true,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('— None —', style: TextStyle(fontSize: 12, color: kMuted))),
+                  DropdownMenuItem(value: 'Supplier', child: Text('Supplier', style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(value: 'Loan',     child: Text('Loan',     style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(value: 'Staff',    child: Text('Staff',    style: TextStyle(fontSize: 12))),
+                  DropdownMenuItem(value: 'Utility',  child: Text('Utility',  style: TextStyle(fontSize: 12))),
+                ],
+                onChanged: (v) => setState(() => e.supplier = v ?? ''),
+              ),
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _EntryModel {
+  late TextEditingController descCtrl;
+  late TextEditingController amtCtrl;
+  String type;
+  String category;
+  String supplier;
+
+  _EntryModel({
+    required String desc,
+    required double amount,
+    required this.type,
+    this.category = '',
+    this.supplier = '',
+  }) {
+    descCtrl = TextEditingController(text: desc);
+    amtCtrl  = TextEditingController(text: amount > 0 ? amount.toStringAsFixed(0) : '');
+  }
+
+  factory _EntryModel.fromMap(Map<String, dynamic> e) => _EntryModel(
+    desc:   (e['desc']   ?? '').toString(),
+    amount: (e['amount'] is num)
+        ? (e['amount'] as num).toDouble()
+        : double.tryParse(e['amount'].toString()) ?? 0.0,
+    type: (e['type'] ?? 'sale').toString(),
+  );
+
+  void dispose() {
+    descCtrl.dispose();
+    amtCtrl.dispose();
   }
 }
