@@ -92,7 +92,7 @@ class _EntryTabState extends State<EntryTab> {
       _desc.clear();
       _bill.clear();
       _note.clear();
-      _type   = 'sale';
+      // keep _type so user can add multiple entries of the same type consecutively
       _date   = DateTime.now();
       _shopId = p.shops.values.firstOrNull?.id ?? '';
     });
