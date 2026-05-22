@@ -28,11 +28,22 @@ class Txn {
       businessId: d['businessId'] as String? ?? '',
       shop:       d['shop']       as String? ?? '',
       shopName:   d['shopName']   as String? ?? '',
-      date:       (d['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      date:       _parseDate(d['date']),
       type:       d['type']       as String? ?? 'sale',
       amount:     (d['amount']    as num?)?.toDouble() ?? 0,
       desc:       d['desc']       as String? ?? '',
     );
+  }
+
+  static DateTime _parseDate(dynamic v) {
+    if (v is Timestamp) return v.toDate();
+    if (v is String && v.isNotEmpty) return DateTime.tryParse(v) ?? DateTime.now();
+    if (v is Map) {
+      // Firestore map-encoded timestamp from web: {seconds: ..., nanoseconds: ...}
+      final secs = (v['seconds'] as num?)?.toInt() ?? 0;
+      return DateTime.fromMillisecondsSinceEpoch(secs * 1000);
+    }
+    return DateTime.now();
   }
 
   Map<String, dynamic> toFirestore() => {

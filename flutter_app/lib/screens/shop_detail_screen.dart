@@ -410,7 +410,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                           ],
                         ),
                       ),
-                      onDismissed: (_) => _db.deleteTxn(txn.id),
+                      onDismissed: (_) => _db.deleteTxn(txn.id, txn.businessId),
                       child: Card(
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 3),

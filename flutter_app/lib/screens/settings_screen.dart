@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +6,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/shop.dart';
@@ -165,12 +171,14 @@ class SettingsScreen extends StatelessWidget {
                 iconColor: kPrimary,
                 title: t('qr_attendance', l),
                 subtitle: 'Generate QR & view attendance',
-                onTap: () async {
-                  final url = Uri.parse('https://selvavishnum.github.io/Kannakupilai/attend.html');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
+                onTap: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                  builder: (_) => _QrAttendanceSheet(p: p),
+                ),
               ),
               const _ItemDivider(),
               _SettingsItem(
@@ -207,14 +215,14 @@ class SettingsScreen extends StatelessWidget {
                 icon: Icons.save_outlined,
                 iconColor: const Color(0xFF10B981),
                 title: t('backup', l),
-                subtitle: 'Export or restore your data',
+                subtitle: 'Export, import & sync your data',
                 onTap: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   useSafeArea: true,
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                  builder: (_) => const _BackupSheet(),
+                  builder: (_) => _BackupSheet(p: p),
                 ),
                 isLast: !isAdmin,
               ),
@@ -282,6 +290,11 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+
+          if (isAdmin) ...[
+            const SizedBox(height: 20),
+            _BuildApkCard(p: p),
+          ],
 
           const SizedBox(height: 28),
 
@@ -1471,14 +1484,770 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
   }
 }
 
-// ── Backup sheet ──────────────────────────────────────────────────────────────
-class _BackupSheet extends StatelessWidget {
-  const _BackupSheet();
+// ── QR Attendance sheet ───────────────────────────────────────────────────────
+class _QrAttendanceSheet extends StatefulWidget {
+  final AppProvider p;
+  const _QrAttendanceSheet({required this.p});
+  @override
+  State<_QrAttendanceSheet> createState() => _QrAttendanceSheetState();
+}
+
+class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
+    with SingleTickerProviderStateMixin {
+  late TabController _tab;
+  String _shopId = '';
+  DateTime _summaryMonth = DateTime.now();
+  DateTime _markDate     = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _tab    = TabController(length: 2, vsync: this);
+    _shopId = widget.p.shops.values.firstOrNull?.id ?? '';
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  String get _qrUrl {
+    final shop = widget.p.shops[_shopId];
+    final name  = Uri.encodeComponent(shop?.name ?? 'Shop');
+    return 'https://selvavishnum.github.io/Kannakupilai/attend.html'
+        '?bid=${widget.p.businessId}&shop=$_shopId&sname=$name';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+    final shops = widget.p.shops;
+    return SizedBox.expand(
+      child: Column(children: [
+        const SizedBox(height: 8),
+        const _SheetHandle(),
+        const SizedBox(height: 12),
+        // Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(children: [
+            const Text('📋', style: TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('Attendance',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+            ),
+            if (shops.length > 1)
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _shopId.isEmpty ? null : _shopId,
+                  isDense: true,
+                  onChanged: (v) => setState(() => _shopId = v ?? _shopId),
+                  items: shops.values.map((s) => DropdownMenuItem(
+                    value: s.id,
+                    child: Text('${s.icon} ${s.name}',
+                        style: const TextStyle(fontSize: 13)),
+                  )).toList(),
+                ),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 8),
+        // Tab bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: TabBar(
+              controller: _tab,
+              labelColor: Colors.white,
+              unselectedLabelColor: kMuted,
+              indicator: BoxDecoration(
+                color: kPrimary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              tabs: const [
+                Tab(text: '✅ Mark Attendance'),
+                Tab(text: '📊 Summary'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: TabBarView(
+            controller: _tab,
+            children: [
+              _buildMarkTab(shops),
+              _buildSummaryTab(),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── Mark Attendance tab ────────────────────────────────────────────────────
+  Widget _buildMarkTab(Map<String, dynamic> shops) {
+    final shop = widget.p.shops[_shopId];
+    if (shop == null) {
+      return const Center(child: Text('No shops configured.', style: TextStyle(color: kMuted)));
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Column(children: [
+        // Shop selector (if only 1 shop show name here)
+        if (widget.p.shops.length == 1) ...[
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text(shop.icon, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 6),
+            Text(shop.name,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kPrimary)),
+          ]),
+          const SizedBox(height: 4),
+        ],
+        // QR Card
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kPrimary.withOpacity(0.2)),
+            boxShadow: kCardShadow,
+          ),
+          child: Column(children: [
+            // Green header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: kPrimary,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: const Column(children: [
+                Text('📒', style: TextStyle(fontSize: 26)),
+                SizedBox(height: 4),
+                Text('ArthaNote',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+                Text('Staff Attendance Scanner',
+                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(height: 16),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(shop.icon, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 6),
+              Text(shop.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: kPrimary)),
+            ]),
+            const SizedBox(height: 4),
+            Text('🔒 Permanent QR — Auto date daily',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+            const SizedBox(height: 16),
+            // QR code
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: QrImageView(
+                data: _qrUrl,
+                version: QrVersions.auto,
+                size: 220,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: Color(0xFF065f46),
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: Color(0xFF065f46),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Instructions
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('📱 எப்படி scan பண்றது?',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kPrimary)),
+                  const SizedBox(height: 8),
+                  ...[
+                    '1. Phone camera திறங்க',
+                    '2. இந்த QR-ஐ point பண்ணுங்க',
+                    '3. உங்கள் பேரை tap பண்ணுங்க',
+                    '4. ✅ Attendance complete!',
+                  ].map((s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(s, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                  )),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Share / Open link buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => SharePlus.instance.share(
+                      ShareParams(text: 'Attendance QR for ${shop.name}: $_qrUrl'),
+                    ),
+                    icon: const Icon(Icons.share_outlined, size: 16),
+                    label: const Text('Share Link'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: kPrimary,
+                      side: const BorderSide(color: kPrimary),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.parse(_qrUrl);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    icon: const Icon(Icons.open_in_browser, size: 16),
+                    label: const Text('Open'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimary,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 16),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  // ── Summary tab ────────────────────────────────────────────────────────────
+  Widget _buildSummaryTab() {
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Row(children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () async {
+                final now = DateTime.now();
+                // Simple month picker via showDatePicker (day doesn't matter)
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _summaryMonth,
+                  firstDate: DateTime(2024),
+                  lastDate: DateTime(now.year, now.month),
+                  initialDatePickerMode: DatePickerMode.year,
+                  builder: (ctx, child) => Theme(
+                    data: Theme.of(ctx).copyWith(
+                      colorScheme: const ColorScheme.light(primary: kPrimary),
+                    ),
+                    child: child!,
+                  ),
+                );
+                if (picked != null) setState(() => _summaryMonth = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.calendar_month_outlined, size: 16, color: kPrimary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      DateFormat('MMM yyyy').format(_summaryMonth),
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down, size: 18, color: kMuted),
+                ]),
+              ),
+            ),
+          ),
+        ]),
+      ),
+      Expanded(
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('attendance')
+              .where('businessId', isEqualTo: widget.p.businessId)
+              .where('shopId', isEqualTo: _shopId)
+              .snapshots(),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: kPrimary));
+            }
+            final docs = snap.data?.docs ?? [];
+            // Filter to selected month
+            final monthStr = DateFormat('yyyy-MM').format(_summaryMonth);
+            final monthDocs = docs.where((d) {
+              final date = (d.data()['date'] as String?) ?? '';
+              return date.startsWith(monthStr);
+            }).toList();
+
+            if (monthDocs.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('📭', style: TextStyle(fontSize: 40)),
+                    const SizedBox(height: 8),
+                    Text('No attendance in ${DateFormat('MMM yyyy').format(_summaryMonth)}',
+                        style: const TextStyle(color: kMuted, fontSize: 13)),
+                  ],
+                ),
+              );
+            }
+
+            // Group by staffName
+            final Map<String, List<Map<String, dynamic>>> byStaff = {};
+            for (final doc in monthDocs) {
+              final d    = doc.data();
+              final name = (d['staffName'] as String?) ?? 'Unknown';
+              byStaff.putIfAbsent(name, () => []).add(d);
+            }
+
+            // Count working days in month
+            final int year  = _summaryMonth.year;
+            final int month = _summaryMonth.month;
+            final int daysInMonth = DateTime(year, month + 1, 0).day;
+            final int today = DateTime.now().day;
+            final int workingDays = (month == DateTime.now().month && year == DateTime.now().year)
+                ? today
+                : daysInMonth;
+
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: byStaff.length,
+              itemBuilder: (ctx, i) {
+                final entry    = byStaff.entries.elementAt(i);
+                final name     = entry.key;
+                final records  = entry.value;
+                final presentDays = records
+                    .where((r) => r['type'] == 'in' || r['type'] == null)
+                    .map((r) => r['date'] as String?)
+                    .whereType<String>()
+                    .toSet()
+                    .length;
+                final absentDays = workingDays - presentDays;
+                final rate = workingDays > 0
+                    ? (presentDays / workingDays * 100).round()
+                    : 0;
+
+                // Average hours calculation
+                final Map<String, List<Map<String, dynamic>>> byDay = {};
+                for (final r in records) {
+                  final date = (r['date'] as String?) ?? '';
+                  byDay.putIfAbsent(date, () => []).add(r);
+                }
+                double totalHrs = 0;
+                int hrCount = 0;
+                for (final dayRecs in byDay.values) {
+                  final inRec  = dayRecs.where((r) => r['type'] == 'in' || r['type'] == null).firstOrNull;
+                  final outRec = dayRecs.where((r) => r['type'] == 'out').firstOrNull;
+                  if (inRec != null && outRec != null) {
+                    final inMs  = (inRec['timeRaw']  as num?)?.toDouble() ?? 0;
+                    final outMs = (outRec['timeRaw'] as num?)?.toDouble() ?? 0;
+                    if (outMs > inMs) {
+                      totalHrs += (outMs - inMs) / 3600000;
+                      hrCount++;
+                    }
+                  }
+                }
+                final avgHrs = hrCount > 0 ? (totalHrs / hrCount) : 0.0;
+
+                final presentDatesList = records
+                    .where((r) => r['type'] == 'in' || r['type'] == null)
+                    .map((r) => r['date'] as String?)
+                    .whereType<String>()
+                    .toSet()
+                    .map((d) => d.split('-').last)
+                    .toList()
+                  ..sort();
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    boxShadow: kCardShadow,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      // Header row
+                      Row(children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: kPrimary,
+                          child: Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : '?',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(name,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                            Text(monthStr,
+                                style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                          ]),
+                        ),
+                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                          Text('$presentDays',
+                              style: const TextStyle(
+                                  color: kRed, fontWeight: FontWeight.w800, fontSize: 20)),
+                          Text('days / $workingDays working',
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 10)),
+                        ]),
+                      ]),
+                      const SizedBox(height: 10),
+                      // Rate row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Attendance Rate',
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text('$rate%',
+                              style: const TextStyle(
+                                  color: kRed, fontWeight: FontWeight.w700, fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: rate / 100,
+                          minHeight: 6,
+                          backgroundColor: const Color(0xFFE5E7EB),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              rate >= 80 ? kSecondary : kRed),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Stats row
+                      IntrinsicHeight(
+                        child: Row(children: [
+                          _StatCell(label: 'PRESENT', value: '$presentDays', color: kSecondary),
+                          const VerticalDivider(color: Color(0xFFE5E7EB), width: 1),
+                          _StatCell(label: 'ABSENT', value: '${absentDays < 0 ? 0 : absentDays}', color: kRed),
+                          const VerticalDivider(color: Color(0xFFE5E7EB), width: 1),
+                          _StatCell(
+                            label: 'AVG HRS',
+                            value: hrCount > 0 ? avgHrs.toStringAsFixed(1) : '—',
+                            color: kAccent,
+                          ),
+                        ]),
+                      ),
+                      if (presentDatesList.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text('வந்த நாட்கள்',
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 11,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6, runSpacing: 4,
+                          children: presentDatesList.map((day) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: kSecondary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: kSecondary.withOpacity(0.3)),
+                            ),
+                            child: Text(day,
+                                style: TextStyle(
+                                    color: kSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
+                          )).toList(),
+                        ),
+                      ],
+                    ]),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    ]);
+  }
+}
+
+class _StatCell extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color  color;
+  const _StatCell({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(value,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 18)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: const TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
+      ],
+    ),
+  );
+}
+
+// ── Backup sheet ──────────────────────────────────────────────────────────────
+class _BackupSheet extends StatefulWidget {
+  final AppProvider p;
+  const _BackupSheet({required this.p});
+  @override
+  State<_BackupSheet> createState() => _BackupSheetState();
+}
+
+class _BackupSheetState extends State<_BackupSheet> {
+  bool _syncing   = false;
+  bool _exporting = false;
+  bool _importing = false;
+  bool _csvExp    = false;
+  bool _clearing  = false;
+
+  Future<void> _forceSync() async {
+    setState(() => _syncing = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('kp_txs_cache');
+      await prefs.remove('kp_cfg_cache');
+      await prefs.remove('kp_me_cache');
+      await prefs.remove('kp_cache_ts');
+      await prefs.remove('kp_sups_cache');
+      await prefs.remove('kp_bills_cache');
+      await widget.p.init(FirebaseAuth.instance.currentUser!.uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text('✅ Synced from Firebase!'),
+          backgroundColor: kSecondary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Sync failed: $e'),
+          backgroundColor: kRed,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  Future<void> _exportJson() async {
+    setState(() => _exporting = true);
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('transactions')
+          .where('businessId', isEqualTo: widget.p.businessId)
+          .get();
+      final data = snap.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+      final json = const JsonEncoder.withIndent('  ').convert({
+        'exported':     DateTime.now().toIso8601String(),
+        'businessId':   widget.p.businessId,
+        'count':        data.length,
+        'transactions': data,
+      });
+      final file = XFile.fromData(
+        utf8.encode(json),
+        mimeType: 'application/json',
+        name: 'arthanote_backup_${DateFormat('yyyyMMdd').format(DateTime.now())}.json',
+      );
+      await SharePlus.instance.share(ShareParams(
+        files: [file],
+        subject: 'ArthaNote Backup',
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: kRed,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _importJson() async {
+    setState(() => _importing = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result == null || result.files.single.bytes == null) {
+        setState(() => _importing = false);
+        return;
+      }
+      final bytes  = result.files.single.bytes!;
+      final jsonStr = utf8.decode(bytes);
+      final parsed  = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final txns    = (parsed['transactions'] as List<dynamic>?) ?? [];
+      if (txns.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No transactions found in file.'),
+          behavior: SnackBarBehavior.floating,
+        ));
+        setState(() => _importing = false);
+        return;
+      }
+
+      // Batch write in groups of 500
+      final col = FirebaseFirestore.instance.collection('transactions');
+      int imported = 0;
+      for (int i = 0; i < txns.length; i += 400) {
+        final batch = FirebaseFirestore.instance.batch();
+        final chunk = txns.sublist(i, i + 400 > txns.length ? txns.length : i + 400);
+        for (final item in chunk) {
+          final m = item as Map<String, dynamic>;
+          final id = (m['id'] as String?) ?? const Uuid().v4();
+          final ref = col.doc(id);
+          // Convert date if needed
+          if (m['date'] is String) {
+            m['date'] = Timestamp.fromDate(DateTime.parse(m['date']));
+          }
+          batch.set(ref, m, SetOptions(merge: true));
+          imported++;
+        }
+        await batch.commit();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('✅ Imported $imported entries!'),
+          backgroundColor: kSecondary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Import failed: $e'),
+          backgroundColor: kRed,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  Future<void> _exportCsv() async {
+    setState(() => _csvExp = true);
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('transactions')
+          .where('businessId', isEqualTo: widget.p.businessId)
+          .get();
+      final buf = StringBuffer();
+      buf.writeln('Date,Shop,Type,Amount,Description');
+      for (final doc in snap.docs) {
+        final d    = doc.data();
+        final date = (d['date'] is Timestamp)
+            ? DateFormat('yyyy-MM-dd').format((d['date'] as Timestamp).toDate())
+            : (d['date']?.toString() ?? '');
+        final shop = (d['shopName'] as String?) ?? '';
+        final type = (d['type'] as String?) ?? '';
+        final amt  = (d['amount'] as num?)?.toString() ?? '';
+        final desc = ((d['desc'] as String?) ?? '').replaceAll(',', ';');
+        buf.writeln('$date,$shop,$type,$amt,$desc');
+      }
+      final file = XFile.fromData(
+        utf8.encode(buf.toString()),
+        mimeType: 'text/csv',
+        name: 'arthanote_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
+      );
+      await SharePlus.instance.share(ShareParams(
+        files: [file],
+        subject: 'ArthaNote CSV Export',
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('CSV export failed: $e'),
+          backgroundColor: kRed,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _csvExp = false);
+    }
+  }
+
+  Future<void> _clearCache() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Clear Local Cache?'),
+        content: const Text(
+            'This clears locally cached data. All data will reload from Firebase on next open. '
+            'No data will be deleted from the cloud.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: kRed, foregroundColor: Colors.white),
+            child: const Text('Clear Cache'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _clearing = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('kp_txs_cache');
+    await prefs.remove('kp_cfg_cache');
+    await prefs.remove('kp_me_cache');
+    await prefs.remove('kp_cache_ts');
+    await prefs.remove('kp_sups_cache');
+    await prefs.remove('kp_bills_cache');
+    if (mounted) {
+      setState(() => _clearing = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('🗑️ Cache cleared. Fresh load on next open.'),
+        backgroundColor: kSecondary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const _SheetHandle(),
         const SizedBox(height: 18),
@@ -1488,69 +2257,297 @@ class _BackupSheet extends StatelessWidget {
           Text('Backup & Restore',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
         ]),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
+        // Cloud Sync info card
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: kPrimary.withOpacity(0.04),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: kPrimary.withOpacity(0.15)),
+            color: kSecondary.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: kSecondary.withOpacity(0.2)),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Your data is safe',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kPrimary)),
-            const SizedBox(height: 8),
-            Text(
-              'All your entries are automatically synced to Firebase Cloud in real-time. '
-              'Your data is secure and accessible from any device.',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13, height: 1.5),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('☁️', style: TextStyle(fontSize: 28)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Cloud Sync',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kPrimary)),
+                const SizedBox(height: 2),
+                Text('Your data is stored securely in Firebase',
+                    style: TextStyle(color: kSecondary, fontSize: 11)),
+                const SizedBox(height: 6),
+                Text(
+                  'All entries are auto-saved to Firebase cloud. Use the options below to '
+                  'export a local copy or restore from file.',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12, height: 1.4),
+                ),
+              ]),
             ),
-            const SizedBox(height: 16),
-            _FeatureRow(icon: '☁️', text: 'Auto-sync to Firebase'),
-            _FeatureRow(icon: '🔒', text: 'AES-256 encryption'),
-            _FeatureRow(icon: '📱', text: 'Access from any device'),
           ]),
         ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: kAccent.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: kAccent.withOpacity(0.25)),
-          ),
-          child: const Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('🚀', style: TextStyle(fontSize: 14)),
-              SizedBox(width: 8),
-              Expanded(child: Text(
-                'CSV Export & Local Backup coming in v2.\nStay tuned for the next update!',
-                style: TextStyle(color: kAccent, fontSize: 12, fontWeight: FontWeight.w500),
-              )),
-            ],
-          ),
+        const SizedBox(height: 14),
+        // Force Sync
+        _BackupButton(
+          label: '↻  Force Sync to Cloud',
+          color: kPrimary,
+          textColor: Colors.white,
+          loading: _syncing,
+          onTap: _forceSync,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
+        // Export JSON
+        _BackupButton(
+          label: '🧺  Export JSON Backup',
+          color: const Color(0xFF2563EB),
+          textColor: Colors.white,
+          loading: _exporting,
+          onTap: _exportJson,
+        ),
+        const SizedBox(height: 10),
+        // Import JSON
+        _BackupButton(
+          label: '📂  Import JSON Backup',
+          color: Colors.white,
+          textColor: const Color(0xFF2563EB),
+          borderColor: const Color(0xFF2563EB),
+          loading: _importing,
+          onTap: _importJson,
+        ),
+        const SizedBox(height: 10),
+        // Export CSV
+        _BackupButton(
+          label: '📊  Export CSV',
+          color: Colors.white,
+          textColor: kAccent,
+          borderColor: kAccent,
+          loading: _csvExp,
+          onTap: _exportCsv,
+        ),
+        const SizedBox(height: 10),
+        // Clear Cache
+        _BackupButton(
+          label: '🗑️  Clear Local Cache',
+          color: kRed,
+          textColor: Colors.white,
+          loading: _clearing,
+          onTap: _clearCache,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text('Cache cleared = fresh load from Firebase on next open',
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 10),
+              textAlign: TextAlign.center),
+        ),
       ]),
     );
   }
 }
 
-class _FeatureRow extends StatelessWidget {
-  final String icon;
-  final String text;
-  const _FeatureRow({required this.icon, required this.text});
+class _BackupButton extends StatelessWidget {
+  final String    label;
+  final Color     color;
+  final Color     textColor;
+  final Color?    borderColor;
+  final bool      loading;
+  final VoidCallback onTap;
+  const _BackupButton({
+    required this.label,
+    required this.color,
+    required this.textColor,
+    this.borderColor,
+    required this.loading,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Row(children: [
-      Text(icon, style: const TextStyle(fontSize: 15)),
-      const SizedBox(width: 8),
-      Text(text, style: const TextStyle(color: kText, fontSize: 13)),
-    ]),
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    height: 52,
+    child: ElevatedButton(
+      onPressed: loading ? null : onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: textColor,
+        elevation: borderColor != null ? 0 : 2,
+        side: borderColor != null ? BorderSide(color: borderColor!) : BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+      ),
+      child: loading
+          ? SizedBox(width: 22, height: 22,
+              child: CircularProgressIndicator(color: textColor, strokeWidth: 2.5))
+          : Text(label),
+    ),
   );
+}
+
+// ── Build APK card (admin only) ───────────────────────────────────────────────
+class _BuildApkCard extends StatefulWidget {
+  final AppProvider p;
+  const _BuildApkCard({required this.p});
+  @override
+  State<_BuildApkCard> createState() => _BuildApkCardState();
+}
+
+class _BuildApkCardState extends State<_BuildApkCard> {
+  bool   _triggering = false;
+  String _status     = '';
+
+  Future<void> _triggerBuild() async {
+    final prefs = await SharedPreferences.getInstance();
+    String pat = prefs.getString('kp_github_pat') ?? '';
+
+    if (pat.isEmpty) {
+      final ctrl = TextEditingController();
+      final entered = await showDialog<String>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('GitHub PAT'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Enter a GitHub Personal Access Token with workflow scope to trigger builds.',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                decoration: const InputDecoration(
+                  labelText: 'ghp_xxxx...',
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary, foregroundColor: Colors.white),
+              child: const Text('Save & Build'),
+            ),
+          ],
+        ),
+      ).then((v) { ctrl.dispose(); return v; });
+      if (entered == null || entered.isEmpty) return;
+      await prefs.setString('kp_github_pat', entered);
+      pat = entered;
+    }
+
+    setState(() { _triggering = true; _status = 'Triggering build...'; });
+    try {
+      final res = await http.post(
+        Uri.parse(
+            'https://api.github.com/repos/selvavishnum/Kannakupilai/actions/workflows/build-flutter-apk.yml/dispatches'),
+        headers: {
+          'Authorization': 'Bearer $pat',
+          'Accept':        'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        body: jsonEncode({'ref': 'main'}),
+      );
+      if (res.statusCode == 204) {
+        setState(() => _status = '✅ Build triggered! APK ready in ~5 mins.');
+      } else if (res.statusCode == 401) {
+        final prefs2 = await SharedPreferences.getInstance();
+        await prefs2.remove('kp_github_pat');
+        setState(() => _status = '❌ Invalid token. Tap again to re-enter.');
+      } else {
+        setState(() => _status = '❌ Error ${res.statusCode}. Check token permissions.');
+      }
+    } catch (e) {
+      setState(() => _status = '❌ Network error. Check internet.');
+    } finally {
+      if (mounted) setState(() => _triggering = false);
+    }
+  }
+
+  Future<void> _openReleases() async {
+    final url = Uri.parse('https://github.com/selvavishnum/Kannakupilai/releases/latest');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: kCardShadow,
+        border: Border.all(color: kAccent.withOpacity(0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: kAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.android, color: kAccent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Build & Install APK',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kText)),
+                Text('Admin only · Triggers GitHub Actions CI',
+                    style: TextStyle(color: kMuted, fontSize: 11)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _triggering ? null : _triggerBuild,
+                icon: _triggering
+                    ? const SizedBox(width: 16, height: 16,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.build_outlined, size: 18),
+                label: Text(_triggering ? 'Building...' : '🔨 Build New APK'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kAccent,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 44),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              onPressed: _openReleases,
+              icon: const Icon(Icons.download_outlined, size: 18),
+              label: const Text('Install'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kPrimary,
+                side: const BorderSide(color: kPrimary),
+                minimumSize: const Size(0, 44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ]),
+          if (_status.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(_status,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _status.startsWith('✅') ? kSecondary : kRed,
+                  fontWeight: FontWeight.w500,
+                )),
+          ],
+        ]),
+      ),
+    );
+  }
 }
 
 // ── OCR API Keys sheet (admin only) ──────────────────────────────────────────

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
@@ -23,6 +24,13 @@ void main() async {
   ));
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Enable Firestore offline persistence with unlimited cache
+  // This makes all reads instant on re-open — no network round-trip needed
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes:     Settings.CACHE_SIZE_UNLIMITED,
+  );
 
   runApp(
     ChangeNotifierProvider(
