@@ -317,7 +317,7 @@ class _LedgerTabState extends State<LedgerTab> {
                     child: CircularProgressIndicator(color: kPrimary))
                 : txns.isEmpty
                     ? _buildEmpty(l)
-                    : _buildList(days, groups, l),
+                    : _buildList(days, groups, l, p.shops),
           ),
         ]);
       },
@@ -534,7 +534,8 @@ class _LedgerTabState extends State<LedgerTab> {
 
   // ── Expandable grouped list ───────────────────────────────────────────────
   Widget _buildList(
-      List<DateTime> days, Map<DateTime, List<Txn>> groups, String l) {
+      List<DateTime> days, Map<DateTime, List<Txn>> groups, String l,
+      Map<String, Shop> shops) {
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 100),
       itemCount: days.length,
@@ -644,7 +645,7 @@ class _LedgerTabState extends State<LedgerTab> {
             if (!isCollapsed)
               ...items.map((txn) => _LedgerTile(
                 txn: txn,
-                shops: p.shops,
+                shops: shops,
               )),
           ],
         );
