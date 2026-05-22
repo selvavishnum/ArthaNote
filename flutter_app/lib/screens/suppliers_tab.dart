@@ -106,7 +106,7 @@ class _SuppliersTabState extends State<SuppliersTab> {
                         child: CircularProgressIndicator(color: kPrimary));
                   }
                   final allBills = billSnap.data ?? [];
-                  return _buildBody(suppliers, allBills, l);
+                  return _buildBody(suppliers, allBills, p, l);
                 },
               );
             },
@@ -208,7 +208,7 @@ class _SuppliersTabState extends State<SuppliersTab> {
 
   // ── Body ──────────────────────────────────────────────────────────────────
   Widget _buildBody(List<Supplier> suppliers,
-      List<SupplierBill> allBills, String l) {
+      List<SupplierBill> allBills, AppProvider p, String l) {
     final range       = _range();
     final periodBills = allBills
         .where((b) =>
