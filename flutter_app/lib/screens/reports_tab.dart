@@ -255,8 +255,15 @@ class _ReportsTabState extends State<ReportsTab> {
         '_Sent from ArthaNote_';
 
     final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
-    if (await canLaunchUrl(uri)) {
+    try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not open WhatsApp'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 
@@ -309,8 +316,15 @@ class _ReportsTabState extends State<ReportsTab> {
 
     final uri =
         Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
-    if (await canLaunchUrl(uri)) {
+    try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not open WhatsApp'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 

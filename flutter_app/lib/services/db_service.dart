@@ -125,6 +125,18 @@ class DbService {
     await _removeFromLocalCache(businessId, id);
   }
 
+  Future<void> updateTxn(Txn txn) async {
+    final data = txn.toFirestore()
+      ..remove('createdAt')   // don't overwrite original creation time
+      ..['updatedAt'] = FieldValue.serverTimestamp();
+    await _db.collection('transactions').doc(txn.id).update(data);
+    // Replace in local cache
+    final existing = await loadLocalCache(txn.businessId);
+    final idx = existing.indexWhere((t) => t.id == txn.id);
+    if (idx != -1) existing[idx] = txn;
+    await _saveLocalCache(txn.businessId, existing);
+  }
+
   // ── Suppliers ─────────────────────────────────────────────────────────────
 
   Stream<List<Supplier>> supplierStream(String businessId) {

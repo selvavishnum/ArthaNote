@@ -23,7 +23,9 @@ class AppProvider extends ChangeNotifier {
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
 
-  bool get isOnboarded => _profile['onboarded'] == true;
+  // Also treat as onboarded when shops exist in config — covers accounts
+  // registered on the website where 'onboarded' flag wasn't set in Firestore.
+  bool get isOnboarded => _profile['onboarded'] == true || _shops.isNotEmpty;
   bool get isAdmin     => ((_profile['email'] as String?) ?? '') == 'selvavishnu.m@gmail.com';
 
   // ── init ──────────────────────────────────────────────────────────────────
@@ -156,7 +158,9 @@ class AppProvider extends ChangeNotifier {
   Future<void> _persistShops() async {
     if (_businessId.isEmpty) return;
     final shopsMap = _shops.map((k, v) => MapEntry(k, v.toMap()));
-    await _auth.saveConfig(_businessId, {'shops': shopsMap});
+    // Use saveShops (update) so deleted shop keys are actually removed.
+    // saveConfig with merge:true only adds/updates — it never removes map keys.
+    await _auth.saveShops(_businessId, shopsMap);
   }
 
   Future<void> _persistCats() async {

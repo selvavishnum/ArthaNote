@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/txn.dart';
+import '../models/shop.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
 import 'dashboard_tab.dart' show rupee;
@@ -640,7 +641,11 @@ class _LedgerTabState extends State<LedgerTab> {
               ),
             ),
             // ── Entries (hidden when collapsed) ──────────────────────────
-            if (!isCollapsed) ...items.map((txn) => _LedgerTile(txn: txn)),
+            if (!isCollapsed)
+              ...items.map((txn) => _LedgerTile(
+                txn: txn,
+                shops: p.shops,
+              )),
           ],
         );
       },
@@ -657,7 +662,17 @@ class _LedgerTabState extends State<LedgerTab> {
 // ── Ledger tile ───────────────────────────────────────────────────────────────
 class _LedgerTile extends StatelessWidget {
   final Txn txn;
-  const _LedgerTile({required this.txn});
+  final Map<String, Shop> shops;
+  const _LedgerTile({required this.txn, required this.shops});
+
+  void _openEdit(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditTxnSheet(txn: txn, shops: shops),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -703,77 +718,382 @@ class _LedgerTile extends StatelessWidget {
         ),
       ),
       onDismissed: (_) => DbService().deleteTxn(txn.id, txn.businessId),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 2),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
-          ),
-        ),
-        child: Row(children: [
-          // ── Arrow icon ──────────────────────────────────────────────────
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+      child: GestureDetector(
+        onTap: () => _openEdit(context),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 2),
+          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
             ),
-            child: Center(
-              child: Icon(
-                isExpense
-                    ? Icons.arrow_downward_rounded
-                    : isSale
-                        ? Icons.arrow_upward_rounded
-                        : Icons.swap_horiz_rounded,
-                color: color,
-                size: 20,
+          ),
+          child: Row(children: [
+            // ── Arrow icon ────────────────────────────────────────────────
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // ── Name + subtitle ─────────────────────────────────────────────
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              Text(
-                txn.desc.isEmpty ? txn.type.toUpperCase() : txn.desc,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: kText,
+              child: Center(
+                child: Icon(
+                  isExpense
+                      ? Icons.arrow_downward_rounded
+                      : isSale
+                          ? Icons.arrow_upward_rounded
+                          : Icons.swap_horiz_rounded,
+                  color: color,
+                  size: 20,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 3),
-              Text(
-                [
-                  if (txn.shopName.isNotEmpty) txn.shopName,
-                  _capitalise(txn.type),
-                  DateFormat('hh:mm a').format(txn.date),
-                ].join(' · '),
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ]),
-          ),
-
-          // ── Amount ──────────────────────────────────────────────────────
-          Text(
-            '${isExpense ? "-" : "+"}${rupee(txn.amount)}',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
             ),
-          ),
-        ]),
+            const SizedBox(width: 12),
+
+            // ── Name + subtitle ───────────────────────────────────────────
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(
+                  txn.desc.isEmpty ? txn.type.toUpperCase() : txn.desc,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: kText,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  [
+                    if (txn.shopName.isNotEmpty) txn.shopName,
+                    _capitalise(txn.type),
+                    DateFormat('hh:mm a').format(txn.date),
+                  ].join(' · '),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ]),
+            ),
+
+            // ── Amount ────────────────────────────────────────────────────
+            Text(
+              '${isExpense ? "-" : "+"}${rupee(txn.amount)}',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(width: 4),
+
+            // ── Edit button ───────────────────────────────────────────────
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 17),
+              color: Colors.grey.shade400,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: () => _openEdit(context),
+            ),
+          ]),
+        ),
       ),
     );
   }
 
   String _capitalise(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+}
+
+// ── Edit transaction bottom sheet ─────────────────────────────────────────────
+class _EditTxnSheet extends StatefulWidget {
+  final Txn txn;
+  final Map<String, Shop> shops;
+  const _EditTxnSheet({required this.txn, required this.shops});
+
+  @override
+  State<_EditTxnSheet> createState() => _EditTxnSheetState();
+}
+
+class _EditTxnSheetState extends State<_EditTxnSheet> {
+  final _db     = DbService();
+  final _amtCtl = TextEditingController();
+  final _descCtl = TextEditingController();
+  bool  _saving  = false;
+
+  late String   _type;
+  late String   _shopId;
+  late DateTime _date;
+
+  @override
+  void initState() {
+    super.initState();
+    _type   = widget.txn.type;
+    _shopId = widget.txn.shop;
+    _date   = widget.txn.date;
+    _amtCtl.text  = widget.txn.amount > 0
+        ? widget.txn.amount.toStringAsFixed(
+            widget.txn.amount == widget.txn.amount.roundToDouble() ? 0 : 2)
+        : '';
+    _descCtl.text = widget.txn.desc;
+  }
+
+  @override
+  void dispose() {
+    _amtCtl.dispose();
+    _descCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final amt = double.tryParse(_amtCtl.text.trim()) ?? 0;
+    if (amt <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Enter a valid amount'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final shop = widget.shops[_shopId];
+      final updated = widget.txn.copyWith(
+        type:     _type,
+        amount:   amt,
+        desc:     _descCtl.text.trim(),
+        shop:     _shopId,
+        shopName: shop?.name ?? widget.txn.shopName,
+        date:     _date,
+      );
+      await _db.updateTxn(updated);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Save failed: $e'),
+          backgroundColor: kRed,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(primary: kPrimary),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _date = DateTime(
+          picked.year, picked.month, picked.day,
+          _date.hour, _date.minute,
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + inset),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // handle
+        Center(
+          child: Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+
+        const Text(
+          'Edit Entry',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kText),
+        ),
+        const SizedBox(height: 18),
+
+        // ── Type selector ──────────────────────────────────────────────────
+        Row(children: [
+          for (final opt in [
+            ('sale', '↑ Sale', kSecondary),
+            ('expense', '↓ Expense', kRed),
+            ('payment', '⇄ Payment', kAmber),
+          ])
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _type = opt.$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _type == opt.$1
+                        ? opt.$3.withOpacity(0.12)
+                        : const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _type == opt.$1 ? opt.$3 : Colors.transparent,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    opt.$2,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _type == opt.$1 ? opt.$3 : Colors.grey.shade500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 14),
+
+        // ── Amount ─────────────────────────────────────────────────────────
+        TextFormField(
+          controller: _amtCtl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          decoration: InputDecoration(
+            prefixText: '₹ ',
+            prefixStyle: const TextStyle(
+                fontSize: 22, fontWeight: FontWeight.w800, color: kPrimary),
+            labelText: 'Amount',
+            filled: true,
+            fillColor: const Color(0xFFF0FDF4),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          autofocus: false,
+        ),
+        const SizedBox(height: 12),
+
+        // ── Description ────────────────────────────────────────────────────
+        TextFormField(
+          controller: _descCtl,
+          decoration: InputDecoration(
+            labelText: 'Description',
+            filled: true,
+            fillColor: const Color(0xFFF9FAFB),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // ── Shop + Date row ────────────────────────────────────────────────
+        Row(children: [
+          // shop selector
+          if (widget.shops.length > 1)
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _shopId,
+                decoration: InputDecoration(
+                  labelText: 'Shop',
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: widget.shops.entries.map((e) => DropdownMenuItem(
+                  value: e.key,
+                  child: Text(
+                    '${e.value.icon} ${e.value.name}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                )).toList(),
+                onChanged: (v) => setState(() => _shopId = v!),
+              ),
+            ),
+
+          if (widget.shops.length > 1) const SizedBox(width: 10),
+
+          // date picker
+          Expanded(
+            child: GestureDetector(
+              onTap: _pickDate,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.calendar_today_outlined,
+                      size: 15, color: kPrimary),
+                  const SizedBox(width: 6),
+                  Text(
+                    DateFormat('d MMM yyyy').format(_date),
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: kText),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 20),
+
+        // ── Save button ────────────────────────────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: _saving ? null : _save,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child:
+                        CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text(
+                    'Save Changes',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white),
+                  ),
+          ),
+        ),
+      ]),
+    );
+  }
 }
