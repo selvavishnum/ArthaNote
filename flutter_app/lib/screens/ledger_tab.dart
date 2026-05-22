@@ -567,7 +567,7 @@ class _LedgerTile extends StatelessWidget {
           ],
         ),
       ),
-      onDismissed: (_) => DbService().deleteTxn(txn.id),
+      onDismissed: (_) => DbService().deleteTxn(txn.id, txn.businessId),
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 2),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

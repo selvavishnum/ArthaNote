@@ -916,8 +916,8 @@ class _ParsedEntriesSheetState extends State<_ParsedEntriesSheet> {
               ),
             ]),
 
-            // Supplier row (payment only)
-            if (e.type == 'payment') ...[
+            // Supplier row — always visible (matches website)
+            ...[
               const SizedBox(height: 10),
               const Text('SUPPLIER (IF PAYMENT)',
                   style: TextStyle(color: kMuted, fontSize: 9,
