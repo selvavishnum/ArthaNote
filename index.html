@@ -2994,6 +2994,7 @@ async function firstTimeSync(BID, attempt=1){
       .get();
     TXS=txSnap.docs.map(d=>({id:d.id,...d.data()})).map(_normType)
       .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+    _rptRendered=false;
     setStatus(`✅ ${TXS.length} transactions loaded! Loading suppliers...`, 60);
 
     // Load suppliers
@@ -3060,6 +3061,7 @@ async function firstTimeSync(BID, attempt=1){
         const txSnap=await DB.collection('transactions')
           .where('businessId','==',BID).get();
         TXS=txSnap.docs.map(d=>({id:d.id,...d.data()})).map(_normType);
+        _rptRendered=false;
         saveCacheLocal();
         setTimeout(()=>{
           document.getElementById('sync-screen').style.display='none';
@@ -3116,7 +3118,7 @@ async function silentCloudSync(BID){
         .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
       const _newIds=newTXS.map(t=>t.id).sort().join(',');
       const _oldIds=TXS.filter(t=>t.id).map(t=>t.id).sort().join(',');
-      if(_newIds!==_oldIds){TXS=newTXS;updated=true;}
+      if(_newIds!==_oldIds){TXS=newTXS;_rptRendered=false;updated=true;}
     } else {
       console.warn('TX sync skip:',results[0].reason?.code);
     }
@@ -6310,9 +6312,9 @@ function goPane(name,btn){
   document.getElementById('pane-'+name)?.classList.add('on');
   if(btn) btn.classList.add('on');
   else document.querySelectorAll('.nbt').forEach(b=>{if(b.getAttribute('onclick')?.includes("'"+name+"'"))b.classList.add('on');});
-  // Report: render once per session, re-render only after new entry added
+  // Report: always re-render when tab opened so cache/Firestore data shows immediately
   if(name==='dash') renderDash();
-  if(name==='report'){if(!_rptRendered){renderReports();_rptRendered=true;}}
+  if(name==='report'){renderReports();_rptRendered=true;}
   if(name==='sup'){renderSups();buildSupSels();}
   if(name==='entry') loadQB();
   if(name==='ledger') renderLedger();
