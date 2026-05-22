@@ -26,6 +26,13 @@ class _ScanTabState extends State<ScanTab> {
   File?    _image;
   bool     _scanning   = false;
   String   _geminiKey  = '';
+  String   _claudeKey  = '';
+  bool     _geminiOn   = true;
+  bool     _claudeOn   = true;
+
+  bool get _hasAnyKey =>
+      (_geminiOn && _geminiKey.isNotEmpty) ||
+      (_claudeOn && _claudeKey.isNotEmpty);
 
   @override
   void initState() {
@@ -35,7 +42,14 @@ class _ScanTabState extends State<ScanTab> {
 
   Future<void> _loadKey() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) setState(() => _geminiKey = prefs.getString('slv_gemini_key') ?? '');
+    if (mounted) {
+      setState(() {
+        _geminiKey = prefs.getString('slv_gemini_key') ?? '';
+        _claudeKey = prefs.getString('slv_key')        ?? '';
+        _geminiOn  = prefs.getBool('slv_gemini_on')    ?? true;
+        _claudeOn  = prefs.getBool('slv_claude_on')    ?? true;
+      });
+    }
   }
 
   Future<void> _pickDate(BuildContext context) async {
@@ -122,62 +136,123 @@ class _ScanTabState extends State<ScanTab> {
     );
   }
 
+  // ── OCR prompt (shared between Gemini and Claude) ────────────────────────
+  static const _ocrPrompt =
+      'Extract all ledger entries from this image. '
+      'Return a JSON array only, no markdown, no explanation. '
+      'Format: [{"desc":"item name","amount":100,"type":"sale"}] '
+      'where type is "sale", "expense", or "payment". '
+      'If no entries found, return [].';
+
+  List<dynamic> _parseJsonText(String text) {
+    final cleaned = text
+        .replaceAll(RegExp(r'```json\s*'), '')
+        .replaceAll(RegExp(r'```\s*'), '')
+        .trim();
+    return jsonDecode(cleaned) as List<dynamic>;
+  }
+
+  Future<List<dynamic>> _callGemini(String b64) async {
+    final url = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$_geminiKey',
+    );
+    final resp = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contents': [
+          {
+            'parts': [
+              {'inline_data': {'mime_type': 'image/jpeg', 'data': b64}},
+              {'text': _ocrPrompt},
+            ],
+          },
+        ],
+      }),
+    );
+    if (resp.statusCode != 200) throw Exception('Gemini error ${resp.statusCode}');
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
+    final text = ((data['candidates'] as List).first['content']['parts'] as List)
+        .first['text'] as String;
+    return _parseJsonText(text);
+  }
+
+  Future<List<dynamic>> _callClaude(String b64) async {
+    final url = Uri.parse('https://api.anthropic.com/v1/messages');
+    final resp = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': _claudeKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: jsonEncode({
+        'model': 'claude-haiku-4-5-20251001',
+        'max_tokens': 1024,
+        'messages': [
+          {
+            'role': 'user',
+            'content': [
+              {
+                'type': 'image',
+                'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': b64},
+              },
+              {'type': 'text', 'text': _ocrPrompt},
+            ],
+          },
+        ],
+      }),
+    );
+    if (resp.statusCode != 200) {
+      throw Exception('Claude error ${resp.statusCode}');
+    }
+    final data = jsonDecode(resp.body) as Map<String, dynamic>;
+    final text = ((data['content'] as List).first)['text'] as String;
+    return _parseJsonText(text);
+  }
+
   Future<void> _runOcr(BuildContext context, AppProvider p) async {
     if (_image == null) {
       _showSnack(context, 'Please select a photo first', kRed);
       return;
     }
-    if (_geminiKey.isEmpty) {
-      _showSnack(context, 'Add Gemini API key in Settings → OCR API Keys', kRed);
+    if (!_hasAnyKey) {
+      _showSnack(context, 'Add OCR API key in Settings → OCR API Keys', kRed);
       return;
     }
 
     setState(() => _scanning = true);
     try {
-      final bytes  = await _image!.readAsBytes();
-      final b64    = base64Encode(bytes);
+      final bytes = await _image!.readAsBytes();
+      final b64   = base64Encode(bytes);
 
-      final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$_geminiKey',
-      );
-      final resp = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'inline_data': {'mime_type': 'image/jpeg', 'data': b64}},
-                {
-                  'text':
-                      'Extract all ledger entries from this image. '
-                      'Return a JSON array only, no markdown, no explanation. '
-                      'Format: [{"desc":"item name","amount":100,"type":"sale"}] '
-                      'where type is "sale", "expense", or "payment". '
-                      'If no entries found, return [].',
-                },
-              ],
-            },
-          ],
-        }),
-      );
+      List<dynamic>? raw;
+      String?        geminiError;
 
-      if (!mounted) return;
-      if (resp.statusCode != 200) {
-        throw Exception('Gemini error ${resp.statusCode}');
+      // ── Try Gemini first ─────────────────────────────────────────────────
+      if (_geminiOn && _geminiKey.isNotEmpty) {
+        try {
+          raw = await _callGemini(b64);
+        } catch (e) {
+          geminiError = e.toString();
+          final isRateLimit = geminiError.contains('429') ||
+              geminiError.contains('503') ||
+              geminiError.toLowerCase().contains('quota');
+          if (!isRateLimit) rethrow; // unexpected error — don't fall through
+          // 429/quota → fall through to Claude
+        }
       }
 
-      final json   = jsonDecode(resp.body) as Map<String, dynamic>;
-      final text   = ((json['candidates'] as List).first['content']['parts']
-              as List)
-          .first['text'] as String;
+      // ── Fallback to Claude on rate-limit or if Gemini disabled ───────────
+      if (raw == null && _claudeOn && _claudeKey.isNotEmpty) {
+        raw = await _callClaude(b64);
+      }
 
-      final cleaned = text
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll(RegExp(r'```\s*'), '')
-          .trim();
+      if (!mounted) return;
 
-      final raw = jsonDecode(cleaned) as List<dynamic>;
+      if (raw == null) {
+        throw Exception(geminiError ?? 'No OCR engine configured');
+      }
       if (raw.isEmpty) {
         _showSnack(context, 'No entries detected in the image', kAccent);
         return;
@@ -192,7 +267,7 @@ class _ScanTabState extends State<ScanTab> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
         builder: (_) => _ParsedEntriesSheet(
-          entries: raw.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+          entries: raw!.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
           shopId: _shopId,
           shopName: shopName,
           date: _ledgerDate,
@@ -246,7 +321,7 @@ class _ScanTabState extends State<ScanTab> {
           const SizedBox(height: 14),
 
           // ── No API key warning ──────────────────────────────────────────
-          if (_geminiKey.isEmpty) ...[
+          if (!_hasAnyKey) ...[
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -261,7 +336,7 @@ class _ScanTabState extends State<ScanTab> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Gemini API key not configured.\nGo to Settings → OCR API Keys to add your key.',
+                      'No OCR key configured.\nGo to Settings → OCR API Keys to add Gemini or Claude key.',
                       style: TextStyle(
                         color: kRed,
                         fontSize: 12,
