@@ -2352,6 +2352,79 @@ function deleteAlias(from){
   renderReports();
 }
 
+// ── AI Spelling Variant Detection ─────────────────────────────────────────────
+// Scans last 30 days of real TXS entries, clusters similar descriptions, returns
+// groups where each group has a canonical (most-used) form and variant spellings.
+function _aiDetectSpellingVariants(){
+  try{
+    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-30);
+    const cutStr=cutoff.toISOString().split('T')[0];
+    const recent=TXS.filter(t=>t.date&&t.date>=cutStr&&t.source!=='pattern_check');
+    // Raw frequency map (before any alias normalization — detect original misspellings)
+    const freq={};
+    recent.forEach(t=>{const d=(t.desc||'').trim();if(d) freq[d]=(freq[d]||0)+1;});
+    const descs=Object.keys(freq);
+    if(descs.length<2) return [];
+    // Union-Find to cluster similar spellings
+    const par={};
+    const find=d=>{if(par[d]===undefined)par[d]=d;return par[d]===d?d:(par[d]=find(par[d]));};
+    const union=(a,b)=>{par[find(a)]=find(b);};
+    for(let i=0;i<descs.length;i++){
+      for(let j=i+1;j<descs.length;j++){
+        const a=descs[i].toLowerCase().replace(/[\s\-_]/g,'');
+        const b=descs[j].toLowerCase().replace(/[\s\-_]/g,'');
+        if(a===b){union(descs[i],descs[j]);continue;}
+        if(a.length<3||b.length<3) continue;
+        const similar=a.startsWith(b.substring(0,4))||b.startsWith(a.substring(0,4))||
+          a.includes(b)||b.includes(a)||levenshtein(a,b)<=2;
+        if(similar) union(descs[i],descs[j]);
+      }
+    }
+    // Group by cluster root
+    const clusters={};
+    descs.forEach(d=>{const root=find(d);if(!clusters[root])clusters[root]=[];clusters[root].push(d);});
+    // Only groups with 2+ variants; sort each by frequency (most used = canonical)
+    const result=[];
+    Object.values(clusters).forEach(vs=>{
+      if(vs.length<2) return;
+      vs.sort((a,b)=>(freq[b]||0)-(freq[a]||0));
+      const canonical=vs[0];
+      const others=vs.slice(1);
+      const totalCount=vs.reduce((s,v)=>s+(freq[v]||0),0);
+      result.push({canonical,others,variants:vs,totalCount,freq});
+    });
+    result.sort((a,b)=>b.totalCount-a.totalCount);
+    return result;
+  }catch(e){console.error('aiDetectVariants:',e);return [];}
+}
+
+// Merge a variant group into one canonical spelling (batch, single re-render)
+function _fixVariantGroup(canonical, others){
+  if(!others||!others.length) return;
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  others.forEach(from=>{aliases[from.toLowerCase().trim()]=canonical.trim();});
+  localStorage.setItem('desc_aliases',JSON.stringify(aliases));
+  learnDailyPatterns();
+  toast('✅ Merged '+others.length+' spelling variant'+(others.length>1?'s':'')+' → "'+canonical+'"');
+  renderReports();
+  renderAliasSettings();
+}
+
+// Fix all detected variant groups at once (single re-render at end)
+function _fixAllVariantGroups(groups){
+  if(!groups||!groups.length) return;
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  let fixed=0;
+  groups.forEach(({canonical,others})=>{
+    (others||[]).forEach(from=>{aliases[from.toLowerCase().trim()]=canonical.trim();fixed++;});
+  });
+  localStorage.setItem('desc_aliases',JSON.stringify(aliases));
+  learnDailyPatterns();
+  toast('⚡ Fixed '+fixed+' spelling variant'+(fixed>1?'s':'')+' across '+groups.length+' groups. Reports updated.');
+  renderReports();
+  renderAliasSettings();
+}
+
 // ONBOARDING STATE
 let _obType='other',_obGst=false,_obGstRate=12;
 
@@ -2811,6 +2884,31 @@ function renderAiReport(){
   learnDailyPatterns();
   const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
   let html='';
+
+  // ── AI Spelling Variant Detector (from 30-day history) ──
+  const variants=_aiDetectSpellingVariants();
+  if(variants.length){
+    html+=`<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px">🤖 AI Found ${variants.length} Spelling Variant${variants.length>1?'s':''} in Past 30 Days</div>
+      <div style="font-size:11px;color:#78350f;margin-bottom:10px">These entries look like the same thing with different spellings. Merge them to get accurate expense categories.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">`;
+    variants.forEach(({canonical,others,variants:vs,totalCount,freq})=>{
+      html+=`<div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:9px 10px">
+        <div style="font-size:11px;color:#78350f;margin-bottom:5px"><b>${vs.length} spellings found</b> — ${totalCount} total entries:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px">
+          ${vs.map((v,i)=>`<span style="background:${i===0?'#059669':'#ef4444'};color:#fff;border-radius:12px;padding:2px 9px;font-size:10px;font-weight:700">"${esc(v)}" ×${freq[v]||0}</span>`).join('')}
+        </div>
+        <div style="font-size:10px;color:#059669;margin-bottom:6px">✔ AI suggests keeping <b>"${esc(canonical)}"</b> (used ${freq[canonical]||0}× — most common)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          <button onclick="_fixVariantGroup('${esc(canonical).replace(/'/g,"\\'")}',${JSON.stringify(others)})" style="background:#059669;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">✓ Merge all → "${esc(canonical.length>12?canonical.slice(0,12)+'…':canonical)}"</button>
+          ${others.map(o=>`<button onclick="_fixVariantGroup('${esc(o).replace(/'/g,"\\'")}',${JSON.stringify(vs.filter(v=>v!==o))})" style="background:#fff;color:#dc2626;border:1.5px solid #fca5a5;border-radius:7px;padding:4px 9px;font-size:10px;cursor:pointer">Use "${esc(o.length>10?o.slice(0,10)+'…':o)}"</button>`).join('')}
+        </div>
+      </div>`;
+    });
+    html+=`</div>
+      <button onclick="_fixAllVariantGroups(${JSON.stringify(variants.map(v=>({canonical:v.canonical,others:v.others})))})" style="margin-top:10px;background:#92400e;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer;width:100%">⚡ Fix All ${variants.length} Groups Automatically (AI picks best spelling)</button>
+    </div>`;
+  }
 
   // ── AI Insights ──
   const insights=_generateAiInsights();
@@ -5692,7 +5790,7 @@ function renderReports(){
     <tr><td><b>TOTAL</b></td><td><b>₹${fmt(te)}</b></td><td><b>100%</b></td><td></td></tr>
     </tbody></table></div>
     <div style="margin-top:10px;font-size:11px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px">
-      💡 <b>Fix spelling:</b> Settings (☰) → Edit Categories → correct the name → Save. Next month entries will be clean.
+      💡 <b>Fix spelling:</b> Tap the <b>"→ Use"</b> buttons above to merge variants instantly, or go to <b>Reports → AI Analysis</b> tab — AI automatically scans 30-day history and suggests fixes.
     </div>`;
 
   // ═══ 6. PAYMENT REPORT ═══
