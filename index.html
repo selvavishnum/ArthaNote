@@ -538,6 +538,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .staff-kpi .sv{font-size:14px;font-weight:800;font-family:var(--mono)}
 .staff-kpi .sl{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase}
 
+/* AI ENGAGEMENT */
+@keyframes confettiFall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+@keyframes briefingIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+#ai-streak-badge{display:none;align-items:center;font-size:12px;font-weight:800;color:#d97706;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:20px;padding:2px 8px;gap:2px;cursor:default;white-space:nowrap}
+.ai-briefing-card{animation:briefingIn .35s ease;background:linear-gradient(135deg,#065f46,#059669);color:#fff;border-radius:14px;padding:14px;margin-bottom:12px;position:relative}
+.ai-conf-bar{height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-top:5px}
+.ai-conf-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:4px;transition:width .8s ease}
+
 /* TOAST */
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;font-family:var(--sans)}
 #toast.show{opacity:1}
@@ -980,6 +988,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     </div>
     <span class="trole owner" id="t-role">&#128081; Owner</span>
     <span id="sync-dot" class="sync-dot" title="Live sync">🟢</span>
+    <span id="ai-streak-badge" title="Daily entry streak!"></span>
     <button class="langbtn" id="langbtn" onclick="openLangPicker()">EN</button>
     <button class="tmenu" onclick="openM('menu-modal')">&#9776;</button>
   </div>
@@ -1012,6 +1021,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="pill ok" id="d-pill"><div class="pdot"></div><span id="d-msg">Loading...</span></div>
     <div id="biz-type-banner" style="display:none;background:linear-gradient(135deg,var(--green),var(--sec));color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-weight:700;font-size:14px;letter-spacing:0.3px"></div>
     <div id="d-new-user-tip" style="display:none"></div>
+    <div id="ai-briefing-slot"></div>
     <div class="sgrid">
       <div class="stile"><div class="slbl">Total Sales</div><div class="sval cg" id="d-sales">&#8377;0</div></div>
       <div class="stile"><div class="slbl">Total Expense</div><div class="sval cr" id="d-exp">&#8377;0</div></div>
@@ -1027,6 +1037,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="card"><div class="chd">&#127978; Shop Summary <small style="font-weight:400;font-size:9px;color:var(--muted)">(tap for 360&deg; report)</small></div><div id="shop-cards"></div></div>
     <div class="card"><div class="chd">&#9888;&#65039; Supplier Alerts</div><div id="d-sup"></div></div>
     <div class="card"><div class="chd">&#128202; Daily Reconciliation</div><div id="d-recon"></div></div>
+    <div class="card" id="ai-conf-card" style="display:none">
+      <div class="chd">&#129504; AI Learning Progress</div>
+      <div id="ai-conf-body"></div>
+    </div>
     <div class="card" id="missing-card" style="display:none">
       <div class="chd">&#129504; AI Missing Entry Alert</div>
       <div id="missing-entries"></div>
@@ -1120,7 +1134,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div id="qb-area"></div>
       <div id="community-tip" style="display:none;background:var(--soft);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px"></div>
       <div class="fr full" id="sup-row" style="display:none"><div class="fg"><label>Supplier</label><select id="m-sup"></select></div></div>
-      <div class="fr full"><div class="fg"><label>Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)"></div></div>
+      <div class="fr full"><div class="fg"><label>Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)" oninput="aiSuggestEntry(this.value)"></div></div>
+      <div id="ai-suggest-bar" style="display:none;background:#f0fdf4;border:1.5px solid #059669;border-radius:8px;padding:7px 10px;margin:-4px 0 6px;font-size:12px;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="color:#059669;font-weight:700">🤖 AI:</span>
+        <span id="ai-suggest-text" style="color:#065f46"></span>
+        <button onclick="aiApplySuggest()" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:var(--sans)">Use this ✓</button>
+        <button onclick="document.getElementById('ai-suggest-bar').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:0 4px">✕</button>
+      </div>
       <div class="fr">
         <div class="fg"><label>Bill / Ref No</label><input type="text" id="m-ref" placeholder="Optional"></div>
         <div class="fg"><label>Note</label><input type="text" id="m-note" placeholder="Optional"></div>
@@ -1263,6 +1283,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="rpt-section" id="rpt-actions">
       <div class="card"><div class="chd">&#128204; Action Plan</div><div id="rpt-actions-body"></div></div>
     </div>
+    <!-- 13. AI ANALYSIS -->
+    <div class="rpt-section" id="rpt-ai">
+      <div class="card"><div class="chd">&#129504; AI Analysis</div><div id="rpt-ai-body"></div></div>
+    </div>
 
     <!-- Downloads -->
     <div class="card" style="margin-top:6px">
@@ -1280,6 +1304,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <button class="btn G sm" style="margin-top:0;background:#25d366;border-color:#25d366" onclick="shareWhatsApp('today')">&#128241; WhatsApp Today</button>
         <button class="btn G sm" style="margin-top:0;background:#25d366;border-color:#25d366" onclick="shareWhatsApp('week')">&#128241; WhatsApp Week</button>
         <button class="btn B sm" style="margin-top:0" onclick="shareEmail()">&#128140; Email Report</button>
+        <button class="btn S sm" style="margin-top:0;background:#e91e63;border-color:#e91e63;color:#fff" onclick="triggerShareCard('daily')">&#128248; Share Today Card</button>
+        <button class="btn S sm" style="margin-top:0;background:#1e1b4b;border-color:#1e1b4b;color:#fff" onclick="triggerShareCard('wrapped')">&#127873; Monthly Wrapped</button>
       </div>
     </div>
     <div class="card">
@@ -2534,20 +2560,44 @@ function updSyncBar(){
   else if(bar) bar.classList.remove('show');
 }
 // Quick add missing entry from AI alert
-function quickAddMissing(desc, type, shop){
-  // Switch to Entry tab with pre-filled data
-  document.getElementById('m-desc').value=desc;
-  document.getElementById('m-date').value=tod();
-  // Set shop
-  const mShop=document.getElementById('m-shop');
-  if(mShop){ for(let i=0;i<mShop.options.length;i++) if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;} }
-  // Set type
-  const mType=document.getElementById('m-type');
-  if(mType){ for(let i=0;i<mType.options.length;i++) if(mType.options[i].value===type){mType.selectedIndex=i;break;} }
-  loadQB(); toggleSup();
-  goPane('entry');
-  document.getElementById('m-amt')?.focus();
-  toast('📝 '+desc+' pre-filled — enter amount and save','info');
+async function quickAddMissing(desc, type, shop, avgAmount){
+  // Get predicted amount from AI model if not provided
+  if(!avgAmount){
+    const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+    const day=new Date().getDay();
+    const key=(desc||'').toLowerCase().trim();
+    const entry=model[shop]?.[day]?.[key];
+    if(entry&&entry.amounts.length) avgAmount=Math.round(entry.amounts.reduce((a,b)=>a+b,0)/entry.amounts.length);
+  }
+  if(!avgAmount){
+    // No amount known — fall back to pre-fill form
+    document.getElementById('m-desc').value=desc;
+    document.getElementById('m-date').value=tod();
+    const mShop=document.getElementById('m-shop');
+    if(mShop){for(let i=0;i<mShop.options.length;i++)if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;}}
+    const mType=document.getElementById('m-type');
+    if(mType){for(let i=0;i<mType.options.length;i++)if(mType.options[i].value===type){mType.selectedIndex=i;break;}}
+    loadQB(); toggleSup(); goPane('entry');
+    document.getElementById('m-amt')?.focus();
+    toast('📝 '+desc+' pre-filled — enter amount and save','info');
+    return;
+  }
+  // Save directly — no form needed!
+  const txData={businessId:ME.businessId||ME.uid,shop,shopName:SHOPS[shop]?.name||shop,date:tod(),type,amount:avgAmount,desc,by:ME.uid,at:null};
+  try{
+    const ref=await DB.collection('transactions').add({...txData,at:firebase.firestore.FieldValue.serverTimestamp()});
+    txData.id=ref.id;
+    TXS.unshift(txData); renderDash(); renderLedger();
+    learnDailyPatterns(); _checkMilestones();
+    _rptRendered=false;
+    toast('⚡ Quick added: '+desc+' ₹'+fmt(avgAmount));
+  }catch(e){
+    // offline — queue it
+    txData.at=new Date().toISOString();
+    addQ({...txData,_col:'transactions',_lid:'q'+Date.now()});
+    TXS.unshift(txData); renderDash(); renderLedger();
+    toast('💾 '+desc+' saved locally — will sync','warn');
+  }
 }
 
 async function syncNow(){
@@ -2616,15 +2666,28 @@ function updAI(){
   }
 }
 
-// Learn daily patterns from saved transactions
+// Learn daily patterns from saved transactions — 30-day weekday-specific model
 function learnDailyPatterns(){
   try{
-    // Get last 14 days of transactions
-    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-14);
+    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-30);
     const cutStr=cutoff.toISOString().split('T')[0];
-    const recent=TXS.filter(t=>t.date>=cutStr&&t.source!=='pattern_check');
+    const recent=TXS.filter(t=>t.date&&t.date>=cutStr&&t.source!=='pattern_check');
 
-    // Count how often each desc appears per shop
+    // Build weekday-specific model: {shopId: {dayOfWeek: {descKey: {count, amounts[], type}}}}
+    const model={};
+    recent.forEach(t=>{
+      const day=new Date(t.date+'T00:00:00').getDay(); // 0=Sun..6=Sat
+      const key=(t.desc||'').toLowerCase().trim();
+      if(!key) return;
+      if(!model[t.shop]) model[t.shop]={};
+      if(!model[t.shop][day]) model[t.shop][day]={};
+      if(!model[t.shop][day][key]) model[t.shop][day][key]={count:0,amounts:[],type:t.type};
+      model[t.shop][day][key].count++;
+      if(t.amount>0) model[t.shop][day][key].amounts.push(t.amount);
+    });
+    localStorage.setItem('ai_model_v2',JSON.stringify(model));
+
+    // Legacy patterns (for missing-entry checks) — appears 5+ unique days in 30
     const freq={};
     recent.forEach(t=>{
       const key=t.shop+'|'+t.desc+'|'+t.type;
@@ -2632,8 +2695,6 @@ function learnDailyPatterns(){
       freq[key].days.add(t.date);
       freq[key].count++;
     });
-
-    // Mark as "expected daily" if appears 5+ times in 14 days
     const patterns={};
     Object.entries(freq).forEach(([key,v])=>{
       if(v.days.size>=5){
@@ -2641,8 +2702,175 @@ function learnDailyPatterns(){
       }
     });
     localStorage.setItem(AIK+'_patterns',JSON.stringify(patterns));
-    console.log('Learned',Object.keys(patterns).length,'daily patterns');
+
+    const totalPatterns=Object.values(model).reduce((a,s)=>a+Object.values(s).reduce((b,d)=>b+Object.keys(d).length,0),0);
+    console.log('AI: learned',Object.keys(model).length,'shops,',totalPatterns,'weekday patterns');
   }catch(e){ console.error('Pattern learn:',e); }
+}
+
+// ── AI Suggest entry (called from description field oninput) ──
+let _aiSuggest=null;
+function aiSuggestEntry(desc){
+  const bar=document.getElementById('ai-suggest-bar');
+  if(!bar) return;
+  const key=(desc||'').toLowerCase().trim();
+  if(key.length<3){bar.style.display='none';_aiSuggest=null;return;}
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  const shopId=document.getElementById('m-shop')?.value||_shop||Object.keys(SHOPS)[0]||'';
+  const day=new Date().getDay();
+  // Collect: current shop + current weekday (2x boost), then all-day for same shop
+  const shopDayModel=model[shopId]?.[day]||{};
+  const shopAllModel={};
+  if(model[shopId]) Object.values(model[shopId]).forEach(dm=>Object.entries(dm).forEach(([k,v])=>{
+    if(!shopAllModel[k]) shopAllModel[k]={count:0,amounts:[],type:v.type};
+    shopAllModel[k].count+=v.count;
+    shopAllModel[k].amounts.push(...v.amounts);
+  }));
+  let best=null,bestScore=0;
+  const search=(modelObj,boost)=>{
+    Object.entries(modelObj).forEach(([k,v])=>{
+      if(!(k.includes(key)||key.includes(k))) return;
+      const score=(k===key?3:k.startsWith(key)||key.startsWith(k)?2:1)*v.count*boost;
+      if(score>bestScore){bestScore=score;best={...v,matchKey:k};}
+    });
+  };
+  search(shopDayModel,2);
+  search(shopAllModel,1);
+  if(!best||bestScore<2){bar.style.display='none';_aiSuggest=null;return;}
+  const avg=best.amounts.length?Math.round(best.amounts.reduce((a,b)=>a+b,0)/best.amounts.length):0;
+  const typeLabel=best.type==='sales'?'↑ Sale':best.type==='expense'?'↓ Expense':'↔ Payment';
+  _aiSuggest={type:best.type,amount:avg};
+  document.getElementById('ai-suggest-text').textContent=typeLabel+(avg?' · ₹'+fmt(avg):'');
+  bar.style.display='flex';
+}
+function aiApplySuggest(){
+  if(!_aiSuggest) return;
+  const typeEl=document.getElementById('m-type');
+  if(typeEl) typeEl.value=_aiSuggest.type;
+  if(_aiSuggest.amount){const amtEl=document.getElementById('m-amount');if(amtEl) amtEl.value=_aiSuggest.amount;}
+  document.getElementById('ai-suggest-bar').style.display='none';
+  _aiSuggest=null;
+}
+
+// ── Shop health score (0–100 → 🟢🟡🔴) ──
+function _shopHealthScore(shopId){
+  const now=new Date(),d7s=new Date(now),d14s=new Date(now),d30s=new Date(now);
+  d7s.setDate(d7s.getDate()-7); d14s.setDate(d14s.getDate()-14); d30s.setDate(d30s.getDate()-30);
+  const d7=d7s.toISOString().split('T')[0],d14=d14s.toISOString().split('T')[0],d30=d30s.toISOString().split('T')[0];
+  const shopTxs=TXS.filter(t=>t.shop===shopId&&t.date);
+  const sumType=(arr,type)=>arr.filter(t=>t.type===type).reduce((a,t)=>a+t.amount,0);
+  const last30=shopTxs.filter(t=>t.date>=d30);
+  const last7=shopTxs.filter(t=>t.date>=d7);
+  const prev7=shopTxs.filter(t=>t.date>=d14&&t.date<d7);
+  const s7=sumType(last7,'sales'),sp7=sumType(prev7,'sales')||1;
+  const salesTrend=s7/sp7;
+  const exp30=sumType(last30,'expense')+sumType(last30,'payment');
+  const sales30=sumType(last30,'sales')||1;
+  const expRatio=exp30/sales30;
+  const daysActive=new Set(last30.map(t=>t.date)).size;
+  let score=50;
+  if(salesTrend>1.1)score+=20;else if(salesTrend<0.9)score-=20;
+  if(expRatio<0.5)score+=15;else if(expRatio>0.8)score-=15;
+  if(daysActive>20)score+=15;else if(daysActive<8)score-=15;
+  score=Math.max(0,Math.min(100,score));
+  const badge=score>=75?'🟢':score>=50?'🟡':'🔴';
+  const label=score>=75?'Healthy':score>=50?'Watch':'Needs attention';
+  return{score,badge,label};
+}
+
+// ── AI Report section renderer ──
+const _DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const _DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function renderAiReport(){
+  const el=document.getElementById('rpt-ai-body');
+  if(!el) return;
+  learnDailyPatterns();
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  let html='';
+
+  // ── AI Insights ──
+  const insights=_generateAiInsights();
+  if(insights.length){
+    html+=`<div style="margin-bottom:14px"><div style="font-weight:700;font-size:13px;margin-bottom:8px">💡 AI Insights</div><div style="display:flex;flex-direction:column;gap:7px">`;
+    insights.forEach(ins=>{
+      html+=`<div style="background:${ins.bg||'#f0fdf4'};border-left:3px solid ${ins.color||'#059669'};padding:8px 10px;border-radius:6px;font-size:12px"><span style="font-size:15px;margin-right:6px">${ins.icon}</span>${ins.text}</div>`;
+    });
+    html+='</div></div>';
+  }
+
+  // ── Weekly pattern grids per shop ──
+  if(!Object.keys(model).length){
+    html+='<div class="empty">Add entries for 1–2 weeks — AI will learn your daily patterns automatically.</div>';
+  } else {
+    Object.entries(model).forEach(([shopId,days])=>{
+      const shop=SHOPS[shopId]; if(!shop) return;
+      const descCounts={};
+      Object.values(days).forEach(dm=>Object.entries(dm).forEach(([k,v])=>{descCounts[k]=(descCounts[k]||0)+v.count;}));
+      const topDescs=Object.entries(descCounts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
+      if(!topDescs.length) return;
+      html+=`<div style="margin-bottom:14px"><div style="font-weight:700;font-size:12px;margin-bottom:6px">${shop.icon||'🏪'} ${esc(shop.name)} — Weekly Pattern</div>`;
+      html+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px;min-width:340px"><tr><th style="text-align:left;padding:3px 5px;border-bottom:1px solid var(--border)">Entry</th>`;
+      _DAY_SHORT.forEach(d=>html+=`<th style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--border);color:var(--muted)">${d}</th>`);
+      html+=`</tr>`;
+      topDescs.forEach(desc=>{
+        html+=`<tr><td style="padding:3px 5px;font-family:var(--tamil);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(desc)}">${esc(desc)}</td>`;
+        _DAY_SHORT.forEach((_,i)=>{
+          const e=days[i]?.[desc];
+          html+=`<td style="text-align:center;padding:3px 2px">${e&&e.count>=2?'<span style="color:#059669">✅</span>':'<span style="color:#e5e7eb">—</span>'}</td>`;
+        });
+        html+=`</tr>`;
+      });
+      html+=`</table></div></div>`;
+    });
+  }
+  el.innerHTML=html;
+}
+
+function _generateAiInsights(){
+  const ins=[];
+  try{
+    const now=new Date();
+    const d30s=new Date(now); d30s.setDate(d30s.getDate()-30);
+    const d7s=new Date(now); d7s.setDate(d7s.getDate()-7);
+    const d14s=new Date(now); d14s.setDate(d14s.getDate()-14);
+    const d30=d30s.toISOString().split('T')[0];
+    const d7=d7s.toISOString().split('T')[0];
+    const d14=d14s.toISOString().split('T')[0];
+    const r30=TXS.filter(t=>t.date&&t.date>=d30);
+    const r7=TXS.filter(t=>t.date&&t.date>=d7);
+    const p7=TXS.filter(t=>t.date&&t.date>=d14&&t.date<d7);
+    if(!r30.length) return ins;
+    // Best day of week
+    const dt=[0,0,0,0,0,0,0],dc=[0,0,0,0,0,0,0];
+    r30.filter(t=>t.type==='sales').forEach(t=>{const d=new Date(t.date+'T00:00:00').getDay();dt[d]+=t.amount;dc[d]++;});
+    const da=dt.map((v,i)=>dc[i]?v/dc[i]:0);
+    const bd=da.indexOf(Math.max(...da));
+    if(da[bd]>0) ins.push({icon:'📅',text:`Best sales day is <b>${_DAY_NAMES[bd]}</b> — avg ₹${fmt(Math.round(da[bd]))}`,color:'#059669',bg:'#f0fdf4'});
+    // Highest expense category
+    const ec={};
+    r30.filter(t=>t.type==='expense').forEach(t=>{const k=(t.desc||'Other').split(' ')[0];ec[k]=(ec[k]||0)+t.amount;});
+    const te=Object.entries(ec).sort((a,b)=>b[1]-a[1])[0];
+    if(te) ins.push({icon:'💸',text:`Biggest expense: <b>${esc(te[0])}</b> — ₹${fmt(te[1])} in 30 days`,color:'#d97706',bg:'#fffbeb'});
+    // Sales trend week-over-week
+    const s7=r7.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+    const sp7=p7.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+    if(sp7>0){const pct=((s7-sp7)/sp7*100).toFixed(0);if(Math.abs(pct)>=5) ins.push({icon:pct>0?'📈':'📉',text:`Sales this week are <b>${Math.abs(pct)}% ${pct>0?'higher':'lower'}</b> than last week`,color:pct>0?'#059669':'#ef4444',bg:pct>0?'#f0fdf4':'#fef2f2'});}
+    // Entry consistency
+    const ad=new Set(r30.map(t=>t.date)).size;
+    const cp=Math.round(ad/30*100);
+    ins.push({icon:'📊',text:`Entries on <b>${ad}/30 days</b> (${cp}% consistency)`,color:cp>=70?'#059669':cp>=40?'#d97706':'#ef4444',bg:cp>=70?'#f0fdf4':cp>=40?'#fffbeb':'#fef2f2'});
+    // Predicted week sales
+    const wkSales=[];
+    for(let i=1;i<=4;i++){
+      const ws=new Date(now); ws.setDate(ws.getDate()-7*i);
+      const we=new Date(now); we.setDate(we.getDate()-7*(i-1));
+      const wv=TXS.filter(t=>t.date&&t.date>=ws.toISOString().split('T')[0]&&t.date<we.toISOString().split('T')[0]&&t.type==='sales').reduce((a,t)=>a+t.amount,0);
+      if(wv>0) wkSales.push(wv);
+    }
+    if(wkSales.length>=2){const pred=Math.round(wkSales.reduce((a,b)=>a+b,0)/wkSales.length);ins.push({icon:'🔮',text:`Predicted sales this week: <b>₹${fmt(pred)}</b> (avg of last ${wkSales.length} weeks)`,color:'#3b82f6',bg:'#eff6ff'});}
+  }catch(e){console.error('AI insights:',e);}
+  return ins;
 }
 
 // Check today's entries against learned patterns — find missing ones
@@ -2662,6 +2890,318 @@ function checkMissingEntries(shop){
     });
     return missing;
   }catch(e){ return []; }
+}
+
+// ════════════════════════════════════════
+// AI ENGAGEMENT — STREAKS, BRIEFING, CELEBRATION
+// ════════════════════════════════════════
+
+// ── Streak ──
+function _getStreak(){return JSON.parse(localStorage.getItem('ai_streak')||'{"count":0,"lastDate":""}');}
+function _updateStreak(){
+  const today=tod(),s=_getStreak();
+  if(s.lastDate===today) return s;
+  const yd=new Date(); yd.setDate(yd.getDate()-1);
+  const yds=yd.toISOString().split('T')[0];
+  s.count=(s.lastDate===yds)?s.count+1:1;
+  s.lastDate=today;
+  localStorage.setItem('ai_streak',JSON.stringify(s));
+  return s;
+}
+function _showStreakBadge(){
+  const el=document.getElementById('ai-streak-badge'); if(!el) return;
+  const s=_getStreak();
+  if(s.count>=2){el.innerHTML='🔥'+s.count;el.style.display='inline-flex';el.title=s.count+'-day entry streak! Keep going!';}
+  else el.style.display='none';
+}
+
+// ── Confetti celebration ──
+function _celebrate(msg){
+  const cols=['#059669','#d97706','#3b82f6','#ef4444','#8b5cf6','#ec4899'];
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;overflow:hidden';
+  for(let i=0;i<50;i++){
+    const p=document.createElement('div');
+    const col=cols[Math.floor(Math.random()*cols.length)];
+    const x=Math.random()*100,sz=5+Math.random()*9,dur=1.2+Math.random()*1.2,del=Math.random()*0.5;
+    p.style.cssText=`position:absolute;left:${x}%;top:-10px;width:${sz}px;height:${sz}px;background:${col};border-radius:${Math.random()>.5?'50%':'2px'};animation:confettiFall ${dur}s ${del}s linear forwards`;
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(()=>wrap.remove(),3500);
+  toast('🎉 '+msg);
+}
+
+// ── Milestone check (call after every entry save) ──
+function _checkMilestones(){
+  const s=_updateStreak();
+  _showStreakBadge();
+  // Streak milestones
+  if([3,7,14,30].includes(s.count)){_celebrate(s.count+'-day streak! 🔥 AI keeps getting smarter!');setTimeout(()=>triggerShareCard('streak'),1200);return;}
+  // Best day ever
+  const todaySales=TXS.filter(t=>t.date===tod()&&t.type==='sales').reduce((a,t)=>a+t.amount,0);
+  const prevBest=parseFloat(localStorage.getItem('ai_best_day')||'0');
+  if(todaySales>prevBest&&todaySales>500){localStorage.setItem('ai_best_day',todaySales);_celebrate('Best day ever! ₹'+fmt(todaySales)+' 🏆');setTimeout(()=>triggerShareCard('daily'),1200);return;}
+  // ₹1L, ₹5L, ₹10L milestones
+  const totalSales=TXS.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+  const milestone=Math.floor(totalSales/100000)*100000;
+  const prevMs=parseFloat(localStorage.getItem('ai_ms')||'0');
+  if(milestone>prevMs&&milestone>=100000){localStorage.setItem('ai_ms',milestone);_celebrate('₹'+fmt(milestone)+' total sales milestone! 💰');setTimeout(()=>triggerShareCard('milestone'),1200);return;}
+}
+
+// ════════════════════════════════════════
+// SOCIAL SHARE CARDS — Instagram / WhatsApp
+// ════════════════════════════════════════
+
+function _collectCardData(type){
+  const now=new Date();
+  const today=tod();
+  // Monthly data
+  const yr=now.getFullYear(),mo=now.getMonth();
+  const monthStart=`${yr}-${String(mo+1).padStart(2,'0')}-01`;
+  const prevMonthEnd=new Date(yr,mo,0);
+  const pmStart=`${yr}-${String(mo).padStart(2,'0')}-01`;
+  const pmEnd=prevMonthEnd.toISOString().split('T')[0];
+  const isPrev=type==='wrapped';
+  const txs=isPrev?TXS.filter(t=>t.date&&t.date>=pmStart&&t.date<=pmEnd):TXS.filter(t=>t.date&&t.date>=monthStart);
+  const todayTxs=TXS.filter(t=>t.date===today);
+  const mainShopId=Object.keys(SHOPS)[0]||'';
+  const mainShop=SHOPS[mainShopId]?.name||'My Shop';
+  const sales=sum(txs,'sales'),exp=sum(txs,'expense')+sum(txs,'payment'),net=sales-exp;
+  const todaySales=sum(todayTxs,'sales'),todayExp=sum(todayTxs,'expense')+sum(todayTxs,'payment');
+  // Best day in period
+  const dayMap={};
+  txs.filter(t=>t.type==='sales').forEach(t=>{dayMap[t.date]=(dayMap[t.date]||0)+t.amount;});
+  const [bestDate,bestAmt]=Object.entries(dayMap).sort((a,b)=>b[1]-a[1])[0]||['',0];
+  const bestDay=bestDate?new Date(bestDate+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'';
+  const streak=_getStreak();
+  const activeDays=new Set(txs.map(t=>t.date)).size;
+  const daysInPeriod=isPrev?prevMonthEnd.getDate():now.getDate();
+  const consistency=Math.round(activeDays/daysInPeriod*100);
+  const monthLabel=isPrev?new Date(yr,mo-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'}):new Date(yr,mo,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  return{mainShop,sales,exp,net,todaySales,todayExp,todayNet:todaySales-todayExp,bestDay,bestAmt,streak:streak.count,activeDays,consistency,monthLabel};
+}
+
+function _drawCard(type,data){
+  const isStory=type==='wrapped';
+  const W=1080,H=isStory?1920:1080;
+  const c=document.createElement('canvas');
+  c.width=W;c.height=H;
+  const ctx=c.getContext('2d');
+
+  // Background gradient
+  const bg=ctx.createLinearGradient(0,0,W,H);
+  if(type==='streak'){bg.addColorStop(0,'#1e1b4b');bg.addColorStop(1,'#312e81');}
+  else if(type==='milestone'){bg.addColorStop(0,'#78350f');bg.addColorStop(1,'#92400e');}
+  else{bg.addColorStop(0,'#065f46');bg.addColorStop(1,'#047857');}
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // Diagonal stripe texture
+  ctx.save();ctx.globalAlpha=0.06;ctx.strokeStyle='#ffffff';ctx.lineWidth=8;
+  for(let i=-H;i<W+H;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
+  ctx.restore();
+
+  // Radial glow (top-left)
+  const glow=ctx.createRadialGradient(W*0.3,H*0.2,0,W*0.3,H*0.2,W*0.7);
+  glow.addColorStop(0,'rgba(255,255,255,0.12)');glow.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);
+
+  const cx=W/2;
+  // Logo circle (top)
+  const logoY=isStory?160:140;
+  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.arc(cx,logoY,56,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffffff';ctx.font='bold 52px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('AN',cx,logoY);
+
+  // "ArthaNote" brand
+  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='bold 36px sans-serif';ctx.textAlign='center';
+  ctx.fillText('ArthaNote',cx,logoY+80);
+
+  if(type==='daily'||type==='milestone'){
+    // Card type label
+    const label=type==='daily'?'🏆 Best Day Ever!':'💰 Sales Milestone!';
+    ctx.fillStyle='#fcd34d';ctx.font='bold 52px sans-serif';ctx.fillText(label,cx,340);
+    // Shop name
+    ctx.fillStyle='#ffffff';ctx.font='bold 64px sans-serif';ctx.fillText(data.mainShop,cx,440);
+    // Divider
+    ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,480);ctx.lineTo(W-120,480);ctx.stroke();
+    // Numbers
+    const rows=type==='daily'?[
+      {l:'Sales',v:'₹'+fmt(data.todaySales),col:'#6ee7b7'},
+      {l:'Expenses',v:'₹'+fmt(data.todayExp),col:'#fca5a5'},
+      {l:'Net Profit',v:(data.todayNet>=0?'+':'')+'₹'+fmt(data.todayNet),col:'#fcd34d'}
+    ]:[
+      {l:'Total Sales',v:'₹'+fmt(data.sales),col:'#6ee7b7'},
+      {l:'Expenses',v:'₹'+fmt(data.exp),col:'#fca5a5'},
+      {l:'Net Profit',v:(data.net>=0?'+':'')+'₹'+fmt(data.net),col:'#fcd34d'}
+    ];
+    rows.forEach((r,i)=>{
+      const y=560+i*130;
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='32px sans-serif';ctx.textAlign='left';ctx.fillText(r.l,180,y);
+      ctx.fillStyle=r.col;ctx.font='bold 52px sans-serif';ctx.textAlign='right';ctx.fillText(r.v,W-180,y);
+    });
+    // Streak
+    if(data.streak>=2){ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='32px sans-serif';ctx.textAlign='center';ctx.fillText('🔥 '+data.streak+'-day entry streak',cx,960);}
+  } else {
+    // WRAPPED (Story 9:16)
+    ctx.fillStyle='#fcd34d';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.fillText(data.monthLabel+' Wrapped 🎁',cx,350);
+    ctx.fillStyle='#ffffff';ctx.font='bold 72px sans-serif';ctx.fillText(data.mainShop,cx,460);
+    ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,510);ctx.lineTo(W-120,510);ctx.stroke();
+    const rows=[
+      {l:'Total Sales',v:'₹'+fmt(data.sales),col:'#6ee7b7'},
+      {l:'Expenses',v:'₹'+fmt(data.exp),col:'#fca5a5'},
+      {l:'Net Profit',v:(data.net>=0?'+':'')+'₹'+fmt(data.net),col:'#fcd34d'}
+    ];
+    rows.forEach((r,i)=>{
+      const y=600+i*130;
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='34px sans-serif';ctx.textAlign='left';ctx.fillText(r.l,160,y);
+      ctx.fillStyle=r.col;ctx.font='bold 56px sans-serif';ctx.textAlign='right';ctx.fillText(r.v,W-160,y);
+    });
+    ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,1010);ctx.lineTo(W-120,1010);ctx.stroke();
+    const stats=[];
+    if(data.bestDay)stats.push('Best Day: '+data.bestDay+' · ₹'+fmt(data.bestAmt));
+    if(data.streak>=2)stats.push('🔥 '+data.streak+'-day streak');
+    stats.push('Consistency: '+data.consistency+'% ('+data.activeDays+' days)');
+    stats.forEach((s2,i)=>{
+      ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='34px sans-serif';ctx.textAlign='center';ctx.fillText(s2,cx,1080+i*70);
+    });
+    ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,1310);ctx.lineTo(W-120,1310);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='italic 32px sans-serif';ctx.textAlign='center';ctx.fillText('"Growing with ArthaNote"',cx,1400);
+  }
+
+  // Footer
+  const fy=H-80;
+  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='28px sans-serif';ctx.textAlign='center';
+  ctx.fillText('arthanote.com  ·  #ArthaNote  ·  #ShopLedger',cx,fy);
+  return c;
+}
+
+async function shareCard(canvas){
+  return new Promise(resolve=>{
+    canvas.toBlob(async blob=>{
+      const file=new File([blob],'arthanote_'+tod()+'.png',{type:'image/png'});
+      try{
+        if(navigator.canShare&&navigator.canShare({files:[file]})){
+          await navigator.share({files:[file],title:'My ArthaNote Summary',text:'Check my shop stats on ArthaNote! #ArthaNote'});
+        } else { throw new Error('no share'); }
+      }catch(_){
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();
+        toast('📥 Card downloaded — share to Instagram!','info');
+      }
+      resolve();
+    },'image/png');
+  });
+}
+
+function showShareModal(canvas,type){
+  document.getElementById('share-modal')?.remove();
+  const labels={daily:'Daily Win Card',streak:'Streak Card',wrapped:'Monthly Wrapped',milestone:'Milestone Card'};
+  const preview=document.createElement('canvas');
+  const scale=Math.min(0.38,320/canvas.width);
+  preview.width=Math.round(canvas.width*scale);preview.height=Math.round(canvas.height*scale);
+  preview.getContext('2d').drawImage(canvas,0,0,preview.width,preview.height);
+  const modal=document.createElement('div');
+  modal.id='share-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`<div style="background:#fff;border-radius:20px;padding:20px;max-width:360px;width:100%;text-align:center">
+    <div style="font-weight:800;font-size:16px;margin-bottom:12px">📸 ${labels[type]||'Share Card'}</div>
+    <div id="card-preview-slot" style="display:flex;justify-content:center;margin-bottom:14px;border-radius:10px;overflow:hidden"></div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:14px">Tap Share → pick Instagram / WhatsApp from your phone</div>
+    <div style="display:flex;gap:8px;flex-direction:column">
+      <button id="share-btn" style="background:#065f46;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%">📱 Share / Download</button>
+      <button onclick="document.getElementById('share-modal').remove()" style="background:#f3f4f6;color:#374151;border:none;border-radius:12px;padding:10px;font-size:13px;cursor:pointer;width:100%">✕ Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('card-preview-slot').appendChild(preview);
+  document.getElementById('share-btn').onclick=()=>shareCard(canvas).then(()=>document.getElementById('share-modal')?.remove());
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+}
+
+function triggerShareCard(type){
+  try{
+    const data=_collectCardData(type);
+    const canvas=_drawCard(type,data);
+    showShareModal(canvas,type);
+  }catch(e){console.error('Share card:',e);}
+}
+
+// Monthly Wrapped auto-prompt (call once after login)
+function checkMonthlyWrapped(){
+  const now=new Date();
+  const monthKey=now.getFullYear()+'-'+now.getMonth();
+  if(localStorage.getItem('ai_wrapped_month')===monthKey) return;
+  // Check if previous month has data
+  const prevMonthStart=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
+  const prevMonthEnd=new Date(now.getFullYear(),now.getMonth(),0).toISOString().split('T')[0];
+  const prevData=TXS.filter(t=>t.date&&t.date>=prevMonthStart&&t.date<=prevMonthEnd);
+  if(!prevData.length) return;
+  localStorage.setItem('ai_wrapped_month',monthKey);
+  const prevMonth=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-IN',{month:'long'});
+  // Show soft banner after 2s
+  setTimeout(()=>{
+    const slot=document.getElementById('ai-briefing-slot');
+    if(!slot||slot.innerHTML.trim()) return;
+    slot.innerHTML=`<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div><div style="font-weight:800;font-size:14px">🎁 ${prevMonth} Wrapped is ready!</div><div style="font-size:11px;opacity:.8">Share your month's achievements to Instagram</div></div>
+      <button onclick="triggerShareCard('wrapped');this.closest('[style]').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">View & Share 📸</button>
+    </div>`;
+  },2000);
+}
+
+// ── AI Morning Briefing (once per day) ──
+function _showAiBriefing(){
+  const slot=document.getElementById('ai-briefing-slot'); if(!slot) return;
+  const today=tod();
+  if(localStorage.getItem('ai_briefed')===today){slot.innerHTML='';return;}
+  localStorage.setItem('ai_briefed',today);
+
+  const yd=new Date(); yd.setDate(yd.getDate()-1);
+  const yds=yd.toISOString().split('T')[0];
+  const ydTxs=TXS.filter(t=>t.date===yds);
+  const ydSales=ydTxs.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+  const ydNet=ydSales-ydTxs.filter(t=>t.type!=='sales').reduce((a,t)=>a+t.amount,0);
+
+  // Today's expected entries from AI model
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  const day=new Date().getDay();
+  const todayDescs=new Set(TXS.filter(t=>t.date===today).map(t=>(t.desc||'').toLowerCase().trim()));
+  const expected=[];
+  Object.entries(model).forEach(([sid,days])=>{
+    const dm=days[day]||{};
+    Object.entries(dm).forEach(([k,v])=>{if(v.count>=3&&!todayDescs.has(k)) expected.push(k);});
+  });
+
+  const hour=new Date().getHours();
+  const gr=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+  const name=(ME?.name||ME?.email?.split('@')[0]||'there').split(' ')[0];
+  const streak=_getStreak();
+
+  let html=`<div class="ai-briefing-card" style="margin-bottom:12px">
+    <button onclick="this.parentElement.parentElement.innerHTML=''" style="position:absolute;top:8px;right:10px;background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:22px">✕</button>
+    <div style="font-weight:800;font-size:15px;margin-bottom:5px">🌅 ${gr}, ${name}!</div>`;
+  if(ydSales>0) html+=`<div style="font-size:12px;opacity:.9;margin-bottom:5px">Yesterday: ₹${fmt(ydSales)} sales · Net ${ydNet>=0?'+':''}₹${fmt(ydNet)}</div>`;
+  if(streak.count>=2) html+=`<div style="font-size:12px;opacity:.9;margin-bottom:5px">🔥 ${streak.count}-day streak — keep it going!</div>`;
+  if(expected.length) html+=`<div style="font-size:11px;opacity:.85;margin-bottom:5px">AI expects today: ${expected.slice(0,3).map(d=>`<b>${esc(d)}</b>`).join(', ')}${expected.length>3?' +more':''}</div>`;
+  html+=`<div style="font-size:11px;opacity:.7">Add today's entries to keep AI learning 👇</div></div>`;
+  slot.innerHTML=html;
+}
+
+// ── AI Confidence meter (in dashboard) ──
+function _showAiConfidence(){
+  const card=document.getElementById('ai-conf-card');
+  const body=document.getElementById('ai-conf-body');
+  if(!card||!body) return;
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  const total=Object.values(model).reduce((a,s)=>a+Object.values(s).reduce((b,d)=>b+Object.keys(d).length,0),0);
+  if(!total){card.style.display='none';return;}
+  card.style.display='block';
+  const conf=Math.min(100,Math.round(total/1.5)); // 150 patterns = 100%
+  const lvl=conf>=80?'Expert':conf>=50?'Learning fast':'Just starting';
+  body.innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">🧠 AI has learned <b>${total}</b> entry patterns across ${Object.keys(model).length} shop(s)</div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="font-weight:700;color:#065f46">${lvl}</span><span style="color:var(--muted)">${conf}% confidence</span></div>
+    <div class="ai-conf-bar"><div class="ai-conf-fill" style="width:${conf}%"></div></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:5px">Add entries daily — AI gets smarter every time you use it 📈</div>`;
 }
 
 // ════════════════════════════════════════
@@ -2904,6 +3444,8 @@ async function _finishAppSetup(user){
   startLiveSync();
   // Feature 18: push notification setup
   requestNotifPermission().then(()=>{ checkMissingEntry(); scheduleReminder(); });
+  // Monthly Wrapped auto-prompt
+  setTimeout(checkMonthlyWrapped, 4000);
   console.log('✅ App ready. BID:',ME.businessId);
   toast('✅ Connected — '+ME.name);
   try{
@@ -3771,6 +4313,9 @@ function setLDate(m,el){
 // ════════════════════════════════════════
 function renderDash(){
   renderNewUserTip();
+  _showAiBriefing();
+  _showAiConfidence();
+  _showStreakBadge();
   const f=getDF(_dd,'d-from','d-to');
   let txs=f(TXS);
   if(_shop!=='all') txs=txs.filter(x=>x.shop===_shop);
@@ -3809,9 +4354,10 @@ function renderDash(){
   sc.innerHTML=show.map(k=>{
     const stxs=af.filter(x=>x.shop===k);
     const ss=sum(stxs,'sales'),se2=sum(stxs,'expense')+sum(stxs,'payment'),sn=ss-se2;
+    const h=_shopHealthScore(k);
     return `<div class="sc ${k}" onclick="openSd('${k}')">
       <div class="sc-top"><div class="sc-name">${SHOPS[k]?.icon||'🏪'} ${SHOPS[k]?.name||k}</div>
-      <div style="display:flex;align-items:center;gap:5px"><div class="sc-cnt">${stxs.length} entries</div><span style="font-size:10px;color:var(--muted)">→</span></div></div>
+      <div style="display:flex;align-items:center;gap:5px"><span title="${h.label} · Score ${h.score}" style="font-size:14px">${h.badge}</span><div class="sc-cnt">${stxs.length}</div><span style="font-size:10px;color:var(--muted)">→</span></div></div>
       <div class="sc-nums">
         <span class="sc-num">Sales:₹${fmt(ss)}</span>
         <span class="sc-num">Exp:₹${fmt(se2)}</span>
@@ -3844,15 +4390,20 @@ function renderDash(){
       const me=document.getElementById('missing-entries');
       if(missing.length&&mc&&me){
         mc.style.display='block';
-        me.innerHTML=`<div class="alert warn" style="margin-bottom:8px">🤔 ${missing.length} entries you usually add are missing today. Did you forget them?</div>`+
-          missing.slice(0,8).map(m=>`
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-              <div>
+        me.innerHTML=`<div class="alert warn" style="margin-bottom:8px">🤔 ${missing.length} entries AI expects today are missing — quick add with one tap!</div>`+
+          missing.slice(0,8).map(m=>{
+            const model2=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+            const day2=new Date().getDay();
+            const k2=(m.desc||'').toLowerCase().trim();
+            const e2=model2[m.shop]?.[day2]?.[k2];
+            const avg2=e2&&e2.amounts.length?Math.round(e2.amounts.reduce((a,b)=>a+b,0)/e2.amounts.length):0;
+            return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+              <div style="flex:1;min-width:0;margin-right:8px">
                 <div style="font-weight:600;font-size:13px;font-family:var(--tamil)">${esc(m.desc)}</div>
-                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type} · Usually ${m.frequency} times/2 weeks</div>
+                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type}${avg2?' · avg ₹'+fmt(avg2):''} · ${m.frequency}× usual</div>
               </div>
-              <button onclick="quickAddMissing('${m.desc}','${m.type}','${m.shop}')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0">+ Add</button>
-            </div>`).join('');
+              <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}',${avg2})" style="background:${avg2?'var(--green)':'#d97706'};color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0;white-space:nowrap">${avg2?'⚡ Add ₹'+fmt(avg2):'+ Add'}</button>
+            </div>`;}).join('');
       } else if(mc){ mc.style.display='none'; }
     }, 500);
   }
@@ -4407,13 +4958,14 @@ async function addEntry(){
     toast('✅ Entry saved to cloud!');
     // Add to local TXS array instantly — no re-fetch needed
     TXS.unshift(txData); renderDash(); renderLedger();
-    _rptRendered=false; // allow report to refresh with new data next time
+    _rptRendered=false;
+    learnDailyPatterns(); _checkMilestones();
   }catch(err){
     console.error('Entry cloud err:',err.code,err.message);
     ['m-amt','m-desc','m-ref','m-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.querySelectorAll('.qb').forEach(b=>b.classList.remove('sel'));
-    // Still add to local view
     TXS.unshift(txData); renderDash(); renderLedger();
+    learnDailyPatterns(); _checkMilestones();
     toast('💾 Saved locally — will sync to cloud automatically','warn');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='+ Add Entry';}
@@ -4821,7 +5373,8 @@ const RPT_SECTIONS=[
   {id:'charts',label:'📊 Charts'},
   {id:'alerts',label:'🚨 Alerts'},
   {id:'insights',label:'✅ Insights'},
-  {id:'actions',label:'📌 Actions'}
+  {id:'actions',label:'📌 Actions'},
+  {id:'ai',label:'🤖 AI'}
 ];
 
 const DONUT_COLORS=['#059669','#ef4444','#d97706','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#64748b','#dc2626','#0ea5e9'];
@@ -5237,6 +5790,7 @@ function renderReports(){
   if(Object.keys(SHOPS).length<5) actions.push({title:'Expansion Readiness',desc:'Document SOPs from your best shop. Standardized process = faster scaling to new locations.'});
   document.getElementById('rpt-actions-body').innerHTML=actions.map((a,i)=>`<div class="action-item"><b>${i+1}. ${a.title}</b><div style="color:var(--muted);margin-top:3px">${a.desc}</div></div>`).join('');
 
+  renderAiReport();
   loadAudit(); updAI();
 }
 
