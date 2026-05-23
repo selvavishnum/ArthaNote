@@ -1120,7 +1120,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div id="qb-area"></div>
       <div id="community-tip" style="display:none;background:var(--soft);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px"></div>
       <div class="fr full" id="sup-row" style="display:none"><div class="fg"><label>Supplier</label><select id="m-sup"></select></div></div>
-      <div class="fr full"><div class="fg"><label>Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)"></div></div>
+      <div class="fr full"><div class="fg"><label>Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)" oninput="aiSuggestEntry(this.value)"></div></div>
+      <div id="ai-suggest-bar" style="display:none;background:#f0fdf4;border:1.5px solid #059669;border-radius:8px;padding:7px 10px;margin:-4px 0 6px;font-size:12px;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="color:#059669;font-weight:700">🤖 AI:</span>
+        <span id="ai-suggest-text" style="color:#065f46"></span>
+        <button onclick="aiApplySuggest()" style="background:#059669;color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:var(--sans)">Use this ✓</button>
+        <button onclick="document.getElementById('ai-suggest-bar').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:0 4px">✕</button>
+      </div>
       <div class="fr">
         <div class="fg"><label>Bill / Ref No</label><input type="text" id="m-ref" placeholder="Optional"></div>
         <div class="fg"><label>Note</label><input type="text" id="m-note" placeholder="Optional"></div>
@@ -1262,6 +1268,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <!-- 12. ACTION PLAN -->
     <div class="rpt-section" id="rpt-actions">
       <div class="card"><div class="chd">&#128204; Action Plan</div><div id="rpt-actions-body"></div></div>
+    </div>
+    <!-- 13. AI ANALYSIS -->
+    <div class="rpt-section" id="rpt-ai">
+      <div class="card"><div class="chd">&#129504; AI Analysis</div><div id="rpt-ai-body"></div></div>
     </div>
 
     <!-- Downloads -->
@@ -2616,15 +2626,28 @@ function updAI(){
   }
 }
 
-// Learn daily patterns from saved transactions
+// Learn daily patterns from saved transactions — 30-day weekday-specific model
 function learnDailyPatterns(){
   try{
-    // Get last 14 days of transactions
-    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-14);
+    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-30);
     const cutStr=cutoff.toISOString().split('T')[0];
-    const recent=TXS.filter(t=>t.date>=cutStr&&t.source!=='pattern_check');
+    const recent=TXS.filter(t=>t.date&&t.date>=cutStr&&t.source!=='pattern_check');
 
-    // Count how often each desc appears per shop
+    // Build weekday-specific model: {shopId: {dayOfWeek: {descKey: {count, amounts[], type}}}}
+    const model={};
+    recent.forEach(t=>{
+      const day=new Date(t.date+'T00:00:00').getDay(); // 0=Sun..6=Sat
+      const key=(t.desc||'').toLowerCase().trim();
+      if(!key) return;
+      if(!model[t.shop]) model[t.shop]={};
+      if(!model[t.shop][day]) model[t.shop][day]={};
+      if(!model[t.shop][day][key]) model[t.shop][day][key]={count:0,amounts:[],type:t.type};
+      model[t.shop][day][key].count++;
+      if(t.amount>0) model[t.shop][day][key].amounts.push(t.amount);
+    });
+    localStorage.setItem('ai_model_v2',JSON.stringify(model));
+
+    // Legacy patterns (for missing-entry checks) — appears 5+ unique days in 30
     const freq={};
     recent.forEach(t=>{
       const key=t.shop+'|'+t.desc+'|'+t.type;
@@ -2632,8 +2655,6 @@ function learnDailyPatterns(){
       freq[key].days.add(t.date);
       freq[key].count++;
     });
-
-    // Mark as "expected daily" if appears 5+ times in 14 days
     const patterns={};
     Object.entries(freq).forEach(([key,v])=>{
       if(v.days.size>=5){
@@ -2641,8 +2662,175 @@ function learnDailyPatterns(){
       }
     });
     localStorage.setItem(AIK+'_patterns',JSON.stringify(patterns));
-    console.log('Learned',Object.keys(patterns).length,'daily patterns');
+
+    const totalPatterns=Object.values(model).reduce((a,s)=>a+Object.values(s).reduce((b,d)=>b+Object.keys(d).length,0),0);
+    console.log('AI: learned',Object.keys(model).length,'shops,',totalPatterns,'weekday patterns');
   }catch(e){ console.error('Pattern learn:',e); }
+}
+
+// ── AI Suggest entry (called from description field oninput) ──
+let _aiSuggest=null;
+function aiSuggestEntry(desc){
+  const bar=document.getElementById('ai-suggest-bar');
+  if(!bar) return;
+  const key=(desc||'').toLowerCase().trim();
+  if(key.length<3){bar.style.display='none';_aiSuggest=null;return;}
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  const shopId=document.getElementById('m-shop')?.value||_shop||Object.keys(SHOPS)[0]||'';
+  const day=new Date().getDay();
+  // Collect: current shop + current weekday (2x boost), then all-day for same shop
+  const shopDayModel=model[shopId]?.[day]||{};
+  const shopAllModel={};
+  if(model[shopId]) Object.values(model[shopId]).forEach(dm=>Object.entries(dm).forEach(([k,v])=>{
+    if(!shopAllModel[k]) shopAllModel[k]={count:0,amounts:[],type:v.type};
+    shopAllModel[k].count+=v.count;
+    shopAllModel[k].amounts.push(...v.amounts);
+  }));
+  let best=null,bestScore=0;
+  const search=(modelObj,boost)=>{
+    Object.entries(modelObj).forEach(([k,v])=>{
+      if(!(k.includes(key)||key.includes(k))) return;
+      const score=(k===key?3:k.startsWith(key)||key.startsWith(k)?2:1)*v.count*boost;
+      if(score>bestScore){bestScore=score;best={...v,matchKey:k};}
+    });
+  };
+  search(shopDayModel,2);
+  search(shopAllModel,1);
+  if(!best||bestScore<2){bar.style.display='none';_aiSuggest=null;return;}
+  const avg=best.amounts.length?Math.round(best.amounts.reduce((a,b)=>a+b,0)/best.amounts.length):0;
+  const typeLabel=best.type==='sales'?'↑ Sale':best.type==='expense'?'↓ Expense':'↔ Payment';
+  _aiSuggest={type:best.type,amount:avg};
+  document.getElementById('ai-suggest-text').textContent=typeLabel+(avg?' · ₹'+fmt(avg):'');
+  bar.style.display='flex';
+}
+function aiApplySuggest(){
+  if(!_aiSuggest) return;
+  const typeEl=document.getElementById('m-type');
+  if(typeEl) typeEl.value=_aiSuggest.type;
+  if(_aiSuggest.amount){const amtEl=document.getElementById('m-amount');if(amtEl) amtEl.value=_aiSuggest.amount;}
+  document.getElementById('ai-suggest-bar').style.display='none';
+  _aiSuggest=null;
+}
+
+// ── Shop health score (0–100 → 🟢🟡🔴) ──
+function _shopHealthScore(shopId){
+  const now=new Date(),d7s=new Date(now),d14s=new Date(now),d30s=new Date(now);
+  d7s.setDate(d7s.getDate()-7); d14s.setDate(d14s.getDate()-14); d30s.setDate(d30s.getDate()-30);
+  const d7=d7s.toISOString().split('T')[0],d14=d14s.toISOString().split('T')[0],d30=d30s.toISOString().split('T')[0];
+  const shopTxs=TXS.filter(t=>t.shop===shopId&&t.date);
+  const sumType=(arr,type)=>arr.filter(t=>t.type===type).reduce((a,t)=>a+t.amount,0);
+  const last30=shopTxs.filter(t=>t.date>=d30);
+  const last7=shopTxs.filter(t=>t.date>=d7);
+  const prev7=shopTxs.filter(t=>t.date>=d14&&t.date<d7);
+  const s7=sumType(last7,'sales'),sp7=sumType(prev7,'sales')||1;
+  const salesTrend=s7/sp7;
+  const exp30=sumType(last30,'expense')+sumType(last30,'payment');
+  const sales30=sumType(last30,'sales')||1;
+  const expRatio=exp30/sales30;
+  const daysActive=new Set(last30.map(t=>t.date)).size;
+  let score=50;
+  if(salesTrend>1.1)score+=20;else if(salesTrend<0.9)score-=20;
+  if(expRatio<0.5)score+=15;else if(expRatio>0.8)score-=15;
+  if(daysActive>20)score+=15;else if(daysActive<8)score-=15;
+  score=Math.max(0,Math.min(100,score));
+  const badge=score>=75?'🟢':score>=50?'🟡':'🔴';
+  const label=score>=75?'Healthy':score>=50?'Watch':'Needs attention';
+  return{score,badge,label};
+}
+
+// ── AI Report section renderer ──
+const _DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const _DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function renderAiReport(){
+  const el=document.getElementById('rpt-ai-body');
+  if(!el) return;
+  learnDailyPatterns();
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  let html='';
+
+  // ── AI Insights ──
+  const insights=_generateAiInsights();
+  if(insights.length){
+    html+=`<div style="margin-bottom:14px"><div style="font-weight:700;font-size:13px;margin-bottom:8px">💡 AI Insights</div><div style="display:flex;flex-direction:column;gap:7px">`;
+    insights.forEach(ins=>{
+      html+=`<div style="background:${ins.bg||'#f0fdf4'};border-left:3px solid ${ins.color||'#059669'};padding:8px 10px;border-radius:6px;font-size:12px"><span style="font-size:15px;margin-right:6px">${ins.icon}</span>${ins.text}</div>`;
+    });
+    html+='</div></div>';
+  }
+
+  // ── Weekly pattern grids per shop ──
+  if(!Object.keys(model).length){
+    html+='<div class="empty">Add entries for 1–2 weeks — AI will learn your daily patterns automatically.</div>';
+  } else {
+    Object.entries(model).forEach(([shopId,days])=>{
+      const shop=SHOPS[shopId]; if(!shop) return;
+      const descCounts={};
+      Object.values(days).forEach(dm=>Object.entries(dm).forEach(([k,v])=>{descCounts[k]=(descCounts[k]||0)+v.count;}));
+      const topDescs=Object.entries(descCounts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(e=>e[0]);
+      if(!topDescs.length) return;
+      html+=`<div style="margin-bottom:14px"><div style="font-weight:700;font-size:12px;margin-bottom:6px">${shop.icon||'🏪'} ${esc(shop.name)} — Weekly Pattern</div>`;
+      html+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px;min-width:340px"><tr><th style="text-align:left;padding:3px 5px;border-bottom:1px solid var(--border)">Entry</th>`;
+      _DAY_SHORT.forEach(d=>html+=`<th style="padding:3px 4px;text-align:center;border-bottom:1px solid var(--border);color:var(--muted)">${d}</th>`);
+      html+=`</tr>`;
+      topDescs.forEach(desc=>{
+        html+=`<tr><td style="padding:3px 5px;font-family:var(--tamil);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(desc)}">${esc(desc)}</td>`;
+        _DAY_SHORT.forEach((_,i)=>{
+          const e=days[i]?.[desc];
+          html+=`<td style="text-align:center;padding:3px 2px">${e&&e.count>=2?'<span style="color:#059669">✅</span>':'<span style="color:#e5e7eb">—</span>'}</td>`;
+        });
+        html+=`</tr>`;
+      });
+      html+=`</table></div></div>`;
+    });
+  }
+  el.innerHTML=html;
+}
+
+function _generateAiInsights(){
+  const ins=[];
+  try{
+    const now=new Date();
+    const d30s=new Date(now); d30s.setDate(d30s.getDate()-30);
+    const d7s=new Date(now); d7s.setDate(d7s.getDate()-7);
+    const d14s=new Date(now); d14s.setDate(d14s.getDate()-14);
+    const d30=d30s.toISOString().split('T')[0];
+    const d7=d7s.toISOString().split('T')[0];
+    const d14=d14s.toISOString().split('T')[0];
+    const r30=TXS.filter(t=>t.date&&t.date>=d30);
+    const r7=TXS.filter(t=>t.date&&t.date>=d7);
+    const p7=TXS.filter(t=>t.date&&t.date>=d14&&t.date<d7);
+    if(!r30.length) return ins;
+    // Best day of week
+    const dt=[0,0,0,0,0,0,0],dc=[0,0,0,0,0,0,0];
+    r30.filter(t=>t.type==='sales').forEach(t=>{const d=new Date(t.date+'T00:00:00').getDay();dt[d]+=t.amount;dc[d]++;});
+    const da=dt.map((v,i)=>dc[i]?v/dc[i]:0);
+    const bd=da.indexOf(Math.max(...da));
+    if(da[bd]>0) ins.push({icon:'📅',text:`Best sales day is <b>${_DAY_NAMES[bd]}</b> — avg ₹${fmt(Math.round(da[bd]))}`,color:'#059669',bg:'#f0fdf4'});
+    // Highest expense category
+    const ec={};
+    r30.filter(t=>t.type==='expense').forEach(t=>{const k=(t.desc||'Other').split(' ')[0];ec[k]=(ec[k]||0)+t.amount;});
+    const te=Object.entries(ec).sort((a,b)=>b[1]-a[1])[0];
+    if(te) ins.push({icon:'💸',text:`Biggest expense: <b>${esc(te[0])}</b> — ₹${fmt(te[1])} in 30 days`,color:'#d97706',bg:'#fffbeb'});
+    // Sales trend week-over-week
+    const s7=r7.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+    const sp7=p7.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+    if(sp7>0){const pct=((s7-sp7)/sp7*100).toFixed(0);if(Math.abs(pct)>=5) ins.push({icon:pct>0?'📈':'📉',text:`Sales this week are <b>${Math.abs(pct)}% ${pct>0?'higher':'lower'}</b> than last week`,color:pct>0?'#059669':'#ef4444',bg:pct>0?'#f0fdf4':'#fef2f2'});}
+    // Entry consistency
+    const ad=new Set(r30.map(t=>t.date)).size;
+    const cp=Math.round(ad/30*100);
+    ins.push({icon:'📊',text:`Entries on <b>${ad}/30 days</b> (${cp}% consistency)`,color:cp>=70?'#059669':cp>=40?'#d97706':'#ef4444',bg:cp>=70?'#f0fdf4':cp>=40?'#fffbeb':'#fef2f2'});
+    // Predicted week sales
+    const wkSales=[];
+    for(let i=1;i<=4;i++){
+      const ws=new Date(now); ws.setDate(ws.getDate()-7*i);
+      const we=new Date(now); we.setDate(we.getDate()-7*(i-1));
+      const wv=TXS.filter(t=>t.date&&t.date>=ws.toISOString().split('T')[0]&&t.date<we.toISOString().split('T')[0]&&t.type==='sales').reduce((a,t)=>a+t.amount,0);
+      if(wv>0) wkSales.push(wv);
+    }
+    if(wkSales.length>=2){const pred=Math.round(wkSales.reduce((a,b)=>a+b,0)/wkSales.length);ins.push({icon:'🔮',text:`Predicted sales this week: <b>₹${fmt(pred)}</b> (avg of last ${wkSales.length} weeks)`,color:'#3b82f6',bg:'#eff6ff'});}
+  }catch(e){console.error('AI insights:',e);}
+  return ins;
 }
 
 // Check today's entries against learned patterns — find missing ones
@@ -3809,9 +3997,10 @@ function renderDash(){
   sc.innerHTML=show.map(k=>{
     const stxs=af.filter(x=>x.shop===k);
     const ss=sum(stxs,'sales'),se2=sum(stxs,'expense')+sum(stxs,'payment'),sn=ss-se2;
+    const h=_shopHealthScore(k);
     return `<div class="sc ${k}" onclick="openSd('${k}')">
       <div class="sc-top"><div class="sc-name">${SHOPS[k]?.icon||'🏪'} ${SHOPS[k]?.name||k}</div>
-      <div style="display:flex;align-items:center;gap:5px"><div class="sc-cnt">${stxs.length} entries</div><span style="font-size:10px;color:var(--muted)">→</span></div></div>
+      <div style="display:flex;align-items:center;gap:5px"><span title="${h.label} · Score ${h.score}" style="font-size:14px">${h.badge}</span><div class="sc-cnt">${stxs.length}</div><span style="font-size:10px;color:var(--muted)">→</span></div></div>
       <div class="sc-nums">
         <span class="sc-num">Sales:₹${fmt(ss)}</span>
         <span class="sc-num">Exp:₹${fmt(se2)}</span>
@@ -4821,7 +5010,8 @@ const RPT_SECTIONS=[
   {id:'charts',label:'📊 Charts'},
   {id:'alerts',label:'🚨 Alerts'},
   {id:'insights',label:'✅ Insights'},
-  {id:'actions',label:'📌 Actions'}
+  {id:'actions',label:'📌 Actions'},
+  {id:'ai',label:'🤖 AI'}
 ];
 
 const DONUT_COLORS=['#059669','#ef4444','#d97706','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#64748b','#dc2626','#0ea5e9'];
@@ -5237,6 +5427,7 @@ function renderReports(){
   if(Object.keys(SHOPS).length<5) actions.push({title:'Expansion Readiness',desc:'Document SOPs from your best shop. Standardized process = faster scaling to new locations.'});
   document.getElementById('rpt-actions-body').innerHTML=actions.map((a,i)=>`<div class="action-item"><b>${i+1}. ${a.title}</b><div style="color:var(--muted);margin-top:3px">${a.desc}</div></div>`).join('');
 
+  renderAiReport();
   loadAudit(); updAI();
 }
 
