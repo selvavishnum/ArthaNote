@@ -1636,6 +1636,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
           <div style="font-size:11px;color:var(--muted);margin-bottom:10px;background:var(--soft);padding:8px 10px;border-radius:8px">Enter category names separated by commas. These appear as quick-select buttons when adding entries.</div>
           <div id="settings-cat-ed"></div>
           <button class="btn G" style="margin-top:8px" onclick="saveShopCatsFromSettings()">✓ Save Categories ☁️</button>
+          <div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px">
+            <div style="font-size:12px;font-weight:800;color:#374151;margin-bottom:4px">✏️ Spelling Fix / Aliases</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px">When the same item is entered with different spellings (GPay / G-pay / gpay), merge them here. Old entries are unchanged; reports group them together.</div>
+            <div id="alias-mgmt"></div>
+          </div>
         </div>
       </div>
 
@@ -1939,7 +1944,7 @@ function toggleSacc(name){
   // Close all open sections first
   document.querySelectorAll('.sett-row-body.open').forEach(b=>{b.classList.remove('open');});
   document.querySelectorAll('.sett-row-arr.open').forEach(a=>{a.classList.remove('open');});
-  if(!isOpen){ body.classList.add('open'); if(arr) arr.classList.add('open'); }
+  if(!isOpen){ body.classList.add('open'); if(arr) arr.classList.add('open'); if(name==='cats') renderAliasSettings(); }
 }
 function openM(id){
   document.getElementById(id)?.classList.add('on');
@@ -2301,6 +2306,125 @@ function levenshtein(a,b){
   return dp[m][n];
 }
 
+// Description alias normalization — maps misspelled/variant descriptions to canonical form
+function _normDesc(d){
+  if(!d) return d;
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  const key=(d||'').toLowerCase().trim();
+  return aliases[key]||d;
+}
+
+// Save a spelling fix alias: from → canonical. Updates reports immediately.
+function fixSpelling(from, canonical){
+  if(!canonical||canonical.trim()===''||canonical.trim()===from.trim()) return;
+  const c=canonical.trim();
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  aliases[from.toLowerCase().trim()]=c;
+  localStorage.setItem('desc_aliases',JSON.stringify(aliases));
+  learnDailyPatterns();
+  toast('✅ "'+from+'" → "'+c+'" merged. Reports updated.');
+  renderReports();
+  renderAliasSettings();
+}
+
+// Render saved aliases in Settings → Categories section
+function renderAliasSettings(){
+  const el=document.getElementById('alias-mgmt');
+  if(!el) return;
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  const entries=Object.entries(aliases);
+  if(!entries.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0">No spelling fixes saved yet. Use Reports → Expense tab to detect and fix spelling variants.</div>';return;}
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">SAVED SPELLING FIXES (${entries.length})</div>`+
+    entries.map(([from,to])=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f3f4f6">
+      <span style="font-size:11px;color:#dc2626;font-weight:600">"${esc(from)}"</span>
+      <span style="font-size:10px;color:#9ca3af">→</span>
+      <span style="font-size:11px;color:#059669;font-weight:700">"${esc(to)}"</span>
+      <button onclick="deleteAlias('${esc(from)}')" style="margin-left:auto;background:#fee2e2;border:none;border-radius:6px;padding:2px 7px;font-size:10px;color:#dc2626;cursor:pointer">✕</button>
+    </div>`).join('');
+}
+
+function deleteAlias(from){
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  delete aliases[from.toLowerCase().trim()];
+  localStorage.setItem('desc_aliases',JSON.stringify(aliases));
+  toast('"'+from+'" alias removed.');
+  renderAliasSettings();
+  renderReports();
+}
+
+// ── AI Spelling Variant Detection ─────────────────────────────────────────────
+// Scans last 30 days of real TXS entries, clusters similar descriptions, returns
+// groups where each group has a canonical (most-used) form and variant spellings.
+function _aiDetectSpellingVariants(){
+  try{
+    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-30);
+    const cutStr=cutoff.toISOString().split('T')[0];
+    const recent=TXS.filter(t=>t.date&&t.date>=cutStr&&t.source!=='pattern_check');
+    // Raw frequency map (before any alias normalization — detect original misspellings)
+    const freq={};
+    recent.forEach(t=>{const d=(t.desc||'').trim();if(d) freq[d]=(freq[d]||0)+1;});
+    const descs=Object.keys(freq);
+    if(descs.length<2) return [];
+    // Union-Find to cluster similar spellings
+    const par={};
+    const find=d=>{if(par[d]===undefined)par[d]=d;return par[d]===d?d:(par[d]=find(par[d]));};
+    const union=(a,b)=>{par[find(a)]=find(b);};
+    for(let i=0;i<descs.length;i++){
+      for(let j=i+1;j<descs.length;j++){
+        const a=descs[i].toLowerCase().replace(/[\s\-_]/g,'');
+        const b=descs[j].toLowerCase().replace(/[\s\-_]/g,'');
+        if(a===b){union(descs[i],descs[j]);continue;}
+        if(a.length<3||b.length<3) continue;
+        const similar=a.startsWith(b.substring(0,4))||b.startsWith(a.substring(0,4))||
+          a.includes(b)||b.includes(a)||levenshtein(a,b)<=2;
+        if(similar) union(descs[i],descs[j]);
+      }
+    }
+    // Group by cluster root
+    const clusters={};
+    descs.forEach(d=>{const root=find(d);if(!clusters[root])clusters[root]=[];clusters[root].push(d);});
+    // Only groups with 2+ variants; sort each by frequency (most used = canonical)
+    const result=[];
+    Object.values(clusters).forEach(vs=>{
+      if(vs.length<2) return;
+      vs.sort((a,b)=>(freq[b]||0)-(freq[a]||0));
+      const canonical=vs[0];
+      const others=vs.slice(1);
+      const totalCount=vs.reduce((s,v)=>s+(freq[v]||0),0);
+      result.push({canonical,others,variants:vs,totalCount,freq});
+    });
+    result.sort((a,b)=>b.totalCount-a.totalCount);
+    return result;
+  }catch(e){console.error('aiDetectVariants:',e);return [];}
+}
+
+// Merge a variant group into one canonical spelling (batch, single re-render)
+function _fixVariantGroup(canonical, others){
+  if(!others||!others.length) return;
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  others.forEach(from=>{aliases[from.toLowerCase().trim()]=canonical.trim();});
+  localStorage.setItem('desc_aliases',JSON.stringify(aliases));
+  learnDailyPatterns();
+  toast('✅ Merged '+others.length+' spelling variant'+(others.length>1?'s':'')+' → "'+canonical+'"');
+  renderReports();
+  renderAliasSettings();
+}
+
+// Fix all detected variant groups at once (single re-render at end)
+function _fixAllVariantGroups(groups){
+  if(!groups||!groups.length) return;
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  let fixed=0;
+  groups.forEach(({canonical,others})=>{
+    (others||[]).forEach(from=>{aliases[from.toLowerCase().trim()]=canonical.trim();fixed++;});
+  });
+  localStorage.setItem('desc_aliases',JSON.stringify(aliases));
+  learnDailyPatterns();
+  toast('⚡ Fixed '+fixed+' spelling variant'+(fixed>1?'s':'')+' across '+groups.length+' groups. Reports updated.');
+  renderReports();
+  renderAliasSettings();
+}
+
 // ONBOARDING STATE
 let _obType='other',_obGst=false,_obGstRate=12;
 
@@ -2559,45 +2683,17 @@ function updSyncBar(){
   if(q.length&&bar&&msg){bar.classList.add('show');msg.textContent=q.length+' entries pending sync to cloud';}
   else if(bar) bar.classList.remove('show');
 }
-// Quick add missing entry from AI alert
-async function quickAddMissing(desc, type, shop, avgAmount){
-  // Get predicted amount from AI model if not provided
-  if(!avgAmount){
-    const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
-    const day=new Date().getDay();
-    const key=(desc||'').toLowerCase().trim();
-    const entry=model[shop]?.[day]?.[key];
-    if(entry&&entry.amounts.length) avgAmount=Math.round(entry.amounts.reduce((a,b)=>a+b,0)/entry.amounts.length);
-  }
-  if(!avgAmount){
-    // No amount known — fall back to pre-fill form
-    document.getElementById('m-desc').value=desc;
-    document.getElementById('m-date').value=tod();
-    const mShop=document.getElementById('m-shop');
-    if(mShop){for(let i=0;i<mShop.options.length;i++)if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;}}
-    const mType=document.getElementById('m-type');
-    if(mType){for(let i=0;i<mType.options.length;i++)if(mType.options[i].value===type){mType.selectedIndex=i;break;}}
-    loadQB(); toggleSup(); goPane('entry');
-    document.getElementById('m-amt')?.focus();
-    toast('📝 '+desc+' pre-filled — enter amount and save','info');
-    return;
-  }
-  // Save directly — no form needed!
-  const txData={businessId:ME.businessId||ME.uid,shop,shopName:SHOPS[shop]?.name||shop,date:tod(),type,amount:avgAmount,desc,by:ME.uid,at:null};
-  try{
-    const ref=await DB.collection('transactions').add({...txData,at:firebase.firestore.FieldValue.serverTimestamp()});
-    txData.id=ref.id;
-    TXS.unshift(txData); renderDash(); renderLedger();
-    learnDailyPatterns(); _checkMilestones();
-    _rptRendered=false;
-    toast('⚡ Quick added: '+desc+' ₹'+fmt(avgAmount));
-  }catch(e){
-    // offline — queue it
-    txData.at=new Date().toISOString();
-    addQ({...txData,_col:'transactions',_lid:'q'+Date.now()});
-    TXS.unshift(txData); renderDash(); renderLedger();
-    toast('💾 '+desc+' saved locally — will sync','warn');
-  }
+// Quick add missing entry from AI alert — opens form pre-filled, amount always entered by user
+function quickAddMissing(desc, type, shop){
+  document.getElementById('m-desc').value=desc;
+  document.getElementById('m-date').value=tod();
+  const mShop=document.getElementById('m-shop');
+  if(mShop){for(let i=0;i<mShop.options.length;i++)if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;}}
+  const mType=document.getElementById('m-type');
+  if(mType){for(let i=0;i<mType.options.length;i++)if(mType.options[i].value===type){mType.selectedIndex=i;break;}}
+  loadQB(); toggleSup(); goPane('entry');
+  document.getElementById('m-amt')?.focus();
+  toast('📝 '+desc+' pre-filled — enter the amount','info');
 }
 
 async function syncNow(){
@@ -2677,7 +2773,7 @@ function learnDailyPatterns(){
     const model={};
     recent.forEach(t=>{
       const day=new Date(t.date+'T00:00:00').getDay(); // 0=Sun..6=Sat
-      const key=(t.desc||'').toLowerCase().trim();
+      const key=_normDesc((t.desc||'').trim()).toLowerCase().trim();
       if(!key) return;
       if(!model[t.shop]) model[t.shop]={};
       if(!model[t.shop][day]) model[t.shop][day]={};
@@ -2708,7 +2804,7 @@ function learnDailyPatterns(){
   }catch(e){ console.error('Pattern learn:',e); }
 }
 
-// ── AI Suggest entry (called from description field oninput) ──
+// ── AI Suggest entry — learns description→type only, never suggests amounts ──
 let _aiSuggest=null;
 function aiSuggestEntry(desc){
   const bar=document.getElementById('ai-suggest-bar');
@@ -2718,38 +2814,38 @@ function aiSuggestEntry(desc){
   const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
   const shopId=document.getElementById('m-shop')?.value||_shop||Object.keys(SHOPS)[0]||'';
   const day=new Date().getDay();
-  // Collect: current shop + current weekday (2x boost), then all-day for same shop
   const shopDayModel=model[shopId]?.[day]||{};
   const shopAllModel={};
   if(model[shopId]) Object.values(model[shopId]).forEach(dm=>Object.entries(dm).forEach(([k,v])=>{
-    if(!shopAllModel[k]) shopAllModel[k]={count:0,amounts:[],type:v.type};
+    if(!shopAllModel[k]) shopAllModel[k]={count:0,type:v.type};
     shopAllModel[k].count+=v.count;
-    shopAllModel[k].amounts.push(...v.amounts);
   }));
   let best=null,bestScore=0;
   const search=(modelObj,boost)=>{
     Object.entries(modelObj).forEach(([k,v])=>{
       if(!(k.includes(key)||key.includes(k))) return;
       const score=(k===key?3:k.startsWith(key)||key.startsWith(k)?2:1)*v.count*boost;
-      if(score>bestScore){bestScore=score;best={...v,matchKey:k};}
+      if(score>bestScore){bestScore=score;best=v;}
     });
   };
   search(shopDayModel,2);
   search(shopAllModel,1);
   if(!best||bestScore<2){bar.style.display='none';_aiSuggest=null;return;}
-  const avg=best.amounts.length?Math.round(best.amounts.reduce((a,b)=>a+b,0)/best.amounts.length):0;
+  // AI learns description → type only. Never suggests or auto-fills amounts.
   const typeLabel=best.type==='sales'?'↑ Sale':best.type==='expense'?'↓ Expense':'↔ Payment';
-  _aiSuggest={type:best.type,amount:avg};
-  document.getElementById('ai-suggest-text').textContent=typeLabel+(avg?' · ₹'+fmt(avg):'');
+  _aiSuggest={type:best.type};
+  document.getElementById('ai-suggest-text').textContent=typeLabel+' — AI detected from past entries';
   bar.style.display='flex';
 }
 function aiApplySuggest(){
   if(!_aiSuggest) return;
+  // Only sets the Type field — amount is always entered manually by user
   const typeEl=document.getElementById('m-type');
   if(typeEl) typeEl.value=_aiSuggest.type;
-  if(_aiSuggest.amount){const amtEl=document.getElementById('m-amount');if(amtEl) amtEl.value=_aiSuggest.amount;}
   document.getElementById('ai-suggest-bar').style.display='none';
   _aiSuggest=null;
+  // Move focus to amount field so user enters number themselves
+  document.getElementById('m-amt')?.focus();
 }
 
 // ── Shop health score (0–100 → 🟢🟡🔴) ──
@@ -2788,6 +2884,31 @@ function renderAiReport(){
   learnDailyPatterns();
   const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
   let html='';
+
+  // ── AI Spelling Variant Detector (from 30-day history) ──
+  const variants=_aiDetectSpellingVariants();
+  if(variants.length){
+    html+=`<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px">🤖 AI Found ${variants.length} Spelling Variant${variants.length>1?'s':''} in Past 30 Days</div>
+      <div style="font-size:11px;color:#78350f;margin-bottom:10px">These entries look like the same thing with different spellings. Merge them to get accurate expense categories.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">`;
+    variants.forEach(({canonical,others,variants:vs,totalCount,freq})=>{
+      html+=`<div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:9px 10px">
+        <div style="font-size:11px;color:#78350f;margin-bottom:5px"><b>${vs.length} spellings found</b> — ${totalCount} total entries:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px">
+          ${vs.map((v,i)=>`<span style="background:${i===0?'#059669':'#ef4444'};color:#fff;border-radius:12px;padding:2px 9px;font-size:10px;font-weight:700">"${esc(v)}" ×${freq[v]||0}</span>`).join('')}
+        </div>
+        <div style="font-size:10px;color:#059669;margin-bottom:6px">✔ AI suggests keeping <b>"${esc(canonical)}"</b> (used ${freq[canonical]||0}× — most common)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          <button onclick="_fixVariantGroup('${esc(canonical).replace(/'/g,"\\'")}',${JSON.stringify(others)})" style="background:#059669;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">✓ Merge all → "${esc(canonical.length>12?canonical.slice(0,12)+'…':canonical)}"</button>
+          ${others.map(o=>`<button onclick="_fixVariantGroup('${esc(o).replace(/'/g,"\\'")}',${JSON.stringify(vs.filter(v=>v!==o))})" style="background:#fff;color:#dc2626;border:1.5px solid #fca5a5;border-radius:7px;padding:4px 9px;font-size:10px;cursor:pointer">Use "${esc(o.length>10?o.slice(0,10)+'…':o)}"</button>`).join('')}
+        </div>
+      </div>`;
+    });
+    html+=`</div>
+      <button onclick="_fixAllVariantGroups(${JSON.stringify(variants.map(v=>({canonical:v.canonical,others:v.others})))})" style="margin-top:10px;background:#92400e;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer;width:100%">⚡ Fix All ${variants.length} Groups Automatically (AI picks best spelling)</button>
+    </div>`;
+  }
 
   // ── AI Insights ──
   const insights=_generateAiInsights();
@@ -4391,19 +4512,14 @@ function renderDash(){
       if(missing.length&&mc&&me){
         mc.style.display='block';
         me.innerHTML=`<div class="alert warn" style="margin-bottom:8px">🤔 ${missing.length} entries AI expects today are missing — quick add with one tap!</div>`+
-          missing.slice(0,8).map(m=>{
-            const model2=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
-            const day2=new Date().getDay();
-            const k2=(m.desc||'').toLowerCase().trim();
-            const e2=model2[m.shop]?.[day2]?.[k2];
-            const avg2=e2&&e2.amounts.length?Math.round(e2.amounts.reduce((a,b)=>a+b,0)/e2.amounts.length):0;
-            return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          missing.slice(0,8).map(m=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
               <div style="flex:1;min-width:0;margin-right:8px">
                 <div style="font-weight:600;font-size:13px;font-family:var(--tamil)">${esc(m.desc)}</div>
-                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type}${avg2?' · avg ₹'+fmt(avg2):''} · ${m.frequency}× usual</div>
+                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type} · ${m.frequency}× usual</div>
               </div>
-              <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}',${avg2})" style="background:${avg2?'var(--green)':'#d97706'};color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0;white-space:nowrap">${avg2?'⚡ Add ₹'+fmt(avg2):'+ Add'}</button>
-            </div>`;}).join('');
+              <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0">+ Add</button>
+            </div>`).join('');
       } else if(mc){ mc.style.display='none'; }
     }, 500);
   }
@@ -5600,7 +5716,7 @@ function renderReports(){
   renderStaffEfficiency(txs);
   const expTxs=txs.filter(x=>x.type==='expense'||x.type==='payment');
   const catMap={};
-  expTxs.forEach(t=>{const c=(t.category||t.desc||'Other').trim();catMap[c]=(catMap[c]||0)+(t.amount||0);});
+  expTxs.forEach(t=>{const c=_normDesc((t.category||t.desc||'Other').trim());catMap[c]=(catMap[c]||0)+(t.amount||0);});
   const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
   const maxCat=cats.length?cats[0][1]:1;
   const colors=['#dc2626','#ea580c','#d97706','#059669','#2563eb','#7c3aed','#db2777','#64748b'];
@@ -5636,11 +5752,14 @@ function renderReports(){
 
     ${mismatches.length?`<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:10px">
       <div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:6px">⚠️ Possible Spelling Mistakes — ${mismatches.length} found</div>
-      ${mismatches.map(([a,b])=>`<div style="font-size:11px;color:#78350f;padding:4px 0;border-bottom:1px solid #fde68a;display:flex;align-items:center;gap:8px">
+      ${mismatches.map(([a,b])=>`<div style="font-size:11px;color:#78350f;padding:4px 0;border-bottom:1px solid #fde68a;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-weight:700">"${esc(a)}"</span>
         <span style="color:#d97706">≈</span>
         <span style="font-weight:700">"${esc(b)}"</span>
-        <span style="font-size:10px;color:#92400e;margin-left:auto">Fix in Settings → Categories</span>
+        <span style="margin-left:auto;display:flex;gap:4px">
+          <button onclick="fixSpelling('${esc(a)}','${esc(b)}')" style="background:#d97706;color:#fff;border:none;border-radius:6px;padding:2px 7px;font-size:10px;cursor:pointer" title="Merge '${esc(a)}' into '${esc(b)}'">→ Use "${esc(b)}"</button>
+          <button onclick="fixSpelling('${esc(b)}','${esc(a)}')" style="background:#92400e;color:#fff;border:none;border-radius:6px;padding:2px 7px;font-size:10px;cursor:pointer" title="Merge '${esc(b)}' into '${esc(a)}'">→ Use "${esc(a)}"</button>
+        </span>
       </div>`).join('')}
     </div>`:''}
 
@@ -5671,13 +5790,13 @@ function renderReports(){
     <tr><td><b>TOTAL</b></td><td><b>₹${fmt(te)}</b></td><td><b>100%</b></td><td></td></tr>
     </tbody></table></div>
     <div style="margin-top:10px;font-size:11px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px">
-      💡 <b>Fix spelling:</b> Settings (☰) → Edit Categories → correct the name → Save. Next month entries will be clean.
+      💡 <b>Fix spelling:</b> Tap the <b>"→ Use"</b> buttons above to merge variants instantly, or go to <b>Reports → AI Analysis</b> tab — AI automatically scans 30-day history and suggests fixes.
     </div>`;
 
   // ═══ 6. PAYMENT REPORT ═══
   const salesTxs=txs.filter(x=>x.type==='sales');
   const payModes={};
-  salesTxs.forEach(t=>{const c=t.category||t.desc||'Cash';payModes[c]=(payModes[c]||0)+(t.amount||0);});
+  salesTxs.forEach(t=>{const c=_normDesc(t.category||t.desc||'Cash');payModes[c]=(payModes[c]||0)+(t.amount||0);});
   const pmEntries=Object.entries(payModes).sort((a,b)=>b[1]-a[1]);
   const cash=payModes['Cash']||0;
   const gpay=(payModes['GPay']||0)+(payModes['Gpay']||0)+(payModes['Vishnu GPay']||0);
@@ -5694,7 +5813,7 @@ function renderReports(){
   // ═══ 7. SALARY REPORT ═══
   const salTxs=expTxs.filter(t=>{const d=(t.desc||'').toLowerCase()+(t.category||'').toLowerCase();return d.includes('salary')||d.includes('sal');});
   const salMap={};
-  salTxs.forEach(t=>{const n=t.desc||t.category||'Staff';salMap[n]=(salMap[n]||0)+(t.amount||0);});
+  salTxs.forEach(t=>{const n=_normDesc(t.desc||t.category||'Staff');salMap[n]=(salMap[n]||0)+(t.amount||0);});
   const salEntries=Object.entries(salMap).sort((a,b)=>b[1]-a[1]);
   const totalSal=salEntries.reduce((a,b)=>a+b[1],0);
   document.getElementById('rpt-salary-body').innerHTML=`
@@ -5726,7 +5845,7 @@ function renderReports(){
   const maxSales=Math.max(...dailyData.map(d=>d.sales),1);
   // Compute category breakdowns for charts
   const salCatMap={};
-  txs.filter(x=>x.type==='sales').forEach(t=>{const c=(t.category||t.desc||'Sales').trim().slice(0,20);salCatMap[c]=(salCatMap[c]||0)+(t.amount||0);});
+  txs.filter(x=>x.type==='sales').forEach(t=>{const c=_normDesc((t.category||t.desc||'Sales').trim()).slice(0,20);salCatMap[c]=(salCatMap[c]||0)+(t.amount||0);});
   const salCats=Object.entries(salCatMap).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,v])=>({l,v}));
   const expCats2=cats.slice(0,8).map(([l,v])=>({l,v}));
   const overviewData=[{l:'Sales',v:s},{l:'Expenses',v:te}];
