@@ -538,6 +538,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .staff-kpi .sv{font-size:14px;font-weight:800;font-family:var(--mono)}
 .staff-kpi .sl{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase}
 
+/* AI ENGAGEMENT */
+@keyframes confettiFall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+@keyframes briefingIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+#ai-streak-badge{display:none;align-items:center;font-size:12px;font-weight:800;color:#d97706;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:20px;padding:2px 8px;gap:2px;cursor:default;white-space:nowrap}
+.ai-briefing-card{animation:briefingIn .35s ease;background:linear-gradient(135deg,#065f46,#059669);color:#fff;border-radius:14px;padding:14px;margin-bottom:12px;position:relative}
+.ai-conf-bar{height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-top:5px}
+.ai-conf-fill{height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:4px;transition:width .8s ease}
+
 /* TOAST */
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;font-family:var(--sans)}
 #toast.show{opacity:1}
@@ -980,6 +988,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     </div>
     <span class="trole owner" id="t-role">&#128081; Owner</span>
     <span id="sync-dot" class="sync-dot" title="Live sync">🟢</span>
+    <span id="ai-streak-badge" title="Daily entry streak!"></span>
     <button class="langbtn" id="langbtn" onclick="openLangPicker()">EN</button>
     <button class="tmenu" onclick="openM('menu-modal')">&#9776;</button>
   </div>
@@ -1012,6 +1021,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="pill ok" id="d-pill"><div class="pdot"></div><span id="d-msg">Loading...</span></div>
     <div id="biz-type-banner" style="display:none;background:linear-gradient(135deg,var(--green),var(--sec));color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-weight:700;font-size:14px;letter-spacing:0.3px"></div>
     <div id="d-new-user-tip" style="display:none"></div>
+    <div id="ai-briefing-slot"></div>
     <div class="sgrid">
       <div class="stile"><div class="slbl">Total Sales</div><div class="sval cg" id="d-sales">&#8377;0</div></div>
       <div class="stile"><div class="slbl">Total Expense</div><div class="sval cr" id="d-exp">&#8377;0</div></div>
@@ -1027,6 +1037,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="card"><div class="chd">&#127978; Shop Summary <small style="font-weight:400;font-size:9px;color:var(--muted)">(tap for 360&deg; report)</small></div><div id="shop-cards"></div></div>
     <div class="card"><div class="chd">&#9888;&#65039; Supplier Alerts</div><div id="d-sup"></div></div>
     <div class="card"><div class="chd">&#128202; Daily Reconciliation</div><div id="d-recon"></div></div>
+    <div class="card" id="ai-conf-card" style="display:none">
+      <div class="chd">&#129504; AI Learning Progress</div>
+      <div id="ai-conf-body"></div>
+    </div>
     <div class="card" id="missing-card" style="display:none">
       <div class="chd">&#129504; AI Missing Entry Alert</div>
       <div id="missing-entries"></div>
@@ -2544,20 +2558,44 @@ function updSyncBar(){
   else if(bar) bar.classList.remove('show');
 }
 // Quick add missing entry from AI alert
-function quickAddMissing(desc, type, shop){
-  // Switch to Entry tab with pre-filled data
-  document.getElementById('m-desc').value=desc;
-  document.getElementById('m-date').value=tod();
-  // Set shop
-  const mShop=document.getElementById('m-shop');
-  if(mShop){ for(let i=0;i<mShop.options.length;i++) if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;} }
-  // Set type
-  const mType=document.getElementById('m-type');
-  if(mType){ for(let i=0;i<mType.options.length;i++) if(mType.options[i].value===type){mType.selectedIndex=i;break;} }
-  loadQB(); toggleSup();
-  goPane('entry');
-  document.getElementById('m-amt')?.focus();
-  toast('📝 '+desc+' pre-filled — enter amount and save','info');
+async function quickAddMissing(desc, type, shop, avgAmount){
+  // Get predicted amount from AI model if not provided
+  if(!avgAmount){
+    const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+    const day=new Date().getDay();
+    const key=(desc||'').toLowerCase().trim();
+    const entry=model[shop]?.[day]?.[key];
+    if(entry&&entry.amounts.length) avgAmount=Math.round(entry.amounts.reduce((a,b)=>a+b,0)/entry.amounts.length);
+  }
+  if(!avgAmount){
+    // No amount known — fall back to pre-fill form
+    document.getElementById('m-desc').value=desc;
+    document.getElementById('m-date').value=tod();
+    const mShop=document.getElementById('m-shop');
+    if(mShop){for(let i=0;i<mShop.options.length;i++)if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;}}
+    const mType=document.getElementById('m-type');
+    if(mType){for(let i=0;i<mType.options.length;i++)if(mType.options[i].value===type){mType.selectedIndex=i;break;}}
+    loadQB(); toggleSup(); goPane('entry');
+    document.getElementById('m-amt')?.focus();
+    toast('📝 '+desc+' pre-filled — enter amount and save','info');
+    return;
+  }
+  // Save directly — no form needed!
+  const txData={businessId:ME.businessId||ME.uid,shop,shopName:SHOPS[shop]?.name||shop,date:tod(),type,amount:avgAmount,desc,by:ME.uid,at:null};
+  try{
+    const ref=await DB.collection('transactions').add({...txData,at:firebase.firestore.FieldValue.serverTimestamp()});
+    txData.id=ref.id;
+    TXS.unshift(txData); renderDash(); renderLedger();
+    learnDailyPatterns(); _checkMilestones();
+    _rptRendered=false;
+    toast('⚡ Quick added: '+desc+' ₹'+fmt(avgAmount));
+  }catch(e){
+    // offline — queue it
+    txData.at=new Date().toISOString();
+    addQ({...txData,_col:'transactions',_lid:'q'+Date.now()});
+    TXS.unshift(txData); renderDash(); renderLedger();
+    toast('💾 '+desc+' saved locally — will sync','warn');
+  }
 }
 
 async function syncNow(){
@@ -2850,6 +2888,119 @@ function checkMissingEntries(shop){
     });
     return missing;
   }catch(e){ return []; }
+}
+
+// ════════════════════════════════════════
+// AI ENGAGEMENT — STREAKS, BRIEFING, CELEBRATION
+// ════════════════════════════════════════
+
+// ── Streak ──
+function _getStreak(){return JSON.parse(localStorage.getItem('ai_streak')||'{"count":0,"lastDate":""}');}
+function _updateStreak(){
+  const today=tod(),s=_getStreak();
+  if(s.lastDate===today) return s;
+  const yd=new Date(); yd.setDate(yd.getDate()-1);
+  const yds=yd.toISOString().split('T')[0];
+  s.count=(s.lastDate===yds)?s.count+1:1;
+  s.lastDate=today;
+  localStorage.setItem('ai_streak',JSON.stringify(s));
+  return s;
+}
+function _showStreakBadge(){
+  const el=document.getElementById('ai-streak-badge'); if(!el) return;
+  const s=_getStreak();
+  if(s.count>=2){el.innerHTML='🔥'+s.count;el.style.display='inline-flex';el.title=s.count+'-day entry streak! Keep going!';}
+  else el.style.display='none';
+}
+
+// ── Confetti celebration ──
+function _celebrate(msg){
+  const cols=['#059669','#d97706','#3b82f6','#ef4444','#8b5cf6','#ec4899'];
+  const wrap=document.createElement('div');
+  wrap.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;overflow:hidden';
+  for(let i=0;i<50;i++){
+    const p=document.createElement('div');
+    const col=cols[Math.floor(Math.random()*cols.length)];
+    const x=Math.random()*100,sz=5+Math.random()*9,dur=1.2+Math.random()*1.2,del=Math.random()*0.5;
+    p.style.cssText=`position:absolute;left:${x}%;top:-10px;width:${sz}px;height:${sz}px;background:${col};border-radius:${Math.random()>.5?'50%':'2px'};animation:confettiFall ${dur}s ${del}s linear forwards`;
+    wrap.appendChild(p);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(()=>wrap.remove(),3500);
+  toast('🎉 '+msg);
+}
+
+// ── Milestone check (call after every entry save) ──
+function _checkMilestones(){
+  const s=_updateStreak();
+  _showStreakBadge();
+  // Streak milestones
+  if([3,7,14,30].includes(s.count)){_celebrate(s.count+'-day streak! 🔥 AI keeps getting smarter!');return;}
+  // Best day ever
+  const todaySales=TXS.filter(t=>t.date===tod()&&t.type==='sales').reduce((a,t)=>a+t.amount,0);
+  const prevBest=parseFloat(localStorage.getItem('ai_best_day')||'0');
+  if(todaySales>prevBest&&todaySales>500){localStorage.setItem('ai_best_day',todaySales);_celebrate('Best day ever! ₹'+fmt(todaySales)+' 🏆');return;}
+  // ₹1L, ₹5L, ₹10L milestones
+  const totalSales=TXS.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+  const milestone=Math.floor(totalSales/100000)*100000;
+  const prevMs=parseFloat(localStorage.getItem('ai_ms')||'0');
+  if(milestone>prevMs&&milestone>=100000){localStorage.setItem('ai_ms',milestone);_celebrate('₹'+fmt(milestone)+' total sales milestone! 💰');return;}
+}
+
+// ── AI Morning Briefing (once per day) ──
+function _showAiBriefing(){
+  const slot=document.getElementById('ai-briefing-slot'); if(!slot) return;
+  const today=tod();
+  if(localStorage.getItem('ai_briefed')===today){slot.innerHTML='';return;}
+  localStorage.setItem('ai_briefed',today);
+
+  const yd=new Date(); yd.setDate(yd.getDate()-1);
+  const yds=yd.toISOString().split('T')[0];
+  const ydTxs=TXS.filter(t=>t.date===yds);
+  const ydSales=ydTxs.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
+  const ydNet=ydSales-ydTxs.filter(t=>t.type!=='sales').reduce((a,t)=>a+t.amount,0);
+
+  // Today's expected entries from AI model
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  const day=new Date().getDay();
+  const todayDescs=new Set(TXS.filter(t=>t.date===today).map(t=>(t.desc||'').toLowerCase().trim()));
+  const expected=[];
+  Object.entries(model).forEach(([sid,days])=>{
+    const dm=days[day]||{};
+    Object.entries(dm).forEach(([k,v])=>{if(v.count>=3&&!todayDescs.has(k)) expected.push(k);});
+  });
+
+  const hour=new Date().getHours();
+  const gr=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+  const name=(ME?.name||ME?.email?.split('@')[0]||'there').split(' ')[0];
+  const streak=_getStreak();
+
+  let html=`<div class="ai-briefing-card" style="margin-bottom:12px">
+    <button onclick="this.parentElement.parentElement.innerHTML=''" style="position:absolute;top:8px;right:10px;background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:22px">✕</button>
+    <div style="font-weight:800;font-size:15px;margin-bottom:5px">🌅 ${gr}, ${name}!</div>`;
+  if(ydSales>0) html+=`<div style="font-size:12px;opacity:.9;margin-bottom:5px">Yesterday: ₹${fmt(ydSales)} sales · Net ${ydNet>=0?'+':''}₹${fmt(ydNet)}</div>`;
+  if(streak.count>=2) html+=`<div style="font-size:12px;opacity:.9;margin-bottom:5px">🔥 ${streak.count}-day streak — keep it going!</div>`;
+  if(expected.length) html+=`<div style="font-size:11px;opacity:.85;margin-bottom:5px">AI expects today: ${expected.slice(0,3).map(d=>`<b>${esc(d)}</b>`).join(', ')}${expected.length>3?' +more':''}</div>`;
+  html+=`<div style="font-size:11px;opacity:.7">Add today's entries to keep AI learning 👇</div></div>`;
+  slot.innerHTML=html;
+}
+
+// ── AI Confidence meter (in dashboard) ──
+function _showAiConfidence(){
+  const card=document.getElementById('ai-conf-card');
+  const body=document.getElementById('ai-conf-body');
+  if(!card||!body) return;
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  const total=Object.values(model).reduce((a,s)=>a+Object.values(s).reduce((b,d)=>b+Object.keys(d).length,0),0);
+  if(!total){card.style.display='none';return;}
+  card.style.display='block';
+  const conf=Math.min(100,Math.round(total/1.5)); // 150 patterns = 100%
+  const lvl=conf>=80?'Expert':conf>=50?'Learning fast':'Just starting';
+  body.innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">🧠 AI has learned <b>${total}</b> entry patterns across ${Object.keys(model).length} shop(s)</div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="font-weight:700;color:#065f46">${lvl}</span><span style="color:var(--muted)">${conf}% confidence</span></div>
+    <div class="ai-conf-bar"><div class="ai-conf-fill" style="width:${conf}%"></div></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:5px">Add entries daily — AI gets smarter every time you use it 📈</div>`;
 }
 
 // ════════════════════════════════════════
@@ -3959,6 +4110,9 @@ function setLDate(m,el){
 // ════════════════════════════════════════
 function renderDash(){
   renderNewUserTip();
+  _showAiBriefing();
+  _showAiConfidence();
+  _showStreakBadge();
   const f=getDF(_dd,'d-from','d-to');
   let txs=f(TXS);
   if(_shop!=='all') txs=txs.filter(x=>x.shop===_shop);
@@ -4033,15 +4187,20 @@ function renderDash(){
       const me=document.getElementById('missing-entries');
       if(missing.length&&mc&&me){
         mc.style.display='block';
-        me.innerHTML=`<div class="alert warn" style="margin-bottom:8px">🤔 ${missing.length} entries you usually add are missing today. Did you forget them?</div>`+
-          missing.slice(0,8).map(m=>`
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-              <div>
+        me.innerHTML=`<div class="alert warn" style="margin-bottom:8px">🤔 ${missing.length} entries AI expects today are missing — quick add with one tap!</div>`+
+          missing.slice(0,8).map(m=>{
+            const model2=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+            const day2=new Date().getDay();
+            const k2=(m.desc||'').toLowerCase().trim();
+            const e2=model2[m.shop]?.[day2]?.[k2];
+            const avg2=e2&&e2.amounts.length?Math.round(e2.amounts.reduce((a,b)=>a+b,0)/e2.amounts.length):0;
+            return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+              <div style="flex:1;min-width:0;margin-right:8px">
                 <div style="font-weight:600;font-size:13px;font-family:var(--tamil)">${esc(m.desc)}</div>
-                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type} · Usually ${m.frequency} times/2 weeks</div>
+                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type}${avg2?' · avg ₹'+fmt(avg2):''} · ${m.frequency}× usual</div>
               </div>
-              <button onclick="quickAddMissing('${m.desc}','${m.type}','${m.shop}')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0">+ Add</button>
-            </div>`).join('');
+              <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}',${avg2})" style="background:${avg2?'var(--green)':'#d97706'};color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0;white-space:nowrap">${avg2?'⚡ Add ₹'+fmt(avg2):'+ Add'}</button>
+            </div>`;}).join('');
       } else if(mc){ mc.style.display='none'; }
     }, 500);
   }
@@ -4596,13 +4755,14 @@ async function addEntry(){
     toast('✅ Entry saved to cloud!');
     // Add to local TXS array instantly — no re-fetch needed
     TXS.unshift(txData); renderDash(); renderLedger();
-    _rptRendered=false; // allow report to refresh with new data next time
+    _rptRendered=false;
+    learnDailyPatterns(); _checkMilestones();
   }catch(err){
     console.error('Entry cloud err:',err.code,err.message);
     ['m-amt','m-desc','m-ref','m-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.querySelectorAll('.qb').forEach(b=>b.classList.remove('sel'));
-    // Still add to local view
     TXS.unshift(txData); renderDash(); renderLedger();
+    learnDailyPatterns(); _checkMilestones();
     toast('💾 Saved locally — will sync to cloud automatically','warn');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='+ Add Entry';}
