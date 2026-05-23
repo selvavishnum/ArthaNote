@@ -2559,45 +2559,17 @@ function updSyncBar(){
   if(q.length&&bar&&msg){bar.classList.add('show');msg.textContent=q.length+' entries pending sync to cloud';}
   else if(bar) bar.classList.remove('show');
 }
-// Quick add missing entry from AI alert
-async function quickAddMissing(desc, type, shop, avgAmount){
-  // Get predicted amount from AI model if not provided
-  if(!avgAmount){
-    const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
-    const day=new Date().getDay();
-    const key=(desc||'').toLowerCase().trim();
-    const entry=model[shop]?.[day]?.[key];
-    if(entry&&entry.amounts.length) avgAmount=Math.round(entry.amounts.reduce((a,b)=>a+b,0)/entry.amounts.length);
-  }
-  if(!avgAmount){
-    // No amount known — fall back to pre-fill form
-    document.getElementById('m-desc').value=desc;
-    document.getElementById('m-date').value=tod();
-    const mShop=document.getElementById('m-shop');
-    if(mShop){for(let i=0;i<mShop.options.length;i++)if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;}}
-    const mType=document.getElementById('m-type');
-    if(mType){for(let i=0;i<mType.options.length;i++)if(mType.options[i].value===type){mType.selectedIndex=i;break;}}
-    loadQB(); toggleSup(); goPane('entry');
-    document.getElementById('m-amt')?.focus();
-    toast('📝 '+desc+' pre-filled — enter amount and save','info');
-    return;
-  }
-  // Save directly — no form needed!
-  const txData={businessId:ME.businessId||ME.uid,shop,shopName:SHOPS[shop]?.name||shop,date:tod(),type,amount:avgAmount,desc,by:ME.uid,at:null};
-  try{
-    const ref=await DB.collection('transactions').add({...txData,at:firebase.firestore.FieldValue.serverTimestamp()});
-    txData.id=ref.id;
-    TXS.unshift(txData); renderDash(); renderLedger();
-    learnDailyPatterns(); _checkMilestones();
-    _rptRendered=false;
-    toast('⚡ Quick added: '+desc+' ₹'+fmt(avgAmount));
-  }catch(e){
-    // offline — queue it
-    txData.at=new Date().toISOString();
-    addQ({...txData,_col:'transactions',_lid:'q'+Date.now()});
-    TXS.unshift(txData); renderDash(); renderLedger();
-    toast('💾 '+desc+' saved locally — will sync','warn');
-  }
+// Quick add missing entry from AI alert — opens form pre-filled, amount always entered by user
+function quickAddMissing(desc, type, shop){
+  document.getElementById('m-desc').value=desc;
+  document.getElementById('m-date').value=tod();
+  const mShop=document.getElementById('m-shop');
+  if(mShop){for(let i=0;i<mShop.options.length;i++)if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;}}
+  const mType=document.getElementById('m-type');
+  if(mType){for(let i=0;i<mType.options.length;i++)if(mType.options[i].value===type){mType.selectedIndex=i;break;}}
+  loadQB(); toggleSup(); goPane('entry');
+  document.getElementById('m-amt')?.focus();
+  toast('📝 '+desc+' pre-filled — enter the amount','info');
 }
 
 async function syncNow(){
@@ -2708,7 +2680,7 @@ function learnDailyPatterns(){
   }catch(e){ console.error('Pattern learn:',e); }
 }
 
-// ── AI Suggest entry (called from description field oninput) ──
+// ── AI Suggest entry — learns description→type only, never suggests amounts ──
 let _aiSuggest=null;
 function aiSuggestEntry(desc){
   const bar=document.getElementById('ai-suggest-bar');
@@ -2718,38 +2690,38 @@ function aiSuggestEntry(desc){
   const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
   const shopId=document.getElementById('m-shop')?.value||_shop||Object.keys(SHOPS)[0]||'';
   const day=new Date().getDay();
-  // Collect: current shop + current weekday (2x boost), then all-day for same shop
   const shopDayModel=model[shopId]?.[day]||{};
   const shopAllModel={};
   if(model[shopId]) Object.values(model[shopId]).forEach(dm=>Object.entries(dm).forEach(([k,v])=>{
-    if(!shopAllModel[k]) shopAllModel[k]={count:0,amounts:[],type:v.type};
+    if(!shopAllModel[k]) shopAllModel[k]={count:0,type:v.type};
     shopAllModel[k].count+=v.count;
-    shopAllModel[k].amounts.push(...v.amounts);
   }));
   let best=null,bestScore=0;
   const search=(modelObj,boost)=>{
     Object.entries(modelObj).forEach(([k,v])=>{
       if(!(k.includes(key)||key.includes(k))) return;
       const score=(k===key?3:k.startsWith(key)||key.startsWith(k)?2:1)*v.count*boost;
-      if(score>bestScore){bestScore=score;best={...v,matchKey:k};}
+      if(score>bestScore){bestScore=score;best=v;}
     });
   };
   search(shopDayModel,2);
   search(shopAllModel,1);
   if(!best||bestScore<2){bar.style.display='none';_aiSuggest=null;return;}
-  const avg=best.amounts.length?Math.round(best.amounts.reduce((a,b)=>a+b,0)/best.amounts.length):0;
+  // AI learns description → type only. Never suggests or auto-fills amounts.
   const typeLabel=best.type==='sales'?'↑ Sale':best.type==='expense'?'↓ Expense':'↔ Payment';
-  _aiSuggest={type:best.type,amount:avg};
-  document.getElementById('ai-suggest-text').textContent=typeLabel+(avg?' · ₹'+fmt(avg):'');
+  _aiSuggest={type:best.type};
+  document.getElementById('ai-suggest-text').textContent=typeLabel+' — AI detected from past entries';
   bar.style.display='flex';
 }
 function aiApplySuggest(){
   if(!_aiSuggest) return;
+  // Only sets the Type field — amount is always entered manually by user
   const typeEl=document.getElementById('m-type');
   if(typeEl) typeEl.value=_aiSuggest.type;
-  if(_aiSuggest.amount){const amtEl=document.getElementById('m-amount');if(amtEl) amtEl.value=_aiSuggest.amount;}
   document.getElementById('ai-suggest-bar').style.display='none';
   _aiSuggest=null;
+  // Move focus to amount field so user enters number themselves
+  document.getElementById('m-amt')?.focus();
 }
 
 // ── Shop health score (0–100 → 🟢🟡🔴) ──
@@ -4391,19 +4363,14 @@ function renderDash(){
       if(missing.length&&mc&&me){
         mc.style.display='block';
         me.innerHTML=`<div class="alert warn" style="margin-bottom:8px">🤔 ${missing.length} entries AI expects today are missing — quick add with one tap!</div>`+
-          missing.slice(0,8).map(m=>{
-            const model2=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
-            const day2=new Date().getDay();
-            const k2=(m.desc||'').toLowerCase().trim();
-            const e2=model2[m.shop]?.[day2]?.[k2];
-            const avg2=e2&&e2.amounts.length?Math.round(e2.amounts.reduce((a,b)=>a+b,0)/e2.amounts.length):0;
-            return`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          missing.slice(0,8).map(m=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
               <div style="flex:1;min-width:0;margin-right:8px">
                 <div style="font-weight:600;font-size:13px;font-family:var(--tamil)">${esc(m.desc)}</div>
-                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type}${avg2?' · avg ₹'+fmt(avg2):''} · ${m.frequency}× usual</div>
+                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type} · ${m.frequency}× usual</div>
               </div>
-              <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}',${avg2})" style="background:${avg2?'var(--green)':'#d97706'};color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0;white-space:nowrap">${avg2?'⚡ Add ₹'+fmt(avg2):'+ Add'}</button>
-            </div>`;}).join('');
+              <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0">+ Add</button>
+            </div>`).join('');
       } else if(mc){ mc.style.display='none'; }
     }, 500);
   }
