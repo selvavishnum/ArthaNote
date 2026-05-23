@@ -1304,6 +1304,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <button class="btn G sm" style="margin-top:0;background:#25d366;border-color:#25d366" onclick="shareWhatsApp('today')">&#128241; WhatsApp Today</button>
         <button class="btn G sm" style="margin-top:0;background:#25d366;border-color:#25d366" onclick="shareWhatsApp('week')">&#128241; WhatsApp Week</button>
         <button class="btn B sm" style="margin-top:0" onclick="shareEmail()">&#128140; Email Report</button>
+        <button class="btn S sm" style="margin-top:0;background:#e91e63;border-color:#e91e63;color:#fff" onclick="triggerShareCard('daily')">&#128248; Share Today Card</button>
+        <button class="btn S sm" style="margin-top:0;background:#1e1b4b;border-color:#1e1b4b;color:#fff" onclick="triggerShareCard('wrapped')">&#127873; Monthly Wrapped</button>
       </div>
     </div>
     <div class="card">
@@ -2935,16 +2937,215 @@ function _checkMilestones(){
   const s=_updateStreak();
   _showStreakBadge();
   // Streak milestones
-  if([3,7,14,30].includes(s.count)){_celebrate(s.count+'-day streak! 🔥 AI keeps getting smarter!');return;}
+  if([3,7,14,30].includes(s.count)){_celebrate(s.count+'-day streak! 🔥 AI keeps getting smarter!');setTimeout(()=>triggerShareCard('streak'),1200);return;}
   // Best day ever
   const todaySales=TXS.filter(t=>t.date===tod()&&t.type==='sales').reduce((a,t)=>a+t.amount,0);
   const prevBest=parseFloat(localStorage.getItem('ai_best_day')||'0');
-  if(todaySales>prevBest&&todaySales>500){localStorage.setItem('ai_best_day',todaySales);_celebrate('Best day ever! ₹'+fmt(todaySales)+' 🏆');return;}
+  if(todaySales>prevBest&&todaySales>500){localStorage.setItem('ai_best_day',todaySales);_celebrate('Best day ever! ₹'+fmt(todaySales)+' 🏆');setTimeout(()=>triggerShareCard('daily'),1200);return;}
   // ₹1L, ₹5L, ₹10L milestones
   const totalSales=TXS.filter(t=>t.type==='sales').reduce((a,t)=>a+t.amount,0);
   const milestone=Math.floor(totalSales/100000)*100000;
   const prevMs=parseFloat(localStorage.getItem('ai_ms')||'0');
-  if(milestone>prevMs&&milestone>=100000){localStorage.setItem('ai_ms',milestone);_celebrate('₹'+fmt(milestone)+' total sales milestone! 💰');return;}
+  if(milestone>prevMs&&milestone>=100000){localStorage.setItem('ai_ms',milestone);_celebrate('₹'+fmt(milestone)+' total sales milestone! 💰');setTimeout(()=>triggerShareCard('milestone'),1200);return;}
+}
+
+// ════════════════════════════════════════
+// SOCIAL SHARE CARDS — Instagram / WhatsApp
+// ════════════════════════════════════════
+
+function _collectCardData(type){
+  const now=new Date();
+  const today=tod();
+  // Monthly data
+  const yr=now.getFullYear(),mo=now.getMonth();
+  const monthStart=`${yr}-${String(mo+1).padStart(2,'0')}-01`;
+  const prevMonthEnd=new Date(yr,mo,0);
+  const pmStart=`${yr}-${String(mo).padStart(2,'0')}-01`;
+  const pmEnd=prevMonthEnd.toISOString().split('T')[0];
+  const isPrev=type==='wrapped';
+  const txs=isPrev?TXS.filter(t=>t.date&&t.date>=pmStart&&t.date<=pmEnd):TXS.filter(t=>t.date&&t.date>=monthStart);
+  const todayTxs=TXS.filter(t=>t.date===today);
+  const mainShopId=Object.keys(SHOPS)[0]||'';
+  const mainShop=SHOPS[mainShopId]?.name||'My Shop';
+  const sales=sum(txs,'sales'),exp=sum(txs,'expense')+sum(txs,'payment'),net=sales-exp;
+  const todaySales=sum(todayTxs,'sales'),todayExp=sum(todayTxs,'expense')+sum(todayTxs,'payment');
+  // Best day in period
+  const dayMap={};
+  txs.filter(t=>t.type==='sales').forEach(t=>{dayMap[t.date]=(dayMap[t.date]||0)+t.amount;});
+  const [bestDate,bestAmt]=Object.entries(dayMap).sort((a,b)=>b[1]-a[1])[0]||['',0];
+  const bestDay=bestDate?new Date(bestDate+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'';
+  const streak=_getStreak();
+  const activeDays=new Set(txs.map(t=>t.date)).size;
+  const daysInPeriod=isPrev?prevMonthEnd.getDate():now.getDate();
+  const consistency=Math.round(activeDays/daysInPeriod*100);
+  const monthLabel=isPrev?new Date(yr,mo-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'}):new Date(yr,mo,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  return{mainShop,sales,exp,net,todaySales,todayExp,todayNet:todaySales-todayExp,bestDay,bestAmt,streak:streak.count,activeDays,consistency,monthLabel};
+}
+
+function _drawCard(type,data){
+  const isStory=type==='wrapped';
+  const W=1080,H=isStory?1920:1080;
+  const c=document.createElement('canvas');
+  c.width=W;c.height=H;
+  const ctx=c.getContext('2d');
+
+  // Background gradient
+  const bg=ctx.createLinearGradient(0,0,W,H);
+  if(type==='streak'){bg.addColorStop(0,'#1e1b4b');bg.addColorStop(1,'#312e81');}
+  else if(type==='milestone'){bg.addColorStop(0,'#78350f');bg.addColorStop(1,'#92400e');}
+  else{bg.addColorStop(0,'#065f46');bg.addColorStop(1,'#047857');}
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // Diagonal stripe texture
+  ctx.save();ctx.globalAlpha=0.06;ctx.strokeStyle='#ffffff';ctx.lineWidth=8;
+  for(let i=-H;i<W+H;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
+  ctx.restore();
+
+  // Radial glow (top-left)
+  const glow=ctx.createRadialGradient(W*0.3,H*0.2,0,W*0.3,H*0.2,W*0.7);
+  glow.addColorStop(0,'rgba(255,255,255,0.12)');glow.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);
+
+  const cx=W/2;
+  // Logo circle (top)
+  const logoY=isStory?160:140;
+  ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.arc(cx,logoY,56,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffffff';ctx.font='bold 52px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('AN',cx,logoY);
+
+  // "ArthaNote" brand
+  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='bold 36px sans-serif';ctx.textAlign='center';
+  ctx.fillText('ArthaNote',cx,logoY+80);
+
+  if(type==='daily'||type==='milestone'){
+    // Card type label
+    const label=type==='daily'?'🏆 Best Day Ever!':'💰 Sales Milestone!';
+    ctx.fillStyle='#fcd34d';ctx.font='bold 52px sans-serif';ctx.fillText(label,cx,340);
+    // Shop name
+    ctx.fillStyle='#ffffff';ctx.font='bold 64px sans-serif';ctx.fillText(data.mainShop,cx,440);
+    // Divider
+    ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,480);ctx.lineTo(W-120,480);ctx.stroke();
+    // Numbers
+    const rows=type==='daily'?[
+      {l:'Sales',v:'₹'+fmt(data.todaySales),col:'#6ee7b7'},
+      {l:'Expenses',v:'₹'+fmt(data.todayExp),col:'#fca5a5'},
+      {l:'Net Profit',v:(data.todayNet>=0?'+':'')+'₹'+fmt(data.todayNet),col:'#fcd34d'}
+    ]:[
+      {l:'Total Sales',v:'₹'+fmt(data.sales),col:'#6ee7b7'},
+      {l:'Expenses',v:'₹'+fmt(data.exp),col:'#fca5a5'},
+      {l:'Net Profit',v:(data.net>=0?'+':'')+'₹'+fmt(data.net),col:'#fcd34d'}
+    ];
+    rows.forEach((r,i)=>{
+      const y=560+i*130;
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='32px sans-serif';ctx.textAlign='left';ctx.fillText(r.l,180,y);
+      ctx.fillStyle=r.col;ctx.font='bold 52px sans-serif';ctx.textAlign='right';ctx.fillText(r.v,W-180,y);
+    });
+    // Streak
+    if(data.streak>=2){ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='32px sans-serif';ctx.textAlign='center';ctx.fillText('🔥 '+data.streak+'-day entry streak',cx,960);}
+  } else {
+    // WRAPPED (Story 9:16)
+    ctx.fillStyle='#fcd34d';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.fillText(data.monthLabel+' Wrapped 🎁',cx,350);
+    ctx.fillStyle='#ffffff';ctx.font='bold 72px sans-serif';ctx.fillText(data.mainShop,cx,460);
+    ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,510);ctx.lineTo(W-120,510);ctx.stroke();
+    const rows=[
+      {l:'Total Sales',v:'₹'+fmt(data.sales),col:'#6ee7b7'},
+      {l:'Expenses',v:'₹'+fmt(data.exp),col:'#fca5a5'},
+      {l:'Net Profit',v:(data.net>=0?'+':'')+'₹'+fmt(data.net),col:'#fcd34d'}
+    ];
+    rows.forEach((r,i)=>{
+      const y=600+i*130;
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='34px sans-serif';ctx.textAlign='left';ctx.fillText(r.l,160,y);
+      ctx.fillStyle=r.col;ctx.font='bold 56px sans-serif';ctx.textAlign='right';ctx.fillText(r.v,W-160,y);
+    });
+    ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,1010);ctx.lineTo(W-120,1010);ctx.stroke();
+    const stats=[];
+    if(data.bestDay)stats.push('Best Day: '+data.bestDay+' · ₹'+fmt(data.bestAmt));
+    if(data.streak>=2)stats.push('🔥 '+data.streak+'-day streak');
+    stats.push('Consistency: '+data.consistency+'% ('+data.activeDays+' days)');
+    stats.forEach((s2,i)=>{
+      ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='34px sans-serif';ctx.textAlign='center';ctx.fillText(s2,cx,1080+i*70);
+    });
+    ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(120,1310);ctx.lineTo(W-120,1310);ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='italic 32px sans-serif';ctx.textAlign='center';ctx.fillText('"Growing with ArthaNote"',cx,1400);
+  }
+
+  // Footer
+  const fy=H-80;
+  ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='28px sans-serif';ctx.textAlign='center';
+  ctx.fillText('arthanote.com  ·  #ArthaNote  ·  #ShopLedger',cx,fy);
+  return c;
+}
+
+async function shareCard(canvas){
+  return new Promise(resolve=>{
+    canvas.toBlob(async blob=>{
+      const file=new File([blob],'arthanote_'+tod()+'.png',{type:'image/png'});
+      try{
+        if(navigator.canShare&&navigator.canShare({files:[file]})){
+          await navigator.share({files:[file],title:'My ArthaNote Summary',text:'Check my shop stats on ArthaNote! #ArthaNote'});
+        } else { throw new Error('no share'); }
+      }catch(_){
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;a.click();
+        toast('📥 Card downloaded — share to Instagram!','info');
+      }
+      resolve();
+    },'image/png');
+  });
+}
+
+function showShareModal(canvas,type){
+  document.getElementById('share-modal')?.remove();
+  const labels={daily:'Daily Win Card',streak:'Streak Card',wrapped:'Monthly Wrapped',milestone:'Milestone Card'};
+  const preview=document.createElement('canvas');
+  const scale=Math.min(0.38,320/canvas.width);
+  preview.width=Math.round(canvas.width*scale);preview.height=Math.round(canvas.height*scale);
+  preview.getContext('2d').drawImage(canvas,0,0,preview.width,preview.height);
+  const modal=document.createElement('div');
+  modal.id='share-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`<div style="background:#fff;border-radius:20px;padding:20px;max-width:360px;width:100%;text-align:center">
+    <div style="font-weight:800;font-size:16px;margin-bottom:12px">📸 ${labels[type]||'Share Card'}</div>
+    <div id="card-preview-slot" style="display:flex;justify-content:center;margin-bottom:14px;border-radius:10px;overflow:hidden"></div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:14px">Tap Share → pick Instagram / WhatsApp from your phone</div>
+    <div style="display:flex;gap:8px;flex-direction:column">
+      <button id="share-btn" style="background:#065f46;color:#fff;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%">📱 Share / Download</button>
+      <button onclick="document.getElementById('share-modal').remove()" style="background:#f3f4f6;color:#374151;border:none;border-radius:12px;padding:10px;font-size:13px;cursor:pointer;width:100%">✕ Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('card-preview-slot').appendChild(preview);
+  document.getElementById('share-btn').onclick=()=>shareCard(canvas).then(()=>document.getElementById('share-modal')?.remove());
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+}
+
+function triggerShareCard(type){
+  try{
+    const data=_collectCardData(type);
+    const canvas=_drawCard(type,data);
+    showShareModal(canvas,type);
+  }catch(e){console.error('Share card:',e);}
+}
+
+// Monthly Wrapped auto-prompt (call once after login)
+function checkMonthlyWrapped(){
+  const now=new Date();
+  const monthKey=now.getFullYear()+'-'+now.getMonth();
+  if(localStorage.getItem('ai_wrapped_month')===monthKey) return;
+  // Check if previous month has data
+  const prevMonthStart=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString().split('T')[0];
+  const prevMonthEnd=new Date(now.getFullYear(),now.getMonth(),0).toISOString().split('T')[0];
+  const prevData=TXS.filter(t=>t.date&&t.date>=prevMonthStart&&t.date<=prevMonthEnd);
+  if(!prevData.length) return;
+  localStorage.setItem('ai_wrapped_month',monthKey);
+  const prevMonth=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-IN',{month:'long'});
+  // Show soft banner after 2s
+  setTimeout(()=>{
+    const slot=document.getElementById('ai-briefing-slot');
+    if(!slot||slot.innerHTML.trim()) return;
+    slot.innerHTML=`<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div><div style="font-weight:800;font-size:14px">🎁 ${prevMonth} Wrapped is ready!</div><div style="font-size:11px;opacity:.8">Share your month's achievements to Instagram</div></div>
+      <button onclick="triggerShareCard('wrapped');this.closest('[style]').remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">View & Share 📸</button>
+    </div>`;
+  },2000);
 }
 
 // ── AI Morning Briefing (once per day) ──
@@ -3243,6 +3444,8 @@ async function _finishAppSetup(user){
   startLiveSync();
   // Feature 18: push notification setup
   requestNotifPermission().then(()=>{ checkMissingEntry(); scheduleReminder(); });
+  // Monthly Wrapped auto-prompt
+  setTimeout(checkMonthlyWrapped, 4000);
   console.log('✅ App ready. BID:',ME.businessId);
   toast('✅ Connected — '+ME.name);
   try{
