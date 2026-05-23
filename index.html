@@ -2365,19 +2365,25 @@ function _aiDetectSpellingVariants(){
     recent.forEach(t=>{const d=(t.desc||'').trim();if(d) freq[d]=(freq[d]||0)+1;});
     const descs=Object.keys(freq);
     if(descs.length<2) return [];
-    // Union-Find to cluster similar spellings
+
+    // Strict similarity: only match if DIRECTLY similar (no transitive chain via includes/startsWith)
+    // This prevents "House" → "DSP House" → "DSP" mega-clusters
+    function _directlySimilar(x,y){
+      const a=x.toLowerCase().replace(/[\s\-_\.]/g,'');
+      const b=y.toLowerCase().replace(/[\s\-_\.]/g,'');
+      if(a===b) return true;                              // same after strip (case/space/hyphen)
+      if(a.length<3||b.length<3) return false;
+      if(Math.abs(a.length-b.length)>3) return false;    // too different in length
+      return levenshtein(a,b)<=2;                        // typos only — no contains/startsWith
+    }
+
+    // Union-Find (restricted to directly-similar pairs only)
     const par={};
     const find=d=>{if(par[d]===undefined)par[d]=d;return par[d]===d?d:(par[d]=find(par[d]));};
     const union=(a,b)=>{par[find(a)]=find(b);};
     for(let i=0;i<descs.length;i++){
       for(let j=i+1;j<descs.length;j++){
-        const a=descs[i].toLowerCase().replace(/[\s\-_]/g,'');
-        const b=descs[j].toLowerCase().replace(/[\s\-_]/g,'');
-        if(a===b){union(descs[i],descs[j]);continue;}
-        if(a.length<3||b.length<3) continue;
-        const similar=a.startsWith(b.substring(0,4))||b.startsWith(a.substring(0,4))||
-          a.includes(b)||b.includes(a)||levenshtein(a,b)<=2;
-        if(similar) union(descs[i],descs[j]);
+        if(_directlySimilar(descs[i],descs[j])) union(descs[i],descs[j]);
       }
     }
     // Group by cluster root
@@ -2809,8 +2815,22 @@ let _aiSuggest=null;
 function aiSuggestEntry(desc){
   const bar=document.getElementById('ai-suggest-bar');
   if(!bar) return;
-  const key=(desc||'').toLowerCase().trim();
+  const raw=(desc||'').trim();
+  const key=raw.toLowerCase().trim();
   if(key.length<3){bar.style.display='none';_aiSuggest=null;return;}
+
+  // ── Spelling correction check (uses saved aliases from _fixVariantGroup) ──
+  const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+  const canonical=aliases[key];
+  if(canonical && canonical.trim()!==raw){
+    _aiSuggest={type:null,canonical};
+    document.getElementById('ai-suggest-text').textContent=
+      '📝 AI: Did you mean "'+canonical+'"? (spelling fix)';
+    bar.style.display='flex';
+    return;
+  }
+
+  // ── Type prediction from learned pattern model ──
   const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
   const shopId=document.getElementById('m-shop')?.value||_shop||Object.keys(SHOPS)[0]||'';
   const day=new Date().getDay();
@@ -2833,12 +2853,24 @@ function aiSuggestEntry(desc){
   if(!best||bestScore<2){bar.style.display='none';_aiSuggest=null;return;}
   // AI learns description → type only. Never suggests or auto-fills amounts.
   const typeLabel=best.type==='sales'?'↑ Sale':best.type==='expense'?'↓ Expense':'↔ Payment';
-  _aiSuggest={type:best.type};
+  _aiSuggest={type:best.type,canonical:null};
   document.getElementById('ai-suggest-text').textContent=typeLabel+' — AI detected from past entries';
   bar.style.display='flex';
 }
 function aiApplySuggest(){
   if(!_aiSuggest) return;
+  // If it's a spelling correction, fix the description field first
+  if(_aiSuggest.canonical){
+    const corrected=_aiSuggest.canonical;
+    const descEl=document.getElementById('m-desc');
+    if(descEl) descEl.value=corrected;
+    document.getElementById('ai-suggest-bar').style.display='none';
+    _aiSuggest=null;
+    // Re-run suggest with the corrected desc to pick up type prediction too
+    aiSuggestEntry(corrected);
+    document.getElementById('m-amt')?.focus();
+    return;
+  }
   // Only sets the Type field — amount is always entered manually by user
   const typeEl=document.getElementById('m-type');
   if(typeEl) typeEl.value=_aiSuggest.type;
