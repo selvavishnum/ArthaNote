@@ -2416,9 +2416,21 @@ function _fixVariantGroup(canonical, others){
   renderAliasSettings();
 }
 
+// Button handler: fix one group by index in _variantData.
+// choiceIdx 0 = use canonical (AI pick), 1+ = use others[choiceIdx-1] as canonical
+function _fixVariantByIdx(idx, choiceIdx){
+  const g=_variantData[idx]; if(!g) return;
+  const allVariants=g.variants;
+  const canonical=choiceIdx===0?g.canonical:g.others[choiceIdx-1];
+  const others=allVariants.filter(v=>v!==canonical);
+  _fixVariantGroup(canonical, others);
+}
+
 // Fix all detected variant groups at once (single re-render at end)
-function _fixAllVariantGroups(groups){
-  if(!groups||!groups.length) return;
+// Reads from global _variantData — no JSON in onclick attributes needed
+function _fixAllVariantGroups(){
+  const groups=_variantData;
+  if(!groups||!groups.length){toast('No spelling variants detected.','info');return;}
   const aliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
   let fixed=0;
   groups.forEach(({canonical,others})=>{
@@ -2909,6 +2921,7 @@ function _shopHealthScore(shopId){
 // ── AI Report section renderer ──
 const _DAY_NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const _DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let _variantData=[]; // holds current detected groups so onclick buttons don't need JSON in HTML
 
 function renderAiReport(){
   const el=document.getElementById('rpt-ai-body');
@@ -2918,13 +2931,13 @@ function renderAiReport(){
   let html='';
 
   // ── AI Spelling Variant Detector (from 30-day history) ──
-  const variants=_aiDetectSpellingVariants();
-  if(variants.length){
+  _variantData=_aiDetectSpellingVariants();
+  if(_variantData.length){
     html+=`<div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:12px;padding:12px 14px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px">🤖 AI Found ${variants.length} Spelling Variant${variants.length>1?'s':''} in Past 30 Days</div>
+      <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:4px">🤖 AI Found ${_variantData.length} Spelling Variant${_variantData.length>1?'s':''} in Past 30 Days</div>
       <div style="font-size:11px;color:#78350f;margin-bottom:10px">These entries look like the same thing with different spellings. Merge them to get accurate expense categories.</div>
       <div style="display:flex;flex-direction:column;gap:8px">`;
-    variants.forEach(({canonical,others,variants:vs,totalCount,freq})=>{
+    _variantData.forEach(({canonical,others,variants:vs,totalCount,freq},idx)=>{
       html+=`<div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:9px 10px">
         <div style="font-size:11px;color:#78350f;margin-bottom:5px"><b>${vs.length} spellings found</b> — ${totalCount} total entries:</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px">
@@ -2932,13 +2945,13 @@ function renderAiReport(){
         </div>
         <div style="font-size:10px;color:#059669;margin-bottom:6px">✔ AI suggests keeping <b>"${esc(canonical)}"</b> (used ${freq[canonical]||0}× — most common)</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px">
-          <button onclick="_fixVariantGroup('${esc(canonical).replace(/'/g,"\\'")}',${JSON.stringify(others)})" style="background:#059669;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">✓ Merge all → "${esc(canonical.length>12?canonical.slice(0,12)+'…':canonical)}"</button>
-          ${others.map(o=>`<button onclick="_fixVariantGroup('${esc(o).replace(/'/g,"\\'")}',${JSON.stringify(vs.filter(v=>v!==o))})" style="background:#fff;color:#dc2626;border:1.5px solid #fca5a5;border-radius:7px;padding:4px 9px;font-size:10px;cursor:pointer">Use "${esc(o.length>10?o.slice(0,10)+'…':o)}"</button>`).join('')}
+          <button onclick="_fixVariantByIdx(${idx},0)" style="background:#059669;color:#fff;border:none;border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">✓ Merge all → "${esc(canonical.length>12?canonical.slice(0,12)+'…':canonical)}"</button>
+          ${others.map((_,oi)=>`<button onclick="_fixVariantByIdx(${idx},${oi+1})" style="background:#fff;color:#dc2626;border:1.5px solid #fca5a5;border-radius:7px;padding:4px 9px;font-size:10px;cursor:pointer">Use "${esc(others[oi].length>10?others[oi].slice(0,10)+'…':others[oi])}"</button>`).join('')}
         </div>
       </div>`;
     });
     html+=`</div>
-      <button onclick="_fixAllVariantGroups(${JSON.stringify(variants.map(v=>({canonical:v.canonical,others:v.others})))})" style="margin-top:10px;background:#92400e;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer;width:100%">⚡ Fix All ${variants.length} Groups Automatically (AI picks best spelling)</button>
+      <button onclick="_fixAllVariantGroups()" style="margin-top:12px;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:800;cursor:pointer;width:100%;display:block;letter-spacing:0.3px">⚡ Fix All ${_variantData.length} Groups Automatically — AI Picks Best Spelling</button>
     </div>`;
   }
 
