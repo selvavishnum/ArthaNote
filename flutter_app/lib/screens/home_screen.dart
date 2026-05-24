@@ -356,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Check if Finance tab should be shown ──────────────────────────────────
   bool _showFinanceTab(AppProvider p) {
-    return p.isFinanceUser;
+    return p.isSelectedShopFinance;
   }
 
   // ── Bottom navigation ──────────────────────────────────────────────────────

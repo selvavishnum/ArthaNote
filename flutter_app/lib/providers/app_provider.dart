@@ -24,7 +24,14 @@ class AppProvider extends ChangeNotifier {
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
   String             get bizType      => _bizType;
-  bool               get isFinanceUser => _bizType == 'finance' || _bizType == 'chit';
+
+  // Finance tab shows only when the currently selected shop is finance/chit type.
+  // When "All" is selected (selectedShop empty), Finance tab is hidden.
+  bool get isSelectedShopFinance {
+    if (_selectedShop.isEmpty) return false;
+    final t = _shops[_selectedShop]?.type.toLowerCase() ?? '';
+    return t == 'finance' || t == 'chit';
+  }
 
   // Also treat as onboarded when shops exist in config — covers accounts
   // registered on the website where 'onboarded' flag wasn't set in Firestore.
