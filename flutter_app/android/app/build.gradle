@@ -5,6 +5,15 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+// Read version from local.properties (written by Flutter tooling before build)
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withReader('UTF-8') { localProps.load(it) }
+}
+def appVersionCode = localProps.getProperty('flutter.versionCode', '2').toInteger()
+def appVersionName = localProps.getProperty('flutter.versionName', '1.0.2')
+
 android {
     namespace "com.arthanote.app"
     compileSdk flutter.compileSdkVersion
@@ -22,7 +31,6 @@ android {
         release {
             def envKeystore = System.getenv("KEYSTORE_PATH")
             if (envKeystore) {
-                // CI: GitHub secrets override (for future key rotation)
                 storeFile     file(envKeystore)
                 storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
                 keyAlias      System.getenv("KEY_ALIAS")         ?: ""
@@ -41,8 +49,8 @@ android {
         applicationId "com.arthanote.app"
         minSdk 23
         targetSdk flutter.targetSdkVersion
-        versionCode flutter.versionCode
-        versionName flutter.versionName
+        versionCode appVersionCode
+        versionName appVersionName
         multiDexEnabled true
     }
 
