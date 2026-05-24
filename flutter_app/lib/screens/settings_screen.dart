@@ -307,6 +307,46 @@ class SettingsScreen extends StatelessWidget {
               textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ),
+
+          const SizedBox(height: 20),
+
+          // ── Privacy Policy & Terms ─────────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () => launchUrl(
+                  Uri.parse('https://selvavishnum.github.io/Kannakupilai/privacy.html'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF059669),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                child: const Text('Privacy Policy'),
+              ),
+              Text('·', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+              TextButton(
+                onPressed: () => launchUrl(
+                  Uri.parse('https://selvavishnum.github.io/Kannakupilai/privacy.html#terms'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF059669),
+                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                child: const Text('Terms & Conditions'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text(
+              'v1.0.4 · ArthaNote by Tulsi Groups',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
