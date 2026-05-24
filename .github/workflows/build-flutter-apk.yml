@@ -67,7 +67,7 @@ jobs:
         working-directory: flutter_app/android/app
         run: |
           keytool -list -v -keystore arthanote-release.keystore \
-            -storepass "ArthaNote2024" 2>/dev/null \
+            -storepass "WYCLbtHArDji" 2>/dev/null \
             | grep -E "SHA1|SHA256" || true
           echo "✅ Using committed release keystore (consistent signing)"
 
