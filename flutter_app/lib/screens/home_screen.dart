@@ -11,6 +11,7 @@ import 'entry_tab.dart';
 import 'ledger_tab.dart';
 import 'suppliers_tab.dart';
 import 'reports_tab.dart';
+import 'finance_tab.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
 
@@ -33,8 +34,11 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   void _showAiFab(BuildContext context, bool isAdmin) {
-    final entryIdx  = isAdmin ? 2 : 1;
+    final entryIdx   = isAdmin ? 2 : 1;
     final reportsIdx = isAdmin ? 5 : 4;
+    final p          = context.read<AppProvider>();
+    final useNativeFinance = _showFinanceTab(p);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -80,10 +84,16 @@ class _HomeScreenState extends State<HomeScreen> {
               label: '💼 Finance',
               onTap: () {
                 Navigator.pop(ctx);
-                launchUrl(
-                  Uri.parse('https://selvavishnum.github.io/Kannakupilai/finance.html'),
-                  mode: LaunchMode.externalApplication,
-                );
+                if (useNativeFinance) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FinanceTab()),
+                  );
+                } else {
+                  launchUrl(
+                    Uri.parse('https://selvavishnum.github.io/Kannakupilai/finance.html'),
+                    mode: LaunchMode.externalApplication,
+                  );
+                }
               },
             ),
           ]),
@@ -125,9 +135,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
 
-    final isAdmin = p.isAdmin;
-    final bodies  = _bodies(isAdmin);
-    final safeTab = _tab.clamp(0, bodies.length - 1);
+    final isAdmin    = p.isAdmin;
+    final showFinance = _showFinanceTab(p);
+    final bodies     = _bodies(isAdmin);
+    final safeTab    = _tab.clamp(0, bodies.length - 1);
 
     return Scaffold(
       backgroundColor: kBg,
@@ -145,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin),
+      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, showFinance),
       floatingActionButton: FloatingActionButton(
         backgroundColor: kPrimary,
         foregroundColor: Colors.white,
@@ -319,18 +330,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Check if Finance tab should be shown ──────────────────────────────────
+  bool _showFinanceTab(AppProvider p) {
+    return p.isFinanceUser;
+  }
+
   // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l, bool isAdmin) {
-    final maxIdx = isAdmin ? 6 : 5;
+  Widget _buildBottomNav(String l, bool isAdmin, bool showFinance) {
+    final maxIdx = showFinance ? (isAdmin ? 6 : 5) : (isAdmin ? 5 : 4);
     return BottomNavigationBar(
       currentIndex: _tab.clamp(0, maxIdx),
       onTap: (i) {
-        // Finance tab: launch browser instead of switching tab
+        // Finance tab: navigate to FinanceTab screen
         final financeIdx = isAdmin ? 6 : 5;
-        if (i == financeIdx) {
-          launchUrl(
-            Uri.parse('https://selvavishnum.github.io/Kannakupilai/finance.html'),
-            mode: LaunchMode.externalApplication,
+        if (showFinance && i == financeIdx) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const FinanceTab()),
           );
           return;
         }
@@ -375,11 +390,12 @@ class _HomeScreenState extends State<HomeScreen> {
           activeIcon: const Icon(Icons.bar_chart),
           label: t('reports', l),
         ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.account_balance_wallet_outlined),
-          activeIcon: const Icon(Icons.account_balance_wallet),
-          label: 'Finance',
-        ),
+        if (showFinance)
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: const Icon(Icons.account_balance_wallet),
+            label: 'Finance',
+          ),
       ],
     );
   }
