@@ -2930,8 +2930,8 @@ function _shopHealthScore(shopId){
   if(expRatio<0.5)score+=15;else if(expRatio>0.8)score-=15;
   if(daysActive>20)score+=15;else if(daysActive<8)score-=15;
   score=Math.max(0,Math.min(100,score));
-  const badge=score>=75?'🟢':score>=50?'🟡':'🔴';
-  const label=score>=75?'Healthy':score>=50?'Watch':'Needs attention';
+  const badge=score>=75?'💚':score>=50?'💛':'🔴';
+  const label=score>=75?'Good Performance':score>=50?'Moderate Performance':'Low Performance';
   return{score,badge,label};
 }
 
@@ -7206,6 +7206,60 @@ function closeAiPanel(){
   document.getElementById('ai-panel')?.classList.remove('open');
 }
 
+// Quick report from localStorage / TXS
+function _aiQuickReport(){
+  let txs=TXS&&TXS.length?TXS:[];
+  if(!txs.length){try{txs=JSON.parse(localStorage.getItem('kp_txs_cache')||'[]');}catch(e){txs=[];}}
+  const now=new Date();
+  const today=now.toISOString().split('T')[0];
+  const wkStart=new Date(now);wkStart.setDate(now.getDate()-now.getDay());const wkStr=wkStart.toISOString().split('T')[0];
+  const mo=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const sum=(arr,type)=>arr.filter(t=>t.type===type).reduce((a,t)=>a+(t.amount||0),0);
+  const todayTxs=txs.filter(t=>t.date===today);
+  const weekTxs=txs.filter(t=>t.date>=wkStr);
+  const monthTxs=txs.filter(t=>t.date>=mo);
+  const todaySales=sum(todayTxs,'sales'),todayExp=sum(todayTxs,'expense'),todayNet=todaySales-todayExp;
+  const weekSales=sum(weekTxs,'sales'),weekExp=sum(weekTxs,'expense'),weekNet=weekSales-weekExp;
+  const monthSales=sum(monthTxs,'sales'),monthExp=sum(monthTxs,'expense'),monthNet=monthSales-monthExp;
+  let html=`<div class="ai-panel-section">
+    <div class="ai-panel-section-hd">📊 Quick Report</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;margin-bottom:4px">
+      <div style="background:#f0fdf4;border-radius:8px;padding:8px 4px">
+        <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.5px">TODAY</div>
+        <div style="font-size:14px;font-weight:800;color:#065f46">₹${fmt(todaySales)}</div>
+        <div style="font-size:9px;color:${todayNet>=0?'#059669':'#dc2626'};font-weight:600">Net ${todayNet>=0?'+':''}₹${fmt(Math.abs(todayNet))}</div>
+      </div>
+      <div style="background:#eff6ff;border-radius:8px;padding:8px 4px">
+        <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.5px">WEEK</div>
+        <div style="font-size:14px;font-weight:800;color:#1d4ed8">₹${fmt(weekSales)}</div>
+        <div style="font-size:9px;color:${weekNet>=0?'#059669':'#dc2626'};font-weight:600">Net ${weekNet>=0?'+':''}₹${fmt(Math.abs(weekNet))}</div>
+      </div>
+      <div style="background:#fdf4ff;border-radius:8px;padding:8px 4px">
+        <div style="font-size:9px;color:var(--muted);font-weight:700;letter-spacing:.5px">MONTH</div>
+        <div style="font-size:14px;font-weight:800;color:#7c3aed">₹${fmt(monthSales)}</div>
+        <div style="font-size:9px;color:${monthNet>=0?'#059669':'#dc2626'};font-weight:600">Net ${monthNet>=0?'+':''}₹${fmt(Math.abs(monthNet))}</div>
+      </div>
+    </div>`;
+  // Shop-wise today breakdown
+  const shopKeys=Object.keys(SHOPS||{});
+  if(shopKeys.length){
+    html+=`<div style="margin-top:6px">`;
+    shopKeys.forEach(id=>{
+      const sh=SHOPS[id];const stxs=todayTxs.filter(t=>t.shop===id);
+      const ss=sum(stxs,'sales'),se=sum(stxs,'expense'),sn=ss-se;
+      const h=_shopHealthScore(id);
+      html+=`<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span>${h.badge} ${(sh?.icon||'🏪')} <b>${esc(sh?.name||id)}</b></span>
+        <span style="color:${sn>=0?'#059669':'#dc2626'};font-weight:700">₹${fmt(ss)} · <span style="font-weight:400;color:var(--muted)">Net ${sn>=0?'+':''}₹${fmt(Math.abs(sn))}</span></span>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  if(!txs.length) html+=`<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px">Loading data…</div>`;
+  html+=`</div>`;
+  return html;
+}
+
 function renderAiPanel(){
   const panel=document.getElementById('ai-panel');
   const body=document.getElementById('ai-panel-body');
@@ -7216,11 +7270,13 @@ function renderAiPanel(){
   const labels={dash:'Dashboard',entry:'Add Entry',ledger:'Ledger',report:'Reports',sup:'Suppliers',scan:'Scan OCR',finance:'Finance'};
   if(sub) sub.textContent=(labels[activePane]||activePane)+' — live context';
   // Render context-specific content
-  if(activePane==='entry') body.innerHTML=_aiPanelEntry();
-  else if(activePane==='report') body.innerHTML=_aiPanelReports();
-  else if(activePane==='ledger') body.innerHTML=_aiPanelLedger();
-  else if(activePane==='sup') body.innerHTML=_aiPanelSupplier();
-  else body.innerHTML=_aiPanelDash();
+  let panelContent='';
+  if(activePane==='entry') panelContent=_aiPanelEntry();
+  else if(activePane==='report') panelContent=_aiPanelReports();
+  else if(activePane==='ledger') panelContent=_aiPanelLedger();
+  else if(activePane==='sup') panelContent=_aiPanelSupplier();
+  else panelContent=_aiPanelDash();
+  body.innerHTML=_aiQuickReport()+panelContent;
 }
 
 // Dashboard context — missing entries, shop health, top insight

@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
+import '../services/db_service.dart';
+import '../models/txn.dart';
+import '../models/shop.dart';
 import 'dashboard_tab.dart';
 import 'scan_tab.dart';
 import 'entry_tab.dart';
 import 'ledger_tab.dart';
 import 'suppliers_tab.dart';
 import 'reports_tab.dart';
+import 'finance_tab.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
 
@@ -30,6 +36,95 @@ class _HomeScreenState extends State<HomeScreen> {
     const SuppliersTab(),
     const ReportsTab(),
   ];
+
+  void _showAiFab(BuildContext context, bool isAdmin) {
+    final entryIdx   = isAdmin ? 2 : 1;
+    final reportsIdx = isAdmin ? 5 : 4;
+    final p          = context.read<AppProvider>();
+    final useNativeFinance = _showFinanceTab(p);
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(height: 16),
+          const Text('Quick Actions',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          const SizedBox(height: 16),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            _FabChip(
+              label: '➕ Quick Entry',
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _tab = entryIdx);
+              },
+            ),
+            _FabChip(
+              label: '📊 Quick Report',
+              onTap: () {
+                Navigator.pop(ctx);
+                _showQuickReport(context, p);
+              },
+            ),
+            _FabChip(
+              label: '📋 Full Reports',
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _tab = reportsIdx);
+              },
+            ),
+            _FabChip(
+              label: '↻ Sync Data',
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() {});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Data refreshed'), behavior: SnackBarBehavior.floating),
+                );
+              },
+            ),
+            _FabChip(
+              label: '💼 Finance',
+              onTap: () {
+                Navigator.pop(ctx);
+                if (useNativeFinance) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FinanceTab()),
+                  );
+                } else {
+                  launchUrl(
+                    Uri.parse('https://selvavishnum.github.io/Kannakupilai/finance.html'),
+                    mode: LaunchMode.externalApplication,
+                  );
+                }
+              },
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  void _showQuickReport(BuildContext context, AppProvider p) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => _QuickReportSheet(
+          businessId: p.businessId,
+          shops: Map<String, Shop>.from(p.shops)),
+    );
+  }
 
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
@@ -64,9 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
 
-    final isAdmin = p.isAdmin;
-    final bodies  = _bodies(isAdmin);
-    final safeTab = _tab.clamp(0, bodies.length - 1);
+    final isAdmin    = p.isAdmin;
+    final showFinance = _showFinanceTab(p);
+    final bodies     = _bodies(isAdmin);
+    final safeTab    = _tab.clamp(0, bodies.length - 1);
 
     return Scaffold(
       backgroundColor: kBg,
@@ -84,7 +180,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin),
+      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, showFinance),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: kPrimary,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.bolt_rounded),
+        onPressed: () => _showAiFab(context, isAdmin),
+      ),
     );
   }
 
@@ -252,51 +354,75 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Check if Finance tab should be shown ──────────────────────────────────
+  bool _showFinanceTab(AppProvider p) {
+    return p.isFinanceUser;
+  }
+
   // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l, bool isAdmin) => BottomNavigationBar(
-    currentIndex: _tab.clamp(0, isAdmin ? 5 : 4),
-    onTap: (i) => setState(() => _tab = i),
-    type: BottomNavigationBarType.fixed,
-    backgroundColor: Colors.white,
-    selectedItemColor: kPrimary,
-    unselectedItemColor: const Color(0xFF9CA3AF),
-    selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
-    unselectedLabelStyle: const TextStyle(fontSize: 10),
-    elevation: 16,
-    items: [
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.dashboard_outlined),
-        activeIcon: const Icon(Icons.dashboard),
-        label: t('dashboard', l),
-      ),
-      if (isAdmin)
+  Widget _buildBottomNav(String l, bool isAdmin, bool showFinance) {
+    final maxIdx = showFinance ? (isAdmin ? 6 : 5) : (isAdmin ? 5 : 4);
+    return BottomNavigationBar(
+      currentIndex: _tab.clamp(0, maxIdx),
+      onTap: (i) {
+        // Finance tab: navigate to FinanceTab screen
+        final financeIdx = isAdmin ? 6 : 5;
+        if (showFinance && i == financeIdx) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const FinanceTab()),
+          );
+          return;
+        }
+        setState(() => _tab = i);
+      },
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: kPrimary,
+      unselectedItemColor: const Color(0xFF9CA3AF),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
+      unselectedLabelStyle: const TextStyle(fontSize: 10),
+      elevation: 16,
+      items: [
         BottomNavigationBarItem(
-          icon: const Icon(Icons.document_scanner_outlined),
-          activeIcon: const Icon(Icons.document_scanner),
-          label: t('scan', l),
+          icon: const Icon(Icons.dashboard_outlined),
+          activeIcon: const Icon(Icons.dashboard),
+          label: t('dashboard', l),
         ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.add_circle_outline),
-        activeIcon: const Icon(Icons.add_circle),
-        label: t('entry', l),
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.receipt_long_outlined),
-        activeIcon: const Icon(Icons.receipt_long),
-        label: t('ledger', l),
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.people_outline),
-        activeIcon: const Icon(Icons.people),
-        label: t('suppliers', l),
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.bar_chart_outlined),
-        activeIcon: const Icon(Icons.bar_chart),
-        label: t('reports', l),
-      ),
-    ],
-  );
+        if (isAdmin)
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.document_scanner_outlined),
+            activeIcon: const Icon(Icons.document_scanner),
+            label: t('scan', l),
+          ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.add_circle_outline),
+          activeIcon: const Icon(Icons.add_circle),
+          label: t('entry', l),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.receipt_long_outlined),
+          activeIcon: const Icon(Icons.receipt_long),
+          label: t('ledger', l),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.people_outline),
+          activeIcon: const Icon(Icons.people),
+          label: t('suppliers', l),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.bar_chart_outlined),
+          activeIcon: const Icon(Icons.bar_chart),
+          label: t('reports', l),
+        ),
+        if (showFinance)
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: const Icon(Icons.account_balance_wallet),
+            label: 'Finance',
+          ),
+      ],
+    );
+  }
 
   String _badgeLabel(AppProvider p) {
     if (p.isAdmin) return 'Admin';
@@ -315,6 +441,208 @@ class _HomeScreenState extends State<HomeScreen> {
     if (p.profile['pro'] == true) return const Color(0xFFD97706);
     return const Color(0xFF16A34A);
   }
+}
+
+// ── Quick Report Sheet ────────────────────────────────────────────────────────
+class _QuickReportSheet extends StatelessWidget {
+  final String businessId;
+  final Map<String, Shop> shops;
+  const _QuickReportSheet({required this.businessId, required this.shops});
+
+  static String _fmt(double v) {
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000)   return '₹${(v / 1000).toStringAsFixed(1)}K';
+    return '₹${v.toStringAsFixed(0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final db = DbService();
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      builder: (_, ctrl) => StreamBuilder<List<Txn>>(
+        stream: db.txnStream(businessId),
+        builder: (ctx, snap) {
+          final all = snap.data ?? [];
+          final now = DateTime.now();
+          final today = DateFormat('yyyy-MM-dd').format(now);
+          final weekStart = DateFormat('yyyy-MM-dd')
+              .format(now.subtract(Duration(days: now.weekday - 1)));
+          final monthStart = DateFormat('yyyy-MM-dd')
+              .format(DateTime(now.year, now.month, 1));
+
+          double _sales(List<Txn> txs) =>
+              txs.where((t) => t.type == 'sale').fold(0.0, (s, t) => s + t.amount);
+          double _exp(List<Txn> txs) =>
+              txs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+
+          final todayTxs  = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date) == today).toList();
+          final weekTxs   = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date).compareTo(weekStart) >= 0).toList();
+          final monthTxs  = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date).compareTo(monthStart) >= 0).toList();
+
+          final todaySales = _sales(todayTxs), todayExp = _exp(todayTxs);
+          final weekSales  = _sales(weekTxs),  weekExp  = _exp(weekTxs);
+          final monthSales = _sales(monthTxs), monthExp = _exp(monthTxs);
+          final todayNet = todaySales - todayExp;
+          final weekNet  = weekSales  - weekExp;
+          final monthNet = monthSales - monthExp;
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Column(children: [
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)),
+              ),
+              Container(
+                color: kPrimary,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Row(children: [
+                  const Icon(Icons.bar_chart, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Quick Report',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15))),
+                  if (snap.connectionState == ConnectionState.waiting)
+                    const SizedBox(width: 14, height: 14,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                  Text('${all.length} entries', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                ]),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: ctrl,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Period summary grid
+                    Row(children: [
+                      _PeriodCard('Today', todaySales, todayExp, todayNet, const Color(0xFF065F46), const Color(0xFFF0FDF4)),
+                      const SizedBox(width: 8),
+                      _PeriodCard('This Week', weekSales, weekExp, weekNet, const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+                      const SizedBox(width: 8),
+                      _PeriodCard('Month', monthSales, monthExp, monthNet, const Color(0xFF7C3AED), const Color(0xFFFDF4FF)),
+                    ]),
+                    const SizedBox(height: 16),
+                    // Today by shop
+                    const Text('Today by Shop',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kText)),
+                    const SizedBox(height: 8),
+                    ...shops.entries.map((e) {
+                      final shopId = e.key;
+                      final shop   = e.value;
+                      final name   = shop.name;
+                      final icon   = shop.icon;
+                      final stxs   = todayTxs.where((t) => t.shop == shopId).toList();
+                      final ss     = _sales(stxs), se = _exp(stxs), sn = ss - se;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FAFB),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
+                        child: Row(children: [
+                          Text('$icon', style: const TextStyle(fontSize: 18)),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(name,
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13))),
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text(_fmt(ss),
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kText)),
+                            Text('Net ${sn >= 0 ? '+' : ''}${_fmt(sn)}',
+                                style: TextStyle(fontSize: 10,
+                                    color: sn >= 0 ? kPrimary : kRed,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ]),
+                      );
+                    }),
+                    if (all.isEmpty && snap.connectionState != ConnectionState.waiting)
+                      const Center(child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text('No data yet. Add entries to see your report.',
+                            style: TextStyle(color: kMuted), textAlign: TextAlign.center),
+                      )),
+                  ],
+                ),
+              ),
+            ]),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PeriodCard extends StatelessWidget {
+  final String label;
+  final double sales, exp, net;
+  final Color accentColor, bgColor;
+  const _PeriodCard(this.label, this.sales, this.exp, this.net, this.accentColor, this.bgColor);
+
+  static String _fmt(double v) {
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000)   return '₹${(v / 1000).toStringAsFixed(1)}K';
+    return '₹${v.toStringAsFixed(0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accentColor.withOpacity(0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
+            color: accentColor, letterSpacing: 0.3)),
+        const SizedBox(height: 4),
+        Text(_fmt(sales), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accentColor)),
+        Text('Exp: ${_fmt(exp)}', style: const TextStyle(fontSize: 9, color: kMuted)),
+        const SizedBox(height: 2),
+        Text('Net ${net >= 0 ? '+' : ''}${_fmt(net)}',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
+                color: net >= 0 ? const Color(0xFF059669) : kRed)),
+      ]),
+    ),
+  );
+}
+
+// ── FAB quick-action chip ─────────────────────────────────────────────────────
+class _FabChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _FabChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: kPrimary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: kPrimary.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: kPrimary,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
+        ),
+      ),
+    ),
+  );
 }
 
 // ── Shop chip widget ──────────────────────────────────────────────────────────

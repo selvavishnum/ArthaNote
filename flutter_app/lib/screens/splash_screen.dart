@@ -147,15 +147,6 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const SizedBox(height: 8),
 
-                  Text(
-                    'கணக்கபிள்ளை',
-                    style: TextStyle(
-                      color:      const Color(0xFF6EE7B7).withOpacity(0.85),
-                      fontSize:   16,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
                   const SizedBox(height: 4),
 
                   Text(

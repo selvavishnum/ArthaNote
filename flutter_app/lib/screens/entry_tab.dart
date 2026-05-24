@@ -11,6 +11,7 @@ import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
 import '../services/pattern_service.dart';
+import 'dashboard_tab.dart' show rupee;
 
 class EntryTab extends StatefulWidget {
   const EntryTab({super.key});
@@ -32,18 +33,38 @@ class _EntryTabState extends State<EntryTab> {
   bool          _saving     = false;
   AiPrediction  _prediction = AiPrediction.empty();
   Timer?        _debounce;
+  bool          _gstOn      = false;
+  double        _gstRate    = 18.0;
 
   @override
   void initState() {
     super.initState();
     _desc.addListener(_onDescChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPatterns());
+    _amount.addListener(_onAmountChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPatterns();
+      _loadGstSettings();
+    });
   }
 
   Future<void> _loadPatterns() async {
     final p    = context.read<AppProvider>();
     final txns = await _db.loadLocalCache(p.businessId);
     _ai.learnFromTxns(txns);
+  }
+
+  Future<void> _loadGstSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _gstOn   = prefs.getBool('slv_gst')      ?? false;
+        _gstRate = prefs.getDouble('slv_gstrate') ?? 18.0;
+      });
+    }
+  }
+
+  void _onAmountChanged() {
+    if (_gstOn) setState(() {});
   }
 
   void _onDescChanged() {
@@ -354,6 +375,32 @@ class _EntryTabState extends State<EntryTab> {
             ),
           ),
 
+          // GST Preview
+          if (_gstOn) Builder(builder: (context) {
+            final raw = _amount.text.replaceAll(',', '').trim();
+            final amt = double.tryParse(raw) ?? 0;
+            if (amt <= 0) return const SizedBox.shrink();
+            final gstAmt  = amt * _gstRate / 100;
+            final total   = amt + gstAmt;
+            return Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: kSecondary.withOpacity(0.07),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: kSecondary.withOpacity(0.3)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.receipt_outlined, size: 14, color: kSecondary),
+                const SizedBox(width: 6),
+                Expanded(child: Text(
+                  'GST (${_gstRate.toStringAsFixed(0)}%): ${rupee(gstAmt)}  |  Total: ${rupee(total)}',
+                  style: const TextStyle(fontSize: 12, color: kSecondary, fontWeight: FontWeight.w600),
+                )),
+              ]),
+            );
+          }),
+
           const SizedBox(height: 14),
 
           // Quick categories
@@ -530,6 +577,7 @@ class _EntryTabState extends State<EntryTab> {
   void dispose() {
     _debounce?.cancel();
     _desc.removeListener(_onDescChanged);
+    _amount.removeListener(_onAmountChanged);
     _amount.dispose();
     _desc.dispose();
     _bill.dispose();

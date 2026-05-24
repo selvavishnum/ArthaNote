@@ -13,6 +13,7 @@ class AppProvider extends ChangeNotifier {
   Map<String, dynamic> _profile    = {};
   bool               _loaded       = false;
   Map<String, Map<String, List<String>>> _cats = {};
+  String             _bizType      = '';
 
   // ── Getters ───────────────────────────────────────────────────────────────
   String             get lang         => _lang;
@@ -22,6 +23,8 @@ class AppProvider extends ChangeNotifier {
   Map<String, dynamic> get profile    => Map.unmodifiable(_profile);
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
+  String             get bizType      => _bizType;
+  bool               get isFinanceUser => _bizType == 'finance' || _bizType == 'chit';
 
   // Also treat as onboarded when shops exist in config — covers accounts
   // registered on the website where 'onboarded' flag wasn't set in Firestore.
@@ -66,6 +69,7 @@ class AppProvider extends ChangeNotifier {
           _shops = rawShops.map(
             (k, v) => MapEntry(k, Shop.fromMap(k, v as Map<String, dynamic>)),
           );
+          _bizType = (configData['bizType'] as String?)?.toLowerCase().trim() ?? '';
           final rawCats = configData['cats'] as Map<String, dynamic>? ?? {};
           _cats = rawCats.map((k, v) {
             final vMap = v as Map<String, dynamic>? ?? {};
@@ -179,6 +183,7 @@ class AppProvider extends ChangeNotifier {
     _shops        = {};
     _profile      = {};
     _cats         = {};
+    _bizType      = '';
     _loaded       = false;
     notifyListeners();
   }

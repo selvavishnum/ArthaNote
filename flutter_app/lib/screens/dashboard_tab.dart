@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/txn.dart';
@@ -25,6 +26,170 @@ class _DashboardTabState extends State<DashboardTab> {
   int  _period         = 0; // 0=today 1=yesterday 2=week 3=month
   bool _alertDismissed = false;
   String? _dismissedDate;
+  int _streakCount     = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadStreak());
+  }
+
+  Future<void> _loadStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    final count = prefs.getInt('slv_streak_count') ?? 0;
+    if (mounted) setState(() => _streakCount = count);
+  }
+
+  Future<void> _updateStreak(List<Txn> all) async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final today = DateFormat('yyyy-MM-dd').format(now);
+    final yesterday = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 1)));
+    final lastDate = prefs.getString('slv_streak_date') ?? '';
+
+    // Find last entry date
+    if (all.isEmpty) return;
+    final sortedTxns = List<Txn>.from(all)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final lastEntryDate = DateFormat('yyyy-MM-dd').format(sortedTxns.first.date);
+
+    int count = prefs.getInt('slv_streak_count') ?? 0;
+
+    if (lastDate == today) return; // already updated today
+
+    if (lastEntryDate == today || lastEntryDate == yesterday) {
+      if (lastDate == yesterday || lastDate == today) {
+        count++;
+      } else {
+        count = 1;
+      }
+    } else {
+      count = 0;
+    }
+
+    await prefs.setInt('slv_streak_count', count);
+    await prefs.setString('slv_streak_date', today);
+    if (mounted) setState(() => _streakCount = count);
+  }
+
+  // ── Shop Health Score ───────────────────────────────────────────────────────
+  Map<String, dynamic> _shopHealthScore(String shopId, List<Txn> allTxns) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Last 7 days vs prev 7 days sales trend
+    final last7Start = today.subtract(const Duration(days: 7));
+    final prev7Start = today.subtract(const Duration(days: 14));
+
+    final last7Sales = allTxns
+        .where((tx) => tx.shop == shopId &&
+            tx.type == 'sale' &&
+            !tx.date.isBefore(last7Start) && tx.date.isBefore(today))
+        .fold(0.0, (s, x) => s + x.amount);
+
+    final prev7Sales = allTxns
+        .where((tx) => tx.shop == shopId &&
+            tx.type == 'sale' &&
+            !tx.date.isBefore(prev7Start) && tx.date.isBefore(last7Start))
+        .fold(0.0, (s, x) => s + x.amount);
+
+    // Expense ratio last 30 days
+    final last30Start = today.subtract(const Duration(days: 30));
+    final last30Sales = allTxns
+        .where((tx) => tx.shop == shopId &&
+            tx.type == 'sale' &&
+            !tx.date.isBefore(last30Start))
+        .fold(0.0, (s, x) => s + x.amount);
+    final last30Exp = allTxns
+        .where((tx) => tx.shop == shopId &&
+            tx.type == 'expense' &&
+            !tx.date.isBefore(last30Start))
+        .fold(0.0, (s, x) => s + x.amount);
+
+    // Days active last 30 days
+    final activeDays = allTxns
+        .where((tx) => tx.shop == shopId && !tx.date.isBefore(last30Start))
+        .map((tx) => DateFormat('yyyy-MM-dd').format(tx.date))
+        .toSet()
+        .length;
+
+    int score = 50;
+    final breakdown = <String>[];
+
+    // Sales trend
+    int trendPts = 0;
+    if (prev7Sales > 0) {
+      final growth = (last7Sales - prev7Sales) / prev7Sales;
+      if (growth > 0.10) {
+        trendPts = 20;
+        breakdown.add('📈 Sales up ${(growth * 100).toStringAsFixed(0)}% (+20pts)');
+      } else if (growth < -0.10) {
+        trendPts = -20;
+        breakdown.add('📉 Sales down ${(growth.abs() * 100).toStringAsFixed(0)}% (-20pts)');
+      } else {
+        breakdown.add('➡️ Sales stable (0pts)');
+      }
+    } else {
+      breakdown.add('➡️ No prev week data (0pts)');
+    }
+    score += trendPts;
+
+    // Expense ratio
+    int expPts = 0;
+    if (last30Sales > 0) {
+      final ratio = last30Exp / last30Sales;
+      if (ratio < 0.50) {
+        expPts = 15;
+        breakdown.add('✅ Low expense ratio ${(ratio * 100).toStringAsFixed(0)}% (+15pts)');
+      } else if (ratio > 0.80) {
+        expPts = -15;
+        breakdown.add('⚠️ High expense ratio ${(ratio * 100).toStringAsFixed(0)}% (-15pts)');
+      } else {
+        breakdown.add('🔸 Expense ratio ${(ratio * 100).toStringAsFixed(0)}% (0pts)');
+      }
+    } else {
+      breakdown.add('🔸 No sales data for ratio (0pts)');
+    }
+    score += expPts;
+
+    // Days active
+    int activePts = 0;
+    if (activeDays > 22) {
+      activePts = 15;
+      breakdown.add('🟢 Active $activeDays days (+15pts)');
+    } else if (activeDays < 10) {
+      activePts = -15;
+      breakdown.add('🔴 Active only $activeDays days (-15pts)');
+    } else {
+      breakdown.add('🟡 Active $activeDays days (0pts)');
+    }
+    score += activePts;
+
+    String badge;
+    String label;
+    Color  color;
+    if (score >= 75) {
+      badge = '💚';
+      label = 'Good Performance';
+      color = const Color(0xFF16A34A);
+    } else if (score >= 50) {
+      badge = '💛';
+      label = 'Moderate Performance';
+      color = const Color(0xFFD97706);
+    } else {
+      badge = '🔴';
+      label = 'Low Performance';
+      color = const Color(0xFFDC2626);
+    }
+
+    return {
+      'score': score,
+      'badge': badge,
+      'label': label,
+      'color': color,
+      'breakdown': breakdown,
+    };
+  }
 
   DateTimeRange _range() {
     final now   = DateTime.now();
@@ -94,12 +259,23 @@ class _DashboardTabState extends State<DashboardTab> {
           );
         }
         final all    = snap.data ?? [];
+        // Update streak in background
+        WidgetsBinding.instance.addPostFrameCallback((_) => _updateStreak(all));
         final txns   = _filter(all, p);
         final sales  = txns.where((x) => x.type == 'sale')
             .fold(0.0, (s, x) => s + x.amount);
         final expense = txns.where((x) => x.type == 'expense')
             .fold(0.0, (s, x) => s + x.amount);
         final net = sales - expense;
+
+        // Last 7 days overdraft check
+        final now7 = DateTime.now();
+        final sevenDaysAgo = DateTime(now7.year, now7.month, now7.day).subtract(const Duration(days: 7));
+        final last7Txns = all.where((tx) => !tx.date.isBefore(sevenDaysAgo)).toList();
+        final last7Sales = last7Txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
+        final last7Exp = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
+        final last7Net = last7Sales - last7Exp;
+        final showOverdraft = last7Net < 0;
 
         // Most sold
         String mostSold = '';
@@ -136,18 +312,39 @@ class _DashboardTabState extends State<DashboardTab> {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
             children: [
 
-              // Entry count + Refresh
+              // Entry count + Streak + Refresh
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${all.length} ${t("entries", l)} · synced',
-                    style: const TextStyle(
-                      color: kMuted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                  Row(children: [
+                    Text(
+                      '${all.length} ${t("entries", l)} · synced',
+                      style: const TextStyle(
+                        color: kMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
+                    if (_streakCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFBD38D)),
+                        ),
+                        child: Text(
+                          '🔥 $_streakCount-day streak',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ]),
                   GestureDetector(
                     onTap: () => setState(() {}),
                     child: Container(
@@ -279,7 +476,29 @@ class _DashboardTabState extends State<DashboardTab> {
                         valueSmall: mostSold.isNotEmpty)),
               ]),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // ── Overdraft Warning ─────────────────────────────────────────
+              if (showOverdraft)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFCD34D)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706)),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                      '⚠️ Net loss last 7 days: ${rupee(last7Net.abs())}. Review expenses.',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF92400E)),
+                    )),
+                  ]),
+                ),
+
+              const SizedBox(height: 4),
 
               // ── Shop Summary ─────────────────────────────────────────────
               _SectionHeader(
@@ -307,6 +526,7 @@ class _DashboardTabState extends State<DashboardTab> {
                   final shopExp = shopTxns
                       .where((x) => x.type == 'expense')
                       .fold(0.0, (s, x) => s + x.amount);
+                  final healthData = _shopHealthScore(shop.id, all);
                   return _ShopSummaryCard(
                     shop: shop,
                     entryCount: shopTxns.length,
@@ -314,6 +534,11 @@ class _DashboardTabState extends State<DashboardTab> {
                     expense: shopExp,
                     net: shopSales - shopExp,
                     l: l,
+                    healthBadge: healthData['badge'] as String,
+                    healthLabel: healthData['label'] as String,
+                    healthColor: healthData['color'] as Color,
+                    healthScore: healthData['score'] as int,
+                    healthBreakdown: List<String>.from(healthData['breakdown'] as List),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                           builder: (_) =>
@@ -489,6 +714,11 @@ class _ShopSummaryCard extends StatelessWidget {
   final double   expense;
   final double   net;
   final String   l;
+  final String   healthBadge;
+  final String   healthLabel;
+  final Color    healthColor;
+  final int      healthScore;
+  final List<String> healthBreakdown;
   final VoidCallback onTap;
 
   const _ShopSummaryCard({
@@ -498,8 +728,58 @@ class _ShopSummaryCard extends StatelessWidget {
     required this.expense,
     required this.net,
     required this.l,
+    required this.healthBadge,
+    required this.healthLabel,
+    required this.healthColor,
+    required this.healthScore,
+    required this.healthBreakdown,
     required this.onTap,
   });
+
+  void _showHealthSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(height: 16),
+          Text('${shop.icon} ${shop.name} — Health Report',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: healthColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: healthColor.withOpacity(0.3)),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(healthBadge, style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(healthLabel,
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: healthColor)),
+                Text('Score: $healthScore / 100',
+                    style: const TextStyle(color: kMuted, fontSize: 12)),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          ...healthBreakdown.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(item, style: const TextStyle(fontSize: 13, color: kText)),
+          )),
+        ]),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -526,6 +806,24 @@ class _ShopSummaryCard extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                             color: kText)),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => _showHealthSheet(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: healthColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: healthColor.withOpacity(0.25)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(healthBadge, style: const TextStyle(fontSize: 11)),
+                          const SizedBox(width: 3),
+                          Text(healthLabel,
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: healthColor)),
+                        ]),
+                      ),
+                    ),
                   ]),
                   Row(children: [
                     Text('$entryCount ${t("entries", l)}',

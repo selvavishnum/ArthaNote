@@ -272,9 +272,15 @@ function showTab(name, el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('section-'+name).classList.add('active');
-  el.classList.add('active');
+  if(el) el.classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
 }
+window.addEventListener('DOMContentLoaded',()=>{
+  if(location.hash==='#terms'){
+    const el=document.querySelector('.tab:nth-child(2)');
+    showTab('terms',el);
+  }
+});
 </script>
 </body>
 </html>
