@@ -2363,7 +2363,9 @@ function _aiDetectSpellingVariants(){
     // Raw frequency map (before any alias normalization — detect original misspellings)
     const freq={};
     recent.forEach(t=>{const d=(t.desc||'').trim();if(d) freq[d]=(freq[d]||0)+1;});
-    const descs=Object.keys(freq);
+    // Skip descriptions already fixed via saved aliases — so after "Fix All" the card hides
+    const savedAliases=JSON.parse(localStorage.getItem('desc_aliases')||'{}');
+    const descs=Object.keys(freq).filter(d=>!savedAliases[d.toLowerCase().trim()]);
     if(descs.length<2) return [];
 
     // Strict similarity: only match if DIRECTLY similar (no transitive chain via includes/startsWith)
