@@ -28,11 +28,11 @@ android {
                 keyAlias      System.getenv("KEY_ALIAS")         ?: ""
                 keyPassword   System.getenv("KEY_PASSWORD")      ?: ""
             } else {
-                // Default: use the committed release keystore (consistent signing across all builds)
+                // PWABuilder original keystore — matches Play Console registered SHA1
                 storeFile     file("arthanote-release.keystore")
-                storePassword "ArthaNote2024"
-                keyAlias      "arthanote"
-                keyPassword   "ArthaNote2024"
+                storePassword "WYCLbtHArDji"
+                keyAlias      "arthanote-key — more professional"
+                keyPassword   "WYCLbtHArDji"
             }
         }
     }
