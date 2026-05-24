@@ -5172,6 +5172,7 @@ function renderLedger(){
   if(lbl){
     const ts=sum(txs,'sales'),te=sum(txs,'expense'),tp=sum(txs,'payment'),tn=ts-te-tp;
     lbl.innerHTML=txs.length?`${txs.length} entries · <span style="color:var(--green)">+₹${fmt(ts)}</span> <span style="color:var(--red)">-₹${fmt(te)}</span>${tp>0?` <span style="color:var(--yellow)">↔₹${fmt(tp)}</span>`:''}`:'';
+  }
 
   if(!txs.length){
     body.innerHTML=`<div style="background:var(--card);border-radius:16px;padding:40px 20px;text-align:center;box-shadow:var(--sh)">
@@ -6499,6 +6500,7 @@ function setSyncDot(online){
 }
 
 function startLiveSync(){
+  const BID=ME?.businessId||ME?.uid;
   if(!BID||!DB) return;
   setSyncDot(navigator.onLine);
   window.addEventListener('online', ()=>setSyncDot(true));
