@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
+import '../services/db_service.dart';
+import '../models/txn.dart';
+import '../models/shop.dart';
 import 'dashboard_tab.dart';
 import 'scan_tab.dart';
 import 'entry_tab.dart';
@@ -64,7 +68,14 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             _FabChip(
-              label: '📊 View Reports',
+              label: '📊 Quick Report',
+              onTap: () {
+                Navigator.pop(ctx);
+                _showQuickReport(context, p);
+              },
+            ),
+            _FabChip(
+              label: '📋 Full Reports',
               onTap: () {
                 Navigator.pop(ctx);
                 setState(() => _tab = reportsIdx);
@@ -99,6 +110,19 @@ class _HomeScreenState extends State<HomeScreen> {
           ]),
         ]),
       ),
+    );
+  }
+
+  void _showQuickReport(BuildContext context, AppProvider p) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => _QuickReportSheet(
+          businessId: p.businessId,
+          shops: Map<String, Shop>.from(p.shops)),
     );
   }
 
@@ -417,6 +441,180 @@ class _HomeScreenState extends State<HomeScreen> {
     if (p.profile['pro'] == true) return const Color(0xFFD97706);
     return const Color(0xFF16A34A);
   }
+}
+
+// ── Quick Report Sheet ────────────────────────────────────────────────────────
+class _QuickReportSheet extends StatelessWidget {
+  final String businessId;
+  final Map<String, Shop> shops;
+  const _QuickReportSheet({required this.businessId, required this.shops});
+
+  static String _fmt(double v) {
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000)   return '₹${(v / 1000).toStringAsFixed(1)}K';
+    return '₹${v.toStringAsFixed(0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final db = DbService();
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      builder: (_, ctrl) => StreamBuilder<List<Txn>>(
+        stream: db.txnStream(businessId),
+        builder: (ctx, snap) {
+          final all = snap.data ?? [];
+          final now = DateTime.now();
+          final today = DateFormat('yyyy-MM-dd').format(now);
+          final weekStart = DateFormat('yyyy-MM-dd')
+              .format(now.subtract(Duration(days: now.weekday - 1)));
+          final monthStart = DateFormat('yyyy-MM-dd')
+              .format(DateTime(now.year, now.month, 1));
+
+          double _sales(List<Txn> txs) =>
+              txs.where((t) => t.type == 'sale').fold(0.0, (s, t) => s + t.amount);
+          double _exp(List<Txn> txs) =>
+              txs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
+
+          final todayTxs  = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date) == today).toList();
+          final weekTxs   = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date).compareTo(weekStart) >= 0).toList();
+          final monthTxs  = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date).compareTo(monthStart) >= 0).toList();
+
+          final todaySales = _sales(todayTxs), todayExp = _exp(todayTxs);
+          final weekSales  = _sales(weekTxs),  weekExp  = _exp(weekTxs);
+          final monthSales = _sales(monthTxs), monthExp = _exp(monthTxs);
+          final todayNet = todaySales - todayExp;
+          final weekNet  = weekSales  - weekExp;
+          final monthNet = monthSales - monthExp;
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Column(children: [
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)),
+              ),
+              Container(
+                color: kPrimary,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Row(children: [
+                  const Icon(Icons.bar_chart, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Quick Report',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15))),
+                  if (snap.connectionState == ConnectionState.waiting)
+                    const SizedBox(width: 14, height: 14,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                  Text('${all.length} entries', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                ]),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: ctrl,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Period summary grid
+                    Row(children: [
+                      _PeriodCard('Today', todaySales, todayExp, todayNet, const Color(0xFF065F46), const Color(0xFFF0FDF4)),
+                      const SizedBox(width: 8),
+                      _PeriodCard('This Week', weekSales, weekExp, weekNet, const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+                      const SizedBox(width: 8),
+                      _PeriodCard('Month', monthSales, monthExp, monthNet, const Color(0xFF7C3AED), const Color(0xFFFDF4FF)),
+                    ]),
+                    const SizedBox(height: 16),
+                    // Today by shop
+                    const Text('Today by Shop',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kText)),
+                    const SizedBox(height: 8),
+                    ...shops.entries.map((e) {
+                      final shopId = e.key;
+                      final shop   = e.value;
+                      final name   = shop.name;
+                      final icon   = shop.icon;
+                      final stxs   = todayTxs.where((t) => t.shop == shopId).toList();
+                      final ss     = _sales(stxs), se = _exp(stxs), sn = ss - se;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FAFB),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
+                        child: Row(children: [
+                          Text('$icon', style: const TextStyle(fontSize: 18)),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text(name,
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13))),
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text(_fmt(ss),
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kText)),
+                            Text('Net ${sn >= 0 ? '+' : ''}${_fmt(sn)}',
+                                style: TextStyle(fontSize: 10,
+                                    color: sn >= 0 ? kPrimary : kRed,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ]),
+                      );
+                    }),
+                    if (all.isEmpty && snap.connectionState != ConnectionState.waiting)
+                      const Center(child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text('No data yet. Add entries to see your report.',
+                            style: TextStyle(color: kMuted), textAlign: TextAlign.center),
+                      )),
+                  ],
+                ),
+              ),
+            ]),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PeriodCard extends StatelessWidget {
+  final String label;
+  final double sales, exp, net;
+  final Color accentColor, bgColor;
+  const _PeriodCard(this.label, this.sales, this.exp, this.net, this.accentColor, this.bgColor);
+
+  static String _fmt(double v) {
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000)   return '₹${(v / 1000).toStringAsFixed(1)}K';
+    return '₹${v.toStringAsFixed(0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accentColor.withOpacity(0.2)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
+            color: accentColor, letterSpacing: 0.3)),
+        const SizedBox(height: 4),
+        Text(_fmt(sales), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accentColor)),
+        Text('Exp: ${_fmt(exp)}', style: const TextStyle(fontSize: 9, color: kMuted)),
+        const SizedBox(height: 2),
+        Text('Net ${net >= 0 ? '+' : ''}${_fmt(net)}',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
+                color: net >= 0 ? const Color(0xFF059669) : kRed)),
+      ]),
+    ),
+  );
 }
 
 // ── FAB quick-action chip ─────────────────────────────────────────────────────

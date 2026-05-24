@@ -166,17 +166,27 @@ class _DashboardTabState extends State<DashboardTab> {
     score += activePts;
 
     String badge;
+    String label;
+    Color  color;
     if (score >= 75) {
-      badge = '🟢 Healthy';
+      badge = '💚';
+      label = 'Good Performance';
+      color = const Color(0xFF16A34A);
     } else if (score >= 50) {
-      badge = '🟡 Watch';
+      badge = '💛';
+      label = 'Moderate Performance';
+      color = const Color(0xFFD97706);
     } else {
-      badge = '🔴 Needs Attention';
+      badge = '🔴';
+      label = 'Low Performance';
+      color = const Color(0xFFDC2626);
     }
 
     return {
       'score': score,
       'badge': badge,
+      'label': label,
+      'color': color,
       'breakdown': breakdown,
     };
   }
@@ -525,6 +535,8 @@ class _DashboardTabState extends State<DashboardTab> {
                     net: shopSales - shopExp,
                     l: l,
                     healthBadge: healthData['badge'] as String,
+                    healthLabel: healthData['label'] as String,
+                    healthColor: healthData['color'] as Color,
                     healthScore: healthData['score'] as int,
                     healthBreakdown: List<String>.from(healthData['breakdown'] as List),
                     onTap: () => Navigator.of(context).push(
@@ -703,6 +715,8 @@ class _ShopSummaryCard extends StatelessWidget {
   final double   net;
   final String   l;
   final String   healthBadge;
+  final String   healthLabel;
+  final Color    healthColor;
   final int      healthScore;
   final List<String> healthBreakdown;
   final VoidCallback onTap;
@@ -715,6 +729,8 @@ class _ShopSummaryCard extends StatelessWidget {
     required this.net,
     required this.l,
     required this.healthBadge,
+    required this.healthLabel,
+    required this.healthColor,
     required this.healthScore,
     required this.healthBreakdown,
     required this.onTap,
@@ -734,21 +750,31 @@ class _ShopSummaryCard extends StatelessWidget {
                 color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 16),
-          Text('${shop.icon} ${shop.name} Health',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
-          const SizedBox(height: 6),
-          Text(healthBadge,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text('Score: $healthScore / 100',
-              style: const TextStyle(color: kMuted, fontSize: 13)),
+          Text('${shop.icon} ${shop.name} — Health Report',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: healthColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: healthColor.withOpacity(0.3)),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(healthBadge, style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(healthLabel,
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: healthColor)),
+                Text('Score: $healthScore / 100',
+                    style: const TextStyle(color: kMuted, fontSize: 12)),
+              ]),
+            ]),
+          ),
           const SizedBox(height: 16),
           ...healthBreakdown.map((item) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Row(children: [
-              Expanded(child: Text(item,
-                  style: const TextStyle(fontSize: 13, color: kText))),
-            ]),
+            child: Text(item, style: const TextStyle(fontSize: 13, color: kText)),
           )),
         ]),
       ),
@@ -784,15 +810,18 @@ class _ShopSummaryCard extends StatelessWidget {
                     GestureDetector(
                       onTap: () => _showHealthSheet(context),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: kPrimary.withOpacity(0.07),
+                          color: healthColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: healthColor.withOpacity(0.25)),
                         ),
-                        child: Text(
-                          healthBadge,
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(healthBadge, style: const TextStyle(fontSize: 11)),
+                          const SizedBox(width: 3),
+                          Text(healthLabel,
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: healthColor)),
+                        ]),
                       ),
                     ),
                   ]),
