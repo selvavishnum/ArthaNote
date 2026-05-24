@@ -16,7 +16,7 @@ def appVersionName = localProps.getProperty('flutter.versionName', '1.0.2')
 
 android {
     namespace "com.arthanote.app"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 35
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -48,7 +48,7 @@ android {
     defaultConfig {
         applicationId "com.arthanote.app"
         minSdk 23
-        targetSdk flutter.targetSdkVersion
+        targetSdk 35
         versionCode appVersionCode
         versionName appVersionName
         multiDexEnabled true

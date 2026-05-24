@@ -3150,8 +3150,8 @@ function _collectCardData(type){
   const todayTxs=TXS.filter(t=>t.date===today);
   const mainShopId=Object.keys(SHOPS)[0]||'';
   const mainShop=SHOPS[mainShopId]?.name||'My Shop';
-  const sales=sum(txs,'sales'),exp=sum(txs,'expense')+sum(txs,'payment'),net=sales-exp;
-  const todaySales=sum(todayTxs,'sales'),todayExp=sum(todayTxs,'expense')+sum(todayTxs,'payment');
+  const sales=sum(txs,'sales'),exp=sum(txs,'expense'),net=sales-exp;
+  const todaySales=sum(todayTxs,'sales'),todayExp=sum(todayTxs,'expense');
   // Best day in period
   const dayMap={};
   txs.filter(t=>t.type==='sales').forEach(t=>{dayMap[t.date]=(dayMap[t.date]||0)+t.amount;});
@@ -4536,7 +4536,7 @@ function renderDash(){
   const af=f(TXS);
   sc.innerHTML=show.map(k=>{
     const stxs=af.filter(x=>x.shop===k);
-    const ss=sum(stxs,'sales'),se2=sum(stxs,'expense')+sum(stxs,'payment'),sn=ss-se2;
+    const ss=sum(stxs,'sales'),se2=sum(stxs,'expense'),sn=ss-se2;
     const h=_shopHealthScore(k);
     return `<div class="sc ${k}" onclick="openSd('${k}')">
       <div class="sc-top"><div class="sc-name">${SHOPS[k]?.icon||'🏪'} ${SHOPS[k]?.name||k}</div>
@@ -5170,9 +5170,8 @@ function renderLedger(){
   // Summary label
   const lbl=document.getElementById('led-summary-lbl');
   if(lbl){
-    const ts=sum(txs,'sales'),te=sum(txs,'expense')+sum(txs,'payment'),tn=ts-te;
-    lbl.innerHTML=txs.length?`${txs.length} entries · <span style="color:var(--green)">+₹${fmt(ts)}</span> <span style="color:var(--red)">-₹${fmt(te)}</span>`:'';
-  }
+    const ts=sum(txs,'sales'),te=sum(txs,'expense'),tp=sum(txs,'payment'),tn=ts-te-tp;
+    lbl.innerHTML=txs.length?`${txs.length} entries · <span style="color:var(--green)">+₹${fmt(ts)}</span> <span style="color:var(--red)">-₹${fmt(te)}</span>${tp>0?` <span style="color:var(--yellow)">↔₹${fmt(tp)}</span>`:''}`:'';
 
   if(!txs.length){
     body.innerHTML=`<div style="background:var(--card);border-radius:16px;padding:40px 20px;text-align:center;box-shadow:var(--sh)">
@@ -5191,7 +5190,7 @@ function renderLedger(){
   txs.forEach(t=>{const d=t.date||'unknown';if(!groups[d])groups[d]=[];groups[d].push(t);});
 
   body.innerHTML=Object.entries(groups).map(([date,dayTxs])=>{
-    const ds=sum(dayTxs,'sales'),de=sum(dayTxs,'expense')+sum(dayTxs,'payment'),dn=ds-de;
+    const ds=sum(dayTxs,'sales'),de=sum(dayTxs,'expense'),dp=sum(dayTxs,'payment'),dn=ds-de-dp;
     const rows=dayTxs.map(t=>{
       const shop=SHOPS[t.shop];
       const isIn=t.type==='sales';
@@ -5227,7 +5226,7 @@ function renderLedger(){
         </div>
         <div style="text-align:right">
           <div style="font-weight:800;font-size:14px;color:${dn>=0?'var(--green)':'var(--red)'}">${dn>=0?'+':'-'}₹${fmt(Math.abs(dn))}</div>
-          <div style="font-size:10px;color:var(--muted)">${ds>0?'↑₹'+fmt(ds):''}${de>0?' ↓₹'+fmt(de):''}</div>
+          <div style="font-size:10px;color:var(--muted)">${ds>0?'↑₹'+fmt(ds):''}${de>0?' ↓₹'+fmt(de):''}${dp>0?` <span style="color:var(--yellow)">↔₹${fmt(dp)}</span>`:''}</div>
         </div>
       </div>
       <div id="lg-rows-${date}">
