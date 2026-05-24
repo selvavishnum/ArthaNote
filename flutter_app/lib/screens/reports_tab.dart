@@ -7,8 +7,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
-// ignore: unused_import
-import '../l10n.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';

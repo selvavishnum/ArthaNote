@@ -1283,6 +1283,7 @@ class _StatCol extends StatelessWidget {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 class _VertDiv extends StatelessWidget {
+  const _VertDiv();
   @override
   Widget build(BuildContext context) => Container(
     width: 1,
@@ -1292,6 +1293,7 @@ class _VertDiv extends StatelessWidget {
 }
 
 class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
   @override
   Widget build(BuildContext context) => Center(
     child: Container(
