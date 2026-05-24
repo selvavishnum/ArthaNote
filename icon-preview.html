@@ -3,327 +3,451 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ArthaNote — Premium Nav Icons</title>
+<title>ArthaNote — 10 Icon Styles</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#111;font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px}
-  h1{color:#fff;font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:.5px}
-  p{color:#6b7280;font-size:12px;margin-bottom:40px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d0d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px 16px 60px;min-height:100vh}
+h1{color:#fff;font-size:20px;font-weight:800;text-align:center;margin-bottom:4px}
+.sub{color:#6b7280;font-size:12px;text-align:center;margin-bottom:28px}
 
-  .preview-card{
-    background:#1a1a1a;border-radius:20px;padding:32px 40px;
-    border:1px solid #2a2a2a;margin-bottom:32px;width:100%;max-width:560px;
-  }
-  .preview-title{color:#6b7280;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px}
+.model-card{background:#161616;border-radius:18px;padding:18px;margin-bottom:16px;border:1.5px solid #222;transition:border-color .2s,background .2s;cursor:pointer}
+.model-card:hover{border-color:#333;background:#1a1a1a}
+.model-card.selected{border-color:#4ade80;background:#0f1a14}
 
-  /* Bottom bar preview */
-  .bottom-bar{
-    background:#0f1110;border-radius:16px;padding:12px 8px 8px;
-    display:flex;justify-content:space-around;align-items:flex-end;
-    border:1px solid #1e2420;box-shadow:0 8px 32px rgba(0,0,0,.6);
-  }
-  .nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:0 8px;transition:all .2s}
-  .nav-item canvas{display:block}
-  .nav-label{font-size:9px;font-weight:600;letter-spacing:.3px;transition:color .2s}
-  .nav-item.active .nav-label{color:#4ade80}
-  .nav-item:not(.active) .nav-label{color:#4b5563}
+.model-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.model-num{background:#1e2420;color:#4ade80;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;letter-spacing:.5px}
+.model-name{color:#e5e7eb;font-size:13px;font-weight:700}
+.model-desc{color:#6b7280;font-size:10px;margin-top:1px}
+.sel-badge{background:#4ade80;color:#000;font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px;display:none}
+.model-card.selected .sel-badge{display:block}
 
-  /* All icons sheet */
-  .icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:20px;margin-top:4px}
-  .icon-cell{display:flex;flex-direction:column;align-items:center;gap:8px}
-  .icon-name{color:#4b5563;font-size:10px;text-align:center;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.icons-row{display:flex;justify-content:space-around;align-items:flex-end;padding:10px 4px 4px}
+.icon-wrap{display:flex;flex-direction:column;align-items:center;gap:5px}
+.icon-lbl{font-size:8px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
 
-  /* Style variants */
-  .variants{display:flex;gap:12px;margin-top:20px;justify-content:center}
-  .variant-btn{padding:6px 14px;border-radius:8px;border:1px solid #333;color:#9ca3af;font-size:11px;cursor:pointer;background:#1a1a1a;transition:all .15s}
-  .variant-btn.active{background:#065f46;color:#fff;border-color:#065f46}
+/* Bottom bar preview strip */
+.bar-preview{border-radius:14px;padding:10px 6px 6px;display:flex;justify-content:space-around;align-items:flex-end;margin-top:12px}
 
-  .size-note{color:#4b5563;font-size:10px;text-align:center;margin-top:16px}
+.tap-hint{color:#374151;font-size:10px;text-align:center;margin-top:10px}
+
+.select-btn{
+  width:100%;padding:14px;background:#065f46;color:#fff;border:none;border-radius:12px;
+  font-size:14px;font-weight:700;cursor:pointer;margin-top:20px;letter-spacing:.3px;
+  transition:background .15s;display:none
+}
+.select-btn:hover{background:#059669}
+.model-card.selected .select-btn{display:block}
+
+.done-bar{
+  position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #1e2420;
+  padding:12px 16px;display:none;align-items:center;justify-content:space-between;z-index:100
+}
+.done-bar.show{display:flex}
+.done-bar-lbl{color:#fff;font-size:13px;font-weight:700}
+.done-bar-sub{color:#6b7280;font-size:10px}
+.done-btn{background:#4ade80;color:#000;border:none;padding:10px 24px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer}
 </style>
 </head>
 <body>
 
-<h1>ArthaNote — Premium Nav Icons</h1>
-<p>Luxury line icons · Tap to preview active states</p>
+<h1>10 Premium Icon Styles</h1>
+<p class="sub">Tap any model to select · all 6 icons shown active + bottom bar preview</p>
 
-<!-- BOTTOM BAR LIVE PREVIEW -->
-<div class="preview-card">
-  <div class="preview-title">Live Bottom Bar Preview</div>
-  <div class="bottom-bar" id="bottom-bar">
-    <!-- populated by JS -->
-  </div>
-  <div class="size-note">Tap any icon to see active state</div>
-</div>
+<div id="models"></div>
 
-<!-- ALL ICONS SHEET -->
-<div class="preview-card">
-  <div class="preview-title">All Icons — Active & Inactive</div>
-  <div class="icon-grid" id="icon-grid">
-    <!-- populated by JS -->
-  </div>
+<div class="done-bar" id="done-bar">
+  <div><div class="done-bar-lbl" id="done-lbl">Model 1 selected</div><div class="done-bar-sub">Tap "OK this is my choice" to confirm</div></div>
+  <button class="done-btn" onclick="confirmChoice()">✓ This One!</button>
 </div>
 
 <script>
-// ─── Design tokens ────────────────────────────────────────────────────────────
-const ACTIVE   = '#4ade80';  // bright green
-const INACTIVE = '#4b5563';  // cool grey
-const GLOW     = '#065f46';  // deep green for pill bg
-const S = 28; // icon draw size (canvas is 28×28)
-const W = 1.7; // stroke width
-
-// ─── Icon draw functions ──────────────────────────────────────────────────────
-const icons = {
-
-  dashboard(ctx, active) {
-    const c = active ? ACTIVE : INACTIVE;
-    ctx.strokeStyle = c;
-    ctx.lineWidth   = W;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    const r = 2.2, g = 2;
-    // top-left square
-    rr(ctx, 3, 3, 10, 10, r);
-    // top-right square
-    rr(ctx, 15, 3, 10, 10, r);
-    // bottom-left square — taller
-    rr(ctx, 3, 15, 10, 10, r);
-    // bottom-right square
-    rr(ctx, 15, 15, 10, 10, r);
-    if(active) glow(ctx);
-  },
-
-  scan(ctx, active) {
-    const c = active ? ACTIVE : INACTIVE;
-    ctx.strokeStyle = c;
-    ctx.lineWidth   = W;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    // corner brackets — top-left
-    line(ctx, 3, 9, 3, 4); line(ctx, 3, 4, 9, 4);
-    // top-right
-    line(ctx, 19, 4, 25, 4); line(ctx, 25, 4, 25, 9);
-    // bottom-left
-    line(ctx, 3, 19, 3, 24); line(ctx, 3, 24, 9, 24);
-    // bottom-right
-    line(ctx, 19, 24, 25, 24); line(ctx, 25, 24, 25, 19);
-    // scan line
-    ctx.globalAlpha = active ? 1 : 0.6;
-    line(ctx, 5, 14, 23, 14);
-    ctx.globalAlpha = 1;
-    // small dot
-    ctx.fillStyle = c;
-    ctx.beginPath(); ctx.arc(14, 14, 1.4, 0, Math.PI*2); ctx.fill();
-  },
-
-  entry(ctx, active) {
-    const c = active ? ACTIVE : INACTIVE;
-    ctx.strokeStyle = c;
-    ctx.lineWidth   = W;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    // document base
-    rr(ctx, 5, 4, 14, 18, 2.5);
-    // horizontal lines inside
-    line(ctx, 8, 10, 16, 10);
-    line(ctx, 8, 14, 14, 14);
-    // plus badge (top-right)
-    ctx.fillStyle = active ? GLOW : '#1f2937';
-    ctx.strokeStyle = c;
-    ctx.lineWidth = W - 0.2;
-    circle(ctx, 20, 8, 5);
-    ctx.strokeStyle = c;
-    line(ctx, 20, 5.5, 20, 10.5);
-    line(ctx, 17.5, 8, 22.5, 8);
-  },
-
-  ledger(ctx, active) {
-    const c = active ? ACTIVE : INACTIVE;
-    ctx.strokeStyle = c;
-    ctx.lineWidth   = W;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    // book spine
-    line(ctx, 9, 4, 9, 24);
-    // book cover
-    rr(ctx, 9, 4, 16, 20, 2.5);
-    // left cover flap
-    ctx.beginPath();
-    ctx.moveTo(9, 4); ctx.quadraticCurveTo(4, 7, 4, 14); ctx.quadraticCurveTo(4, 21, 9, 24);
-    ctx.stroke();
-    // lines in book
-    line(ctx, 12, 10, 22, 10);
-    line(ctx, 12, 14, 22, 14);
-    line(ctx, 12, 18, 18, 18);
-  },
-
-  suppliers(ctx, active) {
-    const c = active ? ACTIVE : INACTIVE;
-    ctx.strokeStyle = c;
-    ctx.lineWidth   = W;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    // back person (smaller, offset)
-    ctx.globalAlpha = active ? 0.55 : 0.4;
-    circle(ctx, 18, 9, 4);
-    ctx.beginPath();
-    ctx.arc(18, 22, 7, Math.PI, 0);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    // front person
-    circle(ctx, 11, 10, 4.5);
-    ctx.beginPath();
-    ctx.arc(11, 24, 8.5, Math.PI, 0);
-    ctx.stroke();
-  },
-
-  reports(ctx, active) {
-    const c = active ? ACTIVE : INACTIVE;
-    ctx.strokeStyle = c;
-    ctx.lineWidth   = W;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    // bars
-    rr(ctx, 4,  16, 5, 8, 1.5);   // left bar
-    rr(ctx, 11, 10, 5, 14, 1.5);  // mid bar
-    rr(ctx, 18, 6,  5, 18, 1.5);  // right bar (tallest)
-    // trend line
-    ctx.globalAlpha = active ? 0.7 : 0.35;
-    ctx.lineWidth = W - 0.4;
-    ctx.beginPath();
-    ctx.moveTo(6.5, 15); ctx.lineTo(13.5, 9); ctx.lineTo(20.5, 5);
-    ctx.stroke();
-    // dot on peak
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = W;
-    ctx.fillStyle = c;
-    ctx.beginPath(); ctx.arc(20.5, 5, 1.8, 0, Math.PI*2); ctx.fill();
-    // x-axis
-    ctx.globalAlpha = active ? 0.35 : 0.25;
-    line(ctx, 3, 25, 25, 25);
-    ctx.globalAlpha = 1;
-  },
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function rr(ctx, x, y, w, h, r) {
+// ─── Common helpers ───────────────────────────────────────────────────────────
+function rr(ctx,x,y,w,h,r){
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();
-  ctx.stroke();
 }
-function line(ctx, x1, y1, x2, y2) {
-  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+function ln(ctx,x1,y1,x2,y2){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}
+function circ(ctx,cx,cy,r){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2)}
+function grad(ctx,x1,y1,x2,y2,c1,c2){const g=ctx.createLinearGradient(x1,y1,x2,y2);g.addColorStop(0,c1);g.addColorStop(1,c2);return g}
+function radGrad(ctx,cx,cy,r,c1,c2){const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,c1);g.addColorStop(1,c2);return g}
+
+// ─── 10 Style definitions ──────────────────────────────────────────────────────
+const STYLES = [
+
+// ① Ultra Thin — Apple-inspired feather light strokes
+{
+  name:'Ultra Thin', desc:'Apple-inspired · featherlight 1.2px strokes',
+  bg:'#0d1a0f', pill:'transparent', pillBorder:'#4ade80',
+  draw(ctx,icon,active){
+    const c=active?'#4ade80':'#3d4d42';
+    ctx.strokeStyle=c; ctx.lineWidth=1.2; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.fillStyle=c;
+    drawIcon(ctx,icon,'stroke',c,1.2);
+  }
+},
+
+// ② Duotone — two-layer depth
+{
+  name:'Duotone', desc:'Two-tone depth · filled base + accent',
+  bg:'#051209', pill:'rgba(74,222,128,.12)', pillBorder:'transparent',
+  draw(ctx,icon,active){
+    const base=active?'rgba(74,222,128,.18)':'rgba(75,85,99,.12)';
+    const acc =active?'#4ade80':'#4b5563';
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    drawIcon(ctx,icon,'duotone',acc,2,base);
+  }
+},
+
+// ③ Bold Rounded — thick friendly premium
+{
+  name:'Bold Rounded', desc:'Chunky 2.8px · warm and premium',
+  bg:'#0a1a0f', pill:'#065f46', pillBorder:'transparent',
+  draw(ctx,icon,active){
+    const c=active?'#ffffff':'#4b5563';
+    ctx.strokeStyle=c; ctx.lineWidth=2.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.fillStyle=c;
+    drawIcon(ctx,icon,'stroke',c,2.8);
+  }
+},
+
+// ④ Solid Fill — clean Material-style filled
+{
+  name:'Solid Fill', desc:'Fully filled · clean Material luxury',
+  bg:'#0a1508', pill:'transparent', pillBorder:'transparent',
+  draw(ctx,icon,active){
+    const c=active?'#4ade80':'#374151';
+    ctx.fillStyle=c; ctx.strokeStyle=c; ctx.lineWidth=1; ctx.lineCap='round'; ctx.lineJoin='round';
+    drawIcon(ctx,icon,'fill',c,1);
+  }
+},
+
+// ⑤ Neon Glow — glowing neon effect
+{
+  name:'Neon Glow', desc:'Electric neon · glowing strokes',
+  bg:'#080f09', pill:'rgba(74,222,128,.08)', pillBorder:'rgba(74,222,128,.3)',
+  draw(ctx,icon,active){
+    if(active){
+      ctx.shadowColor='#4ade80'; ctx.shadowBlur=8;
+    }
+    const c=active?'#4ade80':'#2d3d32';
+    ctx.strokeStyle=c; ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.fillStyle=c;
+    drawIcon(ctx,icon,'stroke',c,1.8);
+    ctx.shadowBlur=0;
+  }
+},
+
+// ⑥ Gradient Stroke — green→teal gradient
+{
+  name:'Gradient Stroke', desc:'Green→teal gradient · vivid premium',
+  bg:'#060e08', pill:'transparent', pillBorder:'transparent',
+  draw(ctx,icon,active){
+    if(active){
+      const g=grad(ctx,0,0,28,28,'#4ade80','#22d3ee');
+      ctx.strokeStyle=g; ctx.fillStyle=g;
+    } else {
+      ctx.strokeStyle='#374151'; ctx.fillStyle='#374151';
+    }
+    ctx.lineWidth=1.9; ctx.lineCap='round'; ctx.lineJoin='round';
+    drawIcon(ctx,icon,'stroke',active?'grad':'#374151',1.9);
+  }
+},
+
+// ⑦ Sharp Geometric — straight lines, angular luxury
+{
+  name:'Sharp Geometric', desc:'Angular precision · no curves',
+  bg:'#0b1209', pill:'rgba(74,222,128,.1)', pillBorder:'rgba(74,222,128,.2)',
+  draw(ctx,icon,active){
+    const c=active?'#4ade80':'#374151';
+    ctx.strokeStyle=c; ctx.lineWidth=1.6; ctx.lineCap='square'; ctx.lineJoin='miter'; ctx.fillStyle=c;
+    drawIcon(ctx,icon,'sharp',c,1.6);
+  }
+},
+
+// ⑧ Card Chip — icon inside glassy square
+{
+  name:'Card Chip', desc:'Icon inside glassy chip · elevated',
+  bg:'#0d150b', pill:'transparent', pillBorder:'transparent',
+  draw(ctx,icon,active){
+    if(active){
+      // glass card bg
+      ctx.fillStyle='rgba(74,222,128,.15)';
+      rr(ctx,2,2,24,24,6); ctx.fill();
+      ctx.strokeStyle='rgba(74,222,128,.4)'; ctx.lineWidth=.8;
+      rr(ctx,2,2,24,24,6); ctx.stroke();
+    }
+    const c=active?'#4ade80':'#374151';
+    ctx.strokeStyle=c; ctx.lineWidth=1.7; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.fillStyle=c;
+    drawIcon(ctx,icon,'stroke',c,1.7);
+  }
+},
+
+// ⑨ Outline + Dot accents
+{
+  name:'Outline + Dots', desc:'Clean outline with dot accents · refined',
+  bg:'#080f08', pill:'transparent', pillBorder:'transparent',
+  draw(ctx,icon,active){
+    const c=active?'#4ade80':'#374151';
+    ctx.strokeStyle=c; ctx.lineWidth=1.6; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.fillStyle=c;
+    drawIcon(ctx,icon,'dotted',c,1.6);
+  }
+},
+
+// ⑩ 3D Isometric — subtle depth/shadow layer
+{
+  name:'3D Depth', desc:'Subtle shadow offset · dimensional',
+  bg:'#090e07', pill:'transparent', pillBorder:'transparent',
+  draw(ctx,icon,active){
+    // shadow layer offset
+    ctx.strokeStyle=active?'rgba(6,95,70,.6)':'rgba(30,40,30,.5)';
+    ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.fillStyle='rgba(6,95,70,.4)';
+    ctx.translate(1.5,1.5);
+    drawIcon(ctx,icon,'stroke',null,1.8);
+    ctx.translate(-1.5,-1.5);
+    // main layer
+    const c=active?'#4ade80':'#374151';
+    ctx.strokeStyle=c; ctx.fillStyle=c;
+    drawIcon(ctx,icon,'stroke',c,1.8);
+  }
+},
+];
+
+// ─── Unified icon draw — all 6 icons, supports style variants ─────────────────
+function drawIcon(ctx,icon,mode,c,sw,base){
+  const round = mode==='sharp'?0:2.2;
+  const lc = mode==='sharp'?'square':'round';
+  ctx.lineCap=lc; ctx.lineJoin=mode==='sharp'?'miter':'round';
+
+  function s(){ ctx.stroke() }
+  function f(){ ctx.fill() }
+  function sf(){ ctx.fill(); ctx.stroke() }
+
+  if(icon==='dashboard'){
+    if(mode==='fill'||mode==='duotone'){
+      if(base){ctx.fillStyle=base; rr(ctx,3,3,10,10,round);f(); rr(ctx,15,3,10,10,round);f(); rr(ctx,3,15,10,10,round);f(); rr(ctx,15,15,10,10,round);f();}
+      ctx.fillStyle=c;
+      rr(ctx,3.5,3.5,9,9,round);f();
+      rr(ctx,15.5,3.5,9,9,round);f();
+      rr(ctx,3.5,15.5,9,9,round);f();
+      rr(ctx,15.5,15.5,9,9,round);f();
+    } else {
+      rr(ctx,3,3,10,10,round);s();
+      rr(ctx,15,3,10,10,round);s();
+      rr(ctx,3,15,10,10,round);s();
+      rr(ctx,15,15,10,10,round);s();
+    }
+    if(mode==='dotted'){
+      ctx.fillStyle=c;
+      circ(ctx,22,22,1.5);f();
+    }
+  }
+
+  else if(icon==='scan'){
+    const corners=[[3,3],[25,3],[3,25],[25,25]];
+    if(mode==='fill'||mode==='solid'){
+      // filled corner brackets
+      corners.forEach(([x,y])=>{
+        const dx=x<14?1:-1, dy=y<14?1:-1;
+        ctx.beginPath();
+        ctx.moveTo(x,y+dy*7); ctx.lineTo(x,y); ctx.lineTo(x+dx*7,y);
+        ctx.lineWidth=sw+.5; s();
+      });
+    } else {
+      corners.forEach(([x,y])=>{
+        const dx=x<14?1:-1, dy=y<14?1:-1;
+        ctx.beginPath();
+        ctx.moveTo(x,y+dy*6); ctx.lineTo(x,y); ctx.lineTo(x+dx*6,y); s();
+      });
+    }
+    // scan line
+    ctx.globalAlpha=.7;
+    ln(ctx,5,14,23,14);
+    ctx.globalAlpha=1;
+    ctx.fillStyle=c; circ(ctx,14,14,1.6);f();
+    if(mode==='dotted'){circ(ctx,14,6,1.2);f(); circ(ctx,14,22,1.2);f();}
+  }
+
+  else if(icon==='entry'){
+    // document
+    rr(ctx,4,3,15,20,round); s();
+    // lines
+    ln(ctx,7.5,10,16.5,10); ln(ctx,7.5,14,14,14);
+    // plus circle
+    if(mode==='fill'||mode==='duotone'){
+      ctx.fillStyle=base||'rgba(74,222,128,.15)';
+      circ(ctx,20,8,5);f();
+    }
+    ctx.strokeStyle=c; circ(ctx,20,8,5);s();
+    ctx.lineWidth=sw+.1;
+    ln(ctx,20,5,20,11); ln(ctx,17,8,23,8);
+    if(mode==='dotted'){ctx.fillStyle=c;circ(ctx,8,18,1.3);f();}
+  }
+
+  else if(icon==='ledger'){
+    if(mode==='sharp'){
+      // rectangular book, sharp
+      rr(ctx,9,3,15,22,0);s();
+      ln(ctx,9,3,9,25);
+      ctx.beginPath();ctx.moveTo(9,3);ctx.lineTo(4,6);ctx.lineTo(4,22);ctx.lineTo(9,25);s();
+    } else {
+      rr(ctx,9,3,15,22,round);s();
+      ln(ctx,9,3,9,25);
+      ctx.beginPath();
+      ctx.moveTo(9,3);ctx.quadraticCurveTo(4,7,4,14);ctx.quadraticCurveTo(4,21,9,25);s();
+    }
+    ln(ctx,12,10,21,10); ln(ctx,12,14,21,14); ln(ctx,12,18,17,18);
+    if(mode==='fill'){
+      ctx.fillStyle=c;ctx.globalAlpha=.15;
+      rr(ctx,9,3,15,22,round);f();ctx.globalAlpha=1;
+    }
+    if(mode==='dotted'){ctx.fillStyle=c;circ(ctx,19,18,1.3);f();}
+  }
+
+  else if(icon==='suppliers'){
+    // back person
+    ctx.globalAlpha=.4;
+    circ(ctx,18,9,4);s();
+    ctx.beginPath();ctx.arc(18,23,7.5,Math.PI,0);s();
+    ctx.globalAlpha=1;
+    // front person
+    circ(ctx,11,10,4.5);s();
+    ctx.beginPath();ctx.arc(11,25,9,Math.PI,0);s();
+    if(mode==='fill'||mode==='solid'){
+      ctx.globalAlpha=.2;ctx.fillStyle=c;
+      circ(ctx,11,10,4.5);f();ctx.globalAlpha=1;
+    }
+    if(mode==='dotted'){ctx.fillStyle=c;circ(ctx,23,8,1.3);f();}
+  }
+
+  else if(icon==='reports'){
+    if(mode==='fill'||mode==='solid'){
+      ctx.fillStyle=c;
+      rr(ctx,4,16,5,9,1.2);f();
+      rr(ctx,11,10,5,15,1.2);f();
+      rr(ctx,18,5,5,20,1.2);f();
+    } else {
+      rr(ctx,4,16,5,9,round);s();
+      rr(ctx,11,10,5,15,round);s();
+      rr(ctx,18,5,5,20,round);s();
+    }
+    ctx.globalAlpha=.55;
+    ctx.beginPath();ctx.moveTo(6.5,15);ctx.lineTo(13.5,9);ctx.lineTo(20.5,4.5);s();
+    ctx.globalAlpha=1;
+    ctx.fillStyle=c;circ(ctx,20.5,4.5,2);f();
+    ctx.globalAlpha=.25;
+    ln(ctx,3,26,25,26);
+    ctx.globalAlpha=1;
+    if(mode==='dotted'){ctx.fillStyle=c;circ(ctx,6.5,15.5,1.3);f();circ(ctx,13.5,9.5,1.3);f();}
+  }
 }
-function circle(ctx, cx, cy, r) {
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
-}
-function glow(ctx) {
-  // subtle green dot under active icon
-}
-function makeCanvas(size) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  c.style.width = c.style.height = size + 'px';
+
+// ─── Build the page ───────────────────────────────────────────────────────────
+const ICON_KEYS = ['dashboard','scan','entry','ledger','suppliers','reports'];
+const ICON_LBLS = ['Home','Scan','Entry','Ledger','Suppliers','Reports'];
+let selectedModel = null;
+
+function makeIcon(styleObj, iconKey, active, size=32){
+  const dpr=window.devicePixelRatio||1;
+  const c=document.createElement('canvas');
+  c.width=c.height=size*dpr;
+  c.style.width=c.style.height=size+'px';
+  const ctx=c.getContext('2d');
+  ctx.scale(dpr*(size/28),dpr*(size/28));
+  styleObj.draw(ctx,iconKey,active);
   return c;
 }
 
-// ─── Render bottom bar ────────────────────────────────────────────────────────
-const iconList = [
-  {key:'dashboard', label:'Home'},
-  {key:'scan',      label:'Scan'},
-  {key:'entry',     label:'Entry'},
-  {key:'ledger',    label:'Ledger'},
-  {key:'suppliers', label:'Suppliers'},
-  {key:'reports',   label:'Reports'},
-];
+function buildModels(){
+  const container=document.getElementById('models');
+  STYLES.forEach((style,si)=>{
+    const card=document.createElement('div');
+    card.className='model-card';
+    card.id='model-'+si;
 
-let activeIdx = 0;
+    card.innerHTML=`
+      <div class="model-hd">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="model-num">MODEL ${si+1}</div>
+            <span class="sel-badge">SELECTED ✓</span>
+          </div>
+          <div class="model-name" style="margin-top:5px">${style.name}</div>
+          <div class="model-desc">${style.desc}</div>
+        </div>
+      </div>`;
 
-function renderBar() {
-  const bar = document.getElementById('bottom-bar');
-  bar.innerHTML = '';
-  iconList.forEach((ic, i) => {
-    const isActive = i === activeIdx;
-    const item = document.createElement('div');
-    item.className = 'nav-item' + (isActive ? ' active' : '');
+    // Icons row — active
+    const row=document.createElement('div');
+    row.className='icons-row';
+    row.style.background=style.bg||'#0d0d0d';
+    row.style.borderRadius='10px';
 
-    // pill bg for active
-    const wrap = document.createElement('div');
-    wrap.style.cssText = isActive
-      ? `background:${GLOW};border-radius:10px;padding:5px 10px;transition:all .2s`
-      : `padding:5px 10px`;
+    ICON_KEYS.forEach((key,i)=>{
+      const cell=document.createElement('div');
+      cell.className='icon-wrap';
 
-    const c = makeCanvas(28);
-    const ctx = c.getContext('2d');
-    ctx.clearRect(0,0,28,28);
-    icons[ic.key](ctx, isActive);
-    wrap.appendChild(c);
+      const pillDiv=document.createElement('div');
+      pillDiv.style.cssText=`background:${style.pill||'transparent'};border:1.5px solid ${style.pillBorder||'transparent'};border-radius:10px;padding:6px 8px`;
+      pillDiv.appendChild(makeIcon(style,key,true,28));
 
-    const lbl = document.createElement('div');
-    lbl.className = 'nav-label';
-    lbl.textContent = ic.label;
+      const lbl=document.createElement('div');
+      lbl.className='icon-lbl';
+      lbl.style.color=style.pill&&style.pill!=='transparent'?'#4ade80':'#4ade80';
+      lbl.style.opacity='.7';
+      lbl.textContent=ICON_LBLS[i];
 
-    item.appendChild(wrap);
-    item.appendChild(lbl);
-    item.onclick = () => { activeIdx = i; renderBar(); };
-    bar.appendChild(item);
+      cell.appendChild(pillDiv);
+      cell.appendChild(lbl);
+      row.appendChild(cell);
+    });
+    card.appendChild(row);
+
+    // Bottom bar preview strip
+    const bar=document.createElement('div');
+    bar.className='bar-preview';
+    bar.style.cssText=`background:${style.bg||'#0d0d0d'};margin-top:10px;border-radius:12px;border:1px solid #1e2420`;
+    ICON_KEYS.forEach((key,i)=>{
+      const cell=document.createElement('div');
+      cell.className='icon-wrap';
+      const active=i===0;
+      const pillDiv=document.createElement('div');
+      pillDiv.style.cssText=active?`background:${style.pill||'transparent'};border:1.5px solid ${style.pillBorder||'transparent'};border-radius:9px;padding:4px 7px`:'padding:4px 7px';
+      pillDiv.appendChild(makeIcon(style,key,active,22));
+      const lbl=document.createElement('div');
+      lbl.className='icon-lbl';
+      lbl.style.color=active?'#4ade80':'#374151';
+      lbl.textContent=ICON_LBLS[i];
+      cell.appendChild(pillDiv);
+      cell.appendChild(lbl);
+      bar.appendChild(cell);
+    });
+    card.appendChild(bar);
+
+    card.onclick=()=>selectModel(si);
+    container.appendChild(card);
   });
 }
 
-// ─── Render icon grid ─────────────────────────────────────────────────────────
-function renderGrid() {
-  const grid = document.getElementById('icon-grid');
-  grid.innerHTML = '';
-  iconList.forEach(ic => {
-    const cell = document.createElement('div');
-    cell.className = 'icon-cell';
-
-    // active canvas (large)
-    const ca = makeCanvas(40);
-    const cax = ca.getContext('2d');
-    cax.scale(40/28, 40/28);
-    icons[ic.key](cax, true);
-
-    // inactive canvas
-    const ci = makeCanvas(40);
-    const cix = ci.getContext('2d');
-    cix.scale(40/28, 40/28);
-    icons[ic.key](cix, false);
-
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px';
-
-    const activeWrap = document.createElement('div');
-    activeWrap.style.cssText = `background:${GLOW};border-radius:10px;padding:6px 8px`;
-    activeWrap.appendChild(ca);
-
-    const inactiveWrap = document.createElement('div');
-    inactiveWrap.style.cssText = 'background:#1a1a1a;border-radius:10px;padding:6px 8px;border:1px solid #2a2a2a';
-    inactiveWrap.appendChild(ci);
-
-    row.appendChild(activeWrap);
-    row.appendChild(inactiveWrap);
-
-    const lbl = document.createElement('div');
-    lbl.className = 'icon-name';
-    lbl.textContent = ic.label;
-
-    cell.appendChild(row);
-    cell.appendChild(lbl);
-    grid.appendChild(cell);
-  });
+function selectModel(idx){
+  document.querySelectorAll('.model-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('model-'+idx).classList.add('selected');
+  selectedModel=idx;
+  document.getElementById('done-lbl').textContent='Model '+(idx+1)+' — '+STYLES[idx].name+' selected';
+  document.getElementById('done-bar').classList.add('show');
+  document.getElementById('model-'+idx).scrollIntoView({behavior:'smooth',block:'center'});
 }
 
-renderBar();
-renderGrid();
+function confirmChoice(){
+  if(selectedModel===null)return;
+  alert('✅ Model '+(selectedModel+1)+' — '+STYLES[selectedModel].name+'\n\nSend your choice to Claude and I will implement it in the app!');
+}
+
+buildModels();
 </script>
 </body>
 </html>
