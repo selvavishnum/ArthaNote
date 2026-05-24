@@ -29,6 +29,8 @@ class _LedgerTabState extends State<LedgerTab> {
   DateTimeRange? _customRange;
   DateTime? _monthStart;              // null = current month
   final Set<String> _collapsed = {};  // day keys that are folded
+  List<String> _duplicateWarnings = [];
+  bool _dupBannerDismissed = false;
 
   static const _typeOptions = [
     {'key': 'all',     'label': 'All'},
@@ -219,6 +221,34 @@ class _LedgerTabState extends State<LedgerTab> {
     }
   }
 
+  // ── Detect duplicate entries ──────────────────────────────────────────────
+  List<String> _detectDuplicates(List<Txn> all) {
+    final now      = DateTime.now();
+    final cutoff   = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
+    final recent   = all.where((tx) => !tx.date.isBefore(cutoff)).toList();
+    final warnings = <String>[];
+
+    for (int i = 0; i < recent.length; i++) {
+      for (int j = i + 1; j < recent.length; j++) {
+        final a = recent[i];
+        final b = recent[j];
+        if (a.desc.isNotEmpty &&
+            a.desc == b.desc &&
+            a.shop == b.shop &&
+            a.type == b.type) {
+          final ratio = a.amount > 0 ? (b.amount - a.amount).abs() / a.amount : 0.0;
+          if (ratio <= 0.10) {
+            final warn = '⚠️ Possible duplicate: "${a.desc}" (${a.type}) ₹${a.amount.toStringAsFixed(0)} & ₹${b.amount.toStringAsFixed(0)}';
+            if (!warnings.contains(warn)) {
+              warnings.add(warn);
+            }
+          }
+        }
+      }
+    }
+    return warnings.take(3).toList();
+  }
+
   // ── Apply all filters ─────────────────────────────────────────────────────
   List<Txn> _applyFilters(List<Txn> all, String selectedShop) {
     final r = _range();
@@ -268,6 +298,16 @@ class _LedgerTabState extends State<LedgerTab> {
           );
         }
         final all  = snap.data ?? [];
+        // Detect duplicates whenever data changes
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final dups = _detectDuplicates(all);
+          if (dups.toString() != _duplicateWarnings.toString()) {
+            setState(() {
+              _duplicateWarnings = dups;
+              _dupBannerDismissed = false;
+            });
+          }
+        });
         final txns = _applyFilters(all, p.selectedShop);
 
         final totalSales   = txns.where((x) => x.type == 'sale')
@@ -286,6 +326,30 @@ class _LedgerTabState extends State<LedgerTab> {
 
         return Column(children: [
           _buildHeader(txns, txns.length, totalSales, totalExpense, l),
+          // Duplicate warning banner
+          if (_duplicateWarnings.isNotEmpty && !_dupBannerDismissed)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFBBF24)),
+              ),
+              child: Row(children: [
+                const Text('⚠️', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _duplicateWarnings.map((w) => Text(w,
+                      style: TextStyle(color: Colors.amber.shade900, fontSize: 11))).toList(),
+                )),
+                GestureDetector(
+                  onTap: () => setState(() => _dupBannerDismissed = true),
+                  child: const Icon(Icons.close, size: 16, color: kMuted),
+                ),
+              ]),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: TextFormField(

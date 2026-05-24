@@ -892,38 +892,102 @@ class _StaffSheetState extends State<_StaffSheet> {
     final nameCtrl  = TextEditingController(text: (existing?['name']  as String?) ?? '');
     final emailCtrl = TextEditingController(text: (existing?['email'] as String?) ?? '');
     String role = (existing?['role'] as String?) ?? 'cashier';
+    String selectedShopId = (existing?['shop'] as String?) ?? '';
+
+    // Get shops from provider
+    final p = ctx.read<AppProvider>();
+    final shops = p.shops;
 
     showDialog<void>(
       context: ctx,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) => AlertDialog(
           title: Text(docId != null ? 'Edit Staff' : 'Add Staff'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Gmail / Email'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: role,
-                decoration: const InputDecoration(labelText: 'Role'),
-                items: _roles
-                    .map((r) => DropdownMenuItem(
-                          value: r,
-                          child: Text(r[0].toUpperCase() + r.substring(1)),
-                        ))
-                    .toList(),
-                onChanged: (v) => setDialogState(() => role = v ?? 'cashier'),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Gmail / Email'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: role,
+                  decoration: const InputDecoration(labelText: 'Role'),
+                  items: _roles
+                      .map((r) => DropdownMenuItem(
+                            value: r,
+                            child: Text(r[0].toUpperCase() + r.substring(1)),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setDialogState(() => role = v ?? 'cashier'),
+                ),
+                if (shops.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Shop Access',
+                      style: TextStyle(fontSize: 12, color: kMuted, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      GestureDetector(
+                        onTap: () => setDialogState(() => selectedShopId = ''),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: selectedShopId.isEmpty ? kPrimary : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: selectedShopId.isEmpty ? kPrimary : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Text(
+                            'All Shops',
+                            style: TextStyle(
+                              color: selectedShopId.isEmpty ? Colors.white : kText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      ...shops.values.map((shop) => GestureDetector(
+                        onTap: () => setDialogState(() => selectedShopId = shop.id),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: selectedShopId == shop.id ? kPrimary : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: selectedShopId == shop.id ? kPrimary : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Text(
+                            '${shop.icon} ${shop.name}',
+                            style: TextStyle(
+                              color: selectedShopId == shop.id ? Colors.white : kText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      )),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -936,6 +1000,7 @@ class _StaffSheetState extends State<_StaffSheet> {
                   'name':       nameCtrl.text.trim(),
                   'email':      emailCtrl.text.trim(),
                   'role':       role,
+                  'shop':       selectedShopId,
                   'businessId': widget.businessId,
                 };
                 final col = FirebaseFirestore.instance.collection('staff');

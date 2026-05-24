@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../providers/app_provider.dart';
@@ -30,6 +31,66 @@ class _HomeScreenState extends State<HomeScreen> {
     const SuppliersTab(),
     const ReportsTab(),
   ];
+
+  void _showAiFab(BuildContext context, bool isAdmin) {
+    final entryIdx  = isAdmin ? 2 : 1;
+    final reportsIdx = isAdmin ? 5 : 4;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(height: 16),
+          const Text('Quick Actions',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          const SizedBox(height: 16),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            _FabChip(
+              label: '➕ Quick Entry',
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _tab = entryIdx);
+              },
+            ),
+            _FabChip(
+              label: '📊 View Reports',
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() => _tab = reportsIdx);
+              },
+            ),
+            _FabChip(
+              label: '↻ Sync Data',
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() {});
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Data refreshed'), behavior: SnackBarBehavior.floating),
+                );
+              },
+            ),
+            _FabChip(
+              label: '💼 Finance',
+              onTap: () {
+                Navigator.pop(ctx);
+                launchUrl(
+                  Uri.parse('https://selvavishnum.github.io/Kannakupilai/finance.html'),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
 
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
@@ -85,6 +146,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       bottomNavigationBar: _buildBottomNav(p.lang, isAdmin),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: kPrimary,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.bolt_rounded),
+        onPressed: () => _showAiFab(context, isAdmin),
+      ),
     );
   }
 
@@ -253,50 +320,69 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l, bool isAdmin) => BottomNavigationBar(
-    currentIndex: _tab.clamp(0, isAdmin ? 5 : 4),
-    onTap: (i) => setState(() => _tab = i),
-    type: BottomNavigationBarType.fixed,
-    backgroundColor: Colors.white,
-    selectedItemColor: kPrimary,
-    unselectedItemColor: const Color(0xFF9CA3AF),
-    selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
-    unselectedLabelStyle: const TextStyle(fontSize: 10),
-    elevation: 16,
-    items: [
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.dashboard_outlined),
-        activeIcon: const Icon(Icons.dashboard),
-        label: t('dashboard', l),
-      ),
-      if (isAdmin)
+  Widget _buildBottomNav(String l, bool isAdmin) {
+    final maxIdx = isAdmin ? 6 : 5;
+    return BottomNavigationBar(
+      currentIndex: _tab.clamp(0, maxIdx),
+      onTap: (i) {
+        // Finance tab: launch browser instead of switching tab
+        final financeIdx = isAdmin ? 6 : 5;
+        if (i == financeIdx) {
+          launchUrl(
+            Uri.parse('https://selvavishnum.github.io/Kannakupilai/finance.html'),
+            mode: LaunchMode.externalApplication,
+          );
+          return;
+        }
+        setState(() => _tab = i);
+      },
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: kPrimary,
+      unselectedItemColor: const Color(0xFF9CA3AF),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
+      unselectedLabelStyle: const TextStyle(fontSize: 10),
+      elevation: 16,
+      items: [
         BottomNavigationBarItem(
-          icon: const Icon(Icons.document_scanner_outlined),
-          activeIcon: const Icon(Icons.document_scanner),
-          label: t('scan', l),
+          icon: const Icon(Icons.dashboard_outlined),
+          activeIcon: const Icon(Icons.dashboard),
+          label: t('dashboard', l),
         ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.add_circle_outline),
-        activeIcon: const Icon(Icons.add_circle),
-        label: t('entry', l),
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.receipt_long_outlined),
-        activeIcon: const Icon(Icons.receipt_long),
-        label: t('ledger', l),
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.people_outline),
-        activeIcon: const Icon(Icons.people),
-        label: t('suppliers', l),
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.bar_chart_outlined),
-        activeIcon: const Icon(Icons.bar_chart),
-        label: t('reports', l),
-      ),
-    ],
-  );
+        if (isAdmin)
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.document_scanner_outlined),
+            activeIcon: const Icon(Icons.document_scanner),
+            label: t('scan', l),
+          ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.add_circle_outline),
+          activeIcon: const Icon(Icons.add_circle),
+          label: t('entry', l),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.receipt_long_outlined),
+          activeIcon: const Icon(Icons.receipt_long),
+          label: t('ledger', l),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.people_outline),
+          activeIcon: const Icon(Icons.people),
+          label: t('suppliers', l),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.bar_chart_outlined),
+          activeIcon: const Icon(Icons.bar_chart),
+          label: t('reports', l),
+        ),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.account_balance_wallet_outlined),
+          activeIcon: const Icon(Icons.account_balance_wallet),
+          label: 'Finance',
+        ),
+      ],
+    );
+  }
 
   String _badgeLabel(AppProvider p) {
     if (p.isAdmin) return 'Admin';
@@ -315,6 +401,34 @@ class _HomeScreenState extends State<HomeScreen> {
     if (p.profile['pro'] == true) return const Color(0xFFD97706);
     return const Color(0xFF16A34A);
   }
+}
+
+// ── FAB quick-action chip ─────────────────────────────────────────────────────
+class _FabChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _FabChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: kPrimary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: kPrimary.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: kPrimary,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
+        ),
+      ),
+    ),
+  );
 }
 
 // ── Shop chip widget ──────────────────────────────────────────────────────────
