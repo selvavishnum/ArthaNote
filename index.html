@@ -552,6 +552,21 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 #toast.ok{background:var(--green);color:#fff}
 #toast.bad{background:var(--red);color:#fff}
 #toast.warn{background:var(--yellow);color:#fff}
+/* ── Live AI Assistant FAB + Panel ── */
+#ai-fab{position:fixed;bottom:72px;right:14px;z-index:1500;width:52px;height:52px;border-radius:50%;border:none;background:linear-gradient(135deg,#065f46,#059669);color:#fff;font-size:22px;box-shadow:0 4px 14px rgba(6,95,70,.45);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+#ai-fab-badge{position:absolute;top:1px;right:1px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;border:2px solid #fff}
+@keyframes aiFabPulse{0%,100%{box-shadow:0 4px 14px rgba(6,95,70,.45)}50%{box-shadow:0 4px 22px rgba(239,68,68,.65)}}
+#ai-fab.has-alert{animation:aiFabPulse 2s infinite}
+#ai-panel{position:fixed;bottom:0;left:0;right:0;max-height:65vh;background:#fff;border-radius:20px 20px 0 0;z-index:1490;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:0 -4px 24px rgba(0,0,0,.15)}
+#ai-panel.open{transform:translateY(0)}
+#ai-panel-hd{background:linear-gradient(135deg,#065f46,#059669);border-radius:20px 20px 0 0;padding:13px 16px;display:flex;align-items:center;justify-content:space-between}
+#ai-panel-body{padding:14px;overflow-y:auto;max-height:calc(65vh - 56px)}
+.ai-q-chip{display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;color:#065f46;cursor:pointer;margin:3px 2px;font-family:var(--sans)}
+.ai-q-chip:active{background:#d1fae5}
+.ai-q-chip.warn{background:#fffbeb;border-color:#fcd34d;color:#92400e}
+.ai-q-chip.red{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.ai-panel-section{margin-bottom:14px}
+.ai-panel-section-hd{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
 #toast.info{background:var(--blue);color:#fff}
 
 .empty{text-align:center;padding:28px;color:var(--muted);font-size:13px}
@@ -4578,6 +4593,7 @@ function renderDash(){
     <div class="crow"><span>Total Expenses</span><span style="color:var(--red)">-₹${fmt(e)}</span></div>
     <div class="crow"><span>Supplier Payments</span><span style="color:var(--yellow)">-₹${fmt(p)}</span></div>
     <div class="crow"><span>Net Cash Flow</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>`;
+  _updateAiFabBadge();
 }
 
 // ════════════════════════════════════════
@@ -7052,6 +7068,8 @@ function goPane(name,btn){
   if(name==='entry') loadQB();
   if(name==='ledger') renderLedger();
   if(name==='scan'){const sd=document.getElementById('sc-date');if(sd&&!sd.value)sd.value=tod();}
+  // Refresh AI panel content when tab changes
+  if(document.getElementById('ai-panel')?.classList.contains('open')) renderAiPanel();
 }
 function closeM(id){ document.getElementById(id)?.classList.remove('on'); }
 document.querySelectorAll('.mover').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('on');}));
@@ -7173,6 +7191,238 @@ function installPWA(){
   _installPrompt.prompt();
   _installPrompt.userChoice.then(()=>_installPrompt=null);
 }
+
+// ════════════════════════════════════════
+// LIVE AI ASSISTANT — FAB + CONTEXT PANEL
+// ════════════════════════════════════════
+function toggleAiPanel(){
+  const p=document.getElementById('ai-panel');
+  if(!p) return;
+  if(p.classList.contains('open')) closeAiPanel();
+  else { renderAiPanel(); p.classList.add('open'); }
+}
+function closeAiPanel(){
+  document.getElementById('ai-panel')?.classList.remove('open');
+}
+
+function renderAiPanel(){
+  const panel=document.getElementById('ai-panel');
+  const body=document.getElementById('ai-panel-body');
+  const sub=document.getElementById('ai-panel-sub');
+  if(!panel||!body) return;
+  // Detect current active pane
+  const activePane=[...document.querySelectorAll('.pane.on')][0]?.id?.replace('pane-','')||'dash';
+  const labels={dash:'Dashboard',entry:'Add Entry',ledger:'Ledger',report:'Reports',sup:'Suppliers',scan:'Scan OCR',finance:'Finance'};
+  if(sub) sub.textContent=(labels[activePane]||activePane)+' — live context';
+  // Render context-specific content
+  if(activePane==='entry') body.innerHTML=_aiPanelEntry();
+  else if(activePane==='report') body.innerHTML=_aiPanelReports();
+  else if(activePane==='ledger') body.innerHTML=_aiPanelLedger();
+  else if(activePane==='sup') body.innerHTML=_aiPanelSupplier();
+  else body.innerHTML=_aiPanelDash();
+}
+
+// Dashboard context — missing entries, shop health, top insight
+function _aiPanelDash(){
+  const hr=new Date().getHours();
+  const greet=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+  const todayCount=TXS.filter(t=>t.date===tod()).length;
+  let html=`<div class="ai-panel-section">
+    <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:2px">${hr<12?'🌅':hr<17?'☀️':'🌙'} ${greet}!</div>
+    <div style="font-size:11px;color:var(--muted)">${todayCount} entr${todayCount===1?'y':'ies'} recorded today</div>
+  </div>`;
+  // Missing entries
+  const missing=checkMissingEntries(_shop).slice(0,4);
+  if(missing.length){
+    html+=`<div class="ai-panel-section"><div class="ai-panel-section-hd">⚡ Quick Add — AI expects these today</div><div style="display:flex;flex-wrap:wrap">`;
+    missing.forEach(m=>{
+      const shopName=SHOPS[m.shop]?.name||m.shop;
+      html+=`<span class="ai-q-chip" onclick="quickAddMissing('${esc(m.desc)}','${m.type}','${m.shop}');closeAiPanel()">+ ${esc(m.desc)}</span>`;
+    });
+    html+=`</div></div>`;
+  }
+  // Shop health
+  const shopKeys=Object.keys(SHOPS);
+  if(shopKeys.length){
+    html+=`<div class="ai-panel-section"><div class="ai-panel-section-hd">🏪 Shop Health</div><div style="display:flex;flex-direction:column;gap:5px">`;
+    shopKeys.forEach(id=>{
+      const sh=SHOPS[id];const h=_shopHealthScore(id);
+      html+=`<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;background:var(--soft);border-radius:8px;padding:6px 10px">
+        <span>${sh.icon||'🏪'} ${esc(sh.name)}</span>
+        <span style="font-weight:700">${h.badge} ${h.label}</span>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  }
+  // Top insight
+  const insights=_generateAiInsights();
+  if(insights.length){
+    const ins=insights[0];
+    html+=`<div class="ai-panel-section"><div class="ai-panel-section-hd">💡 Today's Insight</div>
+      <div style="background:${ins.bg||'#f0fdf4'};border-left:3px solid ${ins.color||'#059669'};padding:9px 11px;border-radius:8px;font-size:12px">
+        <span style="font-size:15px;margin-right:6px">${ins.icon}</span>${ins.text}
+      </div></div>`;
+  }
+  return html;
+}
+
+// Entry form context — top pattern chips for today's weekday + current shop
+function _aiPanelEntry(){
+  const day=new Date().getDay();
+  const dayNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const shopId=document.getElementById('m-shop')?.value||Object.keys(SHOPS)[0]||'';
+  const model=JSON.parse(localStorage.getItem('ai_model_v2')||'{}');
+  const dayModel=model[shopId]?.[day]||{};
+  // Merge all-day patterns too
+  const allDay={};
+  if(model[shopId]) Object.values(model[shopId]).forEach(dm=>Object.entries(dm).forEach(([k,v])=>{
+    if(!allDay[k]){allDay[k]={count:0,type:v.type};}
+    allDay[k].count+=v.count;
+  }));
+  // Combine — prefer today's weekday, fallback to all-day
+  const combined={...allDay};
+  Object.entries(dayModel).forEach(([k,v])=>{if(!combined[k])combined[k]={count:0,type:v.type};combined[k].count+=v.count*2;});
+  const top=Object.entries(combined).sort((a,b)=>b[1].count-a[1].count).slice(0,6);
+  let html=`<div class="ai-panel-section">
+    <div class="ai-panel-section-hd">📅 Common on ${dayNames[day]}s</div>`;
+  if(top.length){
+    html+=`<div style="display:flex;flex-wrap:wrap">`;
+    top.forEach(([desc,v])=>{
+      const typeIcon=v.type==='sales'?'↑':v.type==='expense'?'↓':'↔';
+      html+=`<span class="ai-q-chip" onclick="_aiPanelFillEntry('${esc(desc).replace(/'/g,"\\'")}','${v.type}');closeAiPanel()">${typeIcon} ${esc(desc)}</span>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div style="font-size:11px;color:var(--muted);padding:8px 0">Add entries for a few days — AI will learn your daily patterns automatically.</div>`;
+  }
+  html+=`</div>`;
+  // Today's entries so far as reference
+  const todayTxs=TXS.filter(t=>t.date===tod()&&(shopId==='all'||t.shop===shopId)).slice(0,3);
+  if(todayTxs.length){
+    html+=`<div class="ai-panel-section"><div class="ai-panel-section-hd">📋 Today so far</div><div style="display:flex;flex-direction:column;gap:4px">`;
+    todayTxs.forEach(t=>{
+      const typeColor=t.type==='sales'?'var(--green)':t.type==='expense'?'var(--red)':'var(--yellow)';
+      html+=`<div style="font-size:11px;display:flex;justify-content:space-between;padding:4px 8px;background:var(--soft);border-radius:7px">
+        <span>${esc(t.desc||'—')}</span>
+        <span style="color:${typeColor};font-weight:700">₹${fmt(t.amount||0)}</span>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  }
+  return html;
+}
+
+function _aiPanelFillEntry(desc, type){
+  const descEl=document.getElementById('m-desc');
+  const typeEl=document.getElementById('m-type');
+  if(descEl) descEl.value=desc;
+  if(typeEl) typeEl.value=type;
+  document.getElementById('m-amt')?.focus();
+}
+
+// Reports context — insights + spelling fix chip
+function _aiPanelReports(){
+  const insights=_generateAiInsights();
+  let html=`<div class="ai-panel-section"><div class="ai-panel-section-hd">💡 AI Insights</div><div style="display:flex;flex-direction:column;gap:6px">`;
+  if(insights.length){
+    insights.slice(0,3).forEach(ins=>{
+      html+=`<div style="background:${ins.bg||'#f0fdf4'};border-left:3px solid ${ins.color||'#059669'};padding:8px 10px;border-radius:7px;font-size:11px">
+        <span style="margin-right:5px">${ins.icon}</span>${ins.text}
+      </div>`;
+    });
+  } else {
+    html+=`<div style="font-size:11px;color:var(--muted)">Add more entries to generate insights.</div>`;
+  }
+  html+=`</div></div>`;
+  if((_variantData||[]).length>0){
+    html+=`<div class="ai-panel-section"><div class="ai-panel-section-hd">⚠️ Spelling Issues</div>
+      <span class="ai-q-chip warn" onclick="_fixAllVariantGroups();closeAiPanel()">⚡ Fix all ${_variantData.length} spelling groups</span>
+    </div>`;
+  }
+  return html;
+}
+
+// Ledger context — today's count vs average + quick period chips
+function _aiPanelLedger(){
+  const todayCount=TXS.filter(t=>t.date===tod()).length;
+  const d30=new Date(); d30.setDate(d30.getDate()-30);
+  const d30s=d30.toISOString().split('T')[0];
+  const r30=TXS.filter(t=>t.date&&t.date>=d30s);
+  const activeDays=new Set(r30.map(t=>t.date)).size||1;
+  const avg=Math.round(r30.length/activeDays);
+  const cmp=todayCount>=avg?`<span style="color:var(--green)">✅ on track</span>`:`<span style="color:var(--yellow)">⚠️ below average</span>`;
+  let html=`<div class="ai-panel-section">
+    <div style="font-size:12px;margin-bottom:8px">Today: <b>${todayCount} entries</b> vs avg <b>${avg}/day</b> — ${cmp}</div>
+    <div class="ai-panel-section-hd">⚡ Quick Filters</div>
+    <div style="display:flex;flex-wrap:wrap">
+      <span class="ai-q-chip" onclick="setLedgerPeriod('today');closeAiPanel()">📅 Today</span>
+      <span class="ai-q-chip" onclick="setLedgerPeriod('week');closeAiPanel()">📅 This Week</span>
+      <span class="ai-q-chip" onclick="setLedgerPeriod('month');closeAiPanel()">📅 This Month</span>
+      <span class="ai-q-chip" onclick="setLedgerPeriod('all');closeAiPanel()">📋 All Time</span>
+    </div>
+  </div>`;
+  return html;
+}
+
+// Supplier context — outstanding balances
+function _aiPanelSupplier(){
+  const owing=SUPS.filter(s=>s.balance>0).sort((a,b)=>b.balance-a.balance).slice(0,5);
+  let html=`<div class="ai-panel-section"><div class="ai-panel-section-hd">💸 Outstanding Balances</div>`;
+  if(owing.length){
+    html+=`<div style="display:flex;flex-direction:column;gap:5px">`;
+    owing.forEach(s=>{
+      html+=`<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:7px 10px">
+        <span style="font-weight:600">${esc(s.name)}</span>
+        <span style="color:#dc2626;font-weight:800">₹${fmt(s.balance)}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div style="font-size:11px;color:var(--green);padding:8px 0">✅ All supplier balances cleared!</div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+// Helper: set ledger period filter (matches existing _lp variable in ledger tab)
+function setLedgerPeriod(period){
+  const sel=document.getElementById('led-period');
+  if(sel){sel.value=period;renderLedger();}
+  else goPane('ledger');
+}
+
+// Update FAB badge — counts pending AI alerts
+function _updateAiFabBadge(){
+  const fab=document.getElementById('ai-fab');
+  const badge=document.getElementById('ai-fab-badge');
+  if(!fab||!badge) return;
+  let count=0;
+  try{
+    if(new Date().getHours()>=10) count+=checkMissingEntries(_shop).length;
+    Object.keys(SHOPS||{}).forEach(id=>{if(_shopHealthScore(id).badge==='🔴') count++;});
+    if((_variantData||[]).length>0) count++;
+  }catch(e){}
+  badge.style.display=count>0?'flex':'none';
+  badge.textContent=count>0?String(count):'';
+  fab.classList.toggle('has-alert',count>0);
+}
 </script>
+
+<!-- ── Live AI Assistant ── -->
+<button id="ai-fab" onclick="toggleAiPanel()" title="AI Assistant" aria-label="Open AI Assistant">🤖<span id="ai-fab-badge"></span></button>
+<div id="ai-panel">
+  <div id="ai-panel-hd">
+    <div style="display:flex;align-items:center;gap:9px">
+      <span style="font-size:20px">🤖</span>
+      <div>
+        <div style="font-weight:800;font-size:13px;color:#fff">ArthaNote AI</div>
+        <div id="ai-panel-sub" style="font-size:10px;color:#a7f3d0">Context-aware assistant</div>
+      </div>
+    </div>
+    <button onclick="closeAiPanel()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:30px;height:30px;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>
+  <div id="ai-panel-body"></div>
+</div>
+
 </body>
 </html>
