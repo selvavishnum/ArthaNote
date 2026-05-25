@@ -160,7 +160,7 @@ class _NavPainter extends CustomPainter {
     }
     canvas.drawPath(lp, _sp);
     canvas.drawPath(rp, _sp);
-    canvas.drawLine(const Offset(mx, top + 1), Offset(mx, bot - 1), _sp);
+    canvas.drawLine(Offset(mx, top + 1), Offset(mx, bot - 1), _sp);
 
     // Page lines
     final lnP = Paint()
