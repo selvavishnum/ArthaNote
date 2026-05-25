@@ -1550,7 +1550,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         </div>
         <div class="sett-row-body" id="sbody-shops">
           <div id="shop-ed" style="margin-bottom:10px"></div>
-          <button class="btn G" onclick="saveShops()" style="margin-top:0">✓ Save Shop Names</button>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn G" onclick="saveShops()" style="flex:1">✓ Save</button>
+            <button class="btn G" onclick="closeM('settings-modal');openM('add-shop-modal')" style="background:#f0fdf4;color:#065f46;border:1px solid #bbf7d0">+ Add Shop</button>
+          </div>
         </div>
       </div>
 
