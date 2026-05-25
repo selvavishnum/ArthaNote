@@ -105,6 +105,15 @@ const API_CONFIG = {
 - [x] Image too large → compress to 1024px before OCR
 - [x] Service Worker caching old code → SW v7 no-cache
 
+## FLUTTER APP VERSION (IMPORTANT)
+- **Current version:** `1.0.5+5` (versionName+versionCode)
+- **File:** `flutter_app/pubspec.yaml` → `version:` field
+- **Rule:** Every PR that changes Flutter app code MUST bump the version.
+  - Increment versionCode by 1 (the number after `+`)
+  - Increment versionName patch digit (e.g. 1.0.5 → 1.0.6)
+  - Example: `1.0.5+5` → `1.0.6+6`
+- Play Store rejects APK/AAB uploads with a previously used versionCode.
+
 ## PENDING ITEMS
 | Priority | Item |
 |---|---|
