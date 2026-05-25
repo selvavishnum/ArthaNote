@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
+import '../widgets/nav_icons.dart';
 import '../l10n.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
@@ -362,10 +363,29 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Bottom navigation ──────────────────────────────────────────────────────
   Widget _buildBottomNav(String l, bool isAdmin, bool showFinance) {
     final maxIdx = showFinance ? (isAdmin ? 6 : 5) : (isAdmin ? 5 : 4);
+    final cur = _tab.clamp(0, maxIdx);
+
+    BottomNavigationBarItem _item(NavIconType type, String label, int idx) =>
+        BottomNavigationBarItem(
+          icon: NavIcon(type: type, active: false),
+          activeIcon: NavIcon(type: type, active: true),
+          label: label,
+        );
+
+    int idx = 0;
+    final items = <BottomNavigationBarItem>[
+      _item(NavIconType.dashboard, t('dashboard', l), idx++),
+      if (isAdmin) _item(NavIconType.scan, t('scan', l), idx++),
+      _item(NavIconType.entry, t('entry', l), idx++),
+      _item(NavIconType.ledger, t('ledger', l), idx++),
+      _item(NavIconType.suppliers, t('suppliers', l), idx++),
+      _item(NavIconType.reports, t('reports', l), idx++),
+      if (showFinance) _item(NavIconType.finance, 'Finance', idx),
+    ];
+
     return BottomNavigationBar(
-      currentIndex: _tab.clamp(0, maxIdx),
+      currentIndex: cur,
       onTap: (i) {
-        // Finance tab: navigate to FinanceTab screen
         final financeIdx = isAdmin ? 6 : 5;
         if (showFinance && i == financeIdx) {
           Navigator.of(context).push(
@@ -382,45 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
       unselectedLabelStyle: const TextStyle(fontSize: 10),
       elevation: 16,
-      items: [
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.dashboard_outlined),
-          activeIcon: const Icon(Icons.dashboard),
-          label: t('dashboard', l),
-        ),
-        if (isAdmin)
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.document_scanner_outlined),
-            activeIcon: const Icon(Icons.document_scanner),
-            label: t('scan', l),
-          ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.add_circle_outline),
-          activeIcon: const Icon(Icons.add_circle),
-          label: t('entry', l),
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.receipt_long_outlined),
-          activeIcon: const Icon(Icons.receipt_long),
-          label: t('ledger', l),
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.people_outline),
-          activeIcon: const Icon(Icons.people),
-          label: t('suppliers', l),
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.bar_chart_outlined),
-          activeIcon: const Icon(Icons.bar_chart),
-          label: t('reports', l),
-        ),
-        if (showFinance)
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            activeIcon: const Icon(Icons.account_balance_wallet),
-            label: 'Finance',
-          ),
-      ],
+      items: items,
     );
   }
 
