@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "546195090451-sk2svmmumiidj0hblisrnte6gensh9ka.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.arthanote.app",
+            "certificate_hash": "962ae1611cea58c24d06538bef0cb48403cc9e3d"
+          }
+        },
+        {
           "client_id": "546195090451-ibq0hus5jh17b6qm1pg4u17lr6snt4i4.apps.googleusercontent.com",
           "client_type": 3
         }
