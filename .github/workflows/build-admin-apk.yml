@@ -36,6 +36,7 @@ jobs:
         run: |
           set -o pipefail
           flutter build apk --release \
+            --dart-define=APP_ID=com.arthanote.admin \
             --target=lib/main_admin.dart \
             --target-platform android-arm64 2>&1 | tee /tmp/admin_build.log
           cp build/app/outputs/flutter-apk/app-release.apk \
