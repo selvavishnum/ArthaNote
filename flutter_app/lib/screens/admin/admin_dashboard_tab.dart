@@ -12,6 +12,8 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
   final _svc = AdminService();
   AdminDashboardStats? _stats;
   bool _loading = true;
+  bool _syncing = false;
+  DateTime? _lastSynced;
 
   @override
   void initState() {
@@ -20,12 +22,36 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() => _loading = _stats == null);
+    // Phase 1: show cache immediately (zero Firestore reads)
+    final cached = await _svc.loadStatsFromCache();
+    if (cached != null && mounted) {
+      setState(() { _stats = cached; _loading = false; });
+    }
+    // Phase 2: sync from Firestore once per day
+    if (await _svc.needsSync()) {
+      if (mounted) setState(() => _syncing = true);
+      try {
+        final result = await _svc.syncAll();
+        _lastSynced  = await _svc.getLastSyncTime();
+        if (mounted) setState(() { _stats = result.stats; _syncing = false; });
+      } catch (_) {
+        if (mounted) setState(() => _syncing = false);
+      }
+    } else {
+      _lastSynced = await _svc.getLastSyncTime();
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _forceSync() async {
+    setState(() => _syncing = true);
     try {
-      final stats = await _svc.getDashboardStats();
-      if (mounted) setState(() { _stats = stats; _loading = false; });
+      final result = await _svc.syncAll();
+      _lastSynced = await _svc.getLastSyncTime();
+      if (mounted) setState(() { _stats = result.stats; _syncing = false; });
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _syncing = false);
     }
   }
 
@@ -34,6 +60,15 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
     if (v >= 100000)   return '₹${(v/100000).toStringAsFixed(1)}L';
     if (v >= 1000)     return '₹${(v/1000).toStringAsFixed(1)}K';
     return '₹${v.toStringAsFixed(0)}';
+  }
+
+  String _syncLabel() {
+    if (_lastSynced == null) return 'Never synced';
+    final diff = DateTime.now().difference(_lastSynced!);
+    if (diff.inMinutes < 1)  return 'Just now';
+    if (diff.inHours   < 1)  return '${diff.inMinutes}m ago';
+    if (diff.inDays    < 1)  return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 
   @override
@@ -54,14 +89,21 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                   style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
             ]),
             actions: [
+              if (_lastSynced != null && !_syncing)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Center(child: Text(_syncLabel(),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)))),
+                ),
               IconButton(
-                icon: _loading
+                icon: _syncing
                     ? const SizedBox(width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF065F46)))
-                    : const Icon(Icons.refresh, color: Color(0xFF065F46)),
-                onPressed: _loading ? null : _load,
+                    : const Icon(Icons.sync, color: Color(0xFF065F46)),
+                tooltip: 'Sync from Firebase',
+                onPressed: _syncing ? null : _forceSync,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
             ],
           ),
           if (_loading && s == null)

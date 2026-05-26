@@ -11,17 +11,64 @@ class AdminUsersTab extends StatefulWidget {
 class _AdminUsersTabState extends State<AdminUsersTab> {
   final _svc    = AdminService();
   final _search = TextEditingController();
-  String _filter = 'all';
-  String _q = '';
+  String  _filter   = 'all';
+  String  _q        = '';
+  List<AdminUser> _users    = [];
+  bool    _loading  = true;
+  bool    _syncing  = false;
+  DateTime? _lastSynced;
 
   @override
   void initState() {
     super.initState();
     _search.addListener(() => setState(() => _q = _search.text.toLowerCase()));
+    _loadUsers();
   }
 
   @override
   void dispose() { _search.dispose(); super.dispose(); }
+
+  Future<void> _loadUsers() async {
+    // Phase 1: show cache immediately (zero Firestore reads)
+    final cached = await _svc.loadUsersFromCache();
+    if (cached.isNotEmpty && mounted) {
+      setState(() { _users = cached; _loading = false; });
+    }
+    // Phase 2: sync from Firestore once per day
+    if (await _svc.needsSync()) {
+      if (mounted) setState(() => _syncing = true);
+      try {
+        final result = await _svc.syncAll();
+        _lastSynced  = await _svc.getLastSyncTime();
+        if (mounted) setState(() { _users = result.users; _syncing = false; });
+      } catch (_) {
+        if (mounted) setState(() => _syncing = false);
+      }
+    } else {
+      _lastSynced = await _svc.getLastSyncTime();
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _forceSync() async {
+    setState(() => _syncing = true);
+    try {
+      final result = await _svc.syncAll();
+      _lastSynced = await _svc.getLastSyncTime();
+      if (mounted) setState(() { _users = result.users; _syncing = false; });
+    } catch (_) {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  String _syncLabel() {
+    if (_lastSynced == null) return 'Never synced';
+    final diff = DateTime.now().difference(_lastSynced!);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours   < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays    < 1) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +80,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             floating: true,
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
-            title: const Text('Users', style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+            title: Row(children: [
+              const Text('Users', style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+              const Spacer(),
+              if (_lastSynced != null && !_syncing)
+                Text(_syncLabel(), style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+              const SizedBox(width: 4),
+              if (_syncing)
+                const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF065F46)))
+              else
+                IconButton(
+                  icon: const Icon(Icons.sync, color: Color(0xFF065F46), size: 20),
+                  tooltip: 'Sync from Firebase',
+                  onPressed: _forceSync,
+                ),
+            ]),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(110),
               child: Padding(
@@ -72,45 +134,42 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               ),
             ),
           ),
-          StreamBuilder<List<AdminUser>>(
-            stream: _svc.usersStream(),
-            builder: (ctx, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFF065F46))),
-                );
-              }
-              var users = snap.data ?? [];
-              if (_filter == 'pro') users = users.where((u) => u.isPro).toList();
-              if (_q.isNotEmpty) {
-                users = users.where((u) =>
-                    u.name.toLowerCase().contains(_q) ||
-                    u.email.toLowerCase().contains(_q)).toList();
-              }
-              if (users.isEmpty) {
-                return SliverFillRemaining(
-                  child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.people_outline, size: 48, color: Color(0xFFD1D5DB)),
-                    const SizedBox(height: 12),
-                    Text(_q.isNotEmpty ? 'No users matching "$_q"' : 'No users yet',
-                        style: const TextStyle(color: Color(0xFF6B7280))),
-                  ])),
-                );
-              }
-              return SliverPadding(
-                padding: const EdgeInsets.all(16),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _UserCard(user: users[i], svc: _svc),
-                    ),
-                    childCount: users.length,
-                  ),
-                ),
+          Builder(builder: (ctx) {
+            if (_loading) {
+              return const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF065F46))),
               );
-            },
-          ),
+            }
+            var users = _users;
+            if (_filter == 'pro') users = users.where((u) => u.isPro).toList();
+            if (_q.isNotEmpty) {
+              users = users.where((u) =>
+                  u.name.toLowerCase().contains(_q) ||
+                  u.email.toLowerCase().contains(_q)).toList();
+            }
+            if (users.isEmpty) {
+              return SliverFillRemaining(
+                child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.people_outline, size: 48, color: Color(0xFFD1D5DB)),
+                  const SizedBox(height: 12),
+                  Text(_q.isNotEmpty ? 'No users matching "$_q"' : 'No users yet',
+                      style: const TextStyle(color: Color(0xFF6B7280))),
+                ])),
+              );
+            }
+            return SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _UserCard(user: users[i], svc: _svc),
+                  ),
+                  childCount: users.length,
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
