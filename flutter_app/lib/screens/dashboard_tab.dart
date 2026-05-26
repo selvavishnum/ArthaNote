@@ -266,15 +266,18 @@ class _DashboardTabState extends State<DashboardTab> {
             .fold(0.0, (s, x) => s + x.amount);
         final expense = txns.where((x) => x.type == 'expense')
             .fold(0.0, (s, x) => s + x.amount);
-        final net = sales - expense;
+        final payment = txns.where((x) => x.type == 'payment')
+            .fold(0.0, (s, x) => s + x.amount);
+        final net = sales - expense - payment;
 
         // Last 7 days overdraft check
         final now7 = DateTime.now();
         final sevenDaysAgo = DateTime(now7.year, now7.month, now7.day).subtract(const Duration(days: 7));
         final last7Txns = all.where((tx) => !tx.date.isBefore(sevenDaysAgo)).toList();
         final last7Sales = last7Txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
-        final last7Exp = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
-        final last7Net = last7Sales - last7Exp;
+        final last7Exp   = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
+        final last7Pay   = last7Txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
+        final last7Net   = last7Sales - last7Exp - last7Pay;
         final showOverdraft = last7Net < 0;
 
         // Most sold
@@ -528,13 +531,16 @@ class _DashboardTabState extends State<DashboardTab> {
                   final shopExp = shopTxns
                       .where((x) => x.type == 'expense')
                       .fold(0.0, (s, x) => s + x.amount);
+                  final shopPay = shopTxns
+                      .where((x) => x.type == 'payment')
+                      .fold(0.0, (s, x) => s + x.amount);
                   final healthData = _shopHealthScore(shop.id, all);
                   return _ShopSummaryCard(
                     shop: shop,
                     entryCount: shopTxns.length,
                     sales: shopSales,
                     expense: shopExp,
-                    net: shopSales - shopExp,
+                    net: shopSales - shopExp - shopPay,
                     l: l,
                     healthBadge: healthData['badge'] as String,
                     healthLabel: healthData['label'] as String,
