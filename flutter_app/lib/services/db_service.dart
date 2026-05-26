@@ -10,6 +10,11 @@ import '../models/supplier_bill.dart';
 class DbService {
   final _db = FirebaseFirestore.instance;
 
+  // Debounce cache writes so rapid Firestore updates don't hammer SharedPreferences.
+  Timer? _cacheSaveTimer;
+  List<Txn>? _pendingCacheSave;
+  String _pendingCacheBid = '';
+
   // ── Local cache helpers ────────────────────────────────────────────────────
 
   static const int _maxCached = 1000; // keep last 1000 txns in local cache
@@ -32,16 +37,25 @@ class DbService {
     }
   }
 
-  /// Persist [txns] list to local cache (fire-and-forget).
-  Future<void> _saveLocalCache(String businessId, List<Txn> txns) async {
-    try {
-      final prefs    = await SharedPreferences.getInstance();
-      final limited  = txns.length > _maxCached ? txns.sublist(0, _maxCached) : txns;
-      await prefs.setString(
-        _txnCacheKey(businessId),
-        jsonEncode(limited.map((t) => t.toJson()).toList()),
-      );
-    } catch (_) {}
+  /// Persist [txns] list to local cache — debounced to 2 s so rapid Firestore
+  /// snapshots don't serialize 1000-item JSON blobs on every single update.
+  void _saveLocalCache(String businessId, List<Txn> txns) {
+    _pendingCacheSave = txns;
+    _pendingCacheBid  = businessId;
+    _cacheSaveTimer?.cancel();
+    _cacheSaveTimer = Timer(const Duration(seconds: 2), () async {
+      final list = _pendingCacheSave;
+      final bid  = _pendingCacheBid;
+      if (list == null || bid.isEmpty) return;
+      try {
+        final prefs   = await SharedPreferences.getInstance();
+        final limited = list.length > _maxCached ? list.sublist(0, _maxCached) : list;
+        await prefs.setString(
+          _txnCacheKey(bid),
+          jsonEncode(limited.map((t) => t.toJson()).toList()),
+        );
+      } catch (_) {}
+    });
   }
 
   /// Append one txn to local cache without reloading everything.
@@ -85,13 +99,22 @@ class DbService {
       q = q.where('shop', isEqualTo: shop);
     }
 
+    int _lastDocCount = -1;
     await for (final snapshot in q.snapshots()) {
+      // Skip re-processing if the snapshot is from local cache and the
+      // document count hasn't changed — avoids sorting thousands of items
+      // twice on every cold start (once from cache, once from network).
+      final fromCache = snapshot.metadata.isFromCache;
+      final docCount  = snapshot.docs.length;
+      if (fromCache && docCount == _lastDocCount) continue;
+      _lastDocCount = docCount;
+
       final list = snapshot.docs.map((doc) => Txn.fromFirestore(doc)).toList();
       list.sort((a, b) => b.date.compareTo(a.date));
 
-      // Update local cache with full (unfiltered) list
+      // Update local cache with full (unfiltered) list (debounced)
       if (shop == null || shop.isEmpty) {
-        _saveLocalCache(businessId, list); // fire-and-forget
+        _saveLocalCache(businessId, list);
       }
 
       yield list;

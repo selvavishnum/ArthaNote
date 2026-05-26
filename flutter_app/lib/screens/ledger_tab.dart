@@ -25,7 +25,7 @@ class _LedgerTabState extends State<LedgerTab> {
   final _db     = DbService();
   final _search = TextEditingController();
   String  _typeFilter  = 'all';
-  _Period _period      = _Period.all;
+  _Period _period      = _Period.month;
   DateTimeRange? _customRange;
   DateTime? _monthStart;              // null = current month
   final Set<String> _collapsed = {};  // day keys that are folded
