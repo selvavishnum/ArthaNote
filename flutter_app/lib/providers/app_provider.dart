@@ -37,6 +37,7 @@ class AppProvider extends ChangeNotifier {
   // registered on the website where 'onboarded' flag wasn't set in Firestore.
   bool get isOnboarded => _profile['onboarded'] == true || _shops.isNotEmpty;
   bool get isAdmin     => ((_profile['email'] as String?) ?? '') == 'selvavishnu.m@gmail.com';
+  bool get isPersonal  => _bizType == 'personal';
 
   // ── init ──────────────────────────────────────────────────────────────────
   Future<void> init(String uid) async {

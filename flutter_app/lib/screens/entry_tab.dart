@@ -20,12 +20,13 @@ class EntryTab extends StatefulWidget {
 }
 
 class _EntryTabState extends State<EntryTab> {
-  final _db     = DbService();
-  final _ai     = PatternService();
-  final _amount = TextEditingController();
-  final _desc   = TextEditingController();
-  final _bill   = TextEditingController();
-  final _note   = TextEditingController();
+  final _db      = DbService();
+  final _ai      = PatternService();
+  final _amount  = TextEditingController();
+  final _desc    = TextEditingController();
+  final _bill    = TextEditingController();
+  final _note    = TextEditingController();
+  final _contact = TextEditingController();
 
   String        _type       = 'sale';
   DateTime      _date       = DateTime.now();
@@ -89,6 +90,7 @@ class _EntryTabState extends State<EntryTab> {
   static const _paymentCategories = ['Supplier', 'Loan', 'Staff', 'Utility'];
 
   List<String> _getCategories(AppProvider p) {
+    if (p.isPersonal)       return [];
     if (_type == 'sale')    return p.salesCats(_shopId);
     if (_type == 'expense') return p.expenseCats(_shopId);
     return _paymentCategories;
@@ -133,6 +135,7 @@ class _EntryTabState extends State<EntryTab> {
         type:       _type,
         amount:     amt,
         desc:       description,
+        contact:    p.isPersonal ? _contact.text.trim() : '',
       ));
       _snack('Entry saved');
       // Teach the AI about this entry before resetting
@@ -166,8 +169,8 @@ class _EntryTabState extends State<EntryTab> {
       _desc.clear();
       _bill.clear();
       _note.clear();
+      _contact.clear();
       // Keep _type, _date, _shopId so the next entry pre-fills with last-used values.
-      // User can still change them if needed.
     });
   }
 
@@ -209,51 +212,95 @@ class _EntryTabState extends State<EntryTab> {
           ),
           const SizedBox(height: 14),
 
-          // Type selector — 3 tap cards (no Expanded inside DropdownMenuItem)
-          Row(
-            children: _typeOptions.map((cfg) {
-              final active = _type == cfg['type'];
-              final c      = cfg['color'] as Color;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() {
-                    _type = cfg['type'] as String;
-                    _desc.clear();
-                  }),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: active ? c.withOpacity(0.12) : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: active ? c : const Color(0xFFE5E7EB),
-                        width: active ? 2 : 1,
+          // Type selector
+          if (p.isPersonal)
+            Row(children: [
+              for (final cfg in [
+                {'type': 'sale',    'label': 'I Received', 'icon': '💰', 'color': kSecondary},
+                {'type': 'expense', 'label': 'I Paid',     'icon': '💸', 'color': kRed},
+              ]) ...[
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() { _type = cfg['type'] as String; _desc.clear(); }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _type == cfg['type']
+                            ? (cfg['color'] as Color).withOpacity(0.12)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _type == cfg['type']
+                              ? cfg['color'] as Color
+                              : const Color(0xFFE5E7EB),
+                          width: _type == cfg['type'] ? 2 : 1,
+                        ),
+                        boxShadow: kCardShadow,
                       ),
-                      boxShadow: kCardShadow,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(cfg['icon'] as String,
-                            style: const TextStyle(fontSize: 18)),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text(cfg['icon'] as String, style: const TextStyle(fontSize: 20)),
                         const SizedBox(height: 4),
                         Text(
-                          (cfg['label'] as String).split('/').first.trim(),
+                          cfg['label'] as String,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: active ? c : kMuted,
+                            color: _type == cfg['type'] ? cfg['color'] as Color : kMuted,
                           ),
                         ),
-                      ],
+                      ]),
                     ),
                   ),
                 ),
-              );
-            }).toList(),
-          ),
+                if (cfg['type'] == 'sale') const SizedBox(width: 10),
+              ],
+            ])
+          else
+            Row(
+              children: _typeOptions.map((cfg) {
+                final active = _type == cfg['type'];
+                final c      = cfg['color'] as Color;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() {
+                      _type = cfg['type'] as String;
+                      _desc.clear();
+                    }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: active ? c.withOpacity(0.12) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: active ? c : const Color(0xFFE5E7EB),
+                          width: active ? 2 : 1,
+                        ),
+                        boxShadow: kCardShadow,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(cfg['icon'] as String,
+                              style: const TextStyle(fontSize: 18)),
+                          const SizedBox(height: 4),
+                          Text(
+                            (cfg['label'] as String).split('/').first.trim(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: active ? c : kMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
 
           const SizedBox(height: 14),
 
@@ -405,75 +452,94 @@ class _EntryTabState extends State<EntryTab> {
             );
           }),
 
-          const SizedBox(height: 14),
-
-          // Quick categories
-          const Text(
-            'QUICK SELECT',
-            style: TextStyle(
-              color: kMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              GestureDetector(
-                onTap: () { _desc.clear(); setState(() {}); },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFD1D5DB)),
-                  ),
-                  child: const Text(
-                    '+ Custom',
-                    style: TextStyle(
-                      color: kMuted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+          // Contact name (personal mode only)
+          if (p.isPersonal) ...[
+            const SizedBox(height: 14),
+            _LabelField(
+              label: 'CONTACT NAME',
+              child: TextFormField(
+                controller: _contact,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  hintText: 'Who is this with? (optional)',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
-              ..._getCategories(p).map((cat) {
-                final isSelected = _desc.text == cat;
-                return GestureDetector(
-                  onTap: () => setState(() => _desc.text = cat),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
+            ),
+          ],
+
+          const SizedBox(height: 14),
+
+          // Quick categories (hidden in personal mode)
+          if (!p.isPersonal) ...[
+            const Text(
+              'QUICK SELECT',
+              style: TextStyle(
+                color: kMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                GestureDetector(
+                  onTap: () { _desc.clear(); setState(() {}); },
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? typeColor.withOpacity(0.1)
-                          : const Color(0xFFF9FAFB),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? typeColor
-                            : const Color(0xFFE5E7EB),
-                      ),
+                      border: Border.all(color: const Color(0xFFD1D5DB)),
                     ),
-                    child: Text(
-                      cat,
+                    child: const Text(
+                      '+ Custom',
                       style: TextStyle(
-                        color: isSelected ? typeColor : kText,
+                        color: kMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                );
-              }),
-            ],
-          ),
+                ),
+                ..._getCategories(p).map((cat) {
+                  final isSelected = _desc.text == cat;
+                  return GestureDetector(
+                    onTap: () => setState(() => _desc.text = cat),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? typeColor.withOpacity(0.1)
+                            : const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? typeColor
+                              : const Color(0xFFE5E7EB),
+                        ),
+                      ),
+                      child: Text(
+                        cat,
+                        style: TextStyle(
+                          color: isSelected ? typeColor : kText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ],
 
           // AI suggestion banner
           if (_prediction.isGood) ...[
@@ -586,6 +652,7 @@ class _EntryTabState extends State<EntryTab> {
     _desc.dispose();
     _bill.dispose();
     _note.dispose();
+    _contact.dispose();
     super.dispose();
   }
 }

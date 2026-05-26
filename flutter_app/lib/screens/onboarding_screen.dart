@@ -251,12 +251,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         const SizedBox(height: 20),
         Text(
-          t('name_your_shop', l),
+          _selectedType == 'personal' ? "What's your name?" : t('name_your_shop', l),
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kPrimary),
         ),
         const SizedBox(height: 6),
         Text(
-          t('shop_subtitle', l),
+          _selectedType == 'personal'
+              ? 'Track money you owe and are owed'
+              : t('shop_subtitle', l),
           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         ),
         const SizedBox(height: 28),
@@ -266,10 +268,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           textCapitalization: TextCapitalization.words,
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
-            labelText: t('shop_name', l),
+            labelText: _selectedType == 'personal' ? 'Your Name' : t('shop_name', l),
             prefixText: '$_selectedIcon  ',
             prefixStyle: const TextStyle(fontSize: 18),
-            hintText: 'e.g. Tulsi Vegetables',
+            hintText: _selectedType == 'personal' ? 'e.g. Ravi Kumar' : 'e.g. Tulsi Vegetables',
           ),
         ),
         const Spacer(),

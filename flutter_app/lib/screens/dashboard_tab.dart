@@ -443,23 +443,25 @@ class _DashboardTabState extends State<DashboardTab> {
               Row(children: [
                 Expanded(
                     child: _StatBox(
-                        label: 'SALES',
+                        label: p.isPersonal ? 'TO RECEIVE' : 'SALES',
                         value: rupee(sales),
                         valueColor: kSecondary,
                         icon: '💰')),
                 const SizedBox(width: 10),
                 Expanded(
                     child: _StatBox(
-                        label: 'EXPENSES',
+                        label: p.isPersonal ? 'TO PAY' : 'EXPENSES',
                         value: rupee(expense),
                         valueColor: kRed,
-                        icon: '📉')),
+                        icon: p.isPersonal ? '💸' : '📉')),
               ]),
               const SizedBox(height: 10),
               Row(children: [
                 Expanded(
                     child: _StatBox(
-                        label: t('net_profit', l).toUpperCase(),
+                        label: p.isPersonal
+                            ? 'BALANCE'
+                            : t('net_profit', l).toUpperCase(),
                         value: net >= 0
                             ? '+ ${rupee(net)}'
                             : '− ${rupee(net)}',
