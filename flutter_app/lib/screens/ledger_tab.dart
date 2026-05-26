@@ -834,7 +834,8 @@ class _LedgerTile extends StatelessWidget {
                   [
                     if (txn.shopName.isNotEmpty) txn.shopName,
                     _capitalise(txn.type),
-                    DateFormat('hh:mm a').format(txn.date),
+                    if (txn.date.hour != 0 || txn.date.minute != 0)
+                      DateFormat('hh:mm a').format(txn.date),
                   ].join(' · '),
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                   overflow: TextOverflow.ellipsis,

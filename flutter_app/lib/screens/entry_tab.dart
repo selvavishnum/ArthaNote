@@ -278,7 +278,11 @@ class _EntryTabState extends State<EntryTab> {
                       ),
                     );
                     if (picked != null && mounted) {
-                      setState(() => _date = picked);
+                      final now = DateTime.now();
+                      setState(() => _date = DateTime(
+                            picked.year, picked.month, picked.day,
+                            now.hour, now.minute, now.second,
+                          ));
                     }
                   },
                   child: _FieldBox(
