@@ -86,14 +86,6 @@ jobs:
           set -o pipefail
           flutter build apk --release --split-per-abi 2>&1 | tee /tmp/flutter_build.log
 
-      - name: Build Admin APK
-        working-directory: flutter_app
-        run: |
-          flutter build apk --release \
-            --target=lib/main_admin.dart \
-            --target-platform android-arm64 \
-            --output build/app/outputs/flutter-apk/arthanote-admin-release.apk
-
       - name: Show build error (on failure)
         if: failure()
         run: |
@@ -115,7 +107,6 @@ jobs:
           path: |
             flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             flutter_app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-            flutter_app/build/app/outputs/flutter-apk/arthanote-admin-release.apk
             flutter_app/build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 
@@ -128,15 +119,12 @@ jobs:
           body: |
             ## ArthaNote Android App
 
-            ### User App:
+            ### Download:
             - `app-arm64-v8a-release.apk` → **Modern phones** (64-bit) ← use this
             - `app-armeabi-v7a-release.apk` → Older phones (32-bit)
             - `app-release.aab` → Play Store upload
 
-            ### Admin App:
-            - `arthanote-admin-release.apk` → **Admin only** (arm64) — selvavishnu.m@gmail.com only
-
-            ### User App Features:
+            ### Features:
             - Dashboard with sales/expense summary
             - Add entries (sale/expense/payment)
             - Ledger with search & filter
@@ -144,13 +132,7 @@ jobs:
             - Reports with chart
             - Tamil/English toggle
             - Firebase sync
-
-            ### Admin App Features:
-            - Live user count & active users today
-            - Per-user business details & entry history
-            - Cache-first (once/day Firebase sync)
           files: |
             flutter_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             flutter_app/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-            flutter_app/build/app/outputs/flutter-apk/arthanote-admin-release.apk
             flutter_app/build/app/outputs/bundle/release/app-release.aab
