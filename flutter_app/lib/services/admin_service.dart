@@ -153,6 +153,64 @@ class AdminDashboardStats {
   };
 }
 
+class AdminActivityEntry {
+  final String businessId;
+  final String userName;
+  final String type;
+  final double amount;
+  final String desc;
+  final String shop;
+  final DateTime date;
+
+  const AdminActivityEntry({
+    required this.businessId,
+    required this.userName,
+    required this.type,
+    required this.amount,
+    required this.desc,
+    required this.shop,
+    required this.date,
+  });
+
+  factory AdminActivityEntry.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc, String userName) {
+    final d = doc.data()!;
+    DateTime date;
+    final dv = d['date'];
+    if (dv is Timestamp) date = dv.toDate();
+    else if (dv is String) date = DateTime.tryParse(dv) ?? DateTime.now();
+    else date = DateTime.now();
+    return AdminActivityEntry(
+      businessId: d['businessId'] as String? ?? '',
+      userName: userName,
+      type: d['type'] as String? ?? '',
+      amount: (d['amount'] as num?)?.toDouble() ?? 0,
+      desc: d['desc'] as String? ?? '',
+      shop: d['shop'] as String? ?? '',
+      date: date,
+    );
+  }
+
+  factory AdminActivityEntry.fromJson(Map<String, dynamic> m) => AdminActivityEntry(
+    businessId: m['businessId'] as String? ?? '',
+    userName: m['userName'] as String? ?? '',
+    type: m['type'] as String? ?? '',
+    amount: (m['amount'] as num?)?.toDouble() ?? 0,
+    desc: m['desc'] as String? ?? '',
+    shop: m['shop'] as String? ?? '',
+    date: m['date'] != null ? DateTime.tryParse(m['date'] as String) ?? DateTime.now() : DateTime.now(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'businessId': businessId,
+    'userName': userName,
+    'type': type,
+    'amount': amount,
+    'desc': desc,
+    'shop': shop,
+    'date': date.toIso8601String(),
+  };
+}
+
 // ── AdminService ──────────────────────────────────────────────────────────────
 
 class AdminService {
@@ -237,6 +295,17 @@ class AdminService {
 
   Future<void> _saveUserDetailsToCache(String businessId, AdminUserDetails d) =>
       _writeJson('admin_detail_$businessId.json', d.toJson());
+
+  // ── Activity cache ────────────────────────────────────────────────────────
+
+  Future<List<AdminActivityEntry>> loadActivityFromCache() =>
+      _readJson<List<AdminActivityEntry>>(
+        'admin_activity.json',
+        (raw) => (raw as List).map((e) => AdminActivityEntry.fromJson(e as Map<String, dynamic>)).toList(),
+      ).then((v) => v ?? []);
+
+  Future<void> _saveActivityToCache(List<AdminActivityEntry> list) =>
+      _writeJson('admin_activity.json', list.map((e) => e.toJson()).toList());
 
   // ── Firestore fetchers (called only when cache is stale) ──────────────────
 
@@ -345,6 +414,20 @@ class AdminService {
     );
   }
 
+  Future<List<AdminActivityEntry>> _fetchActivityFromFirestore(List<AdminUser> users) async {
+    final userMap = {for (final u in users) u.businessId: u.name};
+    final snap = await _db
+        .collection('transactions')
+        .orderBy('date', descending: true)
+        .limit(200)
+        .get();
+    final list = snap.docs.map((d) {
+      final bid = d.data()['businessId'] as String? ?? '';
+      return AdminActivityEntry.fromFirestore(d, userMap[bid] ?? (bid.length >= 8 ? bid.substring(0, 8) : bid));
+    }).toList();
+    return list;
+  }
+
   // ── Public API (cache-first) ──────────────────────────────────────────────
 
   /// Load users: from cache immediately, then sync if stale.
@@ -387,13 +470,37 @@ class AdminService {
   }
 
   /// Force full sync from Firestore — call on manual "Sync" button.
-  /// Fetches users + stats. User details are refreshed lazily on expand.
+  /// Fetches users + stats + activity. User details are refreshed lazily on expand.
   Future<({List<AdminUser> users, AdminDashboardStats stats})> syncAll() async {
     final users = await _fetchUsersFromFirestore();
     final stats = await _fetchStatsFromFirestore();
+    final activity = await _fetchActivityFromFirestore(users);
     await _saveUsersToCache(users);
     await _saveStatsToCache(stats);
+    await _saveActivityToCache(activity);
     await markSynced();
     return (users: users, stats: stats);
+  }
+
+  /// Aggregates all known shops from cached user details.
+  Future<List<Map<String, dynamic>>> getAggregatedShops() async {
+    final users = await loadUsersFromCache();
+    final result = <Map<String, dynamic>>[];
+    for (final u in users) {
+      final details = await loadUserDetailsFromCache(u.businessId);
+      if (details == null) continue;
+      for (final shop in details.shops) {
+        result.add({
+          ...shop,
+          'businessId': u.businessId,
+          'userName': u.name,
+          'userEmail': u.email,
+          'lastActive': details.lastActive?.toIso8601String(),
+          'totalSales': details.totalSales,
+          'entryCount': details.entryCount,
+        });
+      }
+    }
+    return result;
   }
 }

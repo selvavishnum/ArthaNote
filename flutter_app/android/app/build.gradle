@@ -14,6 +14,17 @@ if (localPropsFile.exists()) {
 def appVersionCode = localProps.getProperty('flutter.versionCode', '2').toInteger()
 def appVersionName = localProps.getProperty('flutter.versionName', '1.0.2')
 
+// Parse --dart-define values passed by flutter build
+def dartDefines = [:]
+if (project.hasProperty('dart-defines')) {
+    project.property('dart-defines').split(',').each { encoded ->
+        try {
+            def decoded = new String(encoded.trim().bytes.decodeBase64()).split('=')
+            if (decoded.length == 2) dartDefines[decoded[0]] = decoded[1]
+        } catch (ignored) {}
+    }
+}
+
 android {
     namespace "com.arthanote.app"
     compileSdk 35
@@ -46,7 +57,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.arthanote.app"
+        applicationId dartDefines.getOrDefault('APP_ID', 'com.arthanote.app')
         minSdk 23
         targetSdk 35
         versionCode appVersionCode
