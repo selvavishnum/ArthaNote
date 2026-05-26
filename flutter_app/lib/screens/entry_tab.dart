@@ -129,7 +129,7 @@ class _EntryTabState extends State<EntryTab> {
     ].join(' · ');
 
     try {
-      await _db.addTxn(Txn(
+      final txn = Txn(
         id:         const Uuid().v4(),
         businessId: p.businessId,
         shop:       shop?.id   ?? '',
@@ -139,7 +139,9 @@ class _EntryTabState extends State<EntryTab> {
         amount:     amt,
         desc:       description,
         contact:    _isPersonalShop(p) ? _contact.text.trim() : '',
-      ));
+      );
+      await _db.addTxn(txn);
+      if (mounted) context.read<AppProvider>().addLocalTxn(txn);
       _snack('Entry saved');
       // Teach the AI about this entry before resetting
       _ai.learn(description, savedType, savedDesc);

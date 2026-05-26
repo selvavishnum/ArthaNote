@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/shop.dart';
+import '../models/txn.dart';
 import '../services/auth_service.dart';
+import '../services/db_service.dart';
 
 class AppProvider extends ChangeNotifier {
-  final _auth = AuthService();
+  final _auth  = AuthService();
+  final _dbSvc = DbService();
 
   String             _lang         = 'en';
   String             _businessId   = '';
@@ -14,6 +17,9 @@ class AppProvider extends ChangeNotifier {
   bool               _loaded       = false;
   Map<String, Map<String, List<String>>> _cats = {};
   String             _bizType      = '';
+  List<Txn>          _txns         = [];
+  bool               _syncing      = false;
+  DateTime?          _lastSynced;
 
   // ── Getters ───────────────────────────────────────────────────────────────
   String             get lang         => _lang;
@@ -24,6 +30,9 @@ class AppProvider extends ChangeNotifier {
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
   String             get bizType      => _bizType;
+  List<Txn>          get txns         => List.unmodifiable(_txns);
+  bool               get syncing      => _syncing;
+  DateTime?          get lastSynced   => _lastSynced;
 
   // Finance tab shows only when the currently selected shop is finance/chit type.
   // When "All" is selected (selectedShop empty), Finance tab is hidden.
@@ -101,6 +110,9 @@ class AppProvider extends ChangeNotifier {
 
     _loaded = true;
     notifyListeners();
+
+    // Non-blocking — loads txns in background (fast file read + optional daily sync)
+    _loadTxns();
   }
 
   // ── Language ──────────────────────────────────────────────────────────────
@@ -189,6 +201,67 @@ class AppProvider extends ChangeNotifier {
     await _auth.saveConfig(_businessId, {'cats': catsMap});
   }
 
+  // ── Txn management ────────────────────────────────────────────────────────
+
+  Future<void> _loadTxns() async {
+    if (_businessId.isEmpty) return;
+
+    // 1. Load from file cache immediately
+    final cached = await _dbSvc.loadAllTxns(_businessId);
+    _txns = cached;
+    notifyListeners();
+
+    // 2. Sync from Firebase if needed (once per day)
+    if (await _dbSvc.needsSync(_businessId)) {
+      _syncing = true;
+      notifyListeners();
+      try {
+        final fresh = await _dbSvc.syncFromFirebase(_businessId);
+        _txns = fresh;
+        await _dbSvc.saveTxnsToCache(_businessId, fresh);
+        await _dbSvc.markSynced(_businessId);
+        _lastSynced = DateTime.now();
+      } catch (_) {}
+      _syncing = false;
+      notifyListeners();
+    } else {
+      _lastSynced = await _dbSvc.getLastSyncTime(_businessId);
+    }
+  }
+
+  Future<void> syncNow() async {
+    if (_businessId.isEmpty || _syncing) return;
+    _syncing = true;
+    notifyListeners();
+    try {
+      final fresh = await _dbSvc.syncFromFirebase(_businessId);
+      _txns = fresh;
+      await _dbSvc.saveTxnsToCache(_businessId, fresh);
+      await _dbSvc.markSynced(_businessId);
+      _lastSynced = DateTime.now();
+    } catch (_) {}
+    _syncing = false;
+    notifyListeners();
+  }
+
+  void addLocalTxn(Txn t) {
+    _txns = [t, ..._txns];
+    notifyListeners();
+  }
+
+  void removeLocalTxn(String id) {
+    _txns = _txns.where((t) => t.id != id).toList();
+    notifyListeners();
+  }
+
+  void updateLocalTxn(Txn updated) {
+    _txns = [
+      for (final t in _txns)
+        if (t.id == updated.id) updated else t,
+    ];
+    notifyListeners();
+  }
+
   // ── Reset (on logout) ─────────────────────────────────────────────────────
   void reset() {
     _businessId   = '';
@@ -198,6 +271,9 @@ class AppProvider extends ChangeNotifier {
     _cats         = {};
     _bizType      = '';
     _loaded       = false;
+    _txns         = [];
+    _syncing      = false;
+    _lastSynced   = null;
     notifyListeners();
   }
 }

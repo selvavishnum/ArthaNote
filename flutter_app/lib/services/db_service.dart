@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/txn.dart';
@@ -10,14 +12,72 @@ import '../models/supplier_bill.dart';
 class DbService {
   final _db = FirebaseFirestore.instance;
 
-  // ── Local cache helpers ────────────────────────────────────────────────────
+  // ── File cache helpers ────────────────────────────────────────────────────
 
-  static const int _maxCached = 1000; // keep last 1000 txns in local cache
+  /// File cache location: <AppDocumentsDir>/txns_<businessId>.json
+  Future<File> _cacheFile(String businessId) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/txns_$businessId.json');
+  }
+
+  /// Load from file (instant, no network)
+  Future<List<Txn>> loadAllTxns(String businessId) async {
+    try {
+      final file = await _cacheFile(businessId);
+      if (!await file.exists()) return [];
+      final content = await file.readAsString();
+      if (content.isEmpty) return [];
+      final list = (jsonDecode(content) as List)
+          .map((e) => Txn.fromJson(e as Map<String, dynamic>))
+          .toList();
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Save all txns to file
+  Future<void> saveTxnsToCache(String businessId, List<Txn> txns) async {
+    try {
+      final file = await _cacheFile(businessId);
+      await file.writeAsString(
+        jsonEncode(txns.map((t) => t.toJson()).toList()),
+      );
+    } catch (_) {}
+  }
+
+  /// Check if sync needed (>23h since last sync or never synced)
+  Future<bool> needsSync(String businessId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ts = prefs.getInt('kp_sync_ts_$businessId') ?? 0;
+    return DateTime.now().millisecondsSinceEpoch - ts > 23 * 3600 * 1000;
+  }
+
+  Future<void> markSynced(String businessId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('kp_sync_ts_$businessId', DateTime.now().millisecondsSinceEpoch);
+  }
+
+  Future<DateTime?> getLastSyncTime(String businessId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ts = prefs.getInt('kp_sync_ts_$businessId');
+    return ts != null ? DateTime.fromMillisecondsSinceEpoch(ts) : null;
+  }
+
+  // ── Local cache (SharedPreferences) ─────────────────────────────────────
+  // Kept for backward compat with entry_tab.dart's _loadPatterns call
 
   static String _txnCacheKey(String businessId) => 'kp_txs_cache_$businessId';
 
   /// Load all locally cached transactions (instant, no network).
+  /// Delegates to file cache; falls back to SharedPreferences for legacy data.
   Future<List<Txn>> loadLocalCache(String businessId) async {
+    // First try file cache (new path)
+    final fromFile = await loadAllTxns(businessId);
+    if (fromFile.isNotEmpty) return fromFile;
+
+    // Fall back to old SharedPreferences cache
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw   = prefs.getString(_txnCacheKey(businessId));
@@ -32,73 +92,58 @@ class DbService {
     }
   }
 
-  /// Persist [txns] list to local cache (fire-and-forget).
-  Future<void> _saveLocalCache(String businessId, List<Txn> txns) async {
-    try {
-      final prefs    = await SharedPreferences.getInstance();
-      final limited  = txns.length > _maxCached ? txns.sublist(0, _maxCached) : txns;
-      await prefs.setString(
-        _txnCacheKey(businessId),
-        jsonEncode(limited.map((t) => t.toJson()).toList()),
-      );
-    } catch (_) {}
-  }
+  // ── One-time Firestore fetch ───────────────────────────────────────────────
+  // Full sync first time, incremental after.
+  // Uses paginated get() (NOT snapshots). Full sync: 500-at-a-time pagination.
+  // Incremental: query date >= (lastCursor - 2 days) for safety, merge with cache.
+  Future<List<Txn>> syncFromFirebase(String businessId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cursorMs = prefs.getInt('kp_sync_cursor_$businessId');
 
-  /// Append one txn to local cache without reloading everything.
-  Future<void> _appendToLocalCache(String businessId, Txn txn) async {
-    try {
-      final existing = await loadLocalCache(businessId);
-      existing.insert(0, txn);
-      await _saveLocalCache(businessId, existing);
-    } catch (_) {}
-  }
+    if (cursorMs != null) {
+      // Incremental: only fetch entries with date >= (lastSync - 2 days)
+      final since = DateTime.fromMillisecondsSinceEpoch(cursorMs)
+          .subtract(const Duration(days: 2));
+      final snap = await _db
+          .collection('transactions')
+          .where('businessId', isEqualTo: businessId)
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .get();
 
-  /// Remove one txn from local cache by id.
-  Future<void> _removeFromLocalCache(String businessId, String txnId) async {
-    try {
-      final existing = await loadLocalCache(businessId);
-      existing.removeWhere((t) => t.id == txnId);
-      await _saveLocalCache(businessId, existing);
-    } catch (_) {}
+      final newTxns = snap.docs.map((d) => Txn.fromFirestore(d)).toList();
+      final existing = await loadAllTxns(businessId);
+      final existingIds = {for (final t in existing) t.id};
+      for (final t in newTxns) {
+        if (!existingIds.contains(t.id)) existing.add(t);
+      }
+      existing.sort((a, b) => b.date.compareTo(a.date));
+      await prefs.setInt('kp_sync_cursor_$businessId', DateTime.now().millisecondsSinceEpoch);
+      return existing;
+    } else {
+      // Full sync: paginated 500 at a time by documentId
+      final allTxns = <Txn>[];
+      QueryDocumentSnapshot<Map<String, dynamic>>? lastDoc;
+      while (true) {
+        Query<Map<String, dynamic>> q = _db
+            .collection('transactions')
+            .where('businessId', isEqualTo: businessId)
+            .orderBy(FieldPath.documentId)
+            .limit(500);
+        if (lastDoc != null) q = q.startAfterDocument(lastDoc);
+        final snap = await q.get();
+        allTxns.addAll(snap.docs.map((d) => Txn.fromFirestore(d)));
+        if (snap.docs.length < 500) break;
+        lastDoc = snap.docs.last;
+      }
+      allTxns.sort((a, b) => b.date.compareTo(a.date));
+      await prefs.setInt('kp_sync_cursor_$businessId', DateTime.now().millisecondsSinceEpoch);
+      return allTxns;
+    }
   }
 
   // ── Transactions ──────────────────────────────────────────────────────────
 
-  /// Cache-first stream: emits local cache instantly, then live Firestore data.
-  /// Filters by [shop] if provided. Also keeps local cache up-to-date.
-  Stream<List<Txn>> txnStream(String businessId, {String? shop}) async* {
-    // 1. Emit from local cache immediately (zero latency)
-    final cached = await loadLocalCache(businessId);
-    if (cached.isNotEmpty) {
-      var filtered = shop != null && shop.isNotEmpty
-          ? cached.where((t) => t.shop == shop).toList()
-          : cached;
-      yield filtered;
-    }
-
-    // 2. Live Firestore stream (updates cache + emits fresh data)
-    Query<Map<String, dynamic>> q = _db
-        .collection('transactions')
-        .where('businessId', isEqualTo: businessId);
-
-    if (shop != null && shop.isNotEmpty) {
-      q = q.where('shop', isEqualTo: shop);
-    }
-
-    await for (final snapshot in q.snapshots()) {
-      final list = snapshot.docs.map((doc) => Txn.fromFirestore(doc)).toList();
-      list.sort((a, b) => b.date.compareTo(a.date));
-
-      // Update local cache with full (unfiltered) list
-      if (shop == null || shop.isEmpty) {
-        _saveLocalCache(businessId, list); // fire-and-forget
-      }
-
-      yield list;
-    }
-  }
-
-  /// Save to Firestore AND local cache simultaneously.
+  /// Save to Firestore AND local file cache simultaneously.
   // ── Offline pending queue ─────────────────────────────────────────────────
   static const _pendingKey = 'kp_pending_queue';
 
@@ -151,30 +196,33 @@ class DbService {
     final id     = txn.id.isNotEmpty ? txn.id : const Uuid().v4();
     final withId = txn.copyWith(id: id);
 
-    // 1. Save to local cache IMMEDIATELY — UI updates without waiting for network
-    await _appendToLocalCache(txn.businessId, withId);
-
-    // 2. Fire-and-forget Firestore write — adds to pending queue on failure
+    // 1. Fire-and-forget Firestore write
     _db.collection('transactions').doc(id).set(withId.toFirestore())
         .then((_) => _removeFromPending(id))
         .catchError((_) => _addToPending(withId));
+
+    // 2. Update file cache (append)
+    final existing = await loadAllTxns(txn.businessId);
+    existing.insert(0, withId);
+    await saveTxnsToCache(txn.businessId, existing);
   }
 
   Future<void> deleteTxn(String id, String businessId) async {
     await _db.collection('transactions').doc(id).delete();
-    await _removeFromLocalCache(businessId, id);
+    final existing = await loadAllTxns(businessId);
+    existing.removeWhere((t) => t.id == id);
+    await saveTxnsToCache(businessId, existing);
   }
 
   Future<void> updateTxn(Txn txn) async {
     final data = txn.toFirestore()
-      ..remove('createdAt')   // don't overwrite original creation time
+      ..remove('createdAt')
       ..['updatedAt'] = FieldValue.serverTimestamp();
     await _db.collection('transactions').doc(txn.id).update(data);
-    // Replace in local cache
-    final existing = await loadLocalCache(txn.businessId);
+    final existing = await loadAllTxns(txn.businessId);
     final idx = existing.indexWhere((t) => t.id == txn.id);
     if (idx != -1) existing[idx] = txn;
-    await _saveLocalCache(txn.businessId, existing);
+    await saveTxnsToCache(txn.businessId, existing);
   }
 
   // ── Suppliers ─────────────────────────────────────────────────────────────

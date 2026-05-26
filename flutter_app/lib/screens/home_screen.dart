@@ -289,6 +289,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const Spacer(),
+              // Sync button
+              Consumer<AppProvider>(builder: (ctx, ap, _) {
+                final lastSync = ap.lastSynced;
+                final syncAgo = lastSync == null
+                    ? null
+                    : DateTime.now().difference(lastSync);
+                return IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: ap.syncing
+                      ? const SizedBox(
+                          width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))
+                      : Icon(Icons.sync,
+                          color: syncAgo != null && syncAgo.inHours < 1
+                              ? kSecondary
+                              : Colors.grey.shade400,
+                          size: 18),
+                  tooltip: syncAgo == null
+                      ? 'Sync data'
+                      : syncAgo.inHours < 1
+                          ? 'Synced ${syncAgo.inMinutes}m ago'
+                          : 'Synced ${syncAgo.inHours}h ago',
+                  onPressed: ap.syncing ? null : () => ap.syncNow(),
+                );
+              }),
               // Plan badge: Admin / Pro / Free
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -467,15 +493,13 @@ class _QuickReportSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final db = DbService();
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.75,
       maxChildSize: 0.95,
-      builder: (_, ctrl) => StreamBuilder<List<Txn>>(
-        stream: db.txnStream(businessId),
-        builder: (ctx, snap) {
-          final all = snap.data ?? [];
+      builder: (_, ctrl) => Consumer<AppProvider>(
+        builder: (ctx, p, _) {
+          final all = p.txns;
           final now = DateTime.now();
           final today = DateFormat('yyyy-MM-dd').format(now);
           final weekStart = DateFormat('yyyy-MM-dd')
@@ -483,18 +507,18 @@ class _QuickReportSheet extends StatelessWidget {
           final monthStart = DateFormat('yyyy-MM-dd')
               .format(DateTime(now.year, now.month, 1));
 
-          double _sales(List<Txn> txs) =>
+          double calcSales(List<Txn> txs) =>
               txs.where((t) => t.type == 'sale').fold(0.0, (s, t) => s + t.amount);
-          double _exp(List<Txn> txs) =>
+          double calcExp(List<Txn> txs) =>
               txs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
 
           final todayTxs  = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date) == today).toList();
           final weekTxs   = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date).compareTo(weekStart) >= 0).toList();
           final monthTxs  = all.where((t) => DateFormat('yyyy-MM-dd').format(t.date).compareTo(monthStart) >= 0).toList();
 
-          final todaySales = _sales(todayTxs), todayExp = _exp(todayTxs);
-          final weekSales  = _sales(weekTxs),  weekExp  = _exp(weekTxs);
-          final monthSales = _sales(monthTxs), monthExp = _exp(monthTxs);
+          final todaySales = calcSales(todayTxs), todayExp = calcExp(todayTxs);
+          final weekSales  = calcSales(weekTxs),  weekExp  = calcExp(weekTxs);
+          final monthSales = calcSales(monthTxs), monthExp = calcExp(monthTxs);
           final todayNet = todaySales - todayExp;
           final weekNet  = weekSales  - weekExp;
           final monthNet = monthSales - monthExp;
@@ -519,9 +543,10 @@ class _QuickReportSheet extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Expanded(child: Text('Quick Report',
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15))),
-                  if (snap.connectionState == ConnectionState.waiting)
+                  if (p.syncing)
                     const SizedBox(width: 14, height: 14,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                  const SizedBox(width: 6),
                   Text('${all.length} entries', style: const TextStyle(color: Colors.white70, fontSize: 11)),
                 ]),
               ),
@@ -549,7 +574,7 @@ class _QuickReportSheet extends StatelessWidget {
                       final name   = shop.name;
                       final icon   = shop.icon;
                       final stxs   = todayTxs.where((t) => t.shop == shopId).toList();
-                      final ss     = _sales(stxs), se = _exp(stxs), sn = ss - se;
+                      final ss     = calcSales(stxs), se = calcExp(stxs), sn = ss - se;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -574,7 +599,7 @@ class _QuickReportSheet extends StatelessWidget {
                         ]),
                       );
                     }),
-                    if (all.isEmpty && snap.connectionState != ConnectionState.waiting)
+                    if (all.isEmpty && !p.syncing)
                       const Center(child: Padding(
                         padding: EdgeInsets.all(24),
                         child: Text('No data yet. Add entries to see your report.',

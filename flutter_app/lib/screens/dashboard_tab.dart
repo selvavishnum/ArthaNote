@@ -228,86 +228,57 @@ class _DashboardTabState extends State<DashboardTab> {
       t('this_month', l),
     ];
 
-    return StreamBuilder<List<Txn>>(
-      stream: _db.txnStream(p.businessId),
-      builder: (ctx, snap) {
-        if (snap.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.cloud_off_outlined, color: kRed, size: 40),
-                const SizedBox(height: 12),
-                const Text('Sync error — check connection',
-                    style: TextStyle(
-                        color: kRed,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15)),
-                const SizedBox(height: 6),
-                Text(snap.error.toString(),
-                    style: const TextStyle(color: kMuted, fontSize: 11),
-                    textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => setState(() {}),
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Retry'),
-                  style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
-                ),
-              ]),
-            ),
-          );
-        }
-        final all    = snap.data ?? [];
-        // Update streak in background
-        WidgetsBinding.instance.addPostFrameCallback((_) => _updateStreak(all));
-        final txns   = _filter(all, p);
-        final sales  = txns.where((x) => x.type == 'sale')
-            .fold(0.0, (s, x) => s + x.amount);
-        final expense = txns.where((x) => x.type == 'expense')
-            .fold(0.0, (s, x) => s + x.amount);
-        final payment = txns.where((x) => x.type == 'payment')
-            .fold(0.0, (s, x) => s + x.amount);
-        final net = sales - expense - payment;
+    final all    = p.txns;
+    // Update streak in background
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateStreak(all));
 
-        // Last 7 days overdraft check
-        final now7 = DateTime.now();
-        final sevenDaysAgo = DateTime(now7.year, now7.month, now7.day).subtract(const Duration(days: 7));
-        final last7Txns = all.where((tx) => !tx.date.isBefore(sevenDaysAgo)).toList();
-        final last7Sales = last7Txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
-        final last7Exp   = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
-        final last7Pay   = last7Txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
-        final last7Net   = last7Sales - last7Exp - last7Pay;
-        final showOverdraft = last7Net < 0;
+    final txns    = _filter(all, p);
+    final sales   = txns.where((x) => x.type == 'sale')
+        .fold(0.0, (s, x) => s + x.amount);
+    final expense = txns.where((x) => x.type == 'expense')
+        .fold(0.0, (s, x) => s + x.amount);
+    final payment = txns.where((x) => x.type == 'payment')
+        .fold(0.0, (s, x) => s + x.amount);
+    final net = sales - expense - payment;
 
-        // Most sold
-        String mostSold = '';
-        final saleTxns = txns.where((x) => x.type == 'sale').toList();
-        if (saleTxns.isNotEmpty) {
-          final freq = <String, int>{};
-          for (final tx in saleTxns) {
-            if (tx.desc.isNotEmpty) freq[tx.desc] = (freq[tx.desc] ?? 0) + 1;
-          }
-          if (freq.isNotEmpty) {
-            mostSold = freq.entries
-                .reduce((a, b) => a.value >= b.value ? a : b)
-                .key;
-          }
-        }
+    // Last 7 days overdraft check
+    final now7 = DateTime.now();
+    final sevenDaysAgo = DateTime(now7.year, now7.month, now7.day).subtract(const Duration(days: 7));
+    final last7Txns = all.where((tx) => !tx.date.isBefore(sevenDaysAgo)).toList();
+    final last7Sales = last7Txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
+    final last7Exp   = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
+    final last7Pay   = last7Txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
+    final last7Net   = last7Sales - last7Exp - last7Pay;
+    final showOverdraft = last7Net < 0;
 
-        // Today entries for AI alert
-        final now         = DateTime.now();
-        final todayStart  = DateTime(now.year, now.month, now.day);
-        final todayCount  = all.where((tx) => !tx.date.isBefore(todayStart)).length;
-        final todayKey    = DateFormat('yyyy-MM-dd').format(now);
-        final isEvening   = now.hour >= 18;
-        final showAiAlert = isEvening && todayCount == 0 &&
-            (_dismissedDate != todayKey);
+    // Most sold
+    String mostSold = '';
+    final saleTxns = txns.where((x) => x.type == 'sale').toList();
+    if (saleTxns.isNotEmpty) {
+      final freq = <String, int>{};
+      for (final tx in saleTxns) {
+        if (tx.desc.isNotEmpty) freq[tx.desc] = (freq[tx.desc] ?? 0) + 1;
+      }
+      if (freq.isNotEmpty) {
+        mostSold = freq.entries
+            .reduce((a, b) => a.value >= b.value ? a : b)
+            .key;
+      }
+    }
 
-        // AI: find patterns (entries that usually appear — last 14 days freq)
-        final missingItems = _detectMissingPatterns(all);
+    // Today entries for AI alert
+    final now         = DateTime.now();
+    final todayStart  = DateTime(now.year, now.month, now.day);
+    final todayCount  = all.where((tx) => !tx.date.isBefore(todayStart)).length;
+    final todayKey    = DateFormat('yyyy-MM-dd').format(now);
+    final isEvening   = now.hour >= 18;
+    final showAiAlert = isEvening && todayCount == 0 &&
+        (_dismissedDate != todayKey);
 
-        return RefreshIndicator(
+    // AI: find patterns (entries that usually appear — last 14 days freq)
+    final missingItems = _detectMissingPatterns(all);
+
+    return RefreshIndicator(
           color: kPrimary,
           backgroundColor: Colors.white,
           onRefresh: () async => setState(() {}),
@@ -415,8 +386,7 @@ class _DashboardTabState extends State<DashboardTab> {
               const SizedBox(height: 12),
 
               // No-entries warning
-              if (txns.isEmpty &&
-                  snap.connectionState != ConnectionState.waiting)
+              if (txns.isEmpty)
                 Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.symmetric(
@@ -513,7 +483,7 @@ class _DashboardTabState extends State<DashboardTab> {
               ),
               const SizedBox(height: 8),
 
-              if (snap.connectionState == ConnectionState.waiting)
+              if (p.syncing && p.shops.isEmpty)
                 const Center(
                     child: Padding(
                   padding: EdgeInsets.all(16),
@@ -581,8 +551,6 @@ class _DashboardTabState extends State<DashboardTab> {
             ],
           ),
         );
-      },
-    );
   }
 
   // Detect frequently occurring descriptions that are missing today
@@ -1310,7 +1278,7 @@ class _AiAlertSection extends StatelessWidget {
     if (!context.mounted) return;
 
     try {
-      await db.addTxn(Txn(
+      final txn = Txn(
         id:         DateTime.now().millisecondsSinceEpoch.toString(),
         businessId: businessId,
         shop:       shop,
@@ -1319,8 +1287,10 @@ class _AiAlertSection extends StatelessWidget {
         type:       type,
         amount:     result,
         desc:       desc,
-      ));
+      );
+      await db.addTxn(txn);
       if (context.mounted) {
+        context.read<AppProvider>().addLocalTxn(txn);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('$desc saved'),
           backgroundColor: kSecondary,

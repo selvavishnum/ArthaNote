@@ -1,15 +1,11 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
-import '../services/db_service.dart';
 import '../models/shop.dart';
 import 'dashboard_tab.dart' show rupee;
 
@@ -73,85 +69,9 @@ class ReportsTab extends StatefulWidget {
 }
 
 class _ReportsTabState extends State<ReportsTab> {
-  final _db = DbService();
-  List<Txn> _txns = [];
-  bool _loading = true;
-  bool _fromCache = false;
-  StreamSubscription<List<Txn>>? _sub;
   _Period _period = _Period.month;
   DateTimeRange? _customRange;
   String _section = 'exec';
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initData());
-  }
-
-  Future<void> _initData() async {
-    // 1. Load from cache
-    final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getString('kp_txs_cache');
-    if (cached != null) {
-      try {
-        final list = (jsonDecode(cached) as List)
-            .map((e) => Txn.fromJson(e as Map<String, dynamic>))
-            .toList();
-        if (mounted) {
-          setState(() {
-            _txns = list;
-            _loading = false;
-            _fromCache = true;
-          });
-        }
-      } catch (_) {}
-    }
-
-    // 2. Subscribe to live stream
-    final p = context.read<AppProvider>();
-    _sub?.cancel();
-    _sub = _db.txnStream(p.businessId).listen((data) async {
-      // Persist to cache
-      final prefs2 = await SharedPreferences.getInstance();
-      await prefs2.setString(
-        'kp_txs_cache',
-        jsonEncode(data.map((t) => t.toJson()).toList()),
-      );
-      if (mounted) {
-        setState(() {
-          _txns = data;
-          _loading = false;
-          _fromCache = false;
-        });
-      }
-    }, onError: (Object e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Sync error: $e'),
-          backgroundColor: kRed,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ));
-      }
-    });
-  }
-
-  Future<void> _forceRefresh() async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Syncing from cloud...')),
-    );
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('kp_txs_cache');
-    _sub?.cancel();
-    _sub = null;
-    setState(() {
-      _fromCache = false;
-      _loading = true;
-    });
-    await _initData();
-  }
 
   DateTimeRange _getRange() {
     final now = DateTime.now();
@@ -190,16 +110,16 @@ class _ReportsTabState extends State<ReportsTab> {
     );
   }
 
-  List<Txn> get _filteredTxns {
+  List<Txn> _filteredTxns(List<Txn> all) {
     final r = _getRange();
-    return _txns
+    return all
         .where((t) => !t.date.isBefore(r.start) && t.date.isBefore(r.end))
         .toList();
   }
 
-  List<Txn> get _prevTxns {
+  List<Txn> _prevTxns(List<Txn> all) {
     final r = _getPrevRange();
-    return _txns
+    return all
         .where((t) => !t.date.isBefore(r.start) && t.date.isBefore(r.end))
         .toList();
   }
@@ -283,7 +203,8 @@ class _ReportsTabState extends State<ReportsTab> {
     );
     if (picked == null || !mounted) return;
 
-    final dayTxns = _txns.where((t) {
+    final allTxns = context.read<AppProvider>().txns;
+    final dayTxns = allTxns.where((t) {
       final d = t.date;
       return d.year == picked.year &&
           d.month == picked.month &&
@@ -327,23 +248,18 @@ class _ReportsTabState extends State<ReportsTab> {
   }
 
   @override
-  void dispose() {
-    _sub?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
+    final all = p.txns;
 
-    if (_loading && _txns.isEmpty) {
+    if (p.syncing && all.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: kPrimary));
     }
 
-    final txns = _filteredTxns;
-    final prevTxns = _prevTxns;
+    final txns = _filteredTxns(all);
+    final prevTxns = _prevTxns(all);
 
-    Widget content = Column(
+    return Column(
       children: [
         // Period tabs
         Container(
@@ -357,43 +273,10 @@ class _ReportsTabState extends State<ReportsTab> {
         ),
         // Section content
         Expanded(
-          child: _buildSectionContent(txns, prevTxns, p),
+          child: _buildSectionContent(txns, prevTxns, p, all),
         ),
       ],
     );
-
-    if (_fromCache) {
-      content = Stack(
-        children: [
-          content,
-          Positioned(
-            top: 8,
-            right: 12,
-            child: GestureDetector(
-              onTap: _forceRefresh,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: kAmber.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: kAmber.withOpacity(0.4)),
-                ),
-                child: const Text(
-                  '📦 Cached · ↻ Sync',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: kAccent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return content;
   }
 
   Widget _buildPeriodTabs(BuildContext context) {
@@ -480,13 +363,13 @@ class _ReportsTabState extends State<ReportsTab> {
   }
 
   Widget _buildSectionContent(
-      List<Txn> txns, List<Txn> prevTxns, AppProvider p) {
+      List<Txn> txns, List<Txn> prevTxns, AppProvider p, List<Txn> allTxns) {
     switch (_section) {
       case 'exec':
         return _ExecSection(
           txns: txns,
           prevTxns: prevTxns,
-          allTxns: _txns,
+          allTxns: allTxns,
           shops: p.shops,
           onShareToday:  () => _shareWhatsApp('Today', txns),
           onShareMonth:  () => _shareWhatsApp('Month', txns),
@@ -499,7 +382,7 @@ class _ReportsTabState extends State<ReportsTab> {
       case 'weekly':
         return _WeeklySection(txns: txns);
       case 'monthly':
-        return _MonthlySection(allTxns: _txns);
+        return _MonthlySection(allTxns: allTxns);
       case 'expense':
         return _ExpenseSection(txns: txns);
       case 'credit':
@@ -513,18 +396,18 @@ class _ReportsTabState extends State<ReportsTab> {
       case 'variance':
         return _VarianceSection(txns: txns, prevTxns: prevTxns, shops: p.shops);
       case 'charts':
-        return _ChartsSection(txns: txns, allTxns: _txns);
+        return _ChartsSection(txns: txns, allTxns: allTxns);
       case 'alerts':
         return _AlertsSection(txns: txns, prevTxns: prevTxns);
       case 'insights':
-        return _InsightsSection(txns: txns, allTxns: _txns);
+        return _InsightsSection(txns: txns, allTxns: allTxns);
       case 'actions':
         return _ActionsSection(txns: txns, prevTxns: prevTxns);
       default:
         return _ExecSection(
           txns: txns,
           prevTxns: prevTxns,
-          allTxns: _txns,
+          allTxns: allTxns,
           shops: p.shops,
           onShareToday: () => _shareWhatsApp('Today', txns),
           onShareMonth: () => _shareWhatsApp('Month', txns),

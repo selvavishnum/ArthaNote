@@ -5,9 +5,11 @@ class FCMember {
   final String   businessId;
   final String   name;
   final String   phone;
-  final double   amount;     // monthly due amount
-  final String   group;      // 'finance' | 'chit' | 'both'
-  final String   joinMonth;  // YYYY-MM
+  final double   amount;      // installment amount per cycle
+  final double   loanAmount;  // total loan given (0 = no loan, just collection)
+  final String   frequency;   // 'daily' | 'weekly' | 'monthly'
+  final String   group;       // 'finance' | 'chit' | 'both'
+  final String   joinMonth;   // YYYY-MM
   final DateTime createdAt;
 
   const FCMember({
@@ -16,6 +18,8 @@ class FCMember {
     required this.name,
     required this.phone,
     required this.amount,
+    this.loanAmount = 0.0,
+    this.frequency  = 'monthly',
     required this.group,
     required this.joinMonth,
     required this.createdAt,
@@ -29,6 +33,8 @@ class FCMember {
       name:       d['name']       as String? ?? '',
       phone:      d['phone']      as String? ?? '',
       amount:     (d['amount']    as num?)?.toDouble() ?? 0,
+      loanAmount: (d['loanAmount'] as num?)?.toDouble() ?? 0,
+      frequency:  d['frequency']  as String? ?? 'monthly',
       group:      d['group']      as String? ?? 'finance',
       joinMonth:  d['joinMonth']  as String? ?? '',
       createdAt:  (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -40,6 +46,8 @@ class FCMember {
     'name':       name,
     'phone':      phone,
     'amount':     amount,
+    'loanAmount': loanAmount,
+    'frequency':  frequency,
     'group':      group,
     'joinMonth':  joinMonth,
     'createdAt':  FieldValue.serverTimestamp(),
@@ -51,6 +59,8 @@ class FCMember {
     String?   name,
     String?   phone,
     double?   amount,
+    double?   loanAmount,
+    String?   frequency,
     String?   group,
     String?   joinMonth,
     DateTime? createdAt,
@@ -60,6 +70,8 @@ class FCMember {
     name:       name       ?? this.name,
     phone:      phone      ?? this.phone,
     amount:     amount     ?? this.amount,
+    loanAmount: loanAmount ?? this.loanAmount,
+    frequency:  frequency  ?? this.frequency,
     group:      group      ?? this.group,
     joinMonth:  joinMonth  ?? this.joinMonth,
     createdAt:  createdAt  ?? this.createdAt,
