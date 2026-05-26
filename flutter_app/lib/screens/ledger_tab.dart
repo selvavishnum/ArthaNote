@@ -22,7 +22,6 @@ class LedgerTab extends StatefulWidget {
 }
 
 class _LedgerTabState extends State<LedgerTab> {
-  final _db     = DbService();
   final _search = TextEditingController();
   String  _typeFilter  = 'all';
   _Period _period      = _Period.month;
@@ -274,118 +273,93 @@ class _LedgerTabState extends State<LedgerTab> {
     final p = context.watch<AppProvider>();
     final l = p.lang;
 
-    return StreamBuilder<List<Txn>>(
-      stream: _db.txnStream(p.businessId),
-      builder: (ctx, snap) {
-        if (snap.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.cloud_off_outlined, color: kRed, size: 40),
-                const SizedBox(height: 12),
-                const Text('Sync error — check connection',
-                    style: TextStyle(
-                        color: kRed,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15)),
-                const SizedBox(height: 6),
-                Text(snap.error.toString(),
-                    style: const TextStyle(color: kMuted, fontSize: 11),
-                    textAlign: TextAlign.center),
-              ]),
-            ),
-          );
-        }
-        final all  = snap.data ?? [];
-        // Detect duplicates whenever data changes
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final dups = _detectDuplicates(all);
-          if (dups.toString() != _duplicateWarnings.toString()) {
-            setState(() {
-              _duplicateWarnings = dups;
-              _dupBannerDismissed = false;
-            });
-          }
+    final all  = p.txns;
+    // Detect duplicates whenever data changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final dups = _detectDuplicates(all);
+      if (dups.toString() != _duplicateWarnings.toString()) {
+        setState(() {
+          _duplicateWarnings = dups;
+          _dupBannerDismissed = false;
         });
-        final txns = _applyFilters(all, p.selectedShop);
+      }
+    });
+    final txns = _applyFilters(all, p.selectedShop);
 
-        final totalSales   = txns.where((x) => x.type == 'sale')
-            .fold(0.0, (s, x) => s + x.amount);
-        final totalExpense = txns.where((x) => x.type == 'expense')
-            .fold(0.0, (s, x) => s + x.amount);
+    final totalSales   = txns.where((x) => x.type == 'sale')
+        .fold(0.0, (s, x) => s + x.amount);
+    final totalExpense = txns.where((x) => x.type == 'expense')
+        .fold(0.0, (s, x) => s + x.amount);
 
-        // Group by date
-        final groups = <DateTime, List<Txn>>{};
-        for (final tx in txns) {
-          final day = DateTime(tx.date.year, tx.date.month, tx.date.day);
-          groups.putIfAbsent(day, () => []).add(tx);
-        }
-        final days = groups.keys.toList()
-          ..sort((a, b) => b.compareTo(a)); // newest first
+    // Group by date
+    final groups = <DateTime, List<Txn>>{};
+    for (final tx in txns) {
+      final day = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      groups.putIfAbsent(day, () => []).add(tx);
+    }
+    final days = groups.keys.toList()
+      ..sort((a, b) => b.compareTo(a)); // newest first
 
-        return Column(children: [
-          _buildHeader(txns, txns.length, totalSales, totalExpense, l),
-          // Duplicate warning banner
-          if (_duplicateWarnings.isNotEmpty && !_dupBannerDismissed)
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFFBBF24)),
-              ),
-              child: Row(children: [
-                const Text('⚠️', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 8),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _duplicateWarnings.map((w) => Text(w,
-                      style: TextStyle(color: Colors.amber.shade900, fontSize: 11))).toList(),
-                )),
-                GestureDetector(
-                  onTap: () => setState(() => _dupBannerDismissed = true),
-                  child: const Icon(Icons.close, size: 16, color: kMuted),
-                ),
-              ]),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: TextFormField(
-              controller: _search,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: t('search_hint', l),
-                prefixIcon:
-                    const Icon(Icons.search_outlined, color: kPrimary),
-                suffixIcon: _search.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _search.clear();
-                          setState(() {});
-                        })
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-            ),
+    return Column(children: [
+      _buildHeader(txns, txns.length, totalSales, totalExpense, l),
+      // Duplicate warning banner
+      if (_duplicateWarnings.isNotEmpty && !_dupBannerDismissed)
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFFBBF24)),
           ),
-          _buildPeriodRow(l),
-          _buildTypeRow(),
-          Expanded(
-            child: snap.connectionState == ConnectionState.waiting
-                ? const Center(
-                    child: CircularProgressIndicator(color: kPrimary))
-                : txns.isEmpty
-                    ? _buildEmpty(l)
-                    : _buildList(days, groups, l, p.shops),
+          child: Row(children: [
+            const Text('⚠️', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _duplicateWarnings.map((w) => Text(w,
+                  style: TextStyle(color: Colors.amber.shade900, fontSize: 11))).toList(),
+            )),
+            GestureDetector(
+              onTap: () => setState(() => _dupBannerDismissed = true),
+              child: const Icon(Icons.close, size: 16, color: kMuted),
+            ),
+          ]),
+        ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: TextFormField(
+          controller: _search,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: t('search_hint', l),
+            prefixIcon:
+                const Icon(Icons.search_outlined, color: kPrimary),
+            suffixIcon: _search.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      _search.clear();
+                      setState(() {});
+                    })
+                : null,
+            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+            filled: true,
+            fillColor: Colors.white,
           ),
-        ]);
-      },
-    );
+        ),
+      ),
+      _buildPeriodRow(l),
+      _buildTypeRow(),
+      Expanded(
+        child: p.syncing && all.isEmpty
+            ? const Center(
+                child: CircularProgressIndicator(color: kPrimary))
+            : txns.isEmpty
+                ? _buildEmpty(l)
+                : _buildList(days, groups, l, p.shops),
+      ),
+    ]);
   }
 
   // ── Header ────────────────────────────────────────────────────────────────
@@ -791,7 +765,10 @@ class _LedgerTile extends StatelessWidget {
           ],
         ),
       ),
-      onDismissed: (_) => DbService().deleteTxn(txn.id, txn.businessId),
+      onDismissed: (_) {
+        DbService().deleteTxn(txn.id, txn.businessId);
+        context.read<AppProvider>().removeLocalTxn(txn.id);
+      },
       child: GestureDetector(
         onTap: () => _openEdit(context),
         child: Container(
@@ -946,7 +923,10 @@ class _EditTxnSheetState extends State<_EditTxnSheet> {
         date:     _date,
       );
       await _db.updateTxn(updated);
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        context.read<AppProvider>().updateLocalTxn(updated);
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);

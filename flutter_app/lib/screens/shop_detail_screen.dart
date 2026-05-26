@@ -77,10 +77,9 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: StreamBuilder<List<Txn>>(
-        stream: _db.txnStream(p.businessId, shop: shop.id),
-        builder: (ctx, snap) {
-          final all  = snap.data ?? [];
+      body: Builder(
+        builder: (ctx) {
+          final all  = p.txns.where((t) => t.shop == shop.id).toList();
           final txns = _filter(all);
 
           final sales   = txns.where((x) => x.type == 'sale')
@@ -342,12 +341,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
             ),
 
             // Transaction list
-            if (snap.connectionState == ConnectionState.waiting)
-              const SliverFillRemaining(
-                child: Center(
-                    child: CircularProgressIndicator(color: kPrimary)),
-              )
-            else if (txns.isEmpty)
+            if (txns.isEmpty)
               const SliverFillRemaining(
                 child: Center(
                   child: Column(mainAxisAlignment: MainAxisAlignment.center,
@@ -411,7 +405,10 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                           ],
                         ),
                       ),
-                      onDismissed: (_) => _db.deleteTxn(txn.id, txn.businessId),
+                      onDismissed: (_) {
+                        _db.deleteTxn(txn.id, txn.businessId);
+                        context.read<AppProvider>().removeLocalTxn(txn.id);
+                      },
                       child: Card(
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 3),
