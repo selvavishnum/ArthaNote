@@ -633,7 +633,7 @@ class _CollectionMemberRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _DetailRow('Month', month),
+            _DetailRow('Period', formatPeriodLabel(period, member.frequency)),
             _DetailRow('Amount', _fmtAmt(p.amount)),
             _DetailRow('Mode', p.mode.toUpperCase()),
             if (p.note.isNotEmpty) _DetailRow('Note', p.note),
@@ -1701,6 +1701,9 @@ class _RecordPrizeSheetState extends State<_RecordPrizeSheet> {
   late final TextEditingController _amtCtrl;
   String _month  = _nowYYYYMM();
   bool   _saving = false;
+
+  String _prevMonth(String m) => prevPeriod(m, 'monthly');
+  String _nextMonth(String m) => nextPeriod(m, 'monthly');
 
   @override
   void initState() {
