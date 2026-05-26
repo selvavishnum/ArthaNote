@@ -89,10 +89,13 @@ class _EntryTabState extends State<EntryTab> {
 
   static const _paymentCategories = ['Supplier', 'Loan', 'Staff', 'Utility'];
 
+  bool _isPersonalShop(AppProvider p) =>
+      (p.shops[_shopId]?.type ?? '') == 'personal';
+
   List<String> _getCategories(AppProvider p) {
-    if (p.isPersonal)       return [];
-    if (_type == 'sale')    return p.salesCats(_shopId);
-    if (_type == 'expense') return p.expenseCats(_shopId);
+    if (_isPersonalShop(p))  return [];
+    if (_type == 'sale')     return p.salesCats(_shopId);
+    if (_type == 'expense')  return p.expenseCats(_shopId);
     return _paymentCategories;
   }
 
@@ -135,7 +138,7 @@ class _EntryTabState extends State<EntryTab> {
         type:       _type,
         amount:     amt,
         desc:       description,
-        contact:    p.isPersonal ? _contact.text.trim() : '',
+        contact:    _isPersonalShop(p) ? _contact.text.trim() : '',
       ));
       _snack('Entry saved');
       // Teach the AI about this entry before resetting
@@ -193,6 +196,7 @@ class _EntryTabState extends State<EntryTab> {
       _shopId = p.shops.values.first.id;
     }
 
+    final isPersonalMode = _isPersonalShop(p);
     final typeColor = _selectedTypeConfig['color'] as Color;
 
     return SingleChildScrollView(
@@ -213,7 +217,7 @@ class _EntryTabState extends State<EntryTab> {
           const SizedBox(height: 14),
 
           // Type selector
-          if (p.isPersonal)
+          if (isPersonalMode)
             Row(children: [
               for (final cfg in [
                 {'type': 'sale',    'label': 'I Received', 'icon': '💰', 'color': kSecondary},
@@ -453,7 +457,7 @@ class _EntryTabState extends State<EntryTab> {
           }),
 
           // Contact name (personal mode only)
-          if (p.isPersonal) ...[
+          if (isPersonalMode) ...[
             const SizedBox(height: 14),
             _LabelField(
               label: 'CONTACT NAME',
@@ -472,7 +476,7 @@ class _EntryTabState extends State<EntryTab> {
           const SizedBox(height: 14),
 
           // Quick categories (hidden in personal mode)
-          if (!p.isPersonal) ...[
+          if (!isPersonalMode) ...[
             const Text(
               'QUICK SELECT',
               style: TextStyle(
