@@ -17,25 +17,8 @@ String _fmtAmt(double v) {
   return '₹$formatted';
 }
 
+String _nowPeriod(String frequency) => periodKey(DateTime.now(), frequency);
 String _nowYYYYMM() => DateFormat('yyyy-MM').format(DateTime.now());
-
-String _prevMonth(String yyyyMM) {
-  final parts = yyyyMM.split('-');
-  var year  = int.parse(parts[0]);
-  var month = int.parse(parts[1]);
-  month--;
-  if (month == 0) { month = 12; year--; }
-  return '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
-}
-
-String _nextMonth(String yyyyMM) {
-  final parts = yyyyMM.split('-');
-  var year  = int.parse(parts[0]);
-  var month = int.parse(parts[1]);
-  month++;
-  if (month == 13) { month = 1; year++; }
-  return '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}';
-}
 
 // ── Finance Tab root ──────────────────────────────────────────────────────────
 
@@ -63,8 +46,8 @@ class _FinanceTabState extends State<FinanceTab>
     super.dispose();
   }
 
-  void _prevM() => setState(() => _selectedMonth = _prevMonth(_selectedMonth));
-  void _nextM() => setState(() => _selectedMonth = _nextMonth(_selectedMonth));
+  void _prevM() => setState(() => _selectedMonth = prevPeriod(_selectedMonth, 'monthly'));
+  void _nextM() => setState(() => _selectedMonth = nextPeriod(_selectedMonth, 'monthly'));
 
   @override
   Widget build(BuildContext context) {
@@ -113,11 +96,8 @@ class _FinanceTabState extends State<FinanceTab>
           ),
           _MembersTab(svc: _svc, businessId: p.businessId),
           _CollectionsTab(
-            svc:           _svc,
-            businessId:    p.businessId,
-            selectedMonth: _selectedMonth,
-            onPrev:        _prevM,
-            onNext:        _nextM,
+            svc:        _svc,
+            businessId: p.businessId,
           ),
           _ChitFundTab(svc: _svc, businessId: p.businessId),
         ],
@@ -429,13 +409,29 @@ class _MemberCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(_fmtAmt(member.amount) + '/mo',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: kPrimary)),
+                  Text(
+                    '${_fmtAmt(member.amount)}/${member.frequency[0]}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13, color: kPrimary),
+                  ),
                   const SizedBox(height: 4),
-                  _GroupBadge(group: member.group),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    _GroupBadge(group: member.group),
+                    if (member.loanAmount > 0) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: kAmber.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '₹${(member.loanAmount / 1000).toStringAsFixed(0)}K loan',
+                          style: const TextStyle(color: kAmber, fontSize: 9, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ]),
                 ],
               ),
             ]),
@@ -455,59 +451,94 @@ class _MemberCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TAB 3 — COLLECTIONS
+// TAB 3 — COLLECTIONS (per-frequency period navigation)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _CollectionsTab extends StatelessWidget {
-  final FcService    svc;
-  final String       businessId;
-  final String       selectedMonth;
-  final VoidCallback onPrev;
-  final VoidCallback onNext;
+class _CollectionsTab extends StatefulWidget {
+  final FcService svc;
+  final String    businessId;
 
-  const _CollectionsTab({
-    required this.svc,
-    required this.businessId,
-    required this.selectedMonth,
-    required this.onPrev,
-    required this.onNext,
+  const _CollectionsTab({required this.svc, required this.businessId});
+
+  @override
+  State<_CollectionsTab> createState() => _CollectionsTabState();
+}
+
+class _CollectionsTabState extends State<_CollectionsTab> {
+  // Active frequency filter for the collections view
+  String _freqFilter = 'daily'; // 'daily' | 'weekly' | 'monthly'
+  late String _period;
+
+  @override
+  void initState() {
+    super.initState();
+    _period = _nowPeriod(_freqFilter);
+  }
+
+  void _prev() => setState(() => _period = prevPeriod(_period, _freqFilter));
+  void _next() => setState(() => _period = nextPeriod(_period, _freqFilter));
+
+  void _setFreq(String f) => setState(() {
+    _freqFilter = f;
+    _period = _nowPeriod(f);
   });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<FCMember>>(
-      stream: svc.memberStream(businessId),
+      stream: widget.svc.memberStream(widget.businessId),
       builder: (ctx, mSnap) {
-        final members = mSnap.data ?? [];
+        final allMembers = mSnap.data ?? [];
+        // Show only members matching the active frequency
+        final members = allMembers.where((m) => m.frequency == _freqFilter).toList();
         return StreamBuilder<List<FCPayment>>(
-          stream: svc.paymentStream(businessId, selectedMonth),
+          stream: widget.svc.paymentStream(widget.businessId, _period),
           builder: (ctx, pSnap) {
             final payments = pSnap.data ?? [];
-            return _buildBody(context, members, payments);
+            return _buildBody(context, allMembers, members, payments);
           },
         );
       },
     );
   }
 
-  Widget _buildBody(BuildContext context, List<FCMember> members,
-      List<FCPayment> payments) {
-    final paidIds      = payments.map((p) => p.memberId).toSet();
-    final paidCount    = paidIds.length;
-    final totalDue     = members.fold(0.0, (s, m) => s + m.amount);
+  Widget _buildBody(BuildContext context, List<FCMember> allMembers,
+      List<FCMember> members, List<FCPayment> payments) {
+    final paidIds        = payments.map((p) => p.memberId).toSet();
+    final paidCount      = members.where((m) => paidIds.contains(m.id)).length;
+    final totalDue       = members.fold(0.0, (s, m) => s + m.amount);
     final totalCollected = payments.fold(0.0, (s, p) => s + p.amount);
 
     return Column(
       children: [
-        // Month selector + summary header
+        // Frequency filter chips
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: Row(children: [
+            for (final f in ['daily', 'weekly', 'monthly'])
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _FreqChip(
+                  label: f[0].toUpperCase() + f.substring(1),
+                  active: _freqFilter == f,
+                  onTap: () => _setFreq(f),
+                ),
+              ),
+          ]),
+        ),
+        // Period selector + summary
         Container(
           color: Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _MonthSelector(
-                  month: selectedMonth, onPrev: onPrev, onNext: onNext),
+              _PeriodSelector(
+                label: formatPeriodLabel(_period, _freqFilter),
+                onPrev: _prev,
+                onNext: _next,
+              ),
               const SizedBox(height: 8),
               Text(
                 '$paidCount of ${members.length} paid  ·  '
@@ -521,56 +552,59 @@ class _CollectionsTab extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: members.isEmpty
+          child: allMembers.isEmpty
               ? const _FullEmptyState(
                   icon: Icons.people_outline,
                   title: 'No members yet',
                   subtitle: 'Add members first from the Members tab',
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-                  itemCount: members.length,
-                  itemBuilder: (_, i) {
-                    final member  = members[i];
-                    final payment = _paymentFor(payments, member.id);
-                    return _CollectionMemberRow(
-                      member:     member,
-                      payment:    payment,
-                      svc:        svc,
-                      businessId: businessId,
-                      month:      selectedMonth,
-                    );
-                  },
-                ),
+              : members.isEmpty
+                  ? _FullEmptyState(
+                      icon: Icons.calendar_today_outlined,
+                      title: 'No ${_freqFilter} members',
+                      subtitle: 'Add members with "$_freqFilter" frequency',
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+                      itemCount: members.length,
+                      itemBuilder: (_, i) {
+                        final member  = members[i];
+                        final payment = _paymentFor(payments, member.id);
+                        return _CollectionMemberRow(
+                          member:     member,
+                          payment:    payment,
+                          svc:        widget.svc,
+                          businessId: widget.businessId,
+                          period:     _period,
+                        );
+                      },
+                    ),
         ),
       ],
     );
   }
 
   FCPayment? _paymentFor(List<FCPayment> payments, String memberId) {
-    try {
-      return payments.firstWhere((p) => p.memberId == memberId);
-    } catch (_) {
-      return null;
-    }
+    try { return payments.firstWhere((p) => p.memberId == memberId); }
+    catch (_) { return null; }
   }
 }
 
 // ─── Collection row per member ────────────────────────────────────────────────
 
 class _CollectionMemberRow extends StatelessWidget {
-  final FCMember  member;
+  final FCMember   member;
   final FCPayment? payment;
-  final FcService svc;
-  final String    businessId;
-  final String    month;
+  final FcService  svc;
+  final String     businessId;
+  final String     period;
 
   const _CollectionMemberRow({
     required this.member,
     required this.payment,
     required this.svc,
     required this.businessId,
-    required this.month,
+    required this.period,
   });
 
   void _showRecordPaymentSheet(BuildContext context) {
@@ -584,7 +618,7 @@ class _CollectionMemberRow extends StatelessWidget {
         svc:        svc,
         businessId: businessId,
         member:     member,
-        month:      month,
+        period:     period,
       ),
     );
   }
@@ -689,7 +723,7 @@ class _CollectionMemberRow extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('⏳ Due ${_fmtAmt(member.amount)}',
+                Text('⏳ Due ${_fmtAmt(member.amount)}/${member.frequency[0]}',
                     style: const TextStyle(
                         color: kRed,
                         fontWeight: FontWeight.w700,
@@ -987,29 +1021,35 @@ class _AddMemberSheet extends StatefulWidget {
 }
 
 class _AddMemberSheetState extends State<_AddMemberSheet> {
-  final _nameCtrl   = TextEditingController();
-  final _phoneCtrl  = TextEditingController();
-  final _amtCtrl    = TextEditingController();
-  String _group     = 'finance';
-  bool   _saving    = false;
+  final _nameCtrl      = TextEditingController();
+  final _phoneCtrl     = TextEditingController();
+  final _amtCtrl       = TextEditingController();
+  final _loanAmtCtrl   = TextEditingController();
+  String _group        = 'finance';
+  String _frequency    = 'daily';
+  bool   _saving       = false;
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _amtCtrl.dispose();
+    _loanAmtCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final freqLabels = {'daily': 'Daily', 'weekly': 'Weekly', 'monthly': 'Monthly'};
+    final amtLabel = 'Amount ₹ / ${freqLabels[_frequency] ?? ''}';
+
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
           20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const _SheetHandle(),
         const SizedBox(height: 16),
-        Row(children: const [
+        const Row(children: [
           _CircleIcon(icon: Icons.person_add_outlined, color: kPrimary),
           SizedBox(width: 12),
           Text('Add Member',
@@ -1036,22 +1076,55 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
             prefixIcon: Icon(Icons.phone_outlined),
           ),
         ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _amtCtrl,
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Monthly Amount ₹',
-            prefixIcon: Icon(Icons.payments_outlined),
-          ),
+        const SizedBox(height: 14),
+        // Collection Frequency
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Collection Frequency',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: kMuted)),
+            const SizedBox(height: 8),
+            Row(children: [
+              for (final f in ['daily', 'weekly', 'monthly'])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _FreqChip(
+                    label: freqLabels[f]!,
+                    active: _frequency == f,
+                    onTap: () => setState(() => _frequency = f),
+                  ),
+                ),
+            ]),
+          ],
         ),
         const SizedBox(height: 14),
+        TextFormField(
+          controller: _amtCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: amtLabel,
+            prefixIcon: const Icon(Icons.payments_outlined),
+            hintText: _frequency == 'daily' ? 'e.g. 100' : _frequency == 'weekly' ? 'e.g. 700' : 'e.g. 3000',
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Loan amount (finance only)
+        if (_group == 'finance' || _group == 'both') ...[
+          TextFormField(
+            controller: _loanAmtCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Loan Amount Given ₹ (optional)',
+              prefixIcon: Icon(Icons.account_balance_outlined),
+              hintText: 'e.g. 10000',
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         // Group chips
         Row(children: [
           const Text('Group:',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, fontSize: 13, color: kMuted)),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: kMuted)),
           const SizedBox(width: 10),
           _GroupChip(
             label: 'Finance',
@@ -1082,7 +1155,8 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                 ? null
                 : () async {
                     if (_nameCtrl.text.trim().isEmpty) return;
-                    final amt = double.tryParse(_amtCtrl.text.trim()) ?? 0;
+                    final amt  = double.tryParse(_amtCtrl.text.trim()) ?? 0;
+                    final loan = double.tryParse(_loanAmtCtrl.text.trim()) ?? 0;
                     setState(() => _saving = true);
                     await widget.svc.addMember(FCMember(
                       id:         '',
@@ -1090,6 +1164,8 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                       name:       _nameCtrl.text.trim(),
                       phone:      _phoneCtrl.text.trim(),
                       amount:     amt,
+                      loanAmount: loan,
+                      frequency:  _frequency,
                       group:      _group,
                       joinMonth:  _nowYYYYMM(),
                       createdAt:  DateTime.now(),
@@ -1101,10 +1177,8 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5))
-                : const Text('Save Member',
-                    style: TextStyle(color: Colors.white)),
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                : const Text('Save Member', style: TextStyle(color: Colors.white)),
           ),
         ),
       ]),
@@ -1186,6 +1260,35 @@ class _MemberDetailSheet extends StatelessWidget {
                   _GroupBadge(group: member.group),
                 ]),
                 const SizedBox(height: 14),
+                // Frequency badge
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: kPrimary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${member.frequency[0].toUpperCase()}${member.frequency.substring(1)} · ${_fmtAmt(member.amount)}/cycle',
+                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 12),
+                    ),
+                  ),
+                  if (member.loanAmount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: kAmber.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Loan: ${_fmtAmt(member.loanAmount)}',
+                        style: const TextStyle(color: kAmber, fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ]),
+                const SizedBox(height: 14),
                 // Summary row
                 Row(children: [
                   Expanded(
@@ -1195,12 +1298,20 @@ class _MemberDetailSheet extends StatelessWidget {
                           color: kSecondary,
                           icon: Icons.check_circle_outline)),
                   const SizedBox(width: 10),
-                  Expanded(
-                      child: _StatCard(
-                          label: 'Total Due',
-                          value: _fmtAmt(totalDue),
-                          color: kRed,
-                          icon: Icons.timer_outlined)),
+                  if (member.loanAmount > 0)
+                    Expanded(
+                        child: _StatCard(
+                            label: 'Balance',
+                            value: _fmtAmt((member.loanAmount - totalPaid).clamp(0, double.infinity)),
+                            color: kRed,
+                            icon: Icons.account_balance_outlined))
+                  else
+                    Expanded(
+                        child: _StatCard(
+                            label: 'Total Due',
+                            value: _fmtAmt(totalDue),
+                            color: kRed,
+                            icon: Icons.timer_outlined)),
                 ]),
                 const SizedBox(height: 14),
                 Text('Payment History (${payments.length})',
@@ -1236,12 +1347,12 @@ class _RecordPaymentSheet extends StatefulWidget {
   final FcService svc;
   final String    businessId;
   final FCMember  member;
-  final String    month;
+  final String    period;
   const _RecordPaymentSheet({
     required this.svc,
     required this.businessId,
     required this.member,
-    required this.month,
+    required this.period,
   });
 
   @override
@@ -1287,9 +1398,8 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
                 Text('Record Payment — ${widget.member.name}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w800, fontSize: 16)),
-                Text('Month: ${widget.month}',
-                    style:
-                        const TextStyle(color: kMuted, fontSize: 12)),
+                Text('Period: ${formatPeriodLabel(widget.period, widget.member.frequency)}',
+                    style: const TextStyle(color: kMuted, fontSize: 12)),
               ],
             ),
           ),
@@ -1349,7 +1459,8 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
                       id:         '',
                       businessId: widget.businessId,
                       memberId:   widget.member.id,
-                      month:      widget.month,
+                      month:      widget.period.length == 7 ? widget.period : widget.period.substring(0, 7),
+                      period:     widget.period,
                       amount:     amt,
                       mode:       _mode,
                       note:       _noteCtrl.text.trim(),
@@ -1390,6 +1501,7 @@ class _AddChitSheetState extends State<_AddChitSheet> {
   final _amtCtrl     = TextEditingController();
   final _monthsCtrl  = TextEditingController();
   String _startMonth = _nowYYYYMM();
+  String _frequency  = 'monthly';
   bool   _saving     = false;
 
   @override
@@ -1454,13 +1566,34 @@ class _AddChitSheetState extends State<_AddChitSheet> {
           ),
         ]),
         const SizedBox(height: 12),
+        const SizedBox(height: 12),
+        // Collection Frequency for chit
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Collection Frequency',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: kMuted)),
+            const SizedBox(height: 8),
+            Row(children: [
+              for (final f in ['daily', 'weekly', 'monthly'])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _FreqChip(
+                    label: f[0].toUpperCase() + f.substring(1),
+                    active: _frequency == f,
+                    onTap: () => setState(() => _frequency = f),
+                  ),
+                ),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 12),
         TextFormField(
           controller: _amtCtrl,
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Amount ₹/member/month',
-            prefixIcon: Icon(Icons.payments_outlined),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Amount ₹/member/${_frequency}',
+            prefixIcon: const Icon(Icons.payments_outlined),
           ),
         ),
         const SizedBox(height: 12),
@@ -1528,6 +1661,7 @@ class _AddChitSheetState extends State<_AddChitSheet> {
                       memberCount: members,
                       amount:      amt,
                       months:      months,
+                      frequency:   _frequency,
                       startMonth:  _startMonth,
                       prizes:      [],
                       createdAt:   DateTime.now(),
@@ -1845,52 +1979,85 @@ class _MonthSelector extends StatelessWidget {
   final String       month;
   final VoidCallback onPrev;
   final VoidCallback onNext;
-  const _MonthSelector(
-      {required this.month,
-      required this.onPrev,
-      required this.onNext});
+  const _MonthSelector({required this.month, required this.onPrev, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
-    // Parse display label
     String label = month;
     try {
       final dt = DateFormat('yyyy-MM').parse(month);
       label    = DateFormat('MMMM yyyy').format(dt);
     } catch (_) {}
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(children: [
-        IconButton(
-          icon: const Icon(Icons.chevron_left, color: kPrimary),
-          onPressed: onPrev,
-          visualDensity: VisualDensity.compact,
-          padding: EdgeInsets.zero,
-        ),
-        Expanded(
-          child: Center(
-            child: Text(label,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    color: kPrimary)),
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.chevron_right, color: kPrimary),
-          onPressed: onNext,
-          visualDensity: VisualDensity.compact,
-          padding: EdgeInsets.zero,
-        ),
-      ]),
-    );
+    return _PeriodSelector(label: label, onPrev: onPrev, onNext: onNext);
   }
+}
+
+// Generic period navigator used by both Overview (monthly) and Collections (any freq)
+class _PeriodSelector extends StatelessWidget {
+  final String       label;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+  const _PeriodSelector({required this.label, required this.onPrev, required this.onNext});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE5E7EB)),
+    ),
+    child: Row(children: [
+      IconButton(
+        icon: const Icon(Icons.chevron_left, color: kPrimary),
+        onPressed: onPrev,
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+      ),
+      Expanded(
+        child: Center(
+          child: Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800, fontSize: 14, color: kPrimary)),
+        ),
+      ),
+      IconButton(
+        icon: const Icon(Icons.chevron_right, color: kPrimary),
+        onPressed: onNext,
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+      ),
+    ]),
+  );
+}
+
+class _FreqChip extends StatelessWidget {
+  final String       label;
+  final bool         active;
+  final VoidCallback onTap;
+  const _FreqChip({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? kPrimary : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: active ? kPrimary : const Color(0xFFE5E7EB)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: active ? Colors.white : Colors.grey.shade600,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
 }
 
 class _StatCard extends StatelessWidget {
