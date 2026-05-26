@@ -12,6 +12,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   final _svc    = AdminService();
   final _search = TextEditingController();
   String  _filter   = 'all';
+  String  _sort     = 'joined';
   String  _q        = '';
   List<AdminUser> _users    = [];
   bool    _loading  = true;
@@ -98,7 +99,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 ),
             ]),
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(110),
+              preferredSize: const Size.fromHeight(152),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: Column(children: [
@@ -123,13 +124,25 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Row(children: [
-                    _FilterChip(label: 'All', active: _filter == 'all',
-                        onTap: () => setState(() => _filter = 'all')),
-                    const SizedBox(width: 8),
-                    _FilterChip(label: '⭐ Pro', active: _filter == 'pro',
-                        onTap: () => setState(() => _filter = 'pro')),
-                  ]),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      _FilterChip(label: 'All', active: _filter == 'all',
+                          onTap: () => setState(() => _filter = 'all')),
+                      const SizedBox(width: 8),
+                      _FilterChip(label: '⭐ Pro', active: _filter == 'pro',
+                          onTap: () => setState(() => _filter = 'pro')),
+                      const SizedBox(width: 16),
+                      _FilterChip(label: '🕐 Active', active: _sort == 'active',
+                          onTap: () => setState(() => _sort = 'active')),
+                      const SizedBox(width: 8),
+                      _FilterChip(label: '📅 Joined', active: _sort == 'joined',
+                          onTap: () => setState(() => _sort = 'joined')),
+                      const SizedBox(width: 8),
+                      _FilterChip(label: 'A–Z', active: _sort == 'name',
+                          onTap: () => setState(() => _sort = 'name')),
+                    ]),
+                  ),
                 ]),
               ),
             ),
@@ -146,6 +159,19 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               users = users.where((u) =>
                   u.name.toLowerCase().contains(_q) ||
                   u.email.toLowerCase().contains(_q)).toList();
+            }
+            switch (_sort) {
+              case 'active':
+                // keep existing order (sorted by createdAt desc from service)
+                break;
+              case 'joined':
+                users = List.from(users)..sort((a, b) {
+                  if (a.createdAt == null) return 1;
+                  if (b.createdAt == null) return -1;
+                  return b.createdAt!.compareTo(a.createdAt!);
+                });
+              case 'name':
+                users = List.from(users)..sort((a, b) => a.name.compareTo(b.name));
             }
             if (users.isEmpty) {
               return SliverFillRemaining(
@@ -301,6 +327,11 @@ class _UserCardState extends State<_UserCard> with SingleTickerProviderStateMixi
                 Text(u.email,
                     style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                     overflow: TextOverflow.ellipsis),
+                if (u.createdAt != null) ...[
+                  const SizedBox(height: 1),
+                  Text('Joined ${DateFormat('d MMM yyyy').format(u.createdAt!)}',
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                ],
               ])),
               const SizedBox(width: 8),
               RotationTransition(turns: _rotate,
