@@ -529,12 +529,20 @@ class _LedgerTabState extends State<LedgerTab> {
 
   // ── Type filter row ───────────────────────────────────────────────────────
   Widget _buildTypeRow() {
+    final isPersonal = context.read<AppProvider>().isPersonal;
+    final options = isPersonal
+        ? [
+            {'key': 'all',     'label': 'All'},
+            {'key': 'sale',    'label': 'Received'},
+            {'key': 'expense', 'label': 'Paid'},
+          ]
+        : _typeOptions;
     return SizedBox(
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),
-        children: _typeOptions.map((f) {
+        children: options.map((f) {
           final active = _typeFilter == f['key'];
           return GestureDetector(
             onTap: () => setState(() => _typeFilter = f['key']!),
@@ -741,9 +749,10 @@ class _LedgerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSale    = txn.type == 'sale';
-    final isExpense = txn.type == 'expense';
-    final color     = isExpense ? kRed : isSale ? kSecondary : kAmber;
+    final isSale       = txn.type == 'sale';
+    final isExpense    = txn.type == 'expense';
+    final color        = isExpense ? kRed : isSale ? kSecondary : kAmber;
+    final isPersonal   = context.read<AppProvider>().isPersonal;
 
     return Dismissible(
       key: Key(txn.id),
@@ -833,8 +842,13 @@ class _LedgerTile extends StatelessWidget {
                 Text(
                   [
                     if (txn.shopName.isNotEmpty) txn.shopName,
-                    _capitalise(txn.type),
-                    DateFormat('hh:mm a').format(txn.date),
+                    if (isPersonal)
+                      isSale ? 'Received' : isExpense ? 'Paid' : 'Payment'
+                    else
+                      _capitalise(txn.type),
+                    if (txn.contact.isNotEmpty) txn.contact,
+                    if (txn.date.hour != 0 || txn.date.minute != 0)
+                      DateFormat('hh:mm a').format(txn.date),
                   ].join(' · '),
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                   overflow: TextOverflow.ellipsis,
@@ -998,12 +1012,17 @@ class _EditTxnSheetState extends State<_EditTxnSheet> {
         const SizedBox(height: 18),
 
         // ── Type selector ──────────────────────────────────────────────────
-        Row(children: [
-          for (final opt in [
-            ('sale', '↑ Sale', kSecondary),
-            ('expense', '↓ Expense', kRed),
-            ('payment', '⇄ Payment', kAmber),
-          ])
+        Builder(builder: (context) {
+          final isPersonal = context.read<AppProvider>().isPersonal;
+          final opts = isPersonal
+              ? [('sale', '💰 Received', kSecondary), ('expense', '💸 Paid', kRed)]
+              : [
+                  ('sale', '↑ Sale', kSecondary),
+                  ('expense', '↓ Expense', kRed),
+                  ('payment', '⇄ Payment', kAmber),
+                ];
+          return Row(children: [
+          for (final opt in opts)
             Expanded(
               child: GestureDetector(
                 onTap: () => setState(() => _type = opt.$1),
@@ -1033,7 +1052,8 @@ class _EditTxnSheetState extends State<_EditTxnSheet> {
                 ),
               ),
             ),
-        ]),
+          ]); // Row
+        }),   // Builder
         const SizedBox(height: 14),
 
         // ── Amount ─────────────────────────────────────────────────────────

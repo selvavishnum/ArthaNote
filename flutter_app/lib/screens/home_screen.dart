@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:intl/intl.dart';
 import '../theme.dart';
 import '../widgets/nav_icons.dart';
@@ -28,6 +29,32 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+  final _db     = DbService();
+  StreamSubscription<List<ConnectivityResult>>? _connectivity;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sync any pending offline entries when connectivity returns
+    _connectivity = Connectivity().onConnectivityChanged.listen((results) {
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (online) {
+        final p = context.read<AppProvider>();
+        if (p.businessId.isNotEmpty) _db.syncPending();
+      }
+    });
+    // Also try on first load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final p = context.read<AppProvider>();
+      if (p.businessId.isNotEmpty) _db.syncPending();
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivity?.cancel();
+    super.dispose();
+  }
 
   List<Widget> _bodies(bool isAdmin) => [
     const DashboardTab(),

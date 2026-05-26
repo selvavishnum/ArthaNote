@@ -33,6 +33,7 @@ class Shop {
 }
 
 const List<Map<String, String>> kShopTypes = [
+  {'type': 'personal',   'icon': '👤', 'label': 'Personal'},
   {'type': 'vegetables', 'icon': '🥬', 'label': 'Vegetables'},
   {'type': 'grocery',    'icon': '🛒', 'label': 'Grocery'},
   {'type': 'tea',        'icon': '☕', 'label': 'Tea Shop'},

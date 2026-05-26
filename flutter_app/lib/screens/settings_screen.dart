@@ -292,7 +292,50 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
+
+          // ── Share / Rate / Diagnostics ────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: kCardShadow,
+            ),
+            child: Column(children: [
+              _SettingsItem(
+                icon: Icons.share_outlined,
+                iconColor: const Color(0xFF0EA5E9),
+                title: 'Share to your friends',
+                subtitle: 'Spread the word about ArthaNote',
+                onTap: () => Share.share(
+                  'Try ArthaNote — Free digital ledger for your shop! 📒\n'
+                  'Track sales, expenses and reports easily.\n'
+                  'https://selvavishnum.github.io/Kannakupilai/',
+                ),
+              ),
+              const _ItemDivider(),
+              _SettingsItem(
+                icon: Icons.star_outline_rounded,
+                iconColor: const Color(0xFFF59E0B),
+                title: 'Rate App',
+                subtitle: 'Rate us on Google Play Store',
+                onTap: () => launchUrl(
+                  Uri.parse('https://play.google.com/store/apps/details?id=com.tulsigroups.arthanote'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
+              const _ItemDivider(),
+              _SettingsItem(
+                icon: Icons.bug_report_outlined,
+                iconColor: const Color(0xFF6B7280),
+                title: 'Send Diagnostics',
+                subtitle: 'Share crash logs with admin',
+                onTap: () => _sendDiagnostics(context),
+              ),
+            ]),
+          ),
+
+          const SizedBox(height: 16),
 
           // ── Sign Out button ────────────────────────────────────────────
           OutlinedButton.icon(
@@ -368,6 +411,30 @@ class SettingsScreen extends StatelessWidget {
     if (p.isAdmin) return const Color(0xFF7C3AED);
     if (p.profile['pro'] == true) return const Color(0xFFD97706);
     return const Color(0xFF16A34A);
+  }
+
+  Future<void> _sendDiagnostics(BuildContext context) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final logs  = prefs.getStringList('kp_crash_log') ?? [];
+      final p     = context.read<AppProvider>();
+      final info  = [
+        'ArthaNote Diagnostics — ${DateTime.now()}',
+        'User: ${p.profile['email'] ?? 'unknown'}',
+        'Business: ${p.businessId}',
+        '',
+        if (logs.isEmpty) 'No crash logs recorded.'
+        else ...logs,
+      ].join('\n');
+
+      await Share.share(info, subject: 'ArthaNote Diagnostics');
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: kRed),
+        );
+      }
+    }
   }
 
   Future<void> _confirmSignOut(BuildContext context, AppProvider p) async {

@@ -9,6 +9,7 @@ class Txn {
   final String   type;   // sale | expense | payment
   final double   amount;
   final String   desc;
+  final String   contact;
 
   const Txn({
     required this.id,
@@ -19,6 +20,7 @@ class Txn {
     required this.type,
     required this.amount,
     required this.desc,
+    this.contact = '',
   });
 
   factory Txn.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -32,6 +34,7 @@ class Txn {
       type:       _normType(d['type'] as String? ?? 'sale'),
       amount:     (d['amount']    as num?)?.toDouble() ?? 0,
       desc:       d['desc']       as String? ?? '',
+      contact:    d['contact']    as String? ?? '',
     );
   }
 
@@ -57,6 +60,7 @@ class Txn {
     'type':       type,
     'amount':     amount,
     'desc':       desc,
+    'contact':    contact,
     'createdAt':  FieldValue.serverTimestamp(),
   };
 
@@ -69,6 +73,7 @@ class Txn {
     'type':       type,
     'amount':     amount,
     'desc':       desc,
+    'contact':    contact,
   };
 
   factory Txn.fromJson(Map<String, dynamic> m) => Txn(
@@ -80,6 +85,7 @@ class Txn {
     type:       _normType(m['type'] as String? ?? 'sale'),
     amount:     (m['amount']    as num?)?.toDouble() ?? 0,
     desc:       m['desc']       as String? ?? '',
+    contact:    m['contact']    as String? ?? '',
   );
 
   Txn copyWith({
@@ -91,6 +97,7 @@ class Txn {
     String?   type,
     double?   amount,
     String?   desc,
+    String?   contact,
   }) => Txn(
     id:         id         ?? this.id,
     businessId: businessId ?? this.businessId,
@@ -100,5 +107,6 @@ class Txn {
     type:       type       ?? this.type,
     amount:     amount     ?? this.amount,
     desc:       desc       ?? this.desc,
+    contact:    contact    ?? this.contact,
   );
 }

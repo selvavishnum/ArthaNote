@@ -88,7 +88,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
               .fold(0.0, (s, x) => s + x.amount);
           final payment = txns.where((x) => x.type == 'payment')
               .fold(0.0, (s, x) => s + x.amount);
-          final net     = sales - expense;
+          final net     = sales - expense - payment;
 
           // category breakdown
           final catMap = <String, double>{};

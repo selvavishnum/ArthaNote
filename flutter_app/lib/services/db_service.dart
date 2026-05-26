@@ -99,25 +99,65 @@ class DbService {
   }
 
   /// Save to Firestore AND local cache simultaneously.
+  // ── Offline pending queue ─────────────────────────────────────────────────
+  static const _pendingKey = 'kp_pending_queue';
+
+  Future<void> _addToPending(Txn txn) async {
+    try {
+      final prefs    = await SharedPreferences.getInstance();
+      final existing = prefs.getStringList(_pendingKey) ?? [];
+      existing.add(jsonEncode(txn.toJson()));
+      await prefs.setStringList(_pendingKey, existing);
+    } catch (_) {}
+  }
+
+  Future<void> _removeFromPending(String txnId) async {
+    try {
+      final prefs    = await SharedPreferences.getInstance();
+      final existing = prefs.getStringList(_pendingKey) ?? [];
+      existing.removeWhere((s) {
+        try { return (jsonDecode(s) as Map)['id'] == txnId; }
+        catch (_) { return false; }
+      });
+      await prefs.setStringList(_pendingKey, existing);
+    } catch (_) {}
+  }
+
+  /// Sync all pending offline entries to Firestore. Returns count synced.
+  Future<int> syncPending() async {
+    try {
+      final prefs   = await SharedPreferences.getInstance();
+      final pending = prefs.getStringList(_pendingKey) ?? [];
+      if (pending.isEmpty) return 0;
+      int synced = 0;
+      final stillPending = <String>[];
+      for (final json in pending) {
+        try {
+          final txn = Txn.fromJson(jsonDecode(json) as Map<String, dynamic>);
+          await _db.collection('transactions').doc(txn.id).set(txn.toFirestore());
+          synced++;
+        } catch (_) {
+          stillPending.add(json);
+        }
+      }
+      await prefs.setStringList(_pendingKey, stillPending);
+      return synced;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   Future<void> addTxn(Txn txn) async {
-    // Generate id if empty so we can cache it immediately
-    final id  = txn.id.isNotEmpty ? txn.id : const Uuid().v4();
-    final withId = txn.id.isNotEmpty ? txn : Txn(
-      id:         id,
-      businessId: txn.businessId,
-      shop:       txn.shop,
-      shopName:   txn.shopName,
-      date:       txn.date,
-      type:       txn.type,
-      amount:     txn.amount,
-      desc:       txn.desc,
-    );
+    final id     = txn.id.isNotEmpty ? txn.id : const Uuid().v4();
+    final withId = txn.copyWith(id: id);
 
-    // Save to Firestore (cloud)
-    await _db.collection('transactions').doc(id).set(withId.toFirestore());
-
-    // Save to local cache immediately (so dashboard shows it without re-fetch)
+    // 1. Save to local cache IMMEDIATELY — UI updates without waiting for network
     await _appendToLocalCache(txn.businessId, withId);
+
+    // 2. Fire-and-forget Firestore write — adds to pending queue on failure
+    _db.collection('transactions').doc(id).set(withId.toFirestore())
+        .then((_) => _removeFromPending(id))
+        .catchError((_) => _addToPending(withId));
   }
 
   Future<void> deleteTxn(String id, String businessId) async {
