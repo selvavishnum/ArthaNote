@@ -50,6 +50,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
     final shop = widget.shop;
+    final isPersonal = shop.type == 'personal';
 
     final periods = ['Today', 'Yesterday', 'This Week', 'This Month', 'All'];
 
@@ -168,13 +169,13 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                     child: Row(children: [
                       Expanded(
                           child: _StatBox(
-                              label: 'SALES',
+                              label: isPersonal ? 'RECEIVED' : 'SALES',
                               value: rupee(sales),
                               color: kSecondary)),
                       const SizedBox(width: 10),
                       Expanded(
                           child: _StatBox(
-                              label: 'EXPENSES',
+                              label: isPersonal ? 'PAID OUT' : 'EXPENSES',
                               value: rupee(expense),
                               color: kRed)),
                     ]),
@@ -185,7 +186,7 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                     child: Row(children: [
                       Expanded(
                           child: _StatBox(
-                              label: 'NET',
+                              label: isPersonal ? 'BALANCE' : 'NET',
                               value: rupee(net),
                               color: net >= 0 ? kSecondary : kRed)),
                       const SizedBox(width: 10),
@@ -222,14 +223,14 @@ class _ShopDetailScreenState extends State<ShopDetailScreen> {
                           const SizedBox(height: 14),
                           _BreakdownRow(
                               icon: '💚',
-                              label: 'Sales',
+                              label: isPersonal ? 'Received' : 'Sales',
                               value: sales,
                               max: sales + expense + payment,
                               color: kSecondary),
                           const SizedBox(height: 10),
                           _BreakdownRow(
                               icon: '🔴',
-                              label: 'Expenses',
+                              label: isPersonal ? 'Paid Out' : 'Expenses',
                               value: expense,
                               max: sales + expense + payment,
                               color: kRed),
