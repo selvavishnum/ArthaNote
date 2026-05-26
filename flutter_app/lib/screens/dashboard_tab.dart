@@ -228,39 +228,10 @@ class _DashboardTabState extends State<DashboardTab> {
       t('this_month', l),
     ];
 
-    return StreamBuilder<List<Txn>>(
-      stream: _db.txnStream(p.businessId),
-      builder: (ctx, snap) {
-        if (snap.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.cloud_off_outlined, color: kRed, size: 40),
-                const SizedBox(height: 12),
-                const Text('Sync error — check connection',
-                    style: TextStyle(
-                        color: kRed,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15)),
-                const SizedBox(height: 6),
-                Text(snap.error.toString(),
-                    style: const TextStyle(color: kMuted, fontSize: 11),
-                    textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => setState(() {}),
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Retry'),
-                  style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
-                ),
-              ]),
-            ),
-          );
-        }
-        final all    = snap.data ?? [];
-        // Update streak in background
-        WidgetsBinding.instance.addPostFrameCallback((_) => _updateStreak(all));
+    final all    = p.txns;
+    // Update streak in background
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateStreak(all));
+    {
         final txns   = _filter(all, p);
         final sales  = txns.where((x) => x.type == 'sale')
             .fold(0.0, (s, x) => s + x.amount);
