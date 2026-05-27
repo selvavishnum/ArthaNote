@@ -8,10 +8,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/txn.dart';
+import '../models/payment_reminder.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
 import '../services/pattern_service.dart';
+import '../services/reminder_service.dart';
 import 'dashboard_tab.dart' show rupee;
+import 'reminder_detect_sheet.dart';
+import 'reminders_screen.dart';
 
 class EntryTab extends StatefulWidget {
   const EntryTab({super.key});
@@ -20,8 +24,9 @@ class EntryTab extends StatefulWidget {
 }
 
 class _EntryTabState extends State<EntryTab> {
-  final _db      = DbService();
-  final _ai      = PatternService();
+  final _db            = DbService();
+  final _ai            = PatternService();
+  final _reminderSvc   = ReminderService();
   final _amount  = TextEditingController();
   final _desc    = TextEditingController();
   final _bill    = TextEditingController();
@@ -147,6 +152,11 @@ class _EntryTabState extends State<EntryTab> {
       _ai.learn(description, savedType, savedDesc);
       _reset(p);
 
+      // AI reminder detection (personal mode only)
+      if (p.isPersonal) {
+        _detectAndShowReminder(txn.desc, txn.amount);
+      }
+
       // Track custom categories
       if (savedDesc.isNotEmpty && savedType != 'payment') {
         final defaultCats = savedType == 'sale'
@@ -166,6 +176,80 @@ class _EntryTabState extends State<EntryTab> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _detectAndShowReminder(String desc, double amount) async {
+    final detected = _reminderSvc.detect(desc, amount);
+    if (detected == null) return;
+
+    // L4: Try auto-mark first (if a reminder already exists for this type)
+    final autoMarked = await _reminderSvc.tryAutoMark(desc, amount);
+    if (autoMarked != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('✓ ${autoMarked.name} marked as paid'),
+          backgroundColor: const Color(0xFF059669),
+          duration: const Duration(seconds: 2),
+        ));
+      }
+      return;
+    }
+
+    // L2: Check seen count — if seen 2+ times, auto-create silently
+    await _reminderSvc.incrementSeenCount(detected.type);
+    final seenCount = await _reminderSvc.getSeenCount(detected.type);
+    final existing  = await _reminderSvc.findSimilar(detected.type);
+    if (existing != null) return; // already has reminder
+
+    if (seenCount >= 2) {
+      // Auto-create with default due day 5
+      final r = PaymentReminder(
+        id:        const Uuid().v4(),
+        name:      detected.suggestedName,
+        type:      detected.type,
+        amount:    amount,
+        dueDay:    5,
+        createdAt: DateTime.now(),
+      );
+      await _reminderSvc.add(r);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('🔔 Reminder set automatically for ${r.name}'),
+          backgroundColor: const Color(0xFF065F46),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Edit',
+            textColor: Colors.white,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RemindersScreen())),
+          ),
+        ));
+      }
+      return;
+    }
+
+    // L1: First time — show the one-tap sheet
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ReminderDetectSheet(
+        detectedType:  detected.type,
+        suggestedName: detected.suggestedName,
+        amount:        amount,
+        onSaved: (r) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('🔔 Reminder set for ${r.name}'),
+              backgroundColor: const Color(0xFF065F46),
+            ));
+          }
+        },
+      ),
+    );
   }
 
   void _reset(AppProvider p) {
