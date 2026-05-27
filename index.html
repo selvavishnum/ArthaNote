@@ -559,6 +559,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 #ai-fab.has-alert{animation:aiFabPulse 2s infinite}
 #ai-panel{position:fixed;bottom:0;left:0;right:0;max-height:65vh;background:#fff;border-radius:20px 20px 0 0;z-index:1490;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:0 -4px 24px rgba(0,0,0,.15)}
 #ai-panel.open{transform:translateY(0)}
+.rday-chip{display:inline-flex;align-items:center;justify-content:center;padding:7px 14px;border-radius:20px;border:1.5px solid #E5E7EB;background:#fff;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;transition:all .15s}
+.rday-chip.sel{background:var(--green);border-color:var(--green);color:#fff}
+.ramt-btn{padding:8px 18px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;font-size:14px;font-weight:600;color:#374151;cursor:pointer;transition:all .15s}
+.ramt-btn.sel{background:var(--green);border-color:var(--green);color:#fff}
+.rcard{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.rcard-urgent{border:1.5px solid rgba(239,68,68,.3)}
 #ai-panel-hd{background:linear-gradient(135deg,#065f46,#059669);border-radius:20px 20px 0 0;padding:13px 16px;display:flex;align-items:center;justify-content:space-between}
 #ai-panel-body{padding:14px;overflow-y:auto;max-height:calc(65vh - 56px)}
 .ai-q-chip{display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:20px;padding:6px 11px;font-size:11px;font-weight:700;color:#065f46;cursor:pointer;margin:3px 2px;font-family:var(--sans)}
@@ -1052,6 +1058,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="card"><div class="chd">&#127978; Shop Summary <small style="font-weight:400;font-size:9px;color:var(--muted)">(tap for 360&deg; report)</small></div><div id="shop-cards"></div></div>
     <div class="card"><div class="chd">&#9888;&#65039; Supplier Alerts</div><div id="d-sup"></div></div>
     <div class="card"><div class="chd">&#128202; Daily Reconciliation</div><div id="d-recon"></div></div>
+    <div class="card" id="upcoming-payments-card" style="display:none">
+      <div class="chd">📋 Upcoming Payments <button onclick="openM('reminders-modal')" style="float:right;background:var(--green);color:#fff;border:none;border-radius:6px;padding:2px 10px;font-size:10px;cursor:pointer;font-weight:700">Manage</button></div>
+      <div id="upcoming-payments-body"></div>
+    </div>
     <div class="card" id="ai-conf-card" style="display:none">
       <div class="chd">&#129504; AI Learning Progress</div>
       <div id="ai-conf-body"></div>
@@ -7482,6 +7492,22 @@ function _updateAiFabBadge(){
     <button onclick="closeAiPanel()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:30px;height:30px;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
   </div>
   <div id="ai-panel-body"></div>
+</div>
+
+<!-- ── PAYMENT REMINDER DETECT SHEET ── -->
+<div id="remind-overlay" onclick="closeReminderSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000"></div>
+<div id="remind-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;z-index:2001;padding:20px 20px 32px;max-height:90vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)">
+  <div style="width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 16px"></div>
+  <div id="rsh-header" style="margin-bottom:16px"></div>
+  <div id="rsh-body"></div>
+</div>
+
+<!-- ── REMINDERS MANAGEMENT MODAL ── -->
+<div class="mover" id="reminders-modal">
+  <div class="mbox" style="max-width:480px">
+    <div class="mhd">📋 Payment Reminders <button class="mclose" onclick="closeM('reminders-modal')">✕</button></div>
+    <div id="reminders-modal-body" style="padding:0 16px 16px"></div>
+  </div>
 </div>
 
 </body>
