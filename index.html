@@ -938,6 +938,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div class="ob-step on" id="obs1">
       <div class="ob-label" style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">உங்கள் கடை என்ன?</div>
       <div class="ob-types" id="ob-types" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="ob-type" onclick="pickBizType(this,'personal')"><div class="ot-icon">👤</div><div class="ot-name">Personal</div></div>
         <div class="ob-type" onclick="pickBizType(this,'vegetables')"><div class="ot-icon">🥬</div><div class="ot-name">Vegetables</div></div>
         <div class="ob-type" onclick="pickBizType(this,'grocery')"><div class="ot-icon">🛒</div><div class="ot-name">Grocery</div></div>
         <div class="ob-type" onclick="pickBizType(this,'tea')"><div class="ot-icon">☕</div><div class="ot-name">Tea/Coffee</div></div>
@@ -1044,10 +1045,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div id="d-new-user-tip" style="display:none"></div>
     <div id="ai-briefing-slot"></div>
     <div class="sgrid">
-      <div class="stile"><div class="slbl">Total Sales</div><div class="sval cg" id="d-sales">&#8377;0</div></div>
-      <div class="stile"><div class="slbl">Total Expense</div><div class="sval cr" id="d-exp">&#8377;0</div></div>
-      <div class="stile"><div class="slbl">Net Balance</div><div class="sval" id="d-net">&#8377;0</div></div>
-      <div class="stile"><div class="slbl">Overdraft</div><div class="sval cy" id="d-od">NONE</div></div>
+      <div class="stile"><div class="slbl" id="d-sales-lbl">Total Sales</div><div class="sval cg" id="d-sales">&#8377;0</div></div>
+      <div class="stile"><div class="slbl" id="d-exp-lbl">Total Expense</div><div class="sval cr" id="d-exp">&#8377;0</div></div>
+      <div class="stile"><div class="slbl" id="d-net-lbl">Net Balance</div><div class="sval" id="d-net">&#8377;0</div></div>
+      <div class="stile"><div class="slbl" id="d-od-lbl">Overdraft</div><div class="sval cy" id="d-od">NONE</div></div>
     </div>
     <div id="d-gst-row" style="display:none;margin-bottom:12px">
       <div class="sgrid">
@@ -1141,7 +1142,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div class="fg"><label>Date</label><input type="date" id="m-date"></div>
         <div class="fg"><label>Shop</label><select id="m-shop" onchange="loadQB()"></select></div>
       </div>
-      <div class="fr">
+      <div class="fr" id="m-type-select-row">
         <div class="fg"><label>Type</label>
           <select id="m-type" onchange="loadQB();toggleSup()">
             <option value="sales">&#128154; Sales / Income</option>
@@ -1151,6 +1152,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         </div>
         <div class="fg"><label>Amount (&#8377;)</label><input type="number" id="m-amt" placeholder="0" min="0" inputmode="decimal" oninput="updateGstPreview()"></div>
       </div>
+      <div id="m-personal-type-row" style="display:none">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">TYPE</label>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button id="p-btn-rcv" onclick="setPersonalType('sales')" class="p-type-btn p-sel" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--green);background:var(--gl);color:var(--green);font-weight:700;font-size:13px;cursor:pointer">💚 I Received</button>
+          <button id="p-btn-paid" onclick="setPersonalType('expense')" class="p-type-btn" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border);background:var(--soft);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer">🔴 I Paid</button>
+        </div>
+        <div class="fg"><label>Amount (&#8377;)</label><input type="number" id="m-amt-p" placeholder="0" min="0" inputmode="decimal" oninput="document.getElementById('m-amt').value=this.value;updateGstPreview()"></div>
+      </div>
       <div id="gst-preview" style="display:none;background:var(--yl);border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px">
         <div style="display:flex;justify-content:space-between"><span>🧾 Base Amount:</span><span id="gst-p-base" style="font-weight:700">₹0</span></div>
         <div style="display:flex;justify-content:space-between"><span>GST (<span id="gst-p-rate">12</span>%):</span><span id="gst-p-amt" style="font-weight:700;color:var(--yellow)">₹0</span></div>
@@ -1159,7 +1168,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div id="qb-area"></div>
       <div id="community-tip" style="display:none;background:var(--soft);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px"></div>
       <div class="fr full" id="sup-row" style="display:none"><div class="fg"><label>Supplier</label><select id="m-sup"></select></div></div>
-      <div class="fr full"><div class="fg"><label>Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)" oninput="aiSuggestEntry(this.value)"></div></div>
+      <div class="fr full"><div class="fg"><label id="m-desc-lbl">Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)" oninput="aiSuggestEntry(this.value)"></div></div>
+      <div class="fr full" id="m-contact-row" style="display:none"><div class="fg"><label>Contact Name</label><input type="text" id="m-contact" placeholder="Who is this with? (optional)" style="font-family:var(--tamil)"></div></div>
       <div id="ai-suggest-bar" style="display:none;background:#f0fdf4;border:1.5px solid #059669;border-radius:8px;padding:7px 10px;margin:-4px 0 6px;font-size:12px;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="color:#059669;font-weight:700">🤖 AI:</span>
         <span id="ai-suggest-text" style="color:#065f46"></span>
@@ -2489,6 +2499,7 @@ const BIZ_HINTS={
   hardware:'🔧 Sales, stock, GST, supplier ledger',
   jewellery:'💍 Sales, expense, gold rate, rental tracking',
   medical:'💊 Sales, stock, GST, supplier payments',
+  personal:'👤 Track money given/received — loans, chit, gold, credit payments',
   hotel:'🍽️ Daily sales, expense, staff, supplier',
   finance:'💰 Member list, monthly collection, defaulter alerts',
   chit:'🎰 Chit groups, monthly collection, prize recording',
@@ -2521,6 +2532,16 @@ function pickBizType(el,type){
 }
 
 function obNext1(){
+  // Personal → skip shop name, go directly to finish
+  if(_obType==='personal'){
+    // Update step 2 label to ask for user's name instead of shop name
+    const lbl=document.querySelector('#obs2 .ob-label');
+    const inp=document.getElementById('ob-shopname');
+    if(lbl) lbl.textContent='உங்கள் பெயர் என்ன?';
+    if(inp){ inp.placeholder='e.g. Ravi Kumar'; inp.value=''; inp.oninput=()=>{ document.getElementById('ob-next2').disabled=!inp.value.trim(); }; }
+    obStep(2);
+    return;
+  }
   // Finance / Chit → integrated into main app (no separate page)
   if(_obType==='finance'||_obType==='chit'){
     const saveAndGo=async()=>{
@@ -2573,9 +2594,10 @@ function pickGstRate(el,rate){
 }
 
 // BUSINESS TYPE → ICON MAP
-const BIZ_ICONS={vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',medical:'💊',hotel:'🍽️',finance:'💰',chit:'🎰',other:'🏪'};
+const BIZ_ICONS={personal:'👤',vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',medical:'💊',hotel:'🍽️',finance:'💰',chit:'🎰',other:'🏪'};
 // BUSINESS TYPE → DEFAULT CATEGORIES
 const BIZ_CATS={
+  personal:{sales:['Cash Received','Loan Given','Gold Given','Chit Received','Other'],expense:['EMI','Rent','CC Payment','Gold Loan Int','Chit Payment','Other']},
   vegetables:{sales:['Cash','GPay','Card','Wholesale','Other'],expense:['Purchase','Labour','Transport','Rent/EB','Other']},
   grocery:{sales:['Cash','GPay','Card','Credit','Other'],expense:['Purchase','Staff Salary','Rent/EB','Transport','Other']},
   bakery:{sales:['Cash','GPay','Card','Wholesale','Other'],expense:['Raw Material','Staff Salary','Gas','Rent/EB','Other']},
@@ -2592,6 +2614,7 @@ const BIZ_CATS={
 
 // BUSINESS TYPE → UI CONFIG
 const BTYPE_CONFIG={
+  personal:{dashTitle:'👤 Personal Finance',salesLabel:'I Received',supTab:false},
   vegetables:{dashTitle:'🥬 Vegetable Shop',salesLabel:'Sales / Income',supTab:true},
   grocery:{dashTitle:'🛒 Grocery Shop',salesLabel:'Sales / Income',supTab:true},
   bakery:{dashTitle:'🍞 Bakery',salesLabel:'Sales / Income',supTab:true},
@@ -2607,12 +2630,13 @@ const BTYPE_CONFIG={
 };
 
 async function finishOnboard(){
-  const shopName=document.getElementById('ob-shopname')?.value.trim()||'My Shop';
+  const nameVal=document.getElementById('ob-shopname')?.value.trim()||'My Shop';
+  const shopName=_obType==='personal'?'My Wallet':nameVal;
   const icon=BIZ_ICONS[_obType]||'🏪';
   const cats=BIZ_CATS[_obType]||BIZ_CATS.other;
 
   // Create first shop
-  SHOPS={s1:{name:shopName,icon:icon}};
+  SHOPS={s1:{name:shopName,icon:icon,type:_obType}};
   CATS={s1:cats};
   _gstOn=_obGst;
   _gstRate=_obGstRate;
@@ -5045,6 +5069,7 @@ function loadQB(){
   if(!tip)return;
   const myTxs=TXS.filter(t=>t.businessId===(ME?.businessId||ME?.uid));
   if(myTxs.length>=5){tip.style.display='none';return;}
+  if(_bizType==='personal'){document.getElementById('qb-area').innerHTML='';return;}
   const bc=BIZ_CATS[_bizType]||BIZ_CATS.other;
   const suggestions=type==='sales'?bc.sales:bc.expense;
   const alreadyShown=new Set(cats);
@@ -6818,10 +6843,32 @@ function applyOwnerPermissions(){
 
 function applyBizTypeUI(){
   const cfg=BTYPE_CONFIG[_bizType]||BTYPE_CONFIG.other;
+  const isPersonal=_bizType==='personal';
 
   // Show/hide Suppliers nav tab based on bizType
   const ns=document.getElementById('nav-sup');
   if(ns) ns.style.display=cfg.supTab?'flex':'none';
+
+  // Personal mode — swap entry form controls
+  const typeRow=document.getElementById('m-type-select-row');
+  const persRow=document.getElementById('m-personal-type-row');
+  const contactRow=document.getElementById('m-contact-row');
+  if(typeRow) typeRow.style.display=isPersonal?'none':'';
+  if(persRow) persRow.style.display=isPersonal?'block':'none';
+  if(contactRow) contactRow.style.display=isPersonal?'grid':'none';
+
+  // Personal mode — update dashboard stat labels
+  const sl=document.getElementById('d-sales-lbl');
+  const el=document.getElementById('d-exp-lbl');
+  const nl=document.getElementById('d-net-lbl');
+  const ol=document.getElementById('d-od-lbl');
+  if(sl) sl.textContent=isPersonal?'I Received':'Total Sales';
+  if(el) el.textContent=isPersonal?'I Paid':'Total Expense';
+  if(nl) nl.textContent=isPersonal?'Balance':'Net Balance';
+  if(ol) ol.textContent=isPersonal?'Owed to Others':'Overdraft';
+
+  // Personal mode — update reconciliation labels in renderDash output
+  // (done dynamically in renderDash via _bizType check)
 
   // Show Finance nav tab if user has any finance/chit type shops or bizType is finance/chit
   const nf=document.getElementById('nav-finance');
