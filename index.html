@@ -559,6 +559,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 #ai-fab.has-alert{animation:aiFabPulse 2s infinite}
 #ai-panel{position:fixed;bottom:0;left:0;right:0;max-height:65vh;background:#fff;border-radius:20px 20px 0 0;z-index:1490;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);box-shadow:0 -4px 24px rgba(0,0,0,.15)}
 #ai-panel.open{transform:translateY(0)}
+.p-type-btn{transition:all .15s}
 .rday-chip{display:inline-flex;align-items:center;justify-content:center;padding:7px 14px;border-radius:20px;border:1.5px solid #E5E7EB;background:#fff;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;transition:all .15s}
 .rday-chip.sel{background:var(--green);border-color:var(--green);color:#fff}
 .ramt-btn{padding:8px 18px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;font-size:14px;font-weight:600;color:#374151;cursor:pointer;transition:all .15s}
@@ -5052,6 +5053,16 @@ async function confirmScan(){
 // MANUAL ENTRY
 // ════════════════════════════════════════
 function toggleSup(){ document.getElementById('sup-row').style.display=v('m-type')==='payment'?'grid':'none'; }
+function setPersonalType(t){
+  const sel=document.getElementById('m-type');
+  if(sel) sel.value=t;
+  document.querySelectorAll('.p-type-btn').forEach(b=>b.classList.remove('p-sel'));
+  const isRcv=t==='sales';
+  const rb=document.getElementById('p-btn-rcv');
+  const pb=document.getElementById('p-btn-paid');
+  if(rb){rb.style.border='2px solid '+(isRcv?'var(--green)':'var(--border)');rb.style.background=isRcv?'var(--gl)':'var(--soft)';rb.style.color=isRcv?'var(--green)':'var(--muted)';}
+  if(pb){pb.style.border='2px solid '+(isRcv?'var(--border)':'#ef4444');pb.style.background=isRcv?'var(--soft)':'#fef2f2';pb.style.color=isRcv?'var(--muted)':'#ef4444';}
+}
 function loadQB(){
   const shop=v('m-shop')||Object.keys(SHOPS)[0]||'s1',type=v('m-type')||'sales';
   const area=document.getElementById('qb-area'); if(!area)return;
@@ -5129,12 +5140,13 @@ async function addEntry(){
 
   const BID=ME.businessId||ME.uid;
   const gstInfo=_gstOn?calcGst(amt):{base:amt,gst:0,total:amt};
+  const contact=_bizType==='personal'?(document.getElementById('m-contact')?.value.trim()||''):'';
   const txData={
     _lid:'loc_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
     _col:'transactions',
     businessId:BID, userId:ME.uid,
     date, shop, type, amount:amt, desc,
-    category:desc,
+    category:desc, contact,
     gstOn:_gstOn, gstRate:_gstOn?_gstRate:0, gstAmount:gstInfo.gst, baseAmount:gstInfo.base,
     billRef:v('m-ref')||'', note:v('m-note')||'',
     supplier:type==='payment'?v('m-sup'):null,
@@ -5172,7 +5184,7 @@ async function addEntry(){
     }).catch(()=>{});
 
     // Clear form
-    ['m-amt','m-desc','m-ref','m-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['m-amt','m-desc','m-ref','m-note','m-contact','m-amt-p'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.querySelectorAll('.qb').forEach(b=>b.classList.remove('sel'));
     toast('✅ Entry saved to cloud!');
     // Add to local TXS array instantly — no re-fetch needed
@@ -5182,7 +5194,7 @@ async function addEntry(){
     _afterEntrySaved(desc,amt);
   }catch(err){
     console.error('Entry cloud err:',err.code,err.message);
-    ['m-amt','m-desc','m-ref','m-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    ['m-amt','m-desc','m-ref','m-note','m-contact','m-amt-p'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.querySelectorAll('.qb').forEach(b=>b.classList.remove('sel'));
     TXS.unshift(txData); renderDash(); renderLedger();
     learnDailyPatterns(); _checkMilestones();
@@ -5196,6 +5208,7 @@ async function addEntry(){
 // ════════════════════════════════════════
 // LEDGER TABLE
 // ════════════════════════════════════════
+function _txTypeLbl(type){ return _bizType==='personal'?(type==='sales'?'Received':type==='expense'?'Paid':'Payment'):(type==='sales'?'Sales':type==='expense'?'Expense':'Payment'); }
 function renderLedger(){
   const fs=v('f-shop')||'all',ft=v('f-type')||'all';
   const f=getDF(_ld,'l-from','l-to');
@@ -5245,7 +5258,7 @@ function renderLedger(){
         <div style="width:34px;height:34px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${col};flex-shrink:0">${icon}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)">${esc(t.desc||'Entry')}${isDup?' <span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 4px;font-weight:700">⚠️ dup</span>':''}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">${shop?shop.icon+' '+esc(shop.name)+' ·&nbsp;':''}<span style="text-transform:capitalize">${t.type}</span>${t.by?' · '+esc(t.by):''}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${shop?shop.icon+' '+esc(shop.name)+' ·&nbsp;':''}<span style="text-transform:capitalize">${_txTypeLbl(t.type)}</span>${t.by?' · '+esc(t.by):''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-weight:800;font-size:15px;font-family:var(--mono);color:${col}">${isIn?'+':'-'}₹${fmt(t.amount)}</div>
@@ -6866,6 +6879,10 @@ function applyBizTypeUI(){
   if(el) el.textContent=isPersonal?'I Paid':'Total Expense';
   if(nl) nl.textContent=isPersonal?'Balance':'Net Balance';
   if(ol) ol.textContent=isPersonal?'Owed to Others':'Overdraft';
+
+  // Personal mode — hide Payment filter option in ledger
+  const ftypePayOpt=document.querySelector('#f-type option[value="payment"]');
+  if(ftypePayOpt) ftypePayOpt.style.display=isPersonal?'none':'';
 
   // Personal mode — update reconciliation labels in renderDash output
   // (done dynamically in renderDash via _bizType check)
