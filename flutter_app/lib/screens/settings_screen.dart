@@ -20,6 +20,8 @@ import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import '../services/db_service.dart';
 import 'login_screen.dart';
+import '../services/lock_service.dart';
+import 'lock_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -55,6 +57,37 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         children: [
+
+          // ── Privacy & Security banner ──────────────────────────────────
+          Container(
+            margin: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF065F46), Color(0xFF059669)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(children: [
+              const Icon(Icons.lock, color: Colors.white, size: 22),
+              const SizedBox(width: 12),
+              const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Your data is private', style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                SizedBox(height: 2),
+                Text('Firebase encrypted · Only you can access · No data sharing',
+                    style: TextStyle(color: Color(0xFF6EE7B7), fontSize: 11)),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+                child: const Text('🔒 Secure', style: TextStyle(
+                    color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+              ),
+            ]),
+          ),
 
           // ── Profile card ───────────────────────────────────────────────
           Container(
@@ -244,6 +277,33 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ],
             ]),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── App Lock ───────────────────────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: kCardShadow,
+            ),
+            child: ListTile(
+              leading: Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.phonelink_lock, color: Color(0xFF065F46), size: 20),
+              ),
+              title: const Text('App Lock', style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('PIN & biometric protection'),
+              trailing: const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF)),
+              onTap: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const _AppLockSheet(),
+              ),
+            ),
           ),
 
           const SizedBox(height: 20),
@@ -2807,6 +2867,170 @@ class _ApiKeyRow extends StatelessWidget {
       ),
     ]),
   );
+}
+
+// ── App Lock bottom sheet ─────────────────────────────────────────────────────
+class _AppLockSheet extends StatefulWidget {
+  const _AppLockSheet();
+  @override
+  State<_AppLockSheet> createState() => _AppLockSheetState();
+}
+
+class _AppLockSheetState extends State<_AppLockSheet> {
+  final _svc = LockService();
+  bool _lockEnabled   = false;
+  bool _bioAvail      = false;
+  bool _bioEnabled    = false;
+  int  _autoLockMins  = 5;
+  bool _loading       = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final enabled  = await _svc.isEnabled();
+    final bioAvail = await _svc.isBiometricAvailable();
+    final bioOn    = await _svc.isBiometricEnabled();
+    final mins     = await _svc.getAutoLockMinutes();
+    if (mounted) setState(() {
+      _lockEnabled  = enabled;
+      _bioAvail     = bioAvail;
+      _bioEnabled   = bioOn;
+      _autoLockMins = mins;
+      _loading      = false;
+    });
+  }
+
+  Future<void> _toggleLock(bool value) async {
+    if (value) {
+      // Show PIN setup screen
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LockScreen(
+            settingPin: true,
+            onUnlocked: () {
+              Navigator.of(context).pop();
+              setState(() => _lockEnabled = true);
+            },
+          ),
+        ),
+      );
+    } else {
+      await _svc.disableLock();
+      setState(() => _lockEnabled = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: _loading
+            ? const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: CircularProgressIndicator(color: Color(0xFF065F46))),
+              )
+            : Column(mainAxisSize: MainAxisSize.min, children: [
+                const SizedBox(height: 12),
+                Container(width: 40, height: 4, decoration: BoxDecoration(
+                    color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 16),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(children: [
+                    Icon(Icons.phonelink_lock, color: Color(0xFF065F46), size: 20),
+                    SizedBox(width: 10),
+                    Text('App Lock', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                  ]),
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1, color: Color(0xFFF3F4F6)),
+
+                // Enable lock toggle
+                SwitchListTile(
+                  value: _lockEnabled,
+                  onChanged: _toggleLock,
+                  activeColor: const Color(0xFF065F46),
+                  title: const Text('Enable App Lock', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Require PIN to open ArthaNote', style: TextStyle(fontSize: 12)),
+                ),
+
+                if (_lockEnabled) ...[
+                  const Divider(height: 1, color: Color(0xFFF3F4F6), indent: 16, endIndent: 16),
+
+                  // Change PIN
+                  ListTile(
+                    leading: const Icon(Icons.dialpad, color: Color(0xFF065F46), size: 20),
+                    title: const Text('Change PIN', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    trailing: const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF), size: 18),
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => LockScreen(
+                            settingPin: true,
+                            onUnlocked: () => Navigator.of(context).pop(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // Biometric toggle
+                  if (_bioAvail)
+                    SwitchListTile(
+                      value: _bioEnabled,
+                      onChanged: (v) async {
+                        await _svc.setBiometricEnabled(v);
+                        setState(() => _bioEnabled = v);
+                      },
+                      activeColor: const Color(0xFF065F46),
+                      secondary: const Icon(Icons.fingerprint, color: Color(0xFF065F46)),
+                      title: const Text('Fingerprint / Face ID', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Use biometrics to unlock', style: TextStyle(fontSize: 12)),
+                    ),
+
+                  // Auto-lock time
+                  const Divider(height: 1, color: Color(0xFFF3F4F6), indent: 16, endIndent: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Auto-lock after', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827))),
+                      const SizedBox(height: 10),
+                      Wrap(spacing: 8, children: [1, 5, 15, 30].map((m) => GestureDetector(
+                        onTap: () async {
+                          await _svc.setAutoLockMinutes(m);
+                          setState(() => _autoLockMins = m);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _autoLockMins == m ? const Color(0xFF065F46) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text('$m min', style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600,
+                              color: _autoLockMins == m ? Colors.white : const Color(0xFF6B7280))),
+                        ),
+                      )).toList()),
+                    ]),
+                  ),
+                ],
+                const SizedBox(height: 16),
+              ]),
+      ),
+    );
+  }
 }
 
 // ── Category chip ─────────────────────────────────────────────────────────────

@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'WpCQtDGJkpOXJfWntS6vu3B5HXO2';
+    }
+
+    function myBusinessId() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.businessId;
+    }
+
+    function ownsBusiness(bid) {
+      return request.auth != null &&
+        (request.auth.uid == bid || myBusinessId() == bid);
+    }
+
+    // Staff profiles — public read (needed for email-based UID linking)
+    match /staff/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Attendance — public (QR scan page has no login)
+    match /attendance/{docId} {
+      allow read, write: if true;
+    }
+
+    // Config (shops, bizType, GST) — business owner only
+    match /config/{businessId} {
+      allow read, write: if isAdmin() || ownsBusiness(businessId);
+    }
+
+    // Transactions
+    match /transactions/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    // Suppliers
+    match /suppliers/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    // Supplier bills
+    match /supplier_bills/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    // Finance — members, payments, chits
+    match /fc_members/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    match /fc_payments/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    match /fc_chits/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+  }
+}
