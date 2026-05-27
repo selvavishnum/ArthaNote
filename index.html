@@ -1977,6 +1977,7 @@ function toggleSacc(name){
 function openM(id){
   document.getElementById(id)?.classList.add('on');
   if(id==='qr-modal') generateQR();
+  if(id==='reminders-modal') renderRemindersModal();
   if(id==='attendance-view-modal'){
     const df=document.getElementById('att-date-filter');
     if(df&&!df.value) df.value=tod();
@@ -3639,7 +3640,7 @@ async function _finishAppSetup(user){
   // Feature 20: live sync dot + real-time listener
   startLiveSync();
   // Feature 18: push notification setup
-  requestNotifPermission().then(()=>{ checkMissingEntry(); scheduleReminder(); });
+  requestNotifPermission().then(()=>{ checkMissingEntry(); scheduleReminder(); _schedulePaymentNotifs(); });
   // Monthly Wrapped auto-prompt
   setTimeout(checkMonthlyWrapped, 4000);
   console.log('✅ App ready. BID:',ME.businessId);
@@ -4607,6 +4608,7 @@ function renderDash(){
     <div class="crow"><span>Supplier Payments</span><span style="color:var(--yellow)">-₹${fmt(p)}</span></div>
     <div class="crow"><span>Net Cash Flow</span><span style="color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}₹${fmt(net)}</span></div>`;
   _updateAiFabBadge();
+  _renderUpcomingPayments();
 }
 
 // ════════════════════════════════════════
@@ -5152,12 +5154,14 @@ async function addEntry(){
     TXS.unshift(txData); renderDash(); renderLedger();
     _rptRendered=false;
     learnDailyPatterns(); _checkMilestones();
+    _afterEntrySaved(desc,amt);
   }catch(err){
     console.error('Entry cloud err:',err.code,err.message);
     ['m-amt','m-desc','m-ref','m-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.querySelectorAll('.qb').forEach(b=>b.classList.remove('sel'));
     TXS.unshift(txData); renderDash(); renderLedger();
     learnDailyPatterns(); _checkMilestones();
+    _afterEntrySaved(desc,amt);
     toast('💾 Saved locally — will sync to cloud automatically','warn');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='+ Add Entry';}
@@ -7204,6 +7208,349 @@ function installPWA(){
   if(!_installPrompt) return;
   _installPrompt.prompt();
   _installPrompt.userChoice.then(()=>_installPrompt=null);
+}
+
+// ════════════════════════════════════════
+// PAYMENT REMINDERS (personal mode only)
+// ════════════════════════════════════════
+
+const _REM_PATS={
+  gold_loan:{kw:['gold loan','manappuram','muthoot','நகை கடன்','தங்க கடன்','jewel loan','gold interest','நகை வட்டி'],icon:'🏆',lbl:'Gold Loan',askAmt:true},
+  credit_card:{kw:['credit card','cc payment','sbi card','hdfc card','icici card','axis card','credit bill','கிரெடிட்'],icon:'💳',lbl:'Credit Card Payment',askAmt:false},
+  loan:{kw:['emi','bank loan','home loan','vehicle loan','bike loan','கடன் தவணை','installment'],icon:'🏦',lbl:'Loan EMI',askAmt:false},
+  rent:{kw:['rent','வாடகை','house rent','shop rent'],icon:'🏠',lbl:'Rent',askAmt:false},
+  chit:{kw:['chit','சீட்டு','chitty','chit fund'],icon:'💰',lbl:'Chit Fund',askAmt:false},
+};
+
+function _remGet(){try{return JSON.parse(localStorage.getItem('kp_reminders')||'[]');}catch(e){return[];}}
+function _remSet(l){localStorage.setItem('kp_reminders',JSON.stringify(l));}
+
+function _remDetect(desc){
+  const d=desc.toLowerCase();
+  for(const[type,p]of Object.entries(_REM_PATS)){
+    for(const kw of p.kw){ if(d.includes(kw)) return{type,...p}; }
+  }
+  return null;
+}
+
+function _remDaysUntilDue(dueDay){
+  const now=new Date();
+  let next=new Date(now.getFullYear(),now.getMonth(),dueDay);
+  if(next<=now) next=new Date(now.getFullYear(),now.getMonth()+1,dueDay);
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  return Math.round((next-today)/(1000*86400));
+}
+
+function _remIsPaidThisMonth(r){
+  if(!r.lastPaidAt) return false;
+  const d=new Date(r.lastPaidAt),n=new Date();
+  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth();
+}
+
+function _remOrdinal(n){
+  if(n>=11&&n<=13)return'th';
+  switch(n%10){case 1:return'st';case 2:return'nd';case 3:return'rd';default:return'th';}
+}
+
+// After entry save — run detection
+function _afterEntrySaved(desc,amount){
+  if(_bizType!=='personal') return;
+  const detected=_remDetect(desc);
+  if(!detected) return;
+  // L4: auto-mark if reminder exists
+  const existing=_remGet().find(r=>r.type===detected.type&&r.isActive);
+  if(existing){
+    if(_remIsPaidThisMonth(existing)) return;
+    const avg=existing.amountHistory&&existing.amountHistory.length
+      ? existing.amountHistory.reduce((a,b)=>a+b,0)/existing.amountHistory.length
+      : existing.amount;
+    if(avg>0&&Math.abs(amount-avg)/avg<=0.30){
+      _remMarkPaid(existing.id,amount);
+      toast('✓ '+existing.name+' marked as paid for this month','ok');
+      _renderUpcomingPayments();
+    }
+    return;
+  }
+  // L2: increment seen count
+  const sk='kp_rseen_'+detected.type;
+  const seen=parseInt(localStorage.getItem(sk)||'0')+1;
+  localStorage.setItem(sk,seen);
+  if(seen>=2){
+    // Auto-create silently
+    const r={id:'r_'+Date.now(),type:detected.type,name:detected.lbl,icon:detected.icon,
+      amount,dueDay:5,isActive:true,createdAt:new Date().toISOString(),
+      lastPaidAt:null,amountHistory:[amount]};
+    const list=_remGet(); list.push(r); _remSet(list);
+    _schedulePaymentNotifs();
+    _renderUpcomingPayments();
+    toast('🔔 Monthly reminder set for '+detected.lbl,'ok');
+    return;
+  }
+  // L1: show sheet after short delay
+  setTimeout(()=>_openReminderSheet(detected,amount),600);
+}
+
+// ── Sheet open/close ──────────────────────────────────────────────────────
+
+let _rshDetected=null,_rshAmt=0;
+
+function _openReminderSheet(detected,amount){
+  _rshDetected=detected; _rshAmt=amount;
+  const hdr=document.getElementById('rsh-header');
+  const body=document.getElementById('rsh-body');
+  if(!hdr||!body) return;
+
+  hdr.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:#DCFCE7;border-radius:8px">
+        <span style="font-size:16px">${detected.icon}</span>
+        <span style="font-size:12px;font-weight:700;color:#065F46">${detected.lbl} detected</span>
+      </div>
+      <button onclick="closeReminderSheet()" style="background:none;border:none;color:#9CA3AF;font-size:16px;cursor:pointer">Skip</button>
+    </div>
+    <div style="font-size:17px;font-weight:800;color:#111827;margin-top:12px">Set monthly reminder?</div>`;
+
+  // Build type-specific body
+  let html='';
+  if(detected.askAmt){
+    // Gold loan — ask for monthly interest amount
+    html+=`<div style="margin-bottom:16px">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:6px">Monthly interest amount?</label>
+      <input id="rsh-interest" type="number" placeholder="₹ monthly interest" value="${amount}"
+        style="width:100%;padding:11px 14px;border:1.5px solid #E5E7EB;border-radius:12px;font-size:16px;box-sizing:border-box;outline:none">
+    </div>`;
+  } else if(detected.type==='credit_card'){
+    // Credit card — ask if fixed amount
+    html+=`<div style="margin-bottom:16px">
+      <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:8px">Same amount ₹${fmt(amount)} every month?</label>
+      <div style="display:flex;gap:10px">
+        <button class="ramt-btn sel" id="rsh-fixed-yes" onclick="_rshFixedToggle(true)">Yes, fixed</button>
+        <button class="ramt-btn" id="rsh-fixed-no" onclick="_rshFixedToggle(false)">No, it changes</button>
+      </div>
+    </div>`;
+  }
+
+  // Due day chips (all types)
+  html+=`<div style="margin-bottom:20px">
+    <label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:8px">
+      ${detected.type==='loan'?'Due every month on?':'Remind me on?'}
+    </label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="rsh-day-chips">
+      ${[1,5,10,15,20,25].map(d=>`<span class="rday-chip${d===5?' sel':''}" onclick="_rshPickDay(${d},this)">${d}${_remOrdinal(d)}</span>`).join('')}
+      <span class="rday-chip" id="rsh-other-chip" onclick="_rshPickOther()">Other</span>
+    </div>
+    <input type="hidden" id="rsh-dueday" value="5">
+  </div>`;
+
+  html+=`<button onclick="_rshSave()" style="width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer">✓ Yes, remind me every month</button>`;
+
+  body.innerHTML=html;
+  const ov=document.getElementById('remind-overlay');
+  const sh=document.getElementById('remind-sheet');
+  if(ov) ov.style.display='block';
+  if(sh){ sh.style.display='block'; requestAnimationFrame(()=>sh.style.transform='translateY(0)'); }
+}
+
+function closeReminderSheet(){
+  const ov=document.getElementById('remind-overlay');
+  const sh=document.getElementById('remind-sheet');
+  if(sh){ sh.style.transform='translateY(100%)'; setTimeout(()=>{ sh.style.display='none'; if(ov)ov.style.display='none'; },320); }
+}
+
+function _rshPickDay(d,el){
+  document.querySelectorAll('#rsh-day-chips .rday-chip').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('rsh-dueday').value=d;
+}
+
+function _rshPickOther(){
+  const d=prompt('Enter due date (1-28):');
+  const n=parseInt(d);
+  if(!n||n<1||n>28) return;
+  document.querySelectorAll('#rsh-day-chips .rday-chip').forEach(c=>c.classList.remove('sel'));
+  const oc=document.getElementById('rsh-other-chip');
+  if(oc){oc.textContent=n+_remOrdinal(n);oc.classList.add('sel');}
+  document.getElementById('rsh-dueday').value=n;
+}
+
+function _rshFixedToggle(isFixed){
+  document.getElementById('rsh-fixed-yes')?.classList.toggle('sel',isFixed);
+  document.getElementById('rsh-fixed-no')?.classList.toggle('sel',!isFixed);
+}
+
+function _rshSave(){
+  if(!_rshDetected) return;
+  const dueDay=parseInt(document.getElementById('rsh-dueday')?.value||'5');
+  let amount=_rshAmt;
+  if(_rshDetected.askAmt){
+    const v=parseFloat(document.getElementById('rsh-interest')?.value||'0');
+    if(v>0) amount=v;
+  }
+  const r={id:'r_'+Date.now(),type:_rshDetected.type,name:_rshDetected.lbl,
+    icon:_rshDetected.icon,amount,dueDay,isActive:true,
+    createdAt:new Date().toISOString(),lastPaidAt:null,amountHistory:[amount]};
+  const list=_remGet(); list.push(r); _remSet(list);
+  closeReminderSheet();
+  _schedulePaymentNotifs();
+  _renderUpcomingPayments();
+  toast('🔔 Reminder set — '+r.name+' on '+dueDay+_remOrdinal(dueDay)+' every month','ok');
+}
+
+// ── CRUD ─────────────────────────────────────────────────────────────────────
+
+function _remMarkPaid(id,amount){
+  const list=_remGet();
+  const r=list.find(x=>x.id===id);
+  if(!r) return;
+  r.lastPaidAt=new Date().toISOString();
+  if(amount!=null){
+    r.amount=amount;
+    if(!r.amountHistory) r.amountHistory=[];
+    r.amountHistory.push(amount);
+    if(r.amountHistory.length>6) r.amountHistory.shift();
+  }
+  _remSet(list);
+  _renderUpcomingPayments();
+  renderRemindersModal();
+}
+
+function _remDelete(id){
+  _remSet(_remGet().filter(r=>r.id!==id));
+  _renderUpcomingPayments();
+  renderRemindersModal();
+}
+
+// Mark Paid + auto-record expense entry
+function _remMarkPaidAndRecord(id){
+  const list=_remGet();
+  const r=list.find(x=>x.id===id);
+  if(!r) return;
+  r.lastPaidAt=new Date().toISOString();
+  _remSet(list);
+  // Auto-record as expense
+  const date=new Date().toISOString().split('T')[0];
+  const BID=ME?.businessId||ME?.uid;
+  const shops=Object.keys(SHOPS);
+  const shop=shops[0]||'s1';
+  const txData={
+    _lid:'loc_rem_'+Date.now(),_col:'transactions',
+    businessId:BID,userId:ME?.uid,
+    date,shop,type:'expense',amount:r.amount,
+    desc:r.name+' payment',category:r.name,
+    gstOn:false,gstRate:0,gstAmount:0,baseAmount:r.amount,
+    billRef:'',note:'Auto-recorded from payment reminder',
+    source:'reminder',by:ME?.name||'user',
+    createdMs:Date.now(),createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  saveQ([txData]);
+  DB.collection('transactions').add((({_lid,_col,...d})=>d)(txData))
+    .then(()=>rmQ([txData._lid]))
+    .catch(()=>{});
+  TXS.unshift(txData); renderDash(); renderLedger();
+  toast('✅ '+r.name+' marked paid & recorded as expense','ok');
+  _renderUpcomingPayments();
+  renderRemindersModal();
+}
+
+// ── Dashboard upcoming payments card ─────────────────────────────────────────
+
+function _renderUpcomingPayments(){
+  const card=document.getElementById('upcoming-payments-card');
+  if(!card) return;
+  if(_bizType!=='personal'){card.style.display='none';return;}
+  const all=_remGet().filter(r=>r.isActive&&!_remIsPaidThisMonth(r))
+    .sort((a,b)=>_remDaysUntilDue(a.dueDay)-_remDaysUntilDue(b.dueDay)).slice(0,3);
+  if(!all.length){card.style.display='none';return;}
+  card.style.display='block';
+  const total=all.reduce((s,r)=>s+r.amount,0);
+  document.getElementById('upcoming-payments-body').innerHTML=
+    `<div style="font-size:11px;color:var(--muted);margin-bottom:10px">₹${fmt(total)} total — ${all.length} upcoming</div>`+
+    all.map(r=>{
+      const days=_remDaysUntilDue(r.dueDay);
+      const col=days===0?'var(--red)':days<=3?'#f97316':'var(--muted)';
+      const lbl=days===0?'Today':days===1?'Tomorrow':days+'d';
+      return`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:20px">${r.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${esc(r.name)}</div>
+          <div style="font-size:10px;color:var(--muted)">Every ${r.dueDay}${_remOrdinal(r.dueDay)} · ₹${fmt(r.amount)}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:${col};background:${col}22;padding:2px 7px;border-radius:6px">${lbl}</span>
+        <button onclick="_remMarkPaidAndRecord('${r.id}')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:700">✓ Paid</button>
+      </div>`;
+    }).join('');
+}
+
+// ── Reminders management modal ────────────────────────────────────────────────
+
+function renderRemindersModal(){
+  const body=document.getElementById('reminders-modal-body');
+  if(!body) return;
+  const all=_remGet().filter(r=>r.isActive).sort((a,b)=>_remDaysUntilDue(a.dueDay)-_remDaysUntilDue(b.dueDay));
+  if(!all.length){
+    body.innerHTML=`<div style="text-align:center;padding:32px 16px;color:var(--muted)">
+      <div style="font-size:40px;margin-bottom:8px">📋</div>
+      <div>No reminders yet.</div>
+      <div style="font-size:12px;margin-top:6px">Add entries like "gold loan" or "credit card payment" to get smart reminders.</div>
+    </div>`; return;
+  }
+  body.innerHTML=all.map(r=>{
+    const days=_remDaysUntilDue(r.dueDay);
+    const paid=_remIsPaidThisMonth(r);
+    const col=paid?'#059669':days===0?'#EF4444':days<=3?'#f97316':'var(--green)';
+    const lbl=paid?'Paid this month':days===0?'Due today':days===1?'Due tomorrow':'Due in '+days+' days';
+    return`<div class="rcard${!paid&&days<=3?' rcard-urgent':''}">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:22px">${r.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px">${esc(r.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">Every ${r.dueDay}${_remOrdinal(r.dueDay)} · ₹${fmt(r.amount)}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:${col};background:${col}22;padding:3px 8px;border-radius:6px;white-space:nowrap">${lbl}</span>
+      </div>
+      ${!paid?`<div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="_remMarkPaidAndRecord('${r.id}')" style="flex:1;background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">✓ Mark Paid + Record</button>
+        <button onclick="_remShareWhatsApp('${r.id}')" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:8px 12px;font-size:16px;cursor:pointer" title="Share via WhatsApp">📱</button>
+        <button onclick="_remDelete('${r.id}')" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:8px 12px;font-size:12px;color:#9CA3AF;cursor:pointer">🗑</button>
+      </div>`:`<div style="display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <span style="color:#059669;font-size:13px">✓ Paid this month</span>
+        <button onclick="_remDelete('${r.id}')" style="margin-left:auto;background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:5px 10px;font-size:12px;color:#9CA3AF;cursor:pointer">🗑</button>
+      </div>`}
+    </div>`;
+  }).join('');
+}
+
+// WhatsApp share (L5)
+function _remShareWhatsApp(id){
+  const r=_remGet().find(x=>x.id===id);
+  if(!r) return;
+  const days=_remDaysUntilDue(r.dueDay);
+  const due=days===0?'today':days===1?'tomorrow':'in '+days+' days ('+r.dueDay+_remOrdinal(r.dueDay)+')';
+  const text=encodeURIComponent('🔔 Payment Reminder\n\n'+r.icon+' '+r.name+'\nAmount: ₹'+r.amount+'\nDue: '+due+'\n\n— Sent from ArthaNote');
+  window.open('https://wa.me/?text='+text,'_blank');
+}
+
+// ── Notification scheduling ───────────────────────────────────────────────────
+
+function _schedulePaymentNotifs(){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  const all=_remGet().filter(r=>r.isActive);
+  const now=new Date();
+  all.forEach(r=>{
+    [3,0].forEach(offset=>{
+      let target=new Date(now.getFullYear(),now.getMonth(),r.dueDay,9,0,0);
+      if(offset>0) target=new Date(target.getTime()-offset*86400000);
+      if(target<=now){ target=new Date(now.getFullYear(),now.getMonth()+1,r.dueDay,9,0,0); if(offset>0)target=new Date(target.getTime()-offset*86400000); }
+      const delay=target-now;
+      if(delay>0) setTimeout(()=>{
+        const cur=_remGet().find(x=>x.id===r.id);
+        if(!cur||_remIsPaidThisMonth(cur)) return;
+        const title=offset===0?r.icon+' '+r.name+' due today!':r.icon+' '+r.name+' due in '+offset+' days';
+        const n=new Notification(title,{body:'₹'+fmt(r.amount)+' — '+r.name+'\nTap → Mark Paid',icon:'/icon-192.png',tag:'rem_'+r.id+'_'+offset});
+        n.onclick=()=>{ openM('reminders-modal'); renderRemindersModal(); n.close(); };
+      },delay);
+    });
+  });
 }
 
 // ════════════════════════════════════════
