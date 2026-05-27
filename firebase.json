@@ -1,0 +1,6 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "flutter_app/firestore.indexes.json"
+  }
+}

@@ -21,6 +21,8 @@ import 'reports_tab.dart';
 import 'finance_tab.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
+import '../services/lock_service.dart';
+import 'lock_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,7 +30,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
   final _db     = DbService();
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Sync any pending offline entries when connectivity returns
     _connectivity = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
@@ -53,8 +56,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectivity?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      LockService().updateLastActive();
+    } else if (state == AppLifecycleState.resumed) {
+      _checkLock();
+    }
+  }
+
+  Future<void> _checkLock() async {
+    if (!mounted) return;
+    final locked = await LockService().isLocked();
+    if (locked && mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const LockScreen()),
+      );
+    }
   }
 
   List<Widget> _bodies(bool isAdmin) => [
