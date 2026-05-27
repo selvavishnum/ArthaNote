@@ -910,6 +910,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
       <div class="lfg"><label>Email</label><input type="email" id="li-em" placeholder="your@email.com" autocomplete="email"></div>
       <div class="lfg"><label>Password</label><input type="password" id="li-pw" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginEmail()"></div>
       <button class="lbtn" onclick="loginEmail()">Sign In &rarr;</button>
+      <div style="text-align:right;margin:-4px 0 8px"><span onclick="forgotPassword()" style="font-size:12px;color:var(--green);cursor:pointer;text-decoration:underline">Forgot Password?</span></div>
       <div class="lswitch">New user? <span onclick="showReg()">Create account</span></div>
     </div>
     <div id="rform" style="display:none">
@@ -3480,6 +3481,17 @@ async function loginGoogle(){
     }
     const btn=document.querySelector('.gbtn');
     if(btn) btn.innerHTML='<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style="width:18px;margin-right:8px">Continue with Google';
+  }
+}
+async function forgotPassword(){
+  const em=v('li-em');
+  if(!em){showErr('Enter your email address first, then click Forgot Password');return;}
+  try{
+    await AUTH.sendPasswordResetEmail(em);
+    const e=document.getElementById('lerr');
+    if(e){e.textContent='✅ Reset link sent to '+em+' — check your Gmail!';e.style.cssText='display:block;background:#dcfce7;color:#065f46;border-color:#6ee7b7';setTimeout(()=>{e.style.display='none';e.style.cssText='';},6000);}
+  }catch(e){
+    showErr('Could not send reset email: '+e.message);
   }
 }
 async function loginEmail(){
