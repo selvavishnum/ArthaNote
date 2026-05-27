@@ -7,9 +7,12 @@ import '../l10n.dart';
 import '../models/txn.dart';
 import '../models/shop.dart';
 import '../models/supplier.dart';
+import '../models/payment_reminder.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
+import '../services/reminder_service.dart';
 import 'shop_detail_screen.dart';
+import 'reminders_screen.dart';
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 final _inrFmt = NumberFormat('#,##,##0', 'en_IN');
@@ -411,6 +414,11 @@ class _DashboardTabState extends State<DashboardTab> {
                     ),
                   ]),
                 ),
+
+              // Upcoming payments card (personal mode only)
+              if (p.isPersonal)
+                _UpcomingPaymentsCard(onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const RemindersScreen()))),
 
               // 4-box stat grid
               Row(children: [
@@ -1298,5 +1306,86 @@ class _AiAlertSection extends StatelessWidget {
         ));
       }
     } catch (_) {}
+  }
+}
+
+// ── Upcoming Payments Card (personal mode) ────────────────────────────────────
+
+class _UpcomingPaymentsCard extends StatefulWidget {
+  final VoidCallback onTap;
+  const _UpcomingPaymentsCard({required this.onTap});
+  @override
+  State<_UpcomingPaymentsCard> createState() => _UpcomingPaymentsCardState();
+}
+
+class _UpcomingPaymentsCardState extends State<_UpcomingPaymentsCard> {
+  final _svc = ReminderService();
+  List<PaymentReminder> _reminders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final list = await _svc.getActive();
+    final upcoming = list.where((r) => !r.isPaidThisMonth).take(3).toList();
+    if (mounted) setState(() => _reminders = upcoming);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_reminders.isEmpty) return const SizedBox.shrink();
+    final total = _reminders.fold<double>(0, (sum, r) => sum + r.amount);
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 16, offset: const Offset(0, 4))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Text('📋', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            const Text('Upcoming Payments', style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+            const Spacer(),
+            Text('₹${total.toStringAsFixed(0)} total',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+            const Icon(Icons.chevron_right, size: 16, color: Color(0xFF9CA3AF)),
+          ]),
+          const SizedBox(height: 12),
+          ..._reminders.map((r) {
+            final days  = r.daysUntilDue;
+            final color = days == 0
+                ? const Color(0xFFEF4444)
+                : days <= 3 ? const Color(0xFFF97316) : const Color(0xFF6B7280);
+            final label = days == 0 ? 'Today' : days == 1 ? 'Tomorrow' : '${days}d';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [
+                Text(reminderTypeLabel(r.type).split(' ').first, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(r.name, style: const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
+                Text('₹${r.amount.toStringAsFixed(0)}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                  child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+                ),
+              ]),
+            );
+          }),
+        ]),
+      ),
+    );
   }
 }

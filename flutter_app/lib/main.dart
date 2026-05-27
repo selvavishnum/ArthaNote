@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'theme.dart';
 import 'providers/app_provider.dart';
 import 'screens/splash_screen.dart';
+import 'services/reminder_service.dart';
 
 Future<void> storeCrashLog(String error) async {
   try {
@@ -47,6 +48,10 @@ void main() async {
   };
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Init reminder notifications
+  await ReminderService().init();
+  await ReminderService().requestPermission();
 
   // Enable Firestore offline persistence with unlimited cache
   // This makes all reads instant on re-open — no network round-trip needed
