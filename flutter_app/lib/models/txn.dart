@@ -10,6 +10,7 @@ class Txn {
   final double   amount;
   final String   desc;
   final String   contact;
+  final String   enteredBy; // email of the person who saved this entry
 
   const Txn({
     required this.id,
@@ -20,7 +21,8 @@ class Txn {
     required this.type,
     required this.amount,
     required this.desc,
-    this.contact = '',
+    this.contact    = '',
+    this.enteredBy  = '',
   });
 
   factory Txn.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -35,6 +37,7 @@ class Txn {
       amount:     (d['amount']    as num?)?.toDouble() ?? 0,
       desc:       d['desc']       as String? ?? '',
       contact:    d['contact']    as String? ?? '',
+      enteredBy:  d['enteredBy']  as String? ?? '',
     );
   }
 
@@ -61,6 +64,7 @@ class Txn {
     'amount':     amount,
     'desc':       desc,
     'contact':    contact,
+    'enteredBy':  enteredBy,
     'createdAt':  FieldValue.serverTimestamp(),
   };
 
@@ -74,6 +78,7 @@ class Txn {
     'amount':     amount,
     'desc':       desc,
     'contact':    contact,
+    'enteredBy':  enteredBy,
   };
 
   factory Txn.fromJson(Map<String, dynamic> m) => Txn(
@@ -86,6 +91,7 @@ class Txn {
     amount:     (m['amount']    as num?)?.toDouble() ?? 0,
     desc:       m['desc']       as String? ?? '',
     contact:    m['contact']    as String? ?? '',
+    enteredBy:  m['enteredBy']  as String? ?? '',
   );
 
   Txn copyWith({
@@ -98,6 +104,7 @@ class Txn {
     double?   amount,
     String?   desc,
     String?   contact,
+    String?   enteredBy,
   }) => Txn(
     id:         id         ?? this.id,
     businessId: businessId ?? this.businessId,
@@ -108,5 +115,6 @@ class Txn {
     amount:     amount     ?? this.amount,
     desc:       desc       ?? this.desc,
     contact:    contact    ?? this.contact,
+    enteredBy:  enteredBy  ?? this.enteredBy,
   );
 }

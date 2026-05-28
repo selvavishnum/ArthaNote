@@ -42,9 +42,22 @@ class AppProvider extends ChangeNotifier {
     return t == 'finance' || t == 'chit';
   }
 
-  // Also treat as onboarded when shops exist in config — covers accounts
-  // registered on the website where 'onboarded' flag wasn't set in Firestore.
-  bool get isOnboarded => _profile['onboarded'] == true || _shops.isNotEmpty;
+  // Onboarded if: explicit flag set, OR shops exist and the profile belongs to
+  // this user's own business (businessId == profile uid). The second condition
+  // covers website accounts that never set the 'onboarded' flag. We do NOT
+  // treat _shops.isNotEmpty alone as onboarded when the profile was found via
+  // email-lookup linking (businessId != profile uid) — that would skip
+  // onboarding for new users whose email matches a staff record in another
+  // business.
+  bool get isOnboarded {
+    if (_profile['onboarded'] == true) return true;
+    if (_shops.isNotEmpty) {
+      final profileUid = (_profile['uid'] as String?)?.trim() ?? '';
+      // Only treat shops as proof of onboarding when this is the user's own account
+      if (profileUid.isEmpty || profileUid == _businessId) return true;
+    }
+    return false;
+  }
   bool get isAdmin     => ((_profile['email'] as String?) ?? '') == 'selvavishnu.m@gmail.com';
   bool get isPersonal {
     if (_selectedShop.isNotEmpty) {

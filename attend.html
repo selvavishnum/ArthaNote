@@ -154,7 +154,9 @@ async function init(){
       DB.collection('staff').where('businessId','==',BID).get(),
       DB.collection('attendance').where('businessId','==',BID).where('date','==',DATE).where('shopId','==',SHOP_ID).get()
     ]);
-    _staff=ss.docs.map(d=>({...d.data(),docId:d.id})).filter(s=>s.name);
+    // Filter staff: show members assigned to this shop OR to all shops (shop='')
+    _staff=ss.docs.map(d=>({...d.data(),docId:d.id}))
+      .filter(s=>s.name && (!s.shop || s.shop===SHOP_ID || SHOP_ID===''));
     _todayAtt=as.docs.map(d=>({...d.data(),docId:d.id}));
     renderCard();
   }catch(e){showErr2('Connection error: '+String(e.message||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'));}
@@ -203,7 +205,13 @@ function renderMarkSection(){
     </div>
     <div class="lbl">பேர் list-ல் இல்லையா?</div>
     <input class="custom-inp" type="text" id="cinp" placeholder="உங்கள் பேரை type பண்ணுங்க..." oninput="onTyp(this.value)" autocomplete="off">
-    <button class="submit-btn" id="sbmt" onclick="go()" disabled>✅ Attendance Mark பண்ணு</button>`;
+    <button class="submit-btn" id="sbmt" onclick="go()" disabled>✅ Attendance Mark பண்ணு</button>
+    <div style="margin-top:18px;border-top:1px solid rgba(255,255,255,.15);padding-top:14px">
+      <div class="lbl">🔑 Manager Login (Gmail)</div>
+      <input class="custom-inp" type="email" id="mgr-email" placeholder="manager@gmail.com" autocomplete="off">
+      <button class="submit-btn" style="background:rgba(255,255,255,.15);margin-top:8px" onclick="managerMark()">👔 Manager Attendance Mark</button>
+      <div id="mgr-msg" style="font-size:12px;margin-top:6px;text-align:center;min-height:16px"></div>
+    </div>`;
 }
 
 function renderSummarySection(){
@@ -388,6 +396,44 @@ async function go(){
   }catch(e){
     showErrInline('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
     btn.disabled=false; btn.textContent='✅ Attendance Mark பண்ணு';
+  }
+}
+
+async function managerMark(){
+  const emailInput=document.getElementById('mgr-email');
+  const msgEl=document.getElementById('mgr-msg');
+  const email=(emailInput?.value||'').trim().toLowerCase();
+  if(!email){msgEl.textContent='📧 Gmail address enter பண்ணுங்க';msgEl.style.color='#fca5a5';return;}
+
+  // Find matching manager in staff list
+  const mgr=_staff.find(s=>s.role==='manager'&&(s.email||'').toLowerCase()===email);
+  if(!mgr){msgEl.textContent='❌ இந்த Gmail-க்கு manager access இல்லை';msgEl.style.color='#fca5a5';return;}
+
+  msgEl.textContent='⏳ Saving...';msgEl.style.color='#a7f3d0';
+
+  const existingIn=_todayAtt.find(a=>a.staffName===mgr.name&&(a.type==='in'||!a.type));
+  const existingOut=_todayAtt.find(a=>a.staffName===mgr.name&&a.type==='out');
+  if(existingOut){msgEl.textContent='🏁 Already IN & OUT today!';return;}
+
+  const type=existingIn?'out':'in';
+  const nowMs=Date.now();
+  const nowTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  try{
+    await DB.collection('attendance').add({
+      businessId:BID, shopId:SHOP_ID, shopName:SHOP_NAME,
+      staffName:mgr.name, date:DATE, time:nowTime,
+      timeRaw:nowMs, type,
+      markedBy:'gmail:'+email,
+      markedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    _todayAtt.push({staffName:mgr.name,type,time:nowTime,timeRaw:nowMs});
+    const label=type==='in'?'IN':'OUT';
+    msgEl.textContent=`✅ ${mgr.name} — ${label} marked at ${nowTime}`;
+    msgEl.style.color='#6ee7b7';
+    emailInput.value='';
+  }catch(e){
+    msgEl.textContent='Error: '+String(e.message||'').replace(/</g,'&lt;');
+    msgEl.style.color='#fca5a5';
   }
 }
 
