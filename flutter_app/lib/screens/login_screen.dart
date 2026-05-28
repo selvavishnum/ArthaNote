@@ -83,6 +83,20 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final email = _email.text.trim();
+    if (email.isEmpty) {
+      _showErr('Enter your email address first.');
+      return;
+    }
+    try {
+      await _auth.sendPasswordReset(email);
+      _showSuccess('Password reset email sent to $email');
+    } catch (e) {
+      _showErr(_friendlyError(e.toString()));
+    }
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
@@ -288,6 +302,21 @@ class _LoginScreenState extends State<LoginScreen>
                     style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
                     child: Text(
                       _isLogin ? t('login', l) : t('register', l)),
+                  ),
+                if (_isLogin && !_loading)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _forgotPassword,
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: kPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
                 const SizedBox(height: 20),
 

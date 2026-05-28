@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -144,6 +145,7 @@ class _EntryTabState extends State<EntryTab> {
         amount:     amt,
         desc:       description,
         contact:    _isPersonalShop(p) ? _contact.text.trim() : '',
+        enteredBy:  FirebaseAuth.instance.currentUser?.email ?? '',
       );
       await _db.addTxn(txn);
       if (mounted) context.read<AppProvider>().addLocalTxn(txn);

@@ -726,7 +726,10 @@ class _LedgerTile extends StatelessWidget {
     final isSale       = txn.type == 'sale';
     final isExpense    = txn.type == 'expense';
     final color        = isExpense ? kRed : isSale ? kSecondary : kAmber;
-    final isPersonal   = context.read<AppProvider>().isPersonal;
+    final p            = context.read<AppProvider>();
+    final isPersonal   = p.isPersonal;
+    final ownerEmail   = (p.profile['email'] as String?) ?? '';
+    final isStaffEntry = txn.enteredBy.isNotEmpty && txn.enteredBy != ownerEmail;
 
     return Dismissible(
       key: Key(txn.id),
@@ -832,6 +835,21 @@ class _LedgerTile extends StatelessWidget {
                 ),
               ]),
             ),
+
+            // ── Staff badge ────────────────────────────────────────────────
+            if (isStaffEntry)
+              Container(
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E8FF),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '👤',
+                  style: const TextStyle(fontSize: 10),
+                ),
+              ),
 
             // ── Amount ────────────────────────────────────────────────────
             Text(

@@ -370,7 +370,8 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => Share.share(
                   'Try ArthaNote — Free digital ledger for your shop! 📒\n'
                   'Track sales, expenses and reports easily.\n'
-                  'https://selvavishnum.github.io/Kannakupilai/',
+                  'Download now: https://play.google.com/store/apps/details?id=com.arthanote.app\n'
+                  'Web: https://arthanote.com',
                 ),
               ),
               const _ItemDivider(),
@@ -1163,6 +1164,38 @@ class _StaffSheetState extends State<_StaffSheet> {
     });
   }
 
+  void _confirmDeleteStaff(BuildContext ctx, String docId, String name) {
+    showDialog<void>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('Remove Staff?'),
+        content: Text('Remove "$name" from staff list?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await FirebaseFirestore.instance.collection('staff').doc(docId).delete();
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                  content: Text('$name removed'),
+                  backgroundColor: kRed,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ));
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: kRed),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -1255,6 +1288,10 @@ class _StaffSheetState extends State<_StaffSheet> {
                         IconButton(
                           icon: const Icon(Icons.edit_outlined, size: 18, color: kMuted),
                           onPressed: () => _showStaffForm(context, doc.id, d),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18, color: kRed),
+                          onPressed: () => _confirmDeleteStaff(context, doc.id, name),
                         ),
                       ],
                     ),
