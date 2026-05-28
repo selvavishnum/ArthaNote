@@ -81,8 +81,7 @@ class _EntryTabState extends State<EntryTab> {
       final pred = _ai.predict(_desc.text);
       setState(() {
         _prediction = pred;
-        // Auto-switch type when strongly predicted (≥70 % confidence, ≥2 past entries)
-        if (pred.isStrong) _type = pred.type;
+        // Do NOT auto-switch type — only show suggestion banner, user decides
       });
     });
   }
@@ -154,8 +153,8 @@ class _EntryTabState extends State<EntryTab> {
       _ai.learn(description, savedType, savedDesc);
       _reset(p);
 
-      // AI reminder detection (personal mode only)
-      if (p.isPersonal) {
+      // AI reminder detection for expense entries (all shop types)
+      if (txn.type == 'expense') {
         _detectAndShowReminder(txn.desc, txn.amount);
       }
 
