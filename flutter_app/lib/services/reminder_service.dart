@@ -14,7 +14,7 @@ const _kPatterns = <String, List<String>>{
                   'icici card', 'axis card', 'credit bill', 'கிரெடிட்'],
   'gold_loan':   ['gold loan', 'manappuram', 'muthoot', 'நகை கடன்',
                   'தங்க கடன்', 'jewel loan', 'gold interest', 'நகை வட்டி'],
-  'loan':        ['emi', ' loan', 'கடன் தவணை', 'installment',
+  'loan':        ['emi', 'loan', 'கடன்', 'கடன் தவணை', 'installment',
                   'bank loan', 'home loan', 'vehicle loan', 'bike loan'],
   'rent':        ['rent', 'வாடகை', 'kiraya', 'house rent', 'shop rent'],
   'chit':        ['chit', 'சீட்டு', 'chitty', 'chit fund'],
@@ -241,7 +241,7 @@ class ReminderService {
             ],
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexact,
         payload: 'markpaid:${r.id}',
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
