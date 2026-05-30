@@ -2130,13 +2130,21 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
                 double totalHrs = 0;
                 int hrCount = 0;
                 for (final dayRecs in byDay.values) {
-                  final inRec  = dayRecs.where((r) => r['type'] == 'in' || r['type'] == null).firstOrNull;
-                  final outRec = dayRecs.where((r) => r['type'] == 'out').firstOrNull;
+                  final inRec   = dayRecs.where((r) => r['type'] == 'in' || r['type'] == null).firstOrNull;
+                  final outRec  = dayRecs.where((r) => r['type'] == 'out').firstOrNull;
+                  final restRec = dayRecs.where((r) => r['type'] == 'rest').firstOrNull;
+                  final backRec = dayRecs.where((r) => r['type'] == 'back').firstOrNull;
                   if (inRec != null && outRec != null) {
                     final inMs  = (inRec['timeRaw']  as num?)?.toDouble() ?? 0;
                     final outMs = (outRec['timeRaw'] as num?)?.toDouble() ?? 0;
                     if (outMs > inMs) {
-                      totalHrs += (outMs - inMs) / 3600000;
+                      double workMs = outMs - inMs;
+                      if (restRec != null && backRec != null) {
+                        final restMs = (restRec['timeRaw'] as num?)?.toDouble() ?? 0;
+                        final backMs = (backRec['timeRaw'] as num?)?.toDouble() ?? 0;
+                        if (backMs > restMs) workMs -= (backMs - restMs);
+                      }
+                      totalHrs += workMs / 3600000;
                       hrCount++;
                     }
                   }
