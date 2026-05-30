@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/shop.dart';
@@ -20,6 +22,7 @@ class AppProvider extends ChangeNotifier {
   List<Txn>          _txns         = [];
   bool               _syncing      = false;
   DateTime?          _lastSynced;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _liveSyncSub;
 
   // ── Getters ───────────────────────────────────────────────────────────────
   String             get lang         => _lang;
@@ -240,6 +243,47 @@ class AppProvider extends ChangeNotifier {
     } else {
       _lastSynced = await _dbSvc.getLastSyncTime(_businessId);
     }
+
+    // 3. Start real-time listener for new entries from other devices
+    _startLiveSync();
+  }
+
+  void _startLiveSync() {
+    _liveSyncSub?.cancel();
+    if (_businessId.isEmpty) return;
+
+    final since = DateTime.now().subtract(const Duration(days: 7));
+    _liveSyncSub = FirebaseFirestore.instance
+        .collection('transactions')
+        .where('businessId', isEqualTo: _businessId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+        .snapshots()
+        .listen((snap) {
+      if (snap.docChanges.isEmpty) return;
+
+      var changed = false;
+      for (final change in snap.docChanges) {
+        if (change.type == DocumentChangeType.removed) {
+          final before = _txns.length;
+          _txns = _txns.where((t) => t.id != change.doc.id).toList();
+          if (_txns.length != before) changed = true;
+        } else if (change.type == DocumentChangeType.added) {
+          final txn = Txn.fromFirestore(change.doc);
+          final idx = _txns.indexWhere((t) => t.id == txn.id);
+          if (idx == -1) {
+            _txns = [txn, ..._txns];
+            changed = true;
+          }
+        }
+        // modified: handled locally via updateLocalTxn
+      }
+
+      if (changed) {
+        _txns.sort((a, b) => b.date.compareTo(a.date));
+        _dbSvc.saveTxnsToCache(_businessId, _txns);
+        notifyListeners();
+      }
+    }, onError: (_) {});
   }
 
   Future<void> syncNow() async {
@@ -277,6 +321,8 @@ class AppProvider extends ChangeNotifier {
 
   // ── Reset (on logout) ─────────────────────────────────────────────────────
   void reset() {
+    _liveSyncSub?.cancel();
+    _liveSyncSub  = null;
     _businessId   = '';
     _selectedShop = '';
     _shops        = {};

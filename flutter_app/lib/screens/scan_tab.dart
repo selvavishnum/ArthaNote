@@ -862,59 +862,76 @@ class _ParsedEntriesSheetState extends State<_ParsedEntriesSheet> {
             ),
             const SizedBox(height: 10),
 
-            // Type + Category row
+            // Type selector row (toggle buttons — avoids dropdown overlay issues)
+            const Text('TYPE',
+                style: TextStyle(color: kMuted, fontSize: 9,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            const SizedBox(height: 4),
             Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('TYPE',
-                      style: TextStyle(color: kMuted, fontSize: 9,
-                          fontWeight: FontWeight.w700, letterSpacing: 0.6)),
-                  const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
-                    value: type,
-                    isDense: true,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              for (final opt in [
+                ('sale',    '💚 Sale',    kSecondary),
+                ('expense', '📉 Expense', kRed),
+                ('payment', '💳 Payment', kAccent),
+              ]) ...[
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => e.type = opt.$1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: e.type == opt.$1
+                            ? opt.$3.withOpacity(0.12)
+                            : const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: e.type == opt.$1
+                              ? opt.$3
+                              : const Color(0xFFE5E7EB),
+                          width: e.type == opt.$1 ? 1.5 : 1,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        opt.$2,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: e.type == opt.$1
+                              ? opt.$3
+                              : Colors.grey.shade500,
+                        ),
+                      ),
                     ),
-                    items: [
-                      DropdownMenuItem(value: 'sale',    child: Text('💚 Sales',   style: const TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'expense', child: Text('📉 Expense', style: const TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'payment', child: Text('💳 Payment', style: const TextStyle(fontSize: 12))),
-                    ],
-                    onChanged: (v) => setState(() => e.type = v ?? 'sale'),
                   ),
-                ]),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('CATEGORY',
-                      style: TextStyle(color: kMuted, fontSize: 9,
-                          fontWeight: FontWeight.w700, letterSpacing: 0.6)),
-                  const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
-                    value: e.category,
-                    isDense: true,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: '',       child: Text('— Select —', style: TextStyle(fontSize: 12, color: kMuted))),
-                      DropdownMenuItem(value: 'Cash',   child: Text('Cash',   style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'GPay',   child: Text('GPay',   style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'Card',   child: Text('Card',   style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'Credit', child: Text('Credit', style: TextStyle(fontSize: 12))),
-                      DropdownMenuItem(value: 'Other',  child: Text('Other',  style: TextStyle(fontSize: 12))),
-                    ],
-                    onChanged: (v) => setState(() => e.category = v ?? ''),
-                  ),
-                ]),
-              ),
+                ),
+                if (opt.$1 != 'payment') const SizedBox(width: 6),
+              ],
             ]),
+            const SizedBox(height: 10),
+
+            // Category dropdown
+            const Text('CATEGORY',
+                style: TextStyle(color: kMuted, fontSize: 9,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<String>(
+              value: e.category,
+              isDense: true,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              items: const [
+                DropdownMenuItem(value: '',       child: Text('— Select —', style: TextStyle(fontSize: 12, color: kMuted))),
+                DropdownMenuItem(value: 'Cash',   child: Text('Cash',   style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'GPay',   child: Text('GPay',   style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'Card',   child: Text('Card',   style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'Credit', child: Text('Credit', style: TextStyle(fontSize: 12))),
+                DropdownMenuItem(value: 'Other',  child: Text('Other',  style: TextStyle(fontSize: 12))),
+              ],
+              onChanged: (v) => setState(() => e.category = v ?? ''),
+            ),
 
             // Supplier row — always visible (matches website)
             ...[

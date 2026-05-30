@@ -240,9 +240,7 @@ class _DashboardTabState extends State<DashboardTab> {
         .fold(0.0, (s, x) => s + x.amount);
     final expense = txns.where((x) => x.type == 'expense')
         .fold(0.0, (s, x) => s + x.amount);
-    final payment = txns.where((x) => x.type == 'payment')
-        .fold(0.0, (s, x) => s + x.amount);
-    final net = sales - expense - payment;
+    final net = sales - expense; // payment type is supplier cash flow, not P&L
 
     // Last 7 days overdraft check
     final now7 = DateTime.now();
@@ -250,8 +248,7 @@ class _DashboardTabState extends State<DashboardTab> {
     final last7Txns = all.where((tx) => !tx.date.isBefore(sevenDaysAgo)).toList();
     final last7Sales = last7Txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
     final last7Exp   = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
-    final last7Pay   = last7Txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
-    final last7Net   = last7Sales - last7Exp - last7Pay;
+    final last7Net   = last7Sales - last7Exp;
     final showOverdraft = last7Net < 0;
 
     // Most sold
