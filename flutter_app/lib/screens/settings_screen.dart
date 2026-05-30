@@ -2000,6 +2000,40 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
             const SizedBox(height: 16),
           ]),
         ),
+        // Direct Mark section (for owner to mark manually)
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            boxShadow: kCardShadow,
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+              ),
+              child: const Row(children: [
+                Text('✏️', style: TextStyle(fontSize: 15)),
+                SizedBox(width: 8),
+                Text('Direct Mark', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kPrimary)),
+                SizedBox(width: 6),
+                Text('(mark without QR)', style: TextStyle(fontSize: 11, color: kMuted)),
+              ]),
+            ),
+            _DirectMarkSection(
+              businessId: widget.p.businessId,
+              shopId: _shopId,
+              shopName: shop.name,
+            ),
+          ]),
+        ),
       ]),
     );
   }
@@ -2267,6 +2301,279 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
       ),
     ]);
   }
+}
+
+// ── Direct Mark section ────────────────────────────────────────────────────────
+class _DirectMarkSection extends StatelessWidget {
+  final String businessId;
+  final String shopId;
+  final String shopName;
+  const _DirectMarkSection({required this.businessId, required this.shopId, required this.shopName});
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('attendance')
+          .where('businessId', isEqualTo: businessId)
+          .where('shopId', isEqualTo: shopId)
+          .where('date', isEqualTo: today)
+          .snapshots(),
+      builder: (ctx, attSnap) {
+        final todayRecs = attSnap.data?.docs.map((d) => d.data()).toList() ?? [];
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('staff')
+              .where('businessId', isEqualTo: businessId)
+              .snapshots(),
+          builder: (ctx, staffSnap) {
+            if (staffSnap.connectionState == ConnectionState.waiting && todayRecs.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator(color: kPrimary)),
+              );
+            }
+            final allStaff = staffSnap.data?.docs.map((d) => d.data()).toList() ?? [];
+            final staff = allStaff.where((s) {
+              final shopAssign = (s['shop'] as String?) ?? '';
+              return s['name'] != null &&
+                  (shopAssign.isEmpty || shopAssign == shopId);
+            }).toList();
+
+            if (staff.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No staff found for this shop.',
+                    style: TextStyle(color: kMuted, fontSize: 13)),
+              );
+            }
+
+            return Column(
+              children: staff.map((s) {
+                final name = (s['name'] as String?) ?? '';
+                final recs = todayRecs.where((r) => r['staffName'] == name).toList();
+                final hasIn   = recs.any((r) => r['type'] == 'in' || r['type'] == null);
+                final hasRest = recs.any((r) => r['type'] == 'rest');
+                final hasBack = recs.any((r) => r['type'] == 'back');
+                final hasOut  = recs.any((r) => r['type'] == 'out');
+                String inTime='', restTime='', backTime='', outTime='';
+                for (final r in recs) {
+                  final t = (r['time'] as String?) ?? '';
+                  if (r['type'] == 'in' || r['type'] == null) inTime = t;
+                  if (r['type'] == 'rest') restTime = t;
+                  if (r['type'] == 'back') backTime = t;
+                  if (r['type'] == 'out') outTime = t;
+                }
+                return _StaffAttCard(
+                  name: name,
+                  role: (s['role'] as String?) ?? 'staff',
+                  hasIn: hasIn, hasRest: hasRest, hasBack: hasBack, hasOut: hasOut,
+                  inTime: inTime, restTime: restTime, backTime: backTime, outTime: outTime,
+                  businessId: businessId, shopId: shopId, shopName: shopName,
+                );
+              }).toList(),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _StaffAttCard extends StatefulWidget {
+  final String name, role, businessId, shopId, shopName;
+  final bool hasIn, hasRest, hasBack, hasOut;
+  final String inTime, restTime, backTime, outTime;
+  const _StaffAttCard({
+    required this.name, required this.role,
+    required this.businessId, required this.shopId, required this.shopName,
+    required this.hasIn, required this.hasRest, required this.hasBack, required this.hasOut,
+    required this.inTime, required this.restTime, required this.backTime, required this.outTime,
+  });
+  @override
+  State<_StaffAttCard> createState() => _StaffAttCardState();
+}
+
+class _StaffAttCardState extends State<_StaffAttCard> {
+  bool _saving = false;
+
+  Future<void> _mark(String type) async {
+    setState(() => _saving = true);
+    try {
+      final now = DateTime.now();
+      final today = now.toIso8601String().split('T')[0];
+      final time = TimeOfDay.fromDateTime(now).format(context);
+      await FirebaseFirestore.instance.collection('attendance').add({
+        'businessId': widget.businessId,
+        'shopId': widget.shopId,
+        'shopName': widget.shopName,
+        'staffName': widget.name,
+        'date': today,
+        'time': time,
+        'timeRaw': now.millisecondsSinceEpoch,
+        'type': type,
+        'markedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${widget.name} — ${_typeLabel(type)} marked at $time'),
+            backgroundColor: kPrimary,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: kRed),
+        );
+      }
+    }
+    if (mounted) setState(() => _saving = false);
+  }
+
+  String _typeLabel(String type) => const {
+    'in': 'Mark IN', 'rest': 'Take Break', 'back': 'Back to Work', 'out': 'Mark OUT',
+  }[type] ?? type;
+
+  @override
+  Widget build(BuildContext context) {
+    // Card border color by state
+    Color borderColor;
+    Color bgColor;
+    if (widget.hasOut) {
+      borderColor = const Color(0xFFD1D5DB); bgColor = const Color(0xFFF9FAFB);
+    } else if (widget.hasBack) {
+      borderColor = const Color(0xFF5EEAD4); bgColor = const Color(0xFFF0FDFA);
+    } else if (widget.hasRest) {
+      borderColor = const Color(0xFFFBBF24); bgColor = const Color(0xFFFFFBEB);
+    } else if (widget.hasIn) {
+      borderColor = const Color(0xFF6EE7B7); bgColor = const Color(0xFFF0FDF4);
+    } else {
+      borderColor = const Color(0xFFE5E7EB); bgColor = Colors.white;
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 1.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: kPrimary,
+              child: Text(
+                widget.name.isNotEmpty ? widget.name[0].toUpperCase() : '?',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(widget.name,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(widget.role == 'manager' ? 'Manager' : 'Staff',
+                    style: const TextStyle(color: kMuted, fontSize: 11)),
+              ]),
+            ),
+            if (widget.hasOut)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: kPrimary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('🏁 Done', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kPrimary)),
+              ),
+          ]),
+          // Punch time info
+          if (widget.hasIn) ...[
+            const SizedBox(height: 6),
+            Wrap(spacing: 12, children: [
+              if (widget.inTime.isNotEmpty)
+                _TimeChip('IN', widget.inTime, const Color(0xFF059669)),
+              if (widget.restTime.isNotEmpty)
+                _TimeChip('REST', widget.restTime, const Color(0xFFD97706)),
+              if (widget.backTime.isNotEmpty)
+                _TimeChip('BACK', widget.backTime, const Color(0xFF0D9488)),
+              if (widget.outTime.isNotEmpty)
+                _TimeChip('OUT', widget.outTime, kPrimary),
+            ]),
+          ],
+          // Action buttons
+          if (!widget.hasOut) ...[
+            const SizedBox(height: 10),
+            if (_saving)
+              const Center(child: SizedBox(
+                height: 28, width: 28,
+                child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary),
+              ))
+            else if (!widget.hasIn)
+              SizedBox(
+                width: double.infinity,
+                child: _AttBtn('✅ Mark IN', kPrimary, () => _mark('in')),
+              )
+            else if (!widget.hasRest)
+              Row(children: [
+                Expanded(child: _AttBtn('☕ Take Break', const Color(0xFFD97706), () => _mark('rest'))),
+                const SizedBox(width: 8),
+                Expanded(child: _AttBtn('🏁 Mark OUT', kPrimary, () => _mark('out'))),
+              ])
+            else if (!widget.hasBack)
+              Row(children: [
+                Expanded(child: _AttBtn('✅ Back to Work', const Color(0xFF0D9488), () => _mark('back'))),
+                const SizedBox(width: 8),
+                Expanded(child: _AttBtn('🏁 Mark OUT', kPrimary, () => _mark('out'))),
+              ])
+            else
+              SizedBox(
+                width: double.infinity,
+                child: _AttBtn('🏁 Mark OUT', kPrimary, () => _mark('out')),
+              ),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+class _TimeChip extends StatelessWidget {
+  final String label, time;
+  final Color color;
+  const _TimeChip(this.label, this.time, this.color);
+  @override
+  Widget build(BuildContext context) => Text(
+    '$label: $time',
+    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+  );
+}
+
+class _AttBtn extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _AttBtn(this.label, this.color, this.onTap);
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      child: Text(label,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+    ),
+  );
 }
 
 class _StatCell extends StatelessWidget {
