@@ -29,6 +29,7 @@ class _LedgerTabState extends State<LedgerTab> {
   DateTime? _monthStart;              // null = current month
   final Set<String> _collapsed = {};  // day keys that are folded
   List<String> _duplicateWarnings = [];
+  Set<String>  _duplicateIds      = {};
   bool _dupBannerDismissed = false;
 
   static const _typeOptions = [
@@ -248,6 +249,24 @@ class _LedgerTabState extends State<LedgerTab> {
     return warnings.take(3).toList();
   }
 
+  Set<String> _getDuplicateIds(List<Txn> all) {
+    final now    = DateTime.now();
+    final cutoff = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
+    final recent = all.where((tx) => !tx.date.isBefore(cutoff)).toList();
+    final ids    = <String>{};
+    for (int i = 0; i < recent.length; i++) {
+      for (int j = i + 1; j < recent.length; j++) {
+        final a = recent[i];
+        final b = recent[j];
+        if (a.desc.isNotEmpty && a.desc == b.desc && a.shop == b.shop && a.type == b.type) {
+          final ratio = a.amount > 0 ? (b.amount - a.amount).abs() / a.amount : 0.0;
+          if (ratio <= 0.10) { ids.add(a.id); ids.add(b.id); }
+        }
+      }
+    }
+    return ids;
+  }
+
   // ── Apply all filters ─────────────────────────────────────────────────────
   List<Txn> _applyFilters(List<Txn> all, String selectedShop) {
     final r = _range();
@@ -276,10 +295,13 @@ class _LedgerTabState extends State<LedgerTab> {
     final all  = p.txns;
     // Detect duplicates whenever data changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final dups = _detectDuplicates(all);
-      if (dups.toString() != _duplicateWarnings.toString()) {
+      final ids  = _getDuplicateIds(all);
+      if (dups.toString() != _duplicateWarnings.toString() || ids.length != _duplicateIds.length) {
         setState(() {
           _duplicateWarnings = dups;
+          _duplicateIds      = ids;
           _dupBannerDismissed = false;
         });
       }
@@ -357,7 +379,7 @@ class _LedgerTabState extends State<LedgerTab> {
                 child: CircularProgressIndicator(color: kPrimary))
             : txns.isEmpty
                 ? _buildEmpty(l)
-                : _buildList(days, groups, l, p.shops),
+                : _buildList(days, groups, l, p.shops, _duplicateIds),
       ),
     ]);
   }
@@ -581,7 +603,7 @@ class _LedgerTabState extends State<LedgerTab> {
   // ── Expandable grouped list ───────────────────────────────────────────────
   Widget _buildList(
       List<DateTime> days, Map<DateTime, List<Txn>> groups, String l,
-      Map<String, Shop> shops) {
+      Map<String, Shop> shops, Set<String> duplicateIds) {
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 100),
       itemCount: days.length,
@@ -692,6 +714,7 @@ class _LedgerTabState extends State<LedgerTab> {
               ...items.map((txn) => _LedgerTile(
                 txn: txn,
                 shops: shops,
+                isDuplicate: duplicateIds.contains(txn.id),
               )),
           ],
         );
@@ -708,9 +731,10 @@ class _LedgerTabState extends State<LedgerTab> {
 
 // ── Ledger tile ───────────────────────────────────────────────────────────────
 class _LedgerTile extends StatelessWidget {
-  final Txn txn;
+  final Txn  txn;
   final Map<String, Shop> shops;
-  const _LedgerTile({required this.txn, required this.shops});
+  final bool isDuplicate;
+  const _LedgerTile({required this.txn, required this.shops, this.isDuplicate = false});
 
   void _openEdit(BuildContext context) {
     showModalBottomSheet(
@@ -777,10 +801,13 @@ class _LedgerTile extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 2),
           padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: isDuplicate ? const Color(0xFFFFFBEB) : Colors.white,
             border: Border(
-              bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1),
+              left: isDuplicate
+                  ? const BorderSide(color: Color(0xFFFCD34D), width: 3)
+                  : BorderSide.none,
+              bottom: const BorderSide(color: Color(0xFFF3F4F6), width: 1),
             ),
           ),
           child: Row(children: [
