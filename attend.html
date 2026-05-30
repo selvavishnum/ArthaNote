@@ -241,7 +241,7 @@ function renderMarkSection(){
     </div>
     <div class="lbl">பேர் list-ல் இல்லையா?</div>
     <input class="custom-inp" type="text" id="cinp" placeholder="உங்கள் பேரை type பண்ணுங்க..." oninput="onTyp(this.value)" autocomplete="off">
-    <button class="submit-btn" id="sbmt" onclick="go()" disabled>✅ Mark IN</button>
+    <div id="action-area" style="min-height:52px"></div>
     <div style="margin-top:18px;border-top:1px solid rgba(255,255,255,.15);padding-top:14px">
       <div class="lbl">🔑 Manager Login (Gmail)</div>
       <input class="custom-inp" type="email" id="mgr-email" placeholder="manager@gmail.com" autocomplete="off">
@@ -379,51 +379,61 @@ function switchTab(tab){
 function pick(el,name){
   document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
-  _sel=name; document.getElementById('cinp').value='';
-  document.getElementById('sbmt').disabled=false;
-  _updateSubmitLabel(name);
+  _sel=name;
+  document.getElementById('cinp').value='';
+  _renderActions(name);
 }
 
 function onTyp(v){
   _sel=v.trim()||null;
   document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('sel'));
-  document.getElementById('sbmt').disabled=!_sel;
-  if(_sel) _updateSubmitLabel(_sel);
-  else document.getElementById('sbmt').textContent='✅ Mark IN';
+  _renderActions(_sel);
 }
 
-function _updateSubmitLabel(name){
-  const existingIn=_todayAtt.find(a=>a.staffName===name&&(a.type==='in'||!a.type));
-  const existingRest=_todayAtt.find(a=>a.staffName===name&&a.type==='rest');
-  const existingBack=_todayAtt.find(a=>a.staffName===name&&a.type==='back');
-  const btn=document.getElementById('sbmt');
-  if(!existingIn) btn.textContent='✅ Mark IN';
-  else if(!existingRest) btn.textContent='☕ Take Rest';
-  else if(!existingBack) btn.textContent='✅ Back to Work';
-  else btn.textContent='🏁 Mark OUT';
-}
+function _renderActions(name){
+  const area=document.getElementById('action-area');
+  if(!area) return;
+  if(!name){area.innerHTML='';return;}
 
-async function go(){
-  if(!_sel) return;
-  const btn=document.getElementById('sbmt');
-  btn.disabled=true; btn.textContent='⏳ Saving...';
+  const hasIn  =!!_todayAtt.find(a=>a.staffName===name&&(a.type==='in'||!a.type));
+  const hasRest=!!_todayAtt.find(a=>a.staffName===name&&a.type==='rest');
+  const hasBack=!!_todayAtt.find(a=>a.staffName===name&&a.type==='back');
+  const hasOut =!!_todayAtt.find(a=>a.staffName===name&&a.type==='out');
 
-  const existingIn=_todayAtt.find(a=>a.staffName===_sel&&(a.type==='in'||!a.type));
-  const existingRest=_todayAtt.find(a=>a.staffName===_sel&&a.type==='rest');
-  const existingBack=_todayAtt.find(a=>a.staffName===_sel&&a.type==='back');
-  const existingOut=_todayAtt.find(a=>a.staffName===_sel&&a.type==='out');
+  if(hasOut){area.innerHTML='';return;}
 
-  if(existingOut){
-    showErrInline('நீங்கள் இன்னைக்கு IN & OUT போட்டீங்க! 🏁');
-    btn.disabled=false; btn.textContent='✅ Mark IN'; return;
+  const btn=(label,type,bg)=>`<button class="submit-btn" style="${bg?'background:'+bg:''}" onclick="go('${type}')">${label}</button>`;
+
+  if(!hasIn){
+    area.innerHTML=btn('✅ Mark IN','in');
+  } else if(!hasRest){
+    // IN done: show Take Break + Mark OUT side by side
+    area.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${btn('☕ Take Break','rest','linear-gradient(135deg,#d97706,#f59e0b)')}
+      ${btn('🏁 Mark OUT','out')}
+    </div>`;
+  } else if(!hasBack){
+    // On rest: show Back to Work + Mark OUT side by side
+    area.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${btn('✅ Back to Work','back','linear-gradient(135deg,#0d9488,#14b8a6)')}
+      ${btn('🏁 Mark OUT','out')}
+    </div>`;
+  } else {
+    area.innerHTML=btn('🏁 Mark OUT','out');
   }
+}
 
-  // Determine next punch type in sequence: in → rest → back → out
-  let type;
-  if(!existingIn)        type='in';
-  else if(!existingRest) type='rest';
-  else if(!existingBack) type='back';
-  else                   type='out';
+async function go(type){
+  if(!_sel || !type) return;
+  // Disable all action buttons during save
+  document.querySelectorAll('#action-area button').forEach(b=>{b.disabled=true;b.style.opacity='.6';});
+  const errArea=document.getElementById('err-area');
+
+  const existingOut=_todayAtt.find(a=>a.staffName===_sel&&a.type==='out');
+  if(existingOut){
+    showErrInline('நீங்கள் இன்னைக்கு OUT போட்டீங்க! 🏁');
+    _renderActions(_sel); return;
+  }
 
   const nowMs=Date.now();
   const nowTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
@@ -460,7 +470,7 @@ async function go(){
 
   }catch(e){
     showErrInline('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
-    btn.disabled=false; _updateSubmitLabel(_sel);
+    _renderActions(_sel);
   }
 }
 
