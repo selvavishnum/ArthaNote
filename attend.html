@@ -43,7 +43,9 @@ body{font-family:'DM Sans',sans-serif;background:linear-gradient(160deg,#022c22 
 .sbtn{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:2px solid #e5e7eb;border-radius:14px;cursor:pointer;transition:all .15s;position:relative}
 .sbtn:active{transform:scale(.97)}
 .sbtn.in-done{border-color:#6ee7b7;background:#f0fdf4}
-.sbtn.out-done{border-color:#fcd34d;background:#fffbeb}
+.sbtn.rest-done{border-color:#fbbf24;background:#fffbeb}
+.sbtn.back-done{border-color:#5eead4;background:#f0fdfa}
+.sbtn.out-done{border-color:#d1d5db;background:#f9fafb}
 .sbtn.sel{border-color:#065f46;background:#f0fdf4;box-shadow:0 0 0 3px rgba(6,95,70,.1)}
 .sav{width:42px;height:42px;border-radius:50%;background:#065f46;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0}
 .sbtn.sel .sav{background:#059669}
@@ -174,13 +176,24 @@ function renderCard(){
 }
 
 function renderMarkSection(){
-  // Build today's IN/OUT map
-  const inMap={}, outMap={};
+  // Build today's maps for all 4 punch types
+  const inMap={}, restMap={}, backMap={}, outMap={};
   _todayAtt.forEach(a=>{
-    if(a.type==='in'||!a.type) inMap[a.staffName]={time:a.time,ts:a.markedAt};
-    if(a.type==='out') outMap[a.staffName]={time:a.time,ts:a.markedAt};
+    if(a.type==='in'||!a.type) inMap[a.staffName]={time:a.time,raw:a.timeRaw};
+    if(a.type==='rest')        restMap[a.staffName]={time:a.time,raw:a.timeRaw};
+    if(a.type==='back')        backMap[a.staffName]={time:a.time,raw:a.timeRaw};
+    if(a.type==='out')         outMap[a.staffName]={time:a.time,raw:a.timeRaw};
   });
   const totalPresent=Object.keys(inMap).length;
+
+  // Determine status for a staff member
+  function statusOf(name){
+    if(outMap[name])  return 'out';
+    if(backMap[name]) return 'back';
+    if(restMap[name]) return 'rest';
+    if(inMap[name])   return 'in';
+    return 'none';
+  }
 
   return`
     ${totalPresent>0?`<div style="background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:10px 14px;margin-bottom:14px;text-align:center;font-size:13px;font-weight:700;color:#065f46">
@@ -190,22 +203,45 @@ function renderMarkSection(){
     <div class="lbl">உங்கள் பேரை tap பண்ணுங்க 👇</div>
     <div class="staff-grid">
       ${_staff.map(s=>{
-        const hasIn=!!inMap[s.name], hasOut=!!outMap[s.name];
-        const cls=hasOut?'out-done':hasIn?'in-done':'';
-        const statusIcon=hasOut?'🏁':hasIn?'✅':'›';
-        const timeInfo=hasOut?`<div class="s-time in">IN: ${inMap[s.name]?.time||'—'}</div><div class="s-time out">OUT: ${outMap[s.name]?.time||'—'}</div>`:
-                       hasIn?`<div class="s-time in">✅ IN: ${inMap[s.name]?.time||'—'}</div>`:'';
-        return`<div class="sbtn ${cls}" ${!hasOut?`onclick="pick(this,'${esc(s.name)}')"`:'style="pointer-events:none"'}>
-          <div class="sav">${hasOut?'🏁':hasIn?'☑️':(s.name||'?')[0].toUpperCase()}</div>
+        const st=statusOf(s.name);
+        const isDone=st==='out';
+        let cls='', avatarContent='', timeInfo='';
+        if(st==='out'){
+          cls='out-done'; avatarContent='🏁';
+          // Work hours = (out-in) minus (back-rest)
+          const inMs=inMap[s.name]?.raw||0, outMs=outMap[s.name]?.raw||0;
+          const restMs=restMap[s.name]?.raw||0, backMs=backMap[s.name]?.raw||0;
+          let workMs=outMs-inMs;
+          if(restMs&&backMs&&backMs>restMs) workMs-=(backMs-restMs);
+          const workHrs=inMs&&outMs&&outMs>inMs?(workMs/3600000).toFixed(1):'—';
+          timeInfo=`<div class="s-time in">IN: ${inMap[s.name]?.time||'—'}</div>`;
+          if(restMap[s.name]) timeInfo+=`<div class="s-time" style="color:#d97706">☕ REST: ${restMap[s.name].time}</div>`;
+          if(backMap[s.name]) timeInfo+=`<div class="s-time" style="color:#0d9488">✅ BACK: ${backMap[s.name].time}</div>`;
+          timeInfo+=`<div class="s-time out">OUT: ${outMap[s.name]?.time||'—'} · <b>${workHrs}h</b> worked</div>`;
+        } else if(st==='back'){
+          cls='back-done'; avatarContent='✅';
+          timeInfo=`<div class="s-time in">IN: ${inMap[s.name]?.time||'—'}</div><div class="s-time" style="color:#d97706">☕ REST: ${restMap[s.name]?.time||'—'}</div><div class="s-time" style="color:#0d9488">✅ BACK: ${backMap[s.name]?.time||'—'}</div>`;
+        } else if(st==='rest'){
+          cls='rest-done'; avatarContent='☕';
+          timeInfo=`<div class="s-time in">IN: ${inMap[s.name]?.time||'—'}</div><div class="s-time" style="color:#d97706">☕ REST: ${restMap[s.name]?.time||'—'}</div>`;
+        } else if(st==='in'){
+          cls='in-done'; avatarContent='☑️';
+          timeInfo=`<div class="s-time in">✅ IN: ${inMap[s.name]?.time||'—'}</div>`;
+        } else {
+          cls=''; avatarContent=(s.name||'?')[0].toUpperCase();
+        }
+        const schkIcon=st==='out'?'🏁':st==='back'?'☑️':st==='rest'?'☕':st==='in'?'☑️':'›';
+        return`<div class="sbtn ${cls}" ${!isDone?`onclick="pick(this,'${esc(s.name)}')"`:'style="pointer-events:none"'}>
+          <div class="sav">${avatarContent}</div>
           <div style="flex:1"><div class="sname">${esc(s.name)}</div><div class="srole">${s.role==='manager'?'Manager':'Staff'}</div>${timeInfo}</div>
-          <div class="schk">${statusIcon}</div>
+          <div class="schk">${schkIcon}</div>
         </div>`;
       }).join('')}
       ${!_staff.length?'<div class="empty-msg">Staff list இல்லை — Owner app-ல் staff add பண்ணுங்க</div>':''}
     </div>
     <div class="lbl">பேர் list-ல் இல்லையா?</div>
     <input class="custom-inp" type="text" id="cinp" placeholder="உங்கள் பேரை type பண்ணுங்க..." oninput="onTyp(this.value)" autocomplete="off">
-    <button class="submit-btn" id="sbmt" onclick="go()" disabled>✅ Attendance Mark பண்ணு</button>
+    <button class="submit-btn" id="sbmt" onclick="go()" disabled>✅ Mark IN</button>
     <div style="margin-top:18px;border-top:1px solid rgba(255,255,255,.15);padding-top:14px">
       <div class="lbl">🔑 Manager Login (Gmail)</div>
       <input class="custom-inp" type="email" id="mgr-email" placeholder="manager@gmail.com" autocomplete="off">
@@ -262,13 +298,19 @@ async function loadSummary(){
         const pct=workDays>0?Math.round(dayCount/workDays*100):0;
         const pctColor=pct>=80?'#059669':pct>=60?'#d97706':'#dc2626';
 
-        // Calculate avg hours if IN+OUT both present
+        // Calculate avg work hours (subtract rest break if present)
         const hoursData=[];
         days.forEach(d=>{
           const ins=v.entries.filter(e=>e.date===d&&(e.type==='in'||!e.type));
           const outs=v.entries.filter(e=>e.date===d&&e.type==='out');
+          const rests=v.entries.filter(e=>e.date===d&&e.type==='rest');
+          const backs=v.entries.filter(e=>e.date===d&&e.type==='back');
           if(ins.length&&outs.length&&ins[0].timeRaw&&outs[0].timeRaw){
-            const diff=(outs[0].timeRaw-ins[0].timeRaw)/3600000;
+            let workMs=outs[0].timeRaw-ins[0].timeRaw;
+            if(rests.length&&backs.length&&rests[0].timeRaw&&backs[0].timeRaw&&backs[0].timeRaw>rests[0].timeRaw){
+              workMs-=(backs[0].timeRaw-rests[0].timeRaw);
+            }
+            const diff=workMs/3600000;
             if(diff>0&&diff<24) hoursData.push(diff);
           }
         });
@@ -335,16 +377,30 @@ function switchTab(tab){
 }
 
 function pick(el,name){
-  document.querySelectorAll('.sbtn:not(.in-done):not(.out-done)').forEach(b=>{b.classList.remove('sel');b.querySelector('.schk').textContent='›';});
-  el.classList.add('sel'); el.querySelector('.schk').textContent='☑️';
+  document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
   _sel=name; document.getElementById('cinp').value='';
   document.getElementById('sbmt').disabled=false;
+  _updateSubmitLabel(name);
 }
 
 function onTyp(v){
   _sel=v.trim()||null;
-  document.querySelectorAll('.sbtn').forEach(b=>{if(!b.classList.contains('in-done')&&!b.classList.contains('out-done')){b.classList.remove('sel');b.querySelector('.schk').textContent='›';}});
+  document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('sel'));
   document.getElementById('sbmt').disabled=!_sel;
+  if(_sel) _updateSubmitLabel(_sel);
+  else document.getElementById('sbmt').textContent='✅ Mark IN';
+}
+
+function _updateSubmitLabel(name){
+  const existingIn=_todayAtt.find(a=>a.staffName===name&&(a.type==='in'||!a.type));
+  const existingRest=_todayAtt.find(a=>a.staffName===name&&a.type==='rest');
+  const existingBack=_todayAtt.find(a=>a.staffName===name&&a.type==='back');
+  const btn=document.getElementById('sbmt');
+  if(!existingIn) btn.textContent='✅ Mark IN';
+  else if(!existingRest) btn.textContent='☕ Take Rest';
+  else if(!existingBack) btn.textContent='✅ Back to Work';
+  else btn.textContent='🏁 Mark OUT';
 }
 
 async function go(){
@@ -352,16 +408,23 @@ async function go(){
   const btn=document.getElementById('sbmt');
   btn.disabled=true; btn.textContent='⏳ Saving...';
 
-  // Check if already IN today
   const existingIn=_todayAtt.find(a=>a.staffName===_sel&&(a.type==='in'||!a.type));
+  const existingRest=_todayAtt.find(a=>a.staffName===_sel&&a.type==='rest');
+  const existingBack=_todayAtt.find(a=>a.staffName===_sel&&a.type==='back');
   const existingOut=_todayAtt.find(a=>a.staffName===_sel&&a.type==='out');
 
   if(existingOut){
     showErrInline('நீங்கள் இன்னைக்கு IN & OUT போட்டீங்க! 🏁');
-    btn.disabled=false; btn.textContent='✅ Attendance Mark பண்ணு'; return;
+    btn.disabled=false; btn.textContent='✅ Mark IN'; return;
   }
 
-  const type=existingIn?'out':'in';
+  // Determine next punch type in sequence: in → rest → back → out
+  let type;
+  if(!existingIn)        type='in';
+  else if(!existingRest) type='rest';
+  else if(!existingBack) type='back';
+  else                   type='out';
+
   const nowMs=Date.now();
   const nowTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
 
@@ -369,33 +432,35 @@ async function go(){
     await DB.collection('attendance').add({
       businessId:BID, shopId:SHOP_ID, shopName:SHOP_NAME,
       staffName:_sel, date:DATE, time:nowTime,
-      timeRaw:nowMs, type, // 'in' or 'out'
+      timeRaw:nowMs, type,
       markedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // Show success
+    // Show success screen
     const card=document.getElementById('card');
-    const typeLabel=type==='in'?'வருகை (IN)':'விடுதல் (OUT)';
-    const typeEmoji=type==='in'?'✅':'🏁';
-    const typeColor=type==='in'?'#065f46':'#d97706';
-    const nextMsg=type==='in'?'மாலையில் logout செய்ய மீண்டும் scan பண்ணுங்க 👋':'நாளைக்கு பார்க்கலாம்! 😊';
+    const config={
+      in:  {label:'வருகை (IN)',   emoji:'✅', color:'#065f46', next:'மாலையில் logout செய்ய மீண்டும் scan பண்ணுங்க 👋'},
+      rest:{label:'Rest Break ☕', emoji:'☕', color:'#d97706', next:'Rest முடிந்ததும் "Back to Work" scan பண்ணுங்க'},
+      back:{label:'Back to Work ✅',emoji:'✅',color:'#0d9488', next:'மாலையில் OUT mark பண்ண மீண்டும் scan பண்ணுங்க'},
+      out: {label:'விடுதல் (OUT)', emoji:'🏁', color:'#d97706', next:'நாளைக்கு பார்க்கலாம்! 😊'}
+    }[type];
 
     card.innerHTML=`<div class="success-wrap">
-      <div class="s-anim">${typeEmoji}</div>
+      <div class="s-anim">${config.emoji}</div>
       <div class="s-name">${esc(_sel)}</div>
-      <div style="font-size:14px;font-weight:800;color:${typeColor};margin-bottom:8px">${typeLabel} பதிவாகிவிட்டது!</div>
+      <div style="font-size:14px;font-weight:800;color:${config.color};margin-bottom:8px">${config.label} பதிவாகிவிட்டது!</div>
       <div class="s-detail">
         <div class="s-row">🏪 <b>${esc(SHOP_NAME)}</b></div>
         <div class="s-row">📅 ${DATE_NICE}</div>
-        <div class="s-row">⏰ <b style="color:${typeColor}">${nowTime}</b></div>
-        <div class="s-row" style="border-top:1px solid #6ee7b7;margin-top:8px;padding-top:8px;font-size:12px;color:#6b7280">${nextMsg}</div>
+        <div class="s-row">⏰ <b style="color:${config.color}">${nowTime}</b></div>
+        <div class="s-row" style="border-top:1px solid #6ee7b7;margin-top:8px;padding-top:8px;font-size:12px;color:#6b7280">${config.next}</div>
       </div>
       <button class="back-btn" onclick="location.reload()">⬅ Back (mark another)</button>
     </div>`;
 
   }catch(e){
     showErrInline('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
-    btn.disabled=false; btn.textContent='✅ Attendance Mark பண்ணு';
+    btn.disabled=false; _updateSubmitLabel(_sel);
   }
 }
 
@@ -405,17 +470,23 @@ async function managerMark(){
   const email=(emailInput?.value||'').trim().toLowerCase();
   if(!email){msgEl.textContent='📧 Gmail address enter பண்ணுங்க';msgEl.style.color='#fca5a5';return;}
 
-  // Find matching manager in staff list
   const mgr=_staff.find(s=>s.role==='manager'&&(s.email||'').toLowerCase()===email);
   if(!mgr){msgEl.textContent='❌ இந்த Gmail-க்கு manager access இல்லை';msgEl.style.color='#fca5a5';return;}
 
   msgEl.textContent='⏳ Saving...';msgEl.style.color='#a7f3d0';
 
   const existingIn=_todayAtt.find(a=>a.staffName===mgr.name&&(a.type==='in'||!a.type));
+  const existingRest=_todayAtt.find(a=>a.staffName===mgr.name&&a.type==='rest');
+  const existingBack=_todayAtt.find(a=>a.staffName===mgr.name&&a.type==='back');
   const existingOut=_todayAtt.find(a=>a.staffName===mgr.name&&a.type==='out');
-  if(existingOut){msgEl.textContent='🏁 Already IN & OUT today!';return;}
+  if(existingOut){msgEl.textContent='🏁 Already completed today!';return;}
 
-  const type=existingIn?'out':'in';
+  let type;
+  if(!existingIn)        type='in';
+  else if(!existingRest) type='rest';
+  else if(!existingBack) type='back';
+  else                   type='out';
+
   const nowMs=Date.now();
   const nowTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
   try{
@@ -427,8 +498,8 @@ async function managerMark(){
       markedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     _todayAtt.push({staffName:mgr.name,type,time:nowTime,timeRaw:nowMs});
-    const label=type==='in'?'IN':'OUT';
-    msgEl.textContent=`✅ ${mgr.name} — ${label} marked at ${nowTime}`;
+    const labels={in:'IN',rest:'REST ☕',back:'BACK ✅',out:'OUT 🏁'};
+    msgEl.textContent=`✅ ${mgr.name} — ${labels[type]} marked at ${nowTime}`;
     msgEl.style.color='#6ee7b7';
     emailInput.value='';
   }catch(e){
