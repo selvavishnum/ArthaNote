@@ -3438,7 +3438,7 @@ function showLoginFromLanding(){
 }
 
 // ── PRO / PAYWALL ──
-function isProUser(){ return !!(ME&&ME.pro); }
+function isProUser(){ return !!(ME&&ME.pro) || (ME&&ME.email===OWNER_EMAIL); }
 function openPaywall(reason){
   document.getElementById('pw-reason').textContent=reason||'Unlock all features';
   document.getElementById('paywall-modal').classList.add('on');
@@ -3673,6 +3673,21 @@ async function _finishAppSetup(user){
   if(loadFromCache()){ renderDash(); renderLedger(); }
   API_CONFIG.reset();
   updSyncBar(); updAI();
+  // Background config refresh — picks up shops added from other devices (app/web)
+  setTimeout(async()=>{
+    try{
+      const bid=ME.businessId||ME.uid;
+      const cfg=await DB.collection('config').doc(bid).get();
+      if(cfg.exists){
+        const d=cfg.data();
+        if(d.shops&&Object.keys(d.shops).length!==Object.keys(SHOPS).length){
+          SHOPS=d.shops; if(d.cats)CATS=d.cats;
+          localStorage.setItem('kp_cfg_cache',JSON.stringify({shops:SHOPS,cats:CATS,gstOn:_gstOn,gstRate:_gstRate,bizType:_bizType}));
+          buildUI(); renderDash();
+        }
+      }
+    }catch(e){}
+  },2000);
   setTimeout(syncNow,3000);
   // Feature 20: live sync dot + real-time listener
   startLiveSync();

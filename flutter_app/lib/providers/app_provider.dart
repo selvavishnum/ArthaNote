@@ -304,6 +304,12 @@ class AppProvider extends ChangeNotifier {
     _syncing = true;
     notifyListeners();
     try {
+      // Clear cursor so syncFromFirebase does a full paginated sync.
+      // Guarantees all missing entries are fetched — cursor may have advanced
+      // incorrectly due to previous incremental sync bugs.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('kp_sync_cursor_$_businessId');
+
       final fresh = await _dbSvc.syncFromFirebase(_businessId);
       _txns = fresh;
       await _dbSvc.saveTxnsToCache(_businessId, fresh);
