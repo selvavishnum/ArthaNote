@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<title>ArthaNote — Ad</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --g1:#065f46;--g2:#059669;--g3:#34d399;
+  --gold:#d97706;--w:390px;--h:844px;
+}
+body{
+  width:var(--w);height:var(--h);overflow:hidden;
+  background:#000;font-family:'Georgia',serif;
+  position:relative;display:flex;align-items:center;justify-content:center;
+}
+canvas#particles{position:absolute;inset:0;z-index:0;pointer-events:none}
+
+/* ── SCENES ── */
+.scene{
+  position:absolute;inset:0;opacity:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  transition:opacity .4s;z-index:1;
+}
+.scene.on{opacity:1}
+
+/* ── S1: HOOK ── */
+#s1{background:linear-gradient(160deg,#0a0a0a,#1a0800)}
+.notebook{
+  width:220px;height:280px;background:#f5f0e8;
+  border-radius:4px 14px 14px 4px;position:relative;
+  box-shadow:-6px 6px 30px rgba(0,0,0,.8),
+             inset -3px 0 8px rgba(0,0,0,.15);
+  overflow:hidden;
+  animation:bookTilt 3s ease-in-out;
+}
+@keyframes bookTilt{
+  0%{transform:rotate(-8deg) scale(.85);opacity:0}
+  30%{transform:rotate(-3deg) scale(1);opacity:1}
+  70%{transform:rotate(-3deg) scale(1)}
+  100%{transform:rotate(-5deg) scale(.95);opacity:.6}
+}
+.notebook-spine{
+  position:absolute;left:0;top:0;bottom:0;width:22px;
+  background:linear-gradient(90deg,#8b4513,#a0522d,#8b4513);
+  border-radius:4px 0 0 4px;
+}
+.notebook-lines{position:absolute;left:30px;right:10px;top:20px}
+.nl{
+  height:1px;background:rgba(100,149,237,.3);margin-bottom:18px;
+  position:relative;
+}
+.nl-text{
+  position:absolute;top:-10px;left:0;
+  font-family:monospace;font-size:9px;color:#333;
+  opacity:0;
+}
+.nl-text.show{animation:writeIn .4s forwards}
+@keyframes writeIn{
+  0%{opacity:0;width:0;overflow:hidden;white-space:nowrap}
+  100%{opacity:1;width:100%;overflow:hidden;white-space:nowrap}
+}
+.ink-spot{
+  position:absolute;width:6px;height:6px;
+  border-radius:50%;background:#c0392b;opacity:.7;
+}
+.red-cross{
+  position:absolute;right:8px;font-size:11px;
+  color:#c0392b;font-weight:900;animation:popIn .2s ease;
+}
+@keyframes popIn{from{transform:scale(0)}to{transform:scale(1)}}
+
+.hook-text{
+  color:#fff;text-align:center;padding:0 30px;margin-top:28px;
+  opacity:0;animation:fadeUp .6s .8s forwards;
+}
+.hook-text h1{
+  font-size:22px;font-weight:700;
+  line-height:1.4;color:#fff;
+  text-shadow:0 2px 12px rgba(0,0,0,.8);
+}
+.hook-text p{
+  font-size:13px;color:rgba(255,255,255,.6);
+  margin-top:8px;font-family:sans-serif;
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(18px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ── S2: PROBLEM ── */
+#s2{background:linear-gradient(160deg,#1a0000,#2d0a00)}
+.chaos{
+  width:300px;height:300px;position:relative;
+  margin-bottom:20px;
+}
+.flying-num{
+  position:absolute;font-family:monospace;
+  font-size:18px;color:rgba(255,80,80,.7);
+  animation:flyNum 5s ease-in-out infinite;
+}
+@keyframes flyNum{
+  0%{transform:translate(0,0) rotate(0deg);opacity:.8}
+  50%{transform:translate(var(--dx),var(--dy)) rotate(var(--dr));opacity:.4}
+  100%{transform:translate(0,0) rotate(0deg);opacity:.8}
+}
+.prob-items{display:flex;flex-direction:column;gap:14px;padding:0 30px}
+.prob-item{
+  display:flex;align-items:center;gap:12px;
+  opacity:0;transform:translateX(-20px);
+}
+.prob-item.show{animation:slideRight .4s forwards}
+@keyframes slideRight{
+  to{opacity:1;transform:translateX(0)}
+}
+.prob-x{
+  width:28px;height:28px;border-radius:50%;
+  background:#c0392b;display:flex;align-items:center;
+  justify-content:center;font-size:14px;flex-shrink:0;
+  box-shadow:0 0 12px rgba(192,57,43,.5);
+}
+.prob-txt{color:#fff;font-family:sans-serif;font-size:14px;font-weight:600}
+.prob-sub{color:rgba(255,255,255,.5);font-size:11px;margin-top:2px}
+
+/* ── S3: TRANSITION ── */
+#s3{background:#fff;transition:background .3s}
+#s3.go{background:var(--g1)}
+.flash-ring{
+  width:120px;height:120px;border-radius:50%;
+  background:var(--g2);
+  box-shadow:0 0 0 0 rgba(5,150,105,.5);
+  display:flex;align-items:center;justify-content:center;
+  animation:ringPulse .6s .1s forwards;
+}
+@keyframes ringPulse{
+  0%{box-shadow:0 0 0 0 rgba(5,150,105,.6);transform:scale(0)}
+  60%{box-shadow:0 0 0 60px rgba(5,150,105,0);transform:scale(1.1)}
+  100%{box-shadow:0 0 0 80px rgba(5,150,105,0);transform:scale(1)}
+}
+.an-flash{
+  font-size:42px;font-weight:900;color:#fff;
+  font-family:'Georgia',serif;
+}
+.trans-text{
+  color:#fff;font-size:20px;font-weight:700;
+  margin-top:24px;opacity:0;
+  animation:fadeUp .5s .4s forwards;
+  font-family:sans-serif;
+}
+
+/* ── S4: SOLUTION ── */
+#s4{
+  background:linear-gradient(160deg,var(--g1),#042f26);
+  padding:20px 0;justify-content:flex-start;
+}
+.s4-top{
+  width:100%;padding:28px 20px 16px;
+  text-align:center;
+}
+.s4-brand{
+  font-size:28px;font-weight:900;color:#fff;
+  letter-spacing:.5px;
+  animation:fadeUp .5s forwards;
+}
+.s4-sub{
+  font-size:11px;color:var(--g3);letter-spacing:3px;
+  font-family:sans-serif;margin-top:4px;
+}
+.phone-wrap{
+  width:230px;flex-shrink:0;
+  background:rgba(255,255,255,.06);
+  border-radius:28px;border:1.5px solid rgba(255,255,255,.12);
+  overflow:hidden;padding:14px 12px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);
+  animation:phoneIn .6s .3s ease both;
+}
+@keyframes phoneIn{
+  from{transform:translateY(40px) scale(.92);opacity:0}
+  to{transform:translateY(0) scale(1);opacity:1}
+}
+.shop-chips{
+  display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;
+}
+.chip{
+  padding:4px 10px;border-radius:20px;font-size:10px;
+  font-family:sans-serif;font-weight:700;opacity:0;
+  animation:chipIn .3s forwards;
+}
+.chip.all{background:var(--g2);color:#fff}
+.chip.s{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
+@keyframes chipIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+
+.stat-row{display:flex;gap:8px;margin-bottom:10px}
+.stat-card{
+  flex:1;background:rgba(255,255,255,.08);border-radius:12px;
+  padding:10px 8px;opacity:0;animation:cardIn .4s forwards;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.stat-label{font-size:9px;color:rgba(255,255,255,.5);font-family:sans-serif;margin-bottom:4px}
+.stat-val{font-size:18px;font-weight:800;color:#fff}
+.stat-val.green{color:var(--g3)}
+.stat-val.red{color:#f87171}
+
+.mini-chart{
+  width:100%;height:50px;position:relative;margin:8px 0;
+  opacity:0;animation:cardIn .4s .8s forwards;
+}
+.bar{
+  position:absolute;bottom:0;width:18px;border-radius:3px 3px 0 0;
+  background:var(--g3);
+  animation:barGrow .6s ease-out;
+  transform-origin:bottom;
+}
+@keyframes barGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+
+.feature-list{margin-top:10px}
+.feat{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 8px;border-radius:10px;
+  background:rgba(255,255,255,.06);margin-bottom:6px;
+  opacity:0;transform:translateX(-12px);
+}
+.feat.show{animation:slideRight .3s forwards}
+.feat-icon{font-size:16px;flex-shrink:0}
+.feat-text{font-size:11px;font-weight:700;color:#fff;font-family:sans-serif}
+.feat-sub{font-size:9px;color:var(--g3);font-family:sans-serif}
+
+.features-side{
+  padding:20px 20px 0;width:100%;
+}
+.feat-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  border-radius:30px;padding:8px 16px;margin:4px;
+  font-size:12px;color:#fff;font-family:sans-serif;font-weight:700;
+  opacity:0;animation:pillIn .4s forwards;
+}
+@keyframes pillIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+
+/* ── S5: CTA ── */
+#s5{background:linear-gradient(160deg,#042f26,var(--g1))}
+.cta-logo{
+  width:100px;height:100px;border-radius:50%;
+  background:var(--g2);border:3px solid rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:36px;font-weight:900;color:#fff;
+  font-family:'Georgia',serif;
+  box-shadow:0 0 0 0 rgba(5,150,105,.5);
+  animation:logoPulse 1.5s ease-in-out infinite;
+  margin-bottom:28px;
+}
+@keyframes logoPulse{
+  0%{box-shadow:0 0 0 0 rgba(5,150,105,.6)}
+  70%{box-shadow:0 0 0 30px rgba(5,150,105,0)}
+  100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}
+}
+.cta-name{
+  font-size:38px;font-weight:900;color:#fff;
+  letter-spacing:.5px;margin-bottom:6px;
+  animation:fadeUp .5s forwards;
+}
+.cta-sub{
+  font-size:12px;letter-spacing:4px;
+  color:var(--g3);font-family:sans-serif;
+  margin-bottom:40px;
+}
+.cta-tamil{
+  font-size:16px;color:rgba(255,255,255,.7);
+  font-family:sans-serif;text-align:center;
+  padding:0 40px;line-height:1.5;margin-bottom:32px;
+  opacity:0;animation:fadeUp .5s .4s forwards;
+}
+.dl-btn{
+  background:linear-gradient(135deg,var(--g2),#047857);
+  color:#fff;border:none;padding:16px 44px;
+  border-radius:50px;font-size:16px;font-weight:800;
+  font-family:sans-serif;cursor:pointer;
+  box-shadow:0 8px 32px rgba(5,150,105,.5);
+  opacity:0;animation:fadeUp .5s .7s forwards;
+  letter-spacing:.5px;
+}
+.cta-domain{
+  color:rgba(255,255,255,.4);font-size:12px;
+  font-family:sans-serif;margin-top:20px;letter-spacing:1px;
+  opacity:0;animation:fadeUp .4s 1s forwards;
+}
+
+/* ── OVERLAY: progress bar ── */
+#progress-wrap{
+  position:fixed;bottom:0;left:0;right:0;height:3px;
+  background:rgba(255,255,255,.1);z-index:999;
+}
+#progress-bar{
+  height:100%;background:var(--g3);width:0%;
+  transition:width linear;
+}
+
+/* ── PLAY BUTTON overlay ── */
+#play-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);
+  display:flex;align-items:center;justify-content:center;
+  z-index:999;flex-direction:column;gap:16px;cursor:pointer;
+}
+#play-overlay.hidden{display:none}
+.play-circle{
+  width:80px;height:80px;border-radius:50%;
+  background:var(--g2);display:flex;align-items:center;
+  justify-content:center;font-size:28px;
+  box-shadow:0 0 40px rgba(5,150,105,.5);
+}
+.play-label{color:#fff;font-size:14px;font-family:sans-serif;font-weight:700}
+
+/* ── LOGO WATERMARK ── */
+#wm{
+  position:fixed;top:18px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px;z-index:99;
+  opacity:0;transition:opacity .5s;
+}
+#wm.show{opacity:1}
+.wm-circle{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--g2);display:flex;align-items:center;
+  justify-content:center;font-size:10px;font-weight:900;color:#fff;
+}
+.wm-text{color:#fff;font-size:12px;font-weight:700;font-family:sans-serif}
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<div id="wm"><div class="wm-circle">AN</div><span class="wm-text">ArthaNote</span></div>
+
+<!-- ═══ SCENE 1: HOOK ═══ -->
+<div class="scene" id="s1">
+  <div class="notebook">
+    <div class="notebook-spine"></div>
+    <div class="notebook-lines" id="nb-lines">
+      <div class="nl"><span class="nl-text" id="nl1">விற்பனை: ₹12,450</span><span class="red-cross" id="rx1"></span></div>
+      <div class="nl"><span class="nl-text" id="nl2">செலவு: ₹3,200</span></div>
+      <div class="nl"><span class="nl-text" id="nl3">கூலி: ₹500</span><span class="red-cross" id="rx2"></span></div>
+      <div class="nl"><span class="nl-text" id="nl4">மொத்தம்: ???</span><span class="red-cross" id="rx3"></span></div>
+      <div class="nl"><span class="nl-text" id="nl5">Supplier: ₹8,000</span></div>
+      <div class="nl"><span class="nl-text" id="nl6">Balance: ₹980</span><span class="red-cross" id="rx4"></span></div>
+    </div>
+    <div class="ink-spot" style="right:18px;bottom:40px;width:8px;height:8px;opacity:.5"></div>
+    <div class="ink-spot" style="right:45px;bottom:80px;width:4px;height:4px"></div>
+  </div>
+  <div class="hook-text">
+    <h1>இன்னும் notebook-ல<br>கணக்கு எழுதறீங்களா?</h1>
+    <p>Still maintaining ledgers manually?</p>
+  </div>
+</div>
+
+<!-- ═══ SCENE 2: PROBLEM ═══ -->
+<div class="scene" id="s2">
+  <div class="chaos" id="chaos-area"></div>
+  <div class="prob-items">
+    <div class="prob-item" id="p1">
+      <div class="prob-x">✗</div>
+      <div>
+        <div class="prob-txt">தப்பு கணக்கு</div>
+        <div class="prob-sub">Wrong totals every day</div>
+      </div>
+    </div>
+    <div class="prob-item" id="p2">
+      <div class="prob-x">✗</div>
+      <div>
+        <div class="prob-txt">Missing sales</div>
+        <div class="prob-sub">விட்டுப்போன entries</div>
+      </div>
+    </div>
+    <div class="prob-item" id="p3">
+      <div class="prob-x">✗</div>
+      <div>
+        <div class="prob-txt">Supplier confusion</div>
+        <div class="prob-sub">யாருக்கு எவ்வளவு கொடுக்கணும்?</div>
+      </div>
+    </div>
+    <div class="prob-item" id="p4">
+      <div class="prob-x">✗</div>
+      <div>
+        <div class="prob-txt">Time waste — every night</div>
+        <div class="prob-sub">தினமும் 1 மணி நேரம் கணக்கு போட்டு</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCENE 3: TRANSITION ═══ -->
+<div class="scene" id="s3">
+  <div class="flash-ring">
+    <span class="an-flash">AN</span>
+  </div>
+  <div class="trans-text">இனி அதெல்லாம் வேண்டாம்.</div>
+</div>
+
+<!-- ═══ SCENE 4: SOLUTION ═══ -->
+<div class="scene" id="s4">
+  <div class="s4-top">
+    <div class="s4-brand">ArthaNote</div>
+    <div class="s4-sub">SHOP LEDGER</div>
+  </div>
+
+  <div class="phone-wrap" id="phone">
+    <div class="shop-chips">
+      <div class="chip all" style="animation-delay:.1s">🏪 All</div>
+      <div class="chip s" style="animation-delay:.2s">🥬 Tulsi</div>
+      <div class="chip s" style="animation-delay:.3s">☕ Tea Shop</div>
+      <div class="chip s" style="animation-delay:.4s">+ New</div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card" style="animation-delay:.5s">
+        <div class="stat-label">TOTAL SALES</div>
+        <div class="stat-val green" id="sales-val">₹0</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.65s">
+        <div class="stat-label">EXPENSE</div>
+        <div class="stat-val red" id="exp-val">₹0</div>
+      </div>
+    </div>
+    <div class="stat-card" style="animation-delay:.8s;margin-bottom:10px;padding:8px">
+      <div class="stat-label">NET BALANCE</div>
+      <div class="stat-val green" id="net-val" style="font-size:22px">₹0</div>
+    </div>
+
+    <div class="mini-chart" id="mini-chart"></div>
+
+    <div class="feature-list">
+      <div class="feat" id="f1"><div class="feat-icon">📷</div><div><div class="feat-text">OCR Scan</div><div class="feat-sub">Photo எடுத்தா போதும்</div></div></div>
+      <div class="feat" id="f2"><div class="feat-icon">📊</div><div><div class="feat-text">15-Section Reports</div><div class="feat-sub">Daily, Weekly, Monthly</div></div></div>
+      <div class="feat" id="f3"><div class="feat-icon">🏪</div><div><div class="feat-text">Multi-Shop</div><div class="feat-sub">5 shops, 1 app</div></div></div>
+      <div class="feat" id="f4"><div class="feat-icon">📴</div><div><div class="feat-text">Works Offline</div><div class="feat-sub">Internet இல்லாமலும்</div></div></div>
+    </div>
+  </div>
+
+  <div class="features-side" id="pills-row" style="text-align:center;margin-top:14px">
+    <span class="feat-pill" style="animation-delay:2.5s">🌐 Tamil & English</span>
+    <span class="feat-pill" style="animation-delay:2.8s">☁️ Auto Cloud Sync</span>
+    <span class="feat-pill" style="animation-delay:3.1s">👥 Staff Attendance</span>
+  </div>
+</div>
+
+<!-- ═══ SCENE 5: CTA ═══ -->
+<div class="scene" id="s5">
+  <div class="cta-logo">AN</div>
+  <div class="cta-name">ArthaNote</div>
+  <div class="cta-sub">SHOP LEDGER</div>
+  <div class="cta-tamil">உங்கள் shop-ன் எல்லா கணக்கும்<br>ஒரே app-ல — automatic-ஆ.</div>
+  <button class="dl-btn">📲 Download Free</button>
+  <div class="cta-domain">arthanote.com</div>
+</div>
+
+<!-- Progress -->
+<div id="progress-wrap"><div id="progress-bar"></div></div>
+
+<!-- Play overlay -->
+<div id="play-overlay" onclick="startAd()">
+  <div class="play-circle">▶</div>
+  <div class="play-label">Tap to Play Ad (30s)</div>
+</div>
+
+<script>
+// ── PARTICLES ──
+const canvas=document.getElementById('particles');
+const ctx=canvas.getContext('2d');
+canvas.width=390;canvas.height=844;
+const pts=Array.from({length:35},()=>({
+  x:Math.random()*390,y:Math.random()*844,
+  r:Math.random()*2+.5,
+  vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,
+  alpha:Math.random()*.4+.1
+}));
+function drawParticles(){
+  ctx.clearRect(0,0,390,844);
+  pts.forEach(p=>{
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(52,211,153,${p.alpha})`;ctx.fill();
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0||p.x>390)p.vx*=-1;
+    if(p.y<0||p.y>844)p.vy*=-1;
+  });
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+// ── NOTEBOOK WRITE ANIM ──
+function animateNotebook(){
+  const lines=['nl1','nl2','nl3','nl4','nl5','nl6'];
+  const crosses=[['rx1',200],['rx2',700],['rx3',1100],['rx4',1500]];
+  lines.forEach((id,i)=>{
+    setTimeout(()=>{
+      const el=document.getElementById(id);
+      if(el)el.classList.add('show');
+    },i*250);
+  });
+  crosses.forEach(([id,delay])=>{
+    setTimeout(()=>{
+      const el=document.getElementById(id);
+      if(el)el.textContent='✗';
+    },delay);
+  });
+}
+
+// ── CHAOS NUMBERS ──
+function buildChaos(){
+  const area=document.getElementById('chaos-area');
+  if(!area)return;
+  const nums=['₹1,240','₹890','₹3,200','₹450','₹12,000','₹600','₹2,100','₹7,800','₹300','₹5,400'];
+  nums.forEach((n,i)=>{
+    const el=document.createElement('div');
+    el.className='flying-num';
+    el.textContent=n;
+    el.style.left=Math.random()*80+'%';
+    el.style.top=Math.random()*80+'%';
+    el.style.setProperty('--dx',(Math.random()*60-30)+'px');
+    el.style.setProperty('--dy',(Math.random()*60-30)+'px');
+    el.style.setProperty('--dr',(Math.random()*30-15)+'deg');
+    el.style.animationDelay=(i*.2)+'s';
+    el.style.animationDuration=(3+Math.random()*2)+'s';
+    area.appendChild(el);
+  });
+}
+function animateProblems(){
+  ['p1','p2','p3','p4'].forEach((id,i)=>{
+    setTimeout(()=>{
+      const el=document.getElementById(id);
+      if(el)el.classList.add('show');
+    },i*700);
+  });
+}
+
+// ── MINI CHART ──
+function buildChart(){
+  const chart=document.getElementById('mini-chart');
+  if(!chart)return;
+  const vals=[35,55,42,70,60,80,90];
+  const colors=['#34d399','#34d399','#34d399','#34d399','#34d399','#059669','#065f46'];
+  vals.forEach((v,i)=>{
+    const bar=document.createElement('div');
+    bar.className='bar';
+    bar.style.left=(i*32+8)+'px';
+    bar.style.height=(v*.48)+'px';
+    bar.style.background=colors[i];
+    bar.style.animationDelay=(.9+i*.08)+'s';
+    chart.appendChild(bar);
+  });
+}
+
+// ── COUNTER ANIM ──
+function countUp(id,target,dur,prefix='₹'){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const start=Date.now();
+  const t=setInterval(()=>{
+    const prog=Math.min((Date.now()-start)/dur,1);
+    const val=Math.round(prog*target);
+    el.textContent=prefix+val.toLocaleString('en-IN');
+    if(prog>=1)clearInterval(t);
+  },30);
+}
+
+// ── FEATURE LIST ──
+function animateFeats(){
+  ['f1','f2','f3','f4'].forEach((id,i)=>{
+    setTimeout(()=>{
+      const el=document.getElementById(id);
+      if(el)el.classList.add('show');
+    },1200+i*400);
+  });
+}
+
+// ── SCENE CONTROLLER ──
+const sceneIds=['s1','s2','s3','s4','s5'];
+const durations=[3500,5000,2000,13000,8000];
+const totalDur=durations.reduce((a,b)=>a+b,0);
+let adTimer=null;
+
+function showScene(idx){
+  sceneIds.forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('on',i===idx);
+  });
+  document.getElementById('wm').classList.toggle('show',idx>=3);
+
+  if(idx===0) animateNotebook();
+  if(idx===1){ buildChaos(); animateProblems(); }
+  if(idx===2){
+    setTimeout(()=>{
+      const s3=document.getElementById('s3');
+      if(s3)s3.style.background='#065f46';
+    },300);
+  }
+  if(idx===3){
+    buildChart();
+    animateFeats();
+    setTimeout(()=>countUp('sales-val',18450,1800),600);
+    setTimeout(()=>countUp('exp-val',6200,1600),700);
+    setTimeout(()=>countUp('net-val',12250,2000),900);
+  }
+}
+
+function startAd(){
+  document.getElementById('play-overlay').classList.add('hidden');
+  const bar=document.getElementById('progress-bar');
+  bar.style.transition=`width ${totalDur}ms linear`;
+  setTimeout(()=>bar.style.width='100%',50);
+
+  let cum=0;
+  showScene(0);
+  durations.forEach((dur,i)=>{
+    if(i===0){cum+=dur;return;}
+    setTimeout(()=>showScene(i),cum);
+    cum+=dur;
+  });
+}
+</script>
+</body>
+</html>
