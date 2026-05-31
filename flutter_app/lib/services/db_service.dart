@@ -101,13 +101,16 @@ class DbService {
     final cursorMs = prefs.getInt('kp_sync_cursor_$businessId');
 
     if (cursorMs != null) {
-      // Incremental: only fetch entries with date >= (lastSync - 2 days)
-      final since = DateTime.fromMillisecondsSinceEpoch(cursorMs)
-          .subtract(const Duration(days: 2));
+      // Incremental: fetch entries with date >= (lastSync - 2 days)
+      // 'date' is stored as "YYYY-MM-DD" string — use string comparison not Timestamp
+      final sinceStr = DateTime.fromMillisecondsSinceEpoch(cursorMs)
+          .subtract(const Duration(days: 2))
+          .toIso8601String()
+          .split('T')[0];
       final snap = await _db
           .collection('transactions')
           .where('businessId', isEqualTo: businessId)
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+          .where('date', isGreaterThanOrEqualTo: sinceStr)
           .get();
 
       final newTxns = snap.docs.map((d) => Txn.fromFirestore(d)).toList();
