@@ -2,618 +2,461 @@
 <html lang="ta">
 <head>
 <meta charset="UTF-8">
-<title>ArthaNote — Ad</title>
+<meta name="viewport" content="width=390,initial-scale=1">
+<title>ArthaNote — Instagram Ad</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --g1:#065f46;--g2:#059669;--g3:#34d399;
-  --gold:#d97706;--w:390px;--h:844px;
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  width:390px;height:844px;overflow:hidden;
+  background:#fff;
+  font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  user-select:none;
 }
-body{
-  width:var(--w);height:var(--h);overflow:hidden;
-  background:#000;font-family:'Georgia',serif;
-  position:relative;display:flex;align-items:center;justify-content:center;
-}
-canvas#particles{position:absolute;inset:0;z-index:0;pointer-events:none}
 
-/* ── SCENES ── */
-.scene{
-  position:absolute;inset:0;opacity:0;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  transition:opacity .4s;z-index:1;
+/* ─── STORY BARS (top) ─── */
+#sbars{
+  position:fixed;top:14px;left:14px;right:14px;
+  display:flex;gap:5px;z-index:100;
 }
-.scene.on{opacity:1}
+.sbar{flex:1;height:2.5px;background:rgba(0,0,0,.1);border-radius:2px;overflow:hidden}
+.sf{height:100%;width:0%;background:#065f46;border-radius:2px}
 
-/* ── S1: HOOK ── */
-#s1{background:linear-gradient(160deg,#0a0a0a,#1a0800)}
-.notebook{
-  width:220px;height:280px;background:#f5f0e8;
-  border-radius:4px 14px 14px 4px;position:relative;
-  box-shadow:-6px 6px 30px rgba(0,0,0,.8),
-             inset -3px 0 8px rgba(0,0,0,.15);
-  overflow:hidden;
-  animation:bookTilt 3s ease-in-out;
+/* ─── SLIDE SYSTEM ─── */
+#stage{position:relative;width:390px;height:844px;overflow:hidden}
+.slide{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#fff;
+  transform:translateX(105%);
+  will-change:transform;
+  transition:transform .58s cubic-bezier(.4,0,.2,1);
+  padding:56px 28px 36px;
 }
-@keyframes bookTilt{
-  0%{transform:rotate(-8deg) scale(.85);opacity:0}
-  30%{transform:rotate(-3deg) scale(1);opacity:1}
-  70%{transform:rotate(-3deg) scale(1)}
-  100%{transform:rotate(-5deg) scale(.95);opacity:.6}
-}
-.notebook-spine{
-  position:absolute;left:0;top:0;bottom:0;width:22px;
-  background:linear-gradient(90deg,#8b4513,#a0522d,#8b4513);
-  border-radius:4px 0 0 4px;
-}
-.notebook-lines{position:absolute;left:30px;right:10px;top:20px}
-.nl{
-  height:1px;background:rgba(100,149,237,.3);margin-bottom:18px;
-  position:relative;
-}
-.nl-text{
-  position:absolute;top:-10px;left:0;
-  font-family:monospace;font-size:9px;color:#333;
+.slide.on{transform:translateX(0)}
+.slide.out{transform:translateX(-105%)}
+
+/* ─── REUSABLE ATOMS ─── */
+.tag{
+  font-size:10px;letter-spacing:3.5px;font-weight:700;
+  color:#059669;text-transform:uppercase;margin-bottom:18px;
   opacity:0;
 }
-.nl-text.show{animation:writeIn .4s forwards}
-@keyframes writeIn{
-  0%{opacity:0;width:0;overflow:hidden;white-space:nowrap}
-  100%{opacity:1;width:100%;overflow:hidden;white-space:nowrap}
+.hl{
+  font-size:28px;font-weight:800;color:#111;
+  text-align:center;line-height:1.25;
+  opacity:0;
 }
-.ink-spot{
-  position:absolute;width:6px;height:6px;
-  border-radius:50%;background:#c0392b;opacity:.7;
+.sub{
+  font-size:13.5px;color:#6b7280;text-align:center;
+  line-height:1.6;margin-top:10px;
+  opacity:0;
 }
-.red-cross{
-  position:absolute;right:8px;font-size:11px;
-  color:#c0392b;font-weight:900;animation:popIn .2s ease;
-}
-@keyframes popIn{from{transform:scale(0)}to{transform:scale(1)}}
-
-.hook-text{
-  color:#fff;text-align:center;padding:0 30px;margin-top:28px;
-  opacity:0;animation:fadeUp .6s .8s forwards;
-}
-.hook-text h1{
-  font-size:22px;font-weight:700;
-  line-height:1.4;color:#fff;
-  text-shadow:0 2px 12px rgba(0,0,0,.8);
-}
-.hook-text p{
-  font-size:13px;color:rgba(255,255,255,.6);
-  margin-top:8px;font-family:sans-serif;
-}
-@keyframes fadeUp{
-  from{opacity:0;transform:translateY(18px)}
-  to{opacity:1;transform:translateY(0)}
+.aline{
+  width:0;height:4px;background:#059669;
+  border-radius:2px;margin-top:26px;opacity:0;
 }
 
-/* ── S2: PROBLEM ── */
-#s2{background:linear-gradient(160deg,#1a0000,#2d0a00)}
-.chaos{
-  width:300px;height:300px;position:relative;
-  margin-bottom:20px;
-}
-.flying-num{
-  position:absolute;font-family:monospace;
-  font-size:18px;color:rgba(255,80,80,.7);
-  animation:flyNum 5s ease-in-out infinite;
-}
-@keyframes flyNum{
-  0%{transform:translate(0,0) rotate(0deg);opacity:.8}
-  50%{transform:translate(var(--dx),var(--dy)) rotate(var(--dr));opacity:.4}
-  100%{transform:translate(0,0) rotate(0deg);opacity:.8}
-}
-.prob-items{display:flex;flex-direction:column;gap:14px;padding:0 30px}
-.prob-item{
-  display:flex;align-items:center;gap:12px;
-  opacity:0;transform:translateX(-20px);
-}
-.prob-item.show{animation:slideRight .4s forwards}
-@keyframes slideRight{
-  to{opacity:1;transform:translateX(0)}
-}
-.prob-x{
-  width:28px;height:28px;border-radius:50%;
-  background:#c0392b;display:flex;align-items:center;
-  justify-content:center;font-size:14px;flex-shrink:0;
-  box-shadow:0 0 12px rgba(192,57,43,.5);
-}
-.prob-txt{color:#fff;font-family:sans-serif;font-size:14px;font-weight:600}
-.prob-sub{color:rgba(255,255,255,.5);font-size:11px;margin-top:2px}
+/* ─── ANIMATIONS ─── */
+@keyframes fu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fs{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@keyframes gl{from{opacity:0;width:0}to{opacity:1;width:52px}}
+@keyframes bi{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes slide-r{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tile-in{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+@keyframes bar-up{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.25)}50%{box-shadow:0 0 0 22px rgba(255,255,255,0)}}
 
-/* ── S3: TRANSITION ── */
-#s3{background:#fff;transition:background .3s}
-#s3.go{background:var(--g1)}
-.flash-ring{
-  width:120px;height:120px;border-radius:50%;
-  background:var(--g2);
-  box-shadow:0 0 0 0 rgba(5,150,105,.5);
-  display:flex;align-items:center;justify-content:center;
-  animation:ringPulse .6s .1s forwards;
-}
-@keyframes ringPulse{
-  0%{box-shadow:0 0 0 0 rgba(5,150,105,.6);transform:scale(0)}
-  60%{box-shadow:0 0 0 60px rgba(5,150,105,0);transform:scale(1.1)}
-  100%{box-shadow:0 0 0 80px rgba(5,150,105,0);transform:scale(1)}
-}
-.an-flash{
-  font-size:42px;font-weight:900;color:#fff;
-  font-family:'Georgia',serif;
-}
-.trans-text{
-  color:#fff;font-size:20px;font-weight:700;
-  margin-top:24px;opacity:0;
-  animation:fadeUp .5s .4s forwards;
-  font-family:sans-serif;
-}
-
-/* ── S4: SOLUTION ── */
-#s4{
-  background:linear-gradient(160deg,var(--g1),#042f26);
-  padding:20px 0;justify-content:flex-start;
-}
-.s4-top{
-  width:100%;padding:28px 20px 16px;
-  text-align:center;
-}
-.s4-brand{
-  font-size:28px;font-weight:900;color:#fff;
-  letter-spacing:.5px;
-  animation:fadeUp .5s forwards;
-}
-.s4-sub{
-  font-size:11px;color:var(--g3);letter-spacing:3px;
-  font-family:sans-serif;margin-top:4px;
-}
-.phone-wrap{
-  width:230px;flex-shrink:0;
-  background:rgba(255,255,255,.06);
-  border-radius:28px;border:1.5px solid rgba(255,255,255,.12);
-  overflow:hidden;padding:14px 12px;
-  box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.05);
-  animation:phoneIn .6s .3s ease both;
-}
-@keyframes phoneIn{
-  from{transform:translateY(40px) scale(.92);opacity:0}
-  to{transform:translateY(0) scale(1);opacity:1}
-}
-.shop-chips{
-  display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;
-}
-.chip{
-  padding:4px 10px;border-radius:20px;font-size:10px;
-  font-family:sans-serif;font-weight:700;opacity:0;
-  animation:chipIn .3s forwards;
-}
-.chip.all{background:var(--g2);color:#fff}
-.chip.s{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
-@keyframes chipIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
-
-.stat-row{display:flex;gap:8px;margin-bottom:10px}
-.stat-card{
-  flex:1;background:rgba(255,255,255,.08);border-radius:12px;
-  padding:10px 8px;opacity:0;animation:cardIn .4s forwards;
-}
-@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.stat-label{font-size:9px;color:rgba(255,255,255,.5);font-family:sans-serif;margin-bottom:4px}
-.stat-val{font-size:18px;font-weight:800;color:#fff}
-.stat-val.green{color:var(--g3)}
-.stat-val.red{color:#f87171}
-
-.mini-chart{
-  width:100%;height:50px;position:relative;margin:8px 0;
-  opacity:0;animation:cardIn .4s .8s forwards;
-}
-.bar{
-  position:absolute;bottom:0;width:18px;border-radius:3px 3px 0 0;
-  background:var(--g3);
-  animation:barGrow .6s ease-out;
-  transform-origin:bottom;
-}
-@keyframes barGrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
-
-.feature-list{margin-top:10px}
-.feat{
-  display:flex;align-items:center;gap:8px;
-  padding:7px 8px;border-radius:10px;
-  background:rgba(255,255,255,.06);margin-bottom:6px;
-  opacity:0;transform:translateX(-12px);
-}
-.feat.show{animation:slideRight .3s forwards}
-.feat-icon{font-size:16px;flex-shrink:0}
-.feat-text{font-size:11px;font-weight:700;color:#fff;font-family:sans-serif}
-.feat-sub{font-size:9px;color:var(--g3);font-family:sans-serif}
-
-.features-side{
-  padding:20px 20px 0;width:100%;
-}
-.feat-pill{
-  display:inline-flex;align-items:center;gap:8px;
-  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
-  border-radius:30px;padding:8px 16px;margin:4px;
-  font-size:12px;color:#fff;font-family:sans-serif;font-weight:700;
-  opacity:0;animation:pillIn .4s forwards;
-}
-@keyframes pillIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
-
-/* ── S5: CTA ── */
-#s5{background:linear-gradient(160deg,#042f26,var(--g1))}
-.cta-logo{
-  width:100px;height:100px;border-radius:50%;
-  background:var(--g2);border:3px solid rgba(255,255,255,.2);
+/* ─── S1: BRAND INTRO (white) ─── */
+#s1{background:#fff}
+#s1-circle{
+  width:96px;height:96px;border-radius:50%;
+  background:linear-gradient(135deg,#065f46,#059669);
   display:flex;align-items:center;justify-content:center;
   font-size:36px;font-weight:900;color:#fff;
-  font-family:'Georgia',serif;
-  box-shadow:0 0 0 0 rgba(5,150,105,.5);
-  animation:logoPulse 1.5s ease-in-out infinite;
-  margin-bottom:28px;
+  box-shadow:0 16px 48px rgba(6,95,70,.22);
+  opacity:0;
 }
-@keyframes logoPulse{
-  0%{box-shadow:0 0 0 0 rgba(5,150,105,.6)}
-  70%{box-shadow:0 0 0 30px rgba(5,150,105,0)}
-  100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}
+#s1-name{
+  font-size:42px;font-weight:900;color:#065f46;
+  letter-spacing:-.5px;margin-top:18px;opacity:0;
 }
-.cta-name{
-  font-size:38px;font-weight:900;color:#fff;
-  letter-spacing:.5px;margin-bottom:6px;
-  animation:fadeUp .5s forwards;
+#s1-ledger{
+  font-size:11px;letter-spacing:4px;color:#9ca3af;
+  font-weight:600;margin-top:5px;opacity:0;
 }
-.cta-sub{
-  font-size:12px;letter-spacing:4px;
-  color:var(--g3);font-family:sans-serif;
-  margin-bottom:40px;
-}
-.cta-tamil{
-  font-size:16px;color:rgba(255,255,255,.7);
-  font-family:sans-serif;text-align:center;
-  padding:0 40px;line-height:1.5;margin-bottom:32px;
-  opacity:0;animation:fadeUp .5s .4s forwards;
-}
-.dl-btn{
-  background:linear-gradient(135deg,var(--g2),#047857);
-  color:#fff;border:none;padding:16px 44px;
-  border-radius:50px;font-size:16px;font-weight:800;
-  font-family:sans-serif;cursor:pointer;
-  box-shadow:0 8px 32px rgba(5,150,105,.5);
-  opacity:0;animation:fadeUp .5s .7s forwards;
-  letter-spacing:.5px;
-}
-.cta-domain{
-  color:rgba(255,255,255,.4);font-size:12px;
-  font-family:sans-serif;margin-top:20px;letter-spacing:1px;
-  opacity:0;animation:fadeUp .4s 1s forwards;
+#s1-pill{
+  margin-top:30px;
+  background:#f0fdf4;border:1.5px solid #bbf7d0;
+  border-radius:30px;padding:10px 24px;
+  font-size:13px;color:#065f46;font-weight:700;
+  opacity:0;
 }
 
-/* ── OVERLAY: progress bar ── */
-#progress-wrap{
-  position:fixed;bottom:0;left:0;right:0;height:3px;
-  background:rgba(255,255,255,.1);z-index:999;
+/* ─── S2: SALES (light gray bg) ─── */
+#s2{background:#f9fafb}
+#s2-num{
+  font-size:64px;font-weight:900;color:#065f46;
+  letter-spacing:-2px;line-height:1;opacity:0;
 }
-#progress-bar{
-  height:100%;background:var(--g3);width:0%;
-  transition:width linear;
+#s2-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#dcfce7;border-radius:20px;padding:5px 14px;
+  font-size:12px;font-weight:700;color:#065f46;
+  margin-bottom:14px;opacity:0;
 }
 
-/* ── PLAY BUTTON overlay ── */
-#play-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.7);
-  display:flex;align-items:center;justify-content:center;
-  z-index:999;flex-direction:column;gap:16px;cursor:pointer;
+/* ─── S3: OCR SCAN ─── */
+#s3{background:#fff}
+.scan-box{
+  width:270px;height:160px;border-radius:18px;
+  background:#f9fafb;border:1.5px dashed #d1fae5;
+  position:relative;overflow:hidden;margin-bottom:28px;
+  padding:16px;display:flex;flex-direction:column;gap:10px;
 }
-#play-overlay.hidden{display:none}
-.play-circle{
-  width:80px;height:80px;border-radius:50%;
-  background:var(--g2);display:flex;align-items:center;
-  justify-content:center;font-size:28px;
-  box-shadow:0 0 40px rgba(5,150,105,.5);
+.rline{height:9px;border-radius:5px;background:#e5e7eb;animation:rlin .4s ease forwards}
+@keyframes rlin{from{width:0}to{width:100%}}
+.rline.g{background:#d1fae5;max-width:75%}
+.rline.s{max-width:60%}
+.scan-beam{
+  position:absolute;left:10px;right:10px;height:2px;top:10px;
+  background:linear-gradient(90deg,transparent,#059669,transparent);
+  box-shadow:0 0 8px rgba(5,150,105,.6);
+  animation:beam 2s ease-in-out infinite;
 }
-.play-label{color:#fff;font-size:14px;font-family:sans-serif;font-weight:700}
-
-/* ── LOGO WATERMARK ── */
-#wm{
-  position:fixed;top:18px;left:50%;transform:translateX(-50%);
-  display:flex;align-items:center;gap:8px;z-index:99;
-  opacity:0;transition:opacity .5s;
+@keyframes beam{
+  0%{top:10px;opacity:1}85%{top:calc(100% - 10px);opacity:1}100%{top:calc(100% - 10px);opacity:0}
 }
-#wm.show{opacity:1}
-.wm-circle{
+.check-badge{
+  position:absolute;right:12px;bottom:12px;
   width:28px;height:28px;border-radius:50%;
-  background:var(--g2);display:flex;align-items:center;
-  justify-content:center;font-size:10px;font-weight:900;color:#fff;
+  background:#059669;display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:#fff;font-weight:900;
+  opacity:0;animation:fs .3s 1.8s forwards;
 }
-.wm-text{color:#fff;font-size:12px;font-weight:700;font-family:sans-serif}
+
+/* ─── S4: MULTI-SHOP ─── */
+#s4{background:#fafafa}
+.s-cards{width:300px;display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.sc{
+  background:#fff;border:1.5px solid #f0f0f0;border-radius:14px;
+  padding:12px 16px;display:flex;align-items:center;gap:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);opacity:0;
+}
+.sc-icon{font-size:24px}
+.sc-info{flex:1}
+.sc-nm{font-size:13px;font-weight:700;color:#111}
+.sc-tp{font-size:11px;color:#9ca3af;margin-top:1px}
+.sc-stat{font-size:14px;font-weight:800;color:#059669}
+
+/* ─── S5: REPORTS ─── */
+#s5{background:#fff}
+.chart{
+  width:290px;height:110px;display:flex;align-items:flex-end;
+  gap:7px;margin-bottom:28px;padding:0 4px;
+}
+.cbar{
+  flex:1;border-radius:5px 5px 0 0;
+  background:linear-gradient(180deg,#34d399,#065f46);
+  transform:scaleY(0);transform-origin:bottom;
+  animation:bar-up .55s ease-out forwards;
+}
+
+/* ─── S6: FEATURE GRID ─── */
+#s6{background:#f9fafb}
+.grid{
+  width:300px;display:grid;grid-template-columns:1fr 1fr;
+  gap:12px;margin-bottom:22px;
+}
+.gtile{
+  background:#fff;border:1.5px solid #f0fdf4;border-radius:16px;
+  padding:18px 12px;text-align:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.04);
+  opacity:0;
+}
+.gt-icon{font-size:26px;margin-bottom:8px}
+.gt-nm{font-size:12px;font-weight:700;color:#111}
+.gt-ds{font-size:10px;color:#9ca3af;margin-top:3px}
+
+/* ─── S7: CTA (green bg) ─── */
+#s7{background:linear-gradient(160deg,#065f46,#042f26)}
+#s7-circle{
+  width:88px;height:88px;border-radius:50%;
+  background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;font-weight:900;color:#fff;
+  margin-bottom:22px;animation:pulse 2s ease-in-out infinite;
+  opacity:0;
+}
+#s7-nm{font-size:38px;font-weight:900;color:#fff;opacity:0}
+#s7-ta{
+  font-size:14.5px;color:rgba(255,255,255,.65);
+  text-align:center;line-height:1.65;
+  margin:14px 0 32px;padding:0 16px;opacity:0;
+}
+#s7-btn{
+  background:#fff;color:#065f46;border:none;
+  padding:17px 48px;border-radius:50px;
+  font-size:16px;font-weight:800;cursor:pointer;
+  box-shadow:0 8px 32px rgba(0,0,0,.2);opacity:0;
+}
+.free-badge{
+  display:inline-block;background:#059669;color:#fff;
+  font-size:9px;font-weight:700;padding:2px 7px;
+  border-radius:8px;letter-spacing:1px;
+  vertical-align:middle;margin-left:5px;
+}
+#s7-url{
+  color:rgba(255,255,255,.35);font-size:12px;
+  letter-spacing:1px;margin-top:18px;opacity:0;
+}
+
+/* ─── PLAY OVERLAY ─── */
+#ply{
+  position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;z-index:500;cursor:pointer;
+}
+#ply.gone{display:none}
+.ply-ring{
+  width:76px;height:76px;border-radius:50%;
+  background:linear-gradient(135deg,#065f46,#059669);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;box-shadow:0 0 40px rgba(6,95,70,.55);
+}
+.ply-lbl{color:#fff;font-size:15px;font-weight:700}
+.ply-sz{color:rgba(255,255,255,.45);font-size:11px;letter-spacing:.5px}
 </style>
 </head>
 <body>
 
-<canvas id="particles"></canvas>
+<div id="sbars"></div>
 
-<div id="wm"><div class="wm-circle">AN</div><span class="wm-text">ArthaNote</span></div>
+<div id="stage">
 
-<!-- ═══ SCENE 1: HOOK ═══ -->
-<div class="scene" id="s1">
-  <div class="notebook">
-    <div class="notebook-spine"></div>
-    <div class="notebook-lines" id="nb-lines">
-      <div class="nl"><span class="nl-text" id="nl1">விற்பனை: ₹12,450</span><span class="red-cross" id="rx1"></span></div>
-      <div class="nl"><span class="nl-text" id="nl2">செலவு: ₹3,200</span></div>
-      <div class="nl"><span class="nl-text" id="nl3">கூலி: ₹500</span><span class="red-cross" id="rx2"></span></div>
-      <div class="nl"><span class="nl-text" id="nl4">மொத்தம்: ???</span><span class="red-cross" id="rx3"></span></div>
-      <div class="nl"><span class="nl-text" id="nl5">Supplier: ₹8,000</span></div>
-      <div class="nl"><span class="nl-text" id="nl6">Balance: ₹980</span><span class="red-cross" id="rx4"></span></div>
+  <!-- ═══ SLIDE 1: BRAND ═══ -->
+  <div class="slide" id="s1">
+    <div id="s1-circle">AN</div>
+    <div id="s1-name">ArthaNote</div>
+    <div id="s1-ledger">SHOP LEDGER</div>
+    <div id="s1-pill">உங்கள் கடையின் AI கணக்காளர்</div>
+  </div>
+
+  <!-- ═══ SLIDE 2: SALES TRACK ═══ -->
+  <div class="slide" id="s2">
+    <div id="s2-badge">📈 Real-time tracking</div>
+    <div id="s2-num">₹0</div>
+    <div class="hl" id="s2-hl">Daily Sales<br>Auto-Tracked</div>
+    <div class="sub" id="s2-sub">Sales, Expense & Payment —<br>தினமும் automatic-ஆ record ஆகும்</div>
+    <div class="aline" id="s2-al"></div>
+  </div>
+
+  <!-- ═══ SLIDE 3: OCR SCAN ═══ -->
+  <div class="slide" id="s3">
+    <div class="tag" id="s3-tag">FEATURE 02</div>
+    <div class="scan-box">
+      <div class="rline" style="animation-delay:.15s"></div>
+      <div class="rline s" style="animation-delay:.28s"></div>
+      <div class="rline g" style="animation-delay:.42s"></div>
+      <div class="rline" style="animation-delay:.56s"></div>
+      <div class="rline s" style="animation-delay:.70s"></div>
+      <div class="rline g" style="animation-delay:.84s"></div>
+      <div class="scan-beam"></div>
+      <div class="check-badge">✓</div>
     </div>
-    <div class="ink-spot" style="right:18px;bottom:40px;width:8px;height:8px;opacity:.5"></div>
-    <div class="ink-spot" style="right:45px;bottom:80px;width:4px;height:4px"></div>
+    <div class="hl" id="s3-hl">📷 Scan Any Bill</div>
+    <div class="sub" id="s3-sub">Photo எடுத்தா போதும் —<br>AI automatically entries create பண்ணும்</div>
+    <div class="aline" id="s3-al"></div>
   </div>
-  <div class="hook-text">
-    <h1>இன்னும் notebook-ல<br>கணக்கு எழுதறீங்களா?</h1>
-    <p>Still maintaining ledgers manually?</p>
+
+  <!-- ═══ SLIDE 4: MULTI SHOP ═══ -->
+  <div class="slide" id="s4">
+    <div class="tag" id="s4-tag">FEATURE 03</div>
+    <div class="s-cards">
+      <div class="sc" id="sc1">
+        <div class="sc-icon">🥬</div>
+        <div class="sc-info"><div class="sc-nm">Tulsi Thuckaly</div><div class="sc-tp">Vegetables · Today</div></div>
+        <div class="sc-stat">+₹8,200</div>
+      </div>
+      <div class="sc" id="sc2">
+        <div class="sc-icon">☕</div>
+        <div class="sc-info"><div class="sc-nm">Tea Shop</div><div class="sc-tp">Tea & Snacks · Today</div></div>
+        <div class="sc-stat">+₹3,450</div>
+      </div>
+      <div class="sc" id="sc3">
+        <div class="sc-icon">💍</div>
+        <div class="sc-info"><div class="sc-nm">Tulsi Bridal</div><div class="sc-tp">Jewellery · Today</div></div>
+        <div class="sc-stat">+₹6,800</div>
+      </div>
+    </div>
+    <div class="hl" id="s4-hl">5 Shops, 1 App</div>
+    <div class="sub" id="s4-sub">எல்லா கடையும் ஒரே இடத்தில்<br>All shops under one account</div>
   </div>
+
+  <!-- ═══ SLIDE 5: REPORTS ═══ -->
+  <div class="slide" id="s5">
+    <div class="tag" id="s5-tag">FEATURE 04</div>
+    <div class="chart" id="chart"></div>
+    <div class="hl" id="s5-hl">15-Section<br>MIS Reports</div>
+    <div class="sub" id="s5-sub">Daily · Weekly · Monthly · Annual<br>Profit trends & category breakdown</div>
+    <div class="aline" id="s5-al"></div>
+  </div>
+
+  <!-- ═══ SLIDE 6: FEATURES GRID ═══ -->
+  <div class="slide" id="s6">
+    <div class="hl" id="s6-hl" style="margin-bottom:22px">Everything Your<br>Shop Needs</div>
+    <div class="grid">
+      <div class="gtile" id="g1"><div class="gt-icon">📴</div><div class="gt-nm">Works Offline</div><div class="gt-ds">Internet இல்லாமலும்</div></div>
+      <div class="gtile" id="g2"><div class="gt-icon">🌐</div><div class="gt-nm">Tamil & English</div><div class="gt-ds">Bilingual interface</div></div>
+      <div class="gtile" id="g3"><div class="gt-icon">👥</div><div class="gt-nm">Staff QR</div><div class="gt-ds">Attendance tracking</div></div>
+      <div class="gtile" id="g4"><div class="gt-icon">☁️</div><div class="gt-nm">Auto Sync</div><div class="gt-ds">All devices, live</div></div>
+    </div>
+    <div class="sub" id="s6-sub">100% Free to start · No credit card needed</div>
+  </div>
+
+  <!-- ═══ SLIDE 7: CTA ═══ -->
+  <div class="slide" id="s7">
+    <div id="s7-circle">AN</div>
+    <div id="s7-nm">ArthaNote</div>
+    <div id="s7-ta">உங்கள் shop-ன் கணக்கு இனி<br>simple-ஆ, smart-ஆ, automatic-ஆ.</div>
+    <button id="s7-btn">📲 Download Now <span class="free-badge">FREE</span></button>
+    <div id="s7-url">arthanote.com</div>
+  </div>
+
 </div>
-
-<!-- ═══ SCENE 2: PROBLEM ═══ -->
-<div class="scene" id="s2">
-  <div class="chaos" id="chaos-area"></div>
-  <div class="prob-items">
-    <div class="prob-item" id="p1">
-      <div class="prob-x">✗</div>
-      <div>
-        <div class="prob-txt">தப்பு கணக்கு</div>
-        <div class="prob-sub">Wrong totals every day</div>
-      </div>
-    </div>
-    <div class="prob-item" id="p2">
-      <div class="prob-x">✗</div>
-      <div>
-        <div class="prob-txt">Missing sales</div>
-        <div class="prob-sub">விட்டுப்போன entries</div>
-      </div>
-    </div>
-    <div class="prob-item" id="p3">
-      <div class="prob-x">✗</div>
-      <div>
-        <div class="prob-txt">Supplier confusion</div>
-        <div class="prob-sub">யாருக்கு எவ்வளவு கொடுக்கணும்?</div>
-      </div>
-    </div>
-    <div class="prob-item" id="p4">
-      <div class="prob-x">✗</div>
-      <div>
-        <div class="prob-txt">Time waste — every night</div>
-        <div class="prob-sub">தினமும் 1 மணி நேரம் கணக்கு போட்டு</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ SCENE 3: TRANSITION ═══ -->
-<div class="scene" id="s3">
-  <div class="flash-ring">
-    <span class="an-flash">AN</span>
-  </div>
-  <div class="trans-text">இனி அதெல்லாம் வேண்டாம்.</div>
-</div>
-
-<!-- ═══ SCENE 4: SOLUTION ═══ -->
-<div class="scene" id="s4">
-  <div class="s4-top">
-    <div class="s4-brand">ArthaNote</div>
-    <div class="s4-sub">SHOP LEDGER</div>
-  </div>
-
-  <div class="phone-wrap" id="phone">
-    <div class="shop-chips">
-      <div class="chip all" style="animation-delay:.1s">🏪 All</div>
-      <div class="chip s" style="animation-delay:.2s">🥬 Tulsi</div>
-      <div class="chip s" style="animation-delay:.3s">☕ Tea Shop</div>
-      <div class="chip s" style="animation-delay:.4s">+ New</div>
-    </div>
-    <div class="stat-row">
-      <div class="stat-card" style="animation-delay:.5s">
-        <div class="stat-label">TOTAL SALES</div>
-        <div class="stat-val green" id="sales-val">₹0</div>
-      </div>
-      <div class="stat-card" style="animation-delay:.65s">
-        <div class="stat-label">EXPENSE</div>
-        <div class="stat-val red" id="exp-val">₹0</div>
-      </div>
-    </div>
-    <div class="stat-card" style="animation-delay:.8s;margin-bottom:10px;padding:8px">
-      <div class="stat-label">NET BALANCE</div>
-      <div class="stat-val green" id="net-val" style="font-size:22px">₹0</div>
-    </div>
-
-    <div class="mini-chart" id="mini-chart"></div>
-
-    <div class="feature-list">
-      <div class="feat" id="f1"><div class="feat-icon">📷</div><div><div class="feat-text">OCR Scan</div><div class="feat-sub">Photo எடுத்தா போதும்</div></div></div>
-      <div class="feat" id="f2"><div class="feat-icon">📊</div><div><div class="feat-text">15-Section Reports</div><div class="feat-sub">Daily, Weekly, Monthly</div></div></div>
-      <div class="feat" id="f3"><div class="feat-icon">🏪</div><div><div class="feat-text">Multi-Shop</div><div class="feat-sub">5 shops, 1 app</div></div></div>
-      <div class="feat" id="f4"><div class="feat-icon">📴</div><div><div class="feat-text">Works Offline</div><div class="feat-sub">Internet இல்லாமலும்</div></div></div>
-    </div>
-  </div>
-
-  <div class="features-side" id="pills-row" style="text-align:center;margin-top:14px">
-    <span class="feat-pill" style="animation-delay:2.5s">🌐 Tamil & English</span>
-    <span class="feat-pill" style="animation-delay:2.8s">☁️ Auto Cloud Sync</span>
-    <span class="feat-pill" style="animation-delay:3.1s">👥 Staff Attendance</span>
-  </div>
-</div>
-
-<!-- ═══ SCENE 5: CTA ═══ -->
-<div class="scene" id="s5">
-  <div class="cta-logo">AN</div>
-  <div class="cta-name">ArthaNote</div>
-  <div class="cta-sub">SHOP LEDGER</div>
-  <div class="cta-tamil">உங்கள் shop-ன் எல்லா கணக்கும்<br>ஒரே app-ல — automatic-ஆ.</div>
-  <button class="dl-btn">📲 Download Free</button>
-  <div class="cta-domain">arthanote.com</div>
-</div>
-
-<!-- Progress -->
-<div id="progress-wrap"><div id="progress-bar"></div></div>
 
 <!-- Play overlay -->
-<div id="play-overlay" onclick="startAd()">
-  <div class="play-circle">▶</div>
-  <div class="play-label">Tap to Play Ad (30s)</div>
+<div id="ply" onclick="boot()">
+  <div class="ply-ring">▶</div>
+  <div class="ply-lbl">Tap to Play</div>
+  <div class="ply-sz">Instagram Reels · 9:16 · 22s</div>
 </div>
 
 <script>
-// ── PARTICLES ──
-const canvas=document.getElementById('particles');
-const ctx=canvas.getContext('2d');
-canvas.width=390;canvas.height=844;
-const pts=Array.from({length:35},()=>({
-  x:Math.random()*390,y:Math.random()*844,
-  r:Math.random()*2+.5,
-  vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,
-  alpha:Math.random()*.4+.1
-}));
-function drawParticles(){
-  ctx.clearRect(0,0,390,844);
-  pts.forEach(p=>{
-    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(52,211,153,${p.alpha})`;ctx.fill();
-    p.x+=p.vx;p.y+=p.vy;
-    if(p.x<0||p.x>390)p.vx*=-1;
-    if(p.y<0||p.y>844)p.vy*=-1;
-  });
-  requestAnimationFrame(drawParticles);
-}
-drawParticles();
+// ── CONFIG ──
+const DUR=[2800,3200,3200,3200,3200,3200,5400];
+const N=DUR.length;
+let cur=0, timers=[];
 
-// ── NOTEBOOK WRITE ANIM ──
-function animateNotebook(){
-  const lines=['nl1','nl2','nl3','nl4','nl5','nl6'];
-  const crosses=[['rx1',200],['rx2',700],['rx3',1100],['rx4',1500]];
-  lines.forEach((id,i)=>{
-    setTimeout(()=>{
-      const el=document.getElementById(id);
-      if(el)el.classList.add('show');
-    },i*250);
-  });
-  crosses.forEach(([id,delay])=>{
-    setTimeout(()=>{
-      const el=document.getElementById(id);
-      if(el)el.textContent='✗';
-    },delay);
-  });
+// ── STORY BARS ──
+const barsEl=document.getElementById('sbars');
+for(let i=0;i<N;i++) barsEl.innerHTML+=`<div class="sbar" id="b${i}"><div class="sf" id="f${i}"></div></div>`;
+
+function startBar(i,dur){
+  const f=document.getElementById('f'+i);
+  document.getElementById('b'+i).style.background='rgba(0,0,0,.08)';
+  f.style.transition=`width ${dur}ms linear`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ f.style.width='100%'; }));
+}
+function doneBar(i){
+  document.getElementById('f'+i).style.transition='none';
+  document.getElementById('f'+i).style.width='100%';
+  document.getElementById('b'+i).style.background='rgba(0,0,0,.08)';
 }
 
-// ── CHAOS NUMBERS ──
-function buildChaos(){
-  const area=document.getElementById('chaos-area');
-  if(!area)return;
-  const nums=['₹1,240','₹890','₹3,200','₹450','₹12,000','₹600','₹2,100','₹7,800','₹300','₹5,400'];
-  nums.forEach((n,i)=>{
-    const el=document.createElement('div');
-    el.className='flying-num';
-    el.textContent=n;
-    el.style.left=Math.random()*80+'%';
-    el.style.top=Math.random()*80+'%';
-    el.style.setProperty('--dx',(Math.random()*60-30)+'px');
-    el.style.setProperty('--dy',(Math.random()*60-30)+'px');
-    el.style.setProperty('--dr',(Math.random()*30-15)+'deg');
-    el.style.animationDelay=(i*.2)+'s';
-    el.style.animationDuration=(3+Math.random()*2)+'s';
-    area.appendChild(el);
-  });
-}
-function animateProblems(){
-  ['p1','p2','p3','p4'].forEach((id,i)=>{
-    setTimeout(()=>{
-      const el=document.getElementById(id);
-      if(el)el.classList.add('show');
-    },i*700);
-  });
-}
+// ── HELPERS ──
+function anim(el,kf,opts={}){ if(el) el.animate(kf,{fill:'forwards',duration:480,easing:'cubic-bezier(.4,0,.2,1)',...opts}); }
+function show(el,delay=0,opts={}){ setTimeout(()=>anim(el,[{opacity:0,transform:'translateY(12px)'},{opacity:1,transform:'none'}],opts),delay); }
+function showS(el,delay=0){ setTimeout(()=>anim(el,[{opacity:0,transform:'scale(.85)'},{opacity:1,transform:'none'}]),delay); }
+function showR(el,delay=0){ setTimeout(()=>anim(el,[{opacity:0,transform:'translateX(16px)'},{opacity:1,transform:'none'}]),delay); }
+function showLine(el,delay=0){ setTimeout(()=>anim(el,[{opacity:0,width:'0px'},{opacity:1,width:'52px'}]),delay); }
+function countUp(el,target,dur){ const s=Date.now();(function t(){const p=Math.min((Date.now()-s)/dur,1),e=1-(1-p)*(1-p);el.textContent='₹'+Math.round(e*target).toLocaleString('en-IN');if(p<1)requestAnimationFrame(t);})(); }
 
-// ── MINI CHART ──
-function buildChart(){
-  const chart=document.getElementById('mini-chart');
-  if(!chart)return;
-  const vals=[35,55,42,70,60,80,90];
-  const colors=['#34d399','#34d399','#34d399','#34d399','#34d399','#059669','#065f46'];
-  vals.forEach((v,i)=>{
-    const bar=document.createElement('div');
-    bar.className='bar';
-    bar.style.left=(i*32+8)+'px';
-    bar.style.height=(v*.48)+'px';
-    bar.style.background=colors[i];
-    bar.style.animationDelay=(.9+i*.08)+'s';
-    chart.appendChild(bar);
-  });
-}
-
-// ── COUNTER ANIM ──
-function countUp(id,target,dur,prefix='₹'){
-  const el=document.getElementById(id);
-  if(!el)return;
-  const start=Date.now();
-  const t=setInterval(()=>{
-    const prog=Math.min((Date.now()-start)/dur,1);
-    const val=Math.round(prog*target);
-    el.textContent=prefix+val.toLocaleString('en-IN');
-    if(prog>=1)clearInterval(t);
-  },30);
-}
-
-// ── FEATURE LIST ──
-function animateFeats(){
-  ['f1','f2','f3','f4'].forEach((id,i)=>{
-    setTimeout(()=>{
-      const el=document.getElementById(id);
-      if(el)el.classList.add('show');
-    },1200+i*400);
-  });
-}
-
-// ── SCENE CONTROLLER ──
-const sceneIds=['s1','s2','s3','s4','s5'];
-const durations=[3500,5000,2000,13000,8000];
-const totalDur=durations.reduce((a,b)=>a+b,0);
-let adTimer=null;
-
-function showScene(idx){
-  sceneIds.forEach((id,i)=>{
-    document.getElementById(id).classList.toggle('on',i===idx);
-  });
-  document.getElementById('wm').classList.toggle('show',idx>=3);
-
-  if(idx===0) animateNotebook();
-  if(idx===1){ buildChaos(); animateProblems(); }
-  if(idx===2){
-    setTimeout(()=>{
-      const s3=document.getElementById('s3');
-      if(s3)s3.style.background='#065f46';
-    },300);
+// ── PER-SLIDE ENTRANCE ──
+function enter(i){
+  if(i===0){
+    showS(document.getElementById('s1-circle'),60);
+    show(document.getElementById('s1-name'),260);
+    show(document.getElementById('s1-ledger'),420);
+    show(document.getElementById('s1-pill'),580);
   }
-  if(idx===3){
+  if(i===1){
+    show(document.getElementById('s2-badge'),50);
+    setTimeout(()=>{ const n=document.getElementById('s2-num'); anim(n,[{opacity:0},{opacity:1}],{duration:300}); countUp(n,18450,1800); },120);
+    show(document.getElementById('s2-hl'),280);
+    show(document.getElementById('s2-sub'),420);
+    showLine(document.getElementById('s2-al'),580);
+  }
+  if(i===2){
+    show(document.getElementById('s3-tag'),50);
+    show(document.getElementById('s3-hl'),200);
+    show(document.getElementById('s3-sub'),360);
+    showLine(document.getElementById('s3-al'),520);
+  }
+  if(i===3){
+    show(document.getElementById('s4-tag'),50);
+    showR(document.getElementById('sc1'),120);
+    showR(document.getElementById('sc2'),280);
+    showR(document.getElementById('sc3'),440);
+    show(document.getElementById('s4-hl'),640);
+    show(document.getElementById('s4-sub'),780);
+  }
+  if(i===4){
+    show(document.getElementById('s5-tag'),50);
     buildChart();
-    animateFeats();
-    setTimeout(()=>countUp('sales-val',18450,1800),600);
-    setTimeout(()=>countUp('exp-val',6200,1600),700);
-    setTimeout(()=>countUp('net-val',12250,2000),900);
+    show(document.getElementById('s5-hl'),350);
+    show(document.getElementById('s5-sub'),500);
+    showLine(document.getElementById('s5-al'),660);
+  }
+  if(i===5){
+    show(document.getElementById('s6-hl'),50);
+    ['g1','g2','g3','g4'].forEach((id,j)=>showS(document.getElementById(id),200+j*130));
+    show(document.getElementById('s6-sub'),780);
+  }
+  if(i===6){
+    showS(document.getElementById('s7-circle'),50);
+    show(document.getElementById('s7-nm'),220);
+    show(document.getElementById('s7-ta'),380);
+    show(document.getElementById('s7-btn'),560);
+    show(document.getElementById('s7-url'),720);
   }
 }
 
-function startAd(){
-  document.getElementById('play-overlay').classList.add('hidden');
-  const bar=document.getElementById('progress-bar');
-  bar.style.transition=`width ${totalDur}ms linear`;
-  setTimeout(()=>bar.style.width='100%',50);
-
-  let cum=0;
-  showScene(0);
-  durations.forEach((dur,i)=>{
-    if(i===0){cum+=dur;return;}
-    setTimeout(()=>showScene(i),cum);
-    cum+=dur;
+// ── CHART ──
+function buildChart(){
+  const c=document.getElementById('chart');
+  if(c.children.length>0) return;
+  [38,56,44,74,60,88,95].forEach((v,i)=>{
+    const b=document.createElement('div');
+    b.className='cbar';b.style.height=v+'%';
+    b.style.animationDelay=(.08*i)+'s';
+    c.appendChild(b);
   });
 }
+
+// ── TRANSITION ──
+function goTo(next){
+  const slides=document.querySelectorAll('.slide');
+  slides[cur].classList.remove('on');
+  slides[cur].classList.add('out');
+  setTimeout(()=>slides[cur].classList.remove('out'),620);
+  doneBar(cur);
+  cur=next;
+  slides[cur].classList.add('on');
+  enter(cur);
+  startBar(cur,DUR[cur]);
+  if(cur<N-1){
+    const t=setTimeout(()=>goTo(cur+1),DUR[cur]);
+    timers.push(t);
+  }
+}
+
+// ── BOOT ──
+function boot(){
+  document.getElementById('ply').classList.add('gone');
+  document.querySelectorAll('.slide')[0].classList.add('on');
+  enter(0);
+  startBar(0,DUR[0]);
+  const t=setTimeout(()=>goTo(1),DUR[0]);
+  timers.push(t);
+}
+
+// Tap stage = next slide
+document.getElementById('stage').addEventListener('click',()=>{
+  if(!document.getElementById('ply').classList.contains('gone')) return;
+  timers.forEach(clearTimeout);timers=[];
+  if(cur<N-1) goTo(cur+1);
+});
 </script>
 </body>
 </html>
