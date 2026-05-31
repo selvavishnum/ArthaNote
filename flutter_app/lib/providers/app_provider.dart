@@ -252,30 +252,43 @@ class AppProvider extends ChangeNotifier {
     _liveSyncSub?.cancel();
     if (_businessId.isEmpty) return;
 
-    final since = DateTime.now().subtract(const Duration(days: 7));
+    // String date comparison — 'date' field is stored as "YYYY-MM-DD" string
+    final since = DateTime.now()
+        .subtract(const Duration(days: 30))
+        .toIso8601String()
+        .split('T')[0];
+
     _liveSyncSub = FirebaseFirestore.instance
         .collection('transactions')
         .where('businessId', isEqualTo: _businessId)
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
+        .where('date', isGreaterThanOrEqualTo: since)
         .snapshots()
         .listen((snap) {
       if (snap.docChanges.isEmpty) return;
 
+      // O(1) dedup lookup
+      final existingIds = {for (final t in _txns) t.id};
       var changed = false;
+
       for (final change in snap.docChanges) {
         if (change.type == DocumentChangeType.removed) {
           final before = _txns.length;
           _txns = _txns.where((t) => t.id != change.doc.id).toList();
           if (_txns.length != before) changed = true;
         } else if (change.type == DocumentChangeType.added) {
+          if (!existingIds.contains(change.doc.id)) {
+            _txns = [Txn.fromFirestore(change.doc), ..._txns];
+            existingIds.add(change.doc.id);
+            changed = true;
+          }
+        } else if (change.type == DocumentChangeType.modified) {
           final txn = Txn.fromFirestore(change.doc);
           final idx = _txns.indexWhere((t) => t.id == txn.id);
-          if (idx == -1) {
-            _txns = [txn, ..._txns];
+          if (idx != -1) {
+            _txns[idx] = txn;
             changed = true;
           }
         }
-        // modified: handled locally via updateLocalTxn
       }
 
       if (changed) {
