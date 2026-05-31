@@ -3892,22 +3892,38 @@ async function silentCloudSync(BID){
     // Refresh token silently
     await AUTH.currentUser?.getIdToken(true);
 
-    // Fetch all 3 collections in parallel
+    // Incremental transaction sync — only fetch entries since last sync
+    // 'date' is "YYYY-MM-DD" string — use string comparison, NOT Timestamp
+    const cursorMs=parseInt(localStorage.getItem('kp_sync_cursor')||'0');
+    const sinceStr=cursorMs
+      ? new Date(cursorMs-2*24*3600*1000).toISOString().split('T')[0]
+      : null;
+
+    let txQ=DB.collection('transactions').where('businessId','==',BID);
+    if(sinceStr) txQ=txQ.where('date','>=',sinceStr);
+
     const results = await Promise.allSettled([
-      DB.collection('transactions').where('businessId','==',BID).get(),
+      txQ.get(),
       DB.collection('suppliers').where('businessId','==',BID).get(),
       DB.collection('sup_bills').where('businessId','==',BID).get()
     ]);
 
     let updated=false;
 
-    // Transactions
+    // Transactions — merge new entries into TXS (don't replace)
     if(results[0].status==='fulfilled'){
-      const newTXS=results[0].value.docs.map(d=>({id:d.id,...d.data()})).map(_norm)
-        .sort((a,b)=>(b.date||'')>(a.date||'')?1:(b.date||'')<(a.date||'')?-1:0);
-      const _newIds=newTXS.map(t=>t.id).sort().join(',');
-      const _oldIds=TXS.filter(t=>t.id).map(t=>t.id).sort().join(',');
-      if(_newIds!==_oldIds){TXS=newTXS;_rptRendered=false;updated=true;}
+      const fetchedTxs=results[0].value.docs.map(d=>({id:d.id,...d.data()})).map(_norm);
+      const existingIds=new Set(TXS.map(t=>t.id));
+      fetchedTxs.forEach(t=>{
+        if(!existingIds.has(t.id)){TXS.push(t); existingIds.add(t.id); updated=true;}
+        else{
+          // Update existing entry (handles edits from other devices)
+          const idx=TXS.findIndex(x=>x.id===t.id);
+          if(idx!==-1){TXS[idx]=t; updated=true;}
+        }
+      });
+      if(updated){TXS.sort((a,b)=>(b.date||'')>(a.date||'')?1:-1); _rptRendered=false;}
+      localStorage.setItem('kp_sync_cursor',Date.now().toString());
     } else {
       console.warn('TX sync skip:',results[0].reason?.code);
     }
@@ -6572,19 +6588,53 @@ function startLiveSync(){
   setSyncDot(navigator.onLine);
   window.addEventListener('online', ()=>setSyncDot(true));
   window.addEventListener('offline', ()=>setSyncDot(false));
-  // Real-time listener — only fires on remote changes
-  DB.collection('transactions').where('businessId','==',BID)
+
+  // 30-day window only — 'date' field is "YYYY-MM-DD" string, compare as string
+  const since=new Date(); since.setDate(since.getDate()-30);
+  const sinceStr=since.toISOString().split('T')[0];
+
+  const unsub=DB.collection('transactions')
+    .where('businessId','==',BID)
+    .where('date','>=',sinceStr)
     .onSnapshot(snap=>{
       if(snap.metadata.hasPendingWrites) return;
-      const freshTxs=snap.docs.map(d=>({id:d.id,...d.data()})).map(_norm);
-      if(freshTxs.length!==TXS.length){
-        TXS=freshTxs;
-        _rptRendered=false;
+      const changes=snap.docChanges();
+      if(!changes.length) return;
+
+      // O(1) dedup set
+      const existingIds=new Set(TXS.map(t=>t.id));
+      let changed=false;
+
+      changes.forEach(ch=>{
+        const txn=_norm({id:ch.doc.id,...ch.doc.data()});
+        if(ch.type==='removed'){
+          const before=TXS.length;
+          TXS=TXS.filter(t=>t.id!==txn.id);
+          if(TXS.length!==before) changed=true;
+        } else if(ch.type==='added'){
+          if(!existingIds.has(txn.id)){
+            TXS.unshift(txn);
+            existingIds.add(txn.id);
+            changed=true;
+          }
+        } else if(ch.type==='modified'){
+          const idx=TXS.findIndex(t=>t.id===txn.id);
+          if(idx!==-1){TXS[idx]=txn; changed=true;}
+        }
+      });
+
+      if(changed){
+        TXS.sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
         saveCacheLocal();
         renderDash(); renderLedger();
+        _rptRendered=false;
         setSyncDot(true);
+        const lbl=document.getElementById('data-range-lbl');
+        if(lbl) lbl.textContent=`✅ ${TXS.length} entries · live`;
       }
     }, ()=>setSyncDot(false));
+
+  if(typeof _unsubs!=='undefined') _unsubs.push(unsub);
 }
 
 // ════════════════════════════════════════
