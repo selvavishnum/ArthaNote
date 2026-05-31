@@ -2019,7 +2019,7 @@ function generateQR(){
   if(cardShop) cardShop.textContent=shopIcon+' '+shopName;
   if(cardDate) cardDate.textContent='🔒 Permanent QR — Auto date daily';
 
-  const baseUrl='https://selvavishnum.github.io/Kannakupilai/attend.html';
+  const baseUrl='https://arthanote.com/attend.html';
   // PERMANENT QR — no date, attend.html auto-detects today's date
   const params=`?bid=${encodeURIComponent(BID)}&shop=${encodeURIComponent(shopId)}&sname=${encodeURIComponent(shopName)}`;
   const url=baseUrl+params;
