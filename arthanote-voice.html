@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ArthaNote — Voiceover Studio</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;
+  background:#0d0d0d;color:#fff;
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:24px;
+}
+h1{font-size:22px;font-weight:800;margin-bottom:4px;letter-spacing:-.3px}
+.sub{font-size:12px;color:#6b7280;margin-bottom:32px;letter-spacing:.5px}
+.card{
+  background:#171717;border:1px solid #262626;border-radius:20px;
+  padding:28px 24px;width:100%;max-width:560px;margin-bottom:16px;
+}
+.card-title{font-size:11px;letter-spacing:2px;color:#6b7280;font-weight:700;margin-bottom:16px}
+
+/* ── SCRIPT SECTIONS ── */
+.section{
+  border-left:3px solid;padding:12px 14px;border-radius:0 10px 10px 0;
+  margin-bottom:10px;cursor:pointer;transition:background .2s;
+}
+.section:hover{filter:brightness(1.15)}
+.section.playing{animation:glow .6s ease-in-out infinite alternate}
+@keyframes glow{from{filter:brightness(1)}to{filter:brightness(1.3)}}
+.section.done{opacity:.45}
+.sec-label{font-size:9px;letter-spacing:2px;font-weight:800;margin-bottom:5px}
+.sec-text{font-size:14px;line-height:1.6;font-weight:500}
+#sec-hook  {border-color:#f59e0b;background:rgba(245,158,11,.07)}
+#sec-prob  {border-color:#ef4444;background:rgba(239,68,68,.07)}
+#sec-trans {border-color:#8b5cf6;background:rgba(139,92,246,.07)}
+#sec-sol   {border-color:#059669;background:rgba(5,150,105,.07)}
+#sec-cta   {border-color:#3b82f6;background:rgba(59,130,246,.07)}
+.sec-label.hook  {color:#f59e0b}
+.sec-label.prob  {color:#ef4444}
+.sec-label.trans {color:#8b5cf6}
+.sec-label.sol   {color:#059669}
+.sec-label.cta   {color:#3b82f6}
+
+/* ── WAVEFORM ── */
+.wave-wrap{
+  display:flex;align-items:center;gap:3px;
+  height:48px;justify-content:center;margin:20px 0;
+}
+.wbar{
+  width:4px;border-radius:2px;background:#059669;
+  height:4px;transition:height .1s;
+}
+.wbar.active{animation:wavePulse .3s ease-in-out infinite alternate}
+@keyframes wavePulse{
+  from{height:4px}
+  to{height:var(--h,28px)}
+}
+
+/* ── PROGRESS ── */
+.prog-wrap{
+  background:#262626;border-radius:4px;height:4px;
+  overflow:hidden;margin-bottom:6px;
+}
+.prog-bar{
+  height:100%;background:linear-gradient(90deg,#059669,#34d399);
+  width:0%;transition:width .3s linear;border-radius:4px;
+}
+.prog-time{
+  display:flex;justify-content:space-between;
+  font-size:11px;color:#6b7280;font-family:monospace;
+}
+
+/* ── CONTROLS ── */
+.controls{display:flex;gap:10px;margin-top:20px;justify-content:center}
+.btn{
+  border:none;border-radius:50px;cursor:pointer;
+  font-weight:700;font-size:14px;display:flex;
+  align-items:center;gap:8px;transition:all .2s;
+}
+.btn:hover{transform:scale(1.04)}
+.btn:active{transform:scale(.97)}
+.btn-play{
+  background:linear-gradient(135deg,#065f46,#059669);
+  color:#fff;padding:14px 32px;font-size:15px;
+  box-shadow:0 8px 28px rgba(5,150,105,.35);
+}
+.btn-stop{background:#262626;color:#9ca3af;padding:14px 20px}
+.btn-rec{
+  background:linear-gradient(135deg,#7f1d1d,#dc2626);
+  color:#fff;padding:14px 20px;
+  box-shadow:0 8px 28px rgba(220,38,38,.25);
+}
+.btn-rec .dot{
+  width:10px;height:10px;border-radius:50%;background:#fff;
+  animation:recPulse 1s ease-in-out infinite;
+}
+@keyframes recPulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── COUNTDOWN ── */
+#countdown{
+  position:fixed;inset:0;background:rgba(0,0,0,.85);
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;font-size:80px;font-weight:900;
+  z-index:99;display:none;
+}
+#countdown.on{display:flex}
+#countdown p{font-size:16px;color:#9ca3af;margin-top:12px}
+
+/* ── VOICE SETTINGS ── */
+.settings{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.set-group{flex:1;min-width:120px}
+.set-label{font-size:10px;color:#6b7280;letter-spacing:1.5px;margin-bottom:6px;font-weight:700}
+select,input[type=range]{
+  width:100%;background:#262626;border:1px solid #374151;
+  border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;
+}
+input[type=range]{padding:6px 8px;cursor:pointer;accent-color:#059669}
+
+/* ── STATUS ── */
+#status{
+  text-align:center;font-size:12px;color:#6b7280;
+  margin-top:14px;min-height:18px;
+}
+#status.active{color:#34d399}
+#status.rec{color:#ef4444}
+
+/* ── PYTHON CARD ── */
+.python-card{
+  background:#0f1629;border:1px solid #1e3a5f;border-radius:16px;
+  padding:20px 20px;width:100%;max-width:560px;margin-top:8px;
+}
+.python-card h3{font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:12px}
+pre{
+  background:#07101f;border-radius:10px;padding:14px 16px;
+  font-family:'Fira Code','Courier New',monospace;font-size:12px;
+  color:#a5f3fc;overflow-x:auto;line-height:1.65;
+}
+.copy-btn{
+  display:inline-block;margin-top:10px;
+  background:#1e3a5f;border:1px solid #2d5a8e;color:#60a5fa;
+  border:none;border-radius:8px;padding:7px 14px;
+  font-size:12px;font-weight:700;cursor:pointer;
+}
+.copy-btn:hover{background:#2d5a8e}
+.elabs{
+  margin-top:12px;padding:12px 14px;
+  background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);
+  border-radius:10px;font-size:12px;color:#c4b5fd;line-height:1.6;
+}
+.elabs a{color:#a78bfa;text-decoration:none;font-weight:700}
+</style>
+</head>
+<body>
+
+<h1>🎙️ ArthaNote Voiceover Studio</h1>
+<p class="sub">30-SECOND AD SCRIPT · ENGLISH · WEB SPEECH API</p>
+
+<div class="card">
+  <div class="card-title">VOICE SETTINGS</div>
+  <div class="settings">
+    <div class="set-group">
+      <div class="set-label">VOICE</div>
+      <select id="voiceSel"></select>
+    </div>
+    <div class="set-group">
+      <div class="set-label">SPEED &nbsp;<span id="rateVal">0.90</span>x</div>
+      <input type="range" id="rate" min=".6" max="1.3" step=".05" value=".90"
+             oninput="document.getElementById('rateVal').textContent=parseFloat(this.value).toFixed(2)">
+    </div>
+    <div class="set-group">
+      <div class="set-label">PITCH &nbsp;<span id="pitchVal">1.05</span></div>
+      <input type="range" id="pitch" min=".5" max="1.8" step=".05" value="1.05"
+             oninput="document.getElementById('pitchVal').textContent=parseFloat(this.value).toFixed(2)">
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">AD SCRIPT — 30 SECONDS</div>
+
+  <div class="section" id="sec-hook">
+    <div class="sec-label hook">HOOK · 0:00</div>
+    <div class="sec-text">"Still writing your shop accounts in a notebook?"</div>
+  </div>
+  <div class="section" id="sec-prob">
+    <div class="sec-label prob">PROBLEM · 0:03</div>
+    <div class="sec-text">"Wrong totals. Missing sales. Supplier confusion. Every. Single. Day."</div>
+  </div>
+  <div class="section" id="sec-trans">
+    <div class="sec-label trans">TRANSITION · 0:09</div>
+    <div class="sec-text">"There's a smarter way."</div>
+  </div>
+  <div class="section" id="sec-sol">
+    <div class="sec-label sol">SOLUTION · 0:11</div>
+    <div class="sec-text">"ArthaNote tracks every sale, expense and supplier payment automatically. Just scan your ledger photo — AI does the rest. Multi-shop. Offline. Tamil and English."</div>
+  </div>
+  <div class="section" id="sec-cta">
+    <div class="sec-label cta">CTA · 0:25</div>
+    <div class="sec-text">"ArthaNote — Download free. Your wealth, noted."</div>
+  </div>
+
+  <!-- waveform -->
+  <div class="wave-wrap" id="wave"></div>
+
+  <!-- progress -->
+  <div class="prog-wrap"><div class="prog-bar" id="prog"></div></div>
+  <div class="prog-time">
+    <span id="cur-time">0:00</span>
+    <span>0:30</span>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-play" onclick="playVO()">▶ Play Voiceover</button>
+    <button class="btn btn-stop" onclick="stopVO()">■ Stop</button>
+    <button class="btn btn-rec" onclick="startRecord()">
+      <span class="dot"></span> Record + Play
+    </button>
+  </div>
+  <div id="status">Select a voice above, then tap Play ▶</div>
+</div>
+
+<!-- Countdown overlay -->
+<div id="countdown">
+  <span id="cd-num">3</span>
+  <p>Get your recorder ready…</p>
+</div>
+
+<!-- Python / ElevenLabs card -->
+<div class="python-card">
+  <h3>💾 Generate actual MP3 file (free)</h3>
+  <pre>
+# Install once:
+# pip install gtts
+
+from gtts import gTTS
+
+script = (
+    "Still writing your shop accounts in a notebook? "
+    "Wrong totals. Missing sales. Supplier confusion. "
+    "Every single day. "
+    "There's a smarter way. "
+    "ArthaNote tracks every sale, expense and supplier payment automatically. "
+    "Just scan your ledger photo. AI does the rest. "
+    "Multi shop. Offline. Tamil and English. "
+    "ArthaNote. Download free. Your wealth, noted."
+)
+
+tts = gTTS(text=script, lang='en', slow=False)
+tts.save("arthanote_voiceover.mp3")
+print("✅ Saved: arthanote_voiceover.mp3")
+</pre>
+  <button class="copy-btn" onclick="copyPy()">📋 Copy Python Script</button>
+
+  <div class="elabs">
+    🎤 <strong>Professional quality?</strong> Use
+    <a href="https://elevenlabs.io" target="_blank">ElevenLabs.io</a> (free 10,000 chars/month)
+    → Voice: <strong>Brian</strong> or <strong>Aria</strong>
+    → Paste the script → Download MP3
+    → Best English voice, natural pauses, studio quality.
+  </div>
+</div>
+
+<script>
+// ── VOICES ──
+let voices=[];
+function loadVoices(){
+  voices=speechSynthesis.getVoices();
+  const sel=document.getElementById('voiceSel');
+  sel.innerHTML='';
+  // Prefer Google/English voices
+  const pref=voices.filter(v=>v.lang.startsWith('en')&&(v.name.includes('Google')||v.name.includes('Daniel')||v.name.includes('Alex')||v.name.includes('Samantha')));
+  const rest=voices.filter(v=>v.lang.startsWith('en')&&!pref.includes(v));
+  const other=voices.filter(v=>!v.lang.startsWith('en'));
+  [...pref,...rest,...other].forEach((v,i)=>{
+    const o=document.createElement('option');
+    o.value=i; o.textContent=`${v.name} (${v.lang})`;
+    if(voices.indexOf(v)===voices.findIndex(x=>x.name.includes('Google')&&x.lang==='en-US')) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+speechSynthesis.onvoiceschanged=loadVoices;
+loadVoices();
+
+// ── WAVEFORM ──
+const waveEl=document.getElementById('wave');
+const BARS=30;
+for(let i=0;i<BARS;i++){
+  const b=document.createElement('div');b.className='wbar';
+  const h=4+Math.abs(Math.sin(i*.7))*24+Math.abs(Math.cos(i*.4))*18;
+  b.style.setProperty('--h',Math.round(h)+'px');
+  waveEl.appendChild(b);
+}
+let waveInterval=null;
+function startWave(){
+  const bars=document.querySelectorAll('.wbar');
+  bars.forEach(b=>b.classList.add('active'));
+  waveInterval=setInterval(()=>{
+    bars.forEach(b=>{
+      const h=4+Math.random()*36;
+      b.style.setProperty('--h',Math.round(h)+'px');
+    });
+  },120);
+}
+function stopWave(){
+  clearInterval(waveInterval);
+  document.querySelectorAll('.wbar').forEach(b=>{
+    b.classList.remove('active');b.style.setProperty('--h','4px');
+  });
+}
+
+// ── SCRIPT ──
+const SEGS=[
+  {id:'sec-hook', text:'Still writing your shop accounts in a notebook?', pause:450},
+  {id:'sec-prob', text:'Wrong totals. Missing sales. Supplier confusion. Every. Single. Day.', pause:600},
+  {id:'sec-trans',text:"There's a smarter way.",pause:450},
+  {id:'sec-sol',  text:'ArthaNote tracks every sale, expense and supplier payment automatically. Just scan your ledger photo — AI does the rest. Multi-shop. Offline. Tamil and English.',pause:450},
+  {id:'sec-cta',  text:'ArthaNote — Download free. Your wealth, noted.',pause:0},
+];
+const TOTAL_MS=30000;
+let speaking=false, progInterval=null, startMs=0;
+let activeSection=null;
+
+function getVoice(){
+  const idx=parseInt(document.getElementById('voiceSel').value)||0;
+  return voices[idx]||voices.find(v=>v.lang.startsWith('en'))||voices[0];
+}
+
+function getRate(){ return parseFloat(document.getElementById('rate').value); }
+function getPitch(){ return parseFloat(document.getElementById('pitch').value); }
+
+function speak(text){
+  return new Promise(resolve=>{
+    const u=new SpeechSynthesisUtterance(text);
+    u.voice=getVoice();
+    u.rate=getRate();
+    u.pitch=getPitch();
+    u.lang='en-US';
+    u.onend=resolve;
+    u.onerror=resolve;
+    speechSynthesis.speak(u);
+  });
+}
+function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function setSection(id){
+  SEGS.forEach(s=>{
+    const el=document.getElementById(s.id);
+    if(el){ el.classList.remove('playing','done'); }
+  });
+  if(activeSection) document.getElementById(activeSection)?.classList.add('done');
+  activeSection=id;
+  document.getElementById(id)?.classList.add('playing');
+}
+
+async function playVO(){
+  if(speaking){ stopVO(); await wait(200); }
+  speaking=true;
+  startWave();
+  document.getElementById('status').textContent='🎙️ Recording voiceover…';
+  document.getElementById('status').className='active';
+  startMs=Date.now();
+  progInterval=setInterval(updateProg,100);
+
+  for(const seg of SEGS){
+    if(!speaking) break;
+    setSection(seg.id);
+    await speak(seg.text);
+    if(!speaking) break;
+    if(seg.pause>0) await wait(seg.pause);
+  }
+
+  done();
+}
+
+function updateProg(){
+  const elapsed=Date.now()-startMs;
+  const pct=Math.min(elapsed/TOTAL_MS*100,100);
+  document.getElementById('prog').style.width=pct+'%';
+  const s=Math.floor(elapsed/1000);
+  document.getElementById('cur-time').textContent=`0:${s<10?'0'+s:s}`;
+}
+
+function done(){
+  speaking=false;
+  clearInterval(progInterval);
+  stopWave();
+  SEGS.forEach(s=>document.getElementById(s.id)?.classList.remove('playing','done'));
+  document.getElementById('prog').style.width='100%';
+  document.getElementById('cur-time').textContent='0:30';
+  document.getElementById('status').textContent='✅ Done! Use screen recorder to save audio.';
+  document.getElementById('status').className='';
+}
+
+function stopVO(){
+  speechSynthesis.cancel();
+  speaking=false;
+  clearInterval(progInterval);
+  stopWave();
+  SEGS.forEach(s=>document.getElementById(s.id)?.classList.remove('playing','done'));
+  document.getElementById('prog').style.width='0%';
+  document.getElementById('cur-time').textContent='0:00';
+  document.getElementById('status').textContent='Stopped. Press Play to restart.';
+  document.getElementById('status').className='';
+}
+
+// ── RECORD (countdown then play) ──
+async function startRecord(){
+  const cd=document.getElementById('countdown');
+  const num=document.getElementById('cd-num');
+  cd.classList.add('on');
+  for(let i=3;i>=1;i--){
+    num.textContent=i;
+    await wait(1000);
+  }
+  num.textContent='🎙️';
+  await wait(500);
+  cd.classList.remove('on');
+  document.getElementById('status').textContent='⏺ RECORDING — Start your screen recorder now!';
+  document.getElementById('status').className='rec';
+  await wait(300);
+  playVO();
+}
+
+// ── COPY PYTHON ──
+const pyCode=`from gtts import gTTS
+
+script = (
+    "Still writing your shop accounts in a notebook? "
+    "Wrong totals. Missing sales. Supplier confusion. "
+    "Every single day. "
+    "There's a smarter way. "
+    "ArthaNote tracks every sale, expense and supplier payment automatically. "
+    "Just scan your ledger photo. AI does the rest. "
+    "Multi shop. Offline. Tamil and English. "
+    "ArthaNote. Download free. Your wealth, noted."
+)
+
+tts = gTTS(text=script, lang='en', slow=False)
+tts.save("arthanote_voiceover.mp3")
+print("Saved: arthanote_voiceover.mp3")`;
+
+function copyPy(){
+  navigator.clipboard.writeText(pyCode).then(()=>{
+    const btn=document.querySelector('.copy-btn');
+    btn.textContent='✅ Copied!';
+    setTimeout(()=>btn.textContent='📋 Copy Python Script',2000);
+  });
+}
+</script>
+</body>
+</html>
