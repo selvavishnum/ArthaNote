@@ -153,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   );
                 } else {
                   launchUrl(
-                    Uri.parse('https://selvavishnum.github.io/Kannakupilai/finance.html'),
+                    Uri.parse('https://arthanote.com/finance.html'),
                     mode: LaunchMode.externalApplication,
                   );
                 }

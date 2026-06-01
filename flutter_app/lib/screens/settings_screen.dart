@@ -420,7 +420,7 @@ class SettingsScreen extends StatelessWidget {
             children: [
               TextButton(
                 onPressed: () => launchUrl(
-                  Uri.parse('https://selvavishnum.github.io/Kannakupilai/privacy.html'),
+                  Uri.parse('https://arthanote.com/privacy.html'),
                   mode: LaunchMode.externalApplication,
                 ),
                 style: TextButton.styleFrom(
@@ -432,7 +432,7 @@ class SettingsScreen extends StatelessWidget {
               Text('·', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
               TextButton(
                 onPressed: () => launchUrl(
-                  Uri.parse('https://selvavishnum.github.io/Kannakupilai/privacy.html#terms'),
+                  Uri.parse('https://arthanote.com/privacy.html#terms'),
                   mode: LaunchMode.externalApplication,
                 ),
                 style: TextButton.styleFrom(
@@ -1780,7 +1780,7 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
   String get _qrUrl {
     final shop = widget.p.shops[_shopId];
     final name  = Uri.encodeComponent(shop?.name ?? 'Shop');
-    return 'https://selvavishnum.github.io/Kannakupilai/attend.html'
+    return 'https://arthanote.com/attend.html'
         '?bid=${widget.p.businessId}&shop=$_shopId&sname=$name';
   }
 
