@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ArthaNote — App Promo Video</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ── Canvas: Instagram Portrait 1080×1920 ───────────────────────────────── */
+:root {
+  --p:  #065f46;
+  --s:  #059669;
+  --a:  #d97706;
+  --a2: #f59e0b;
+  --bg: #04080f;
+  --dur: 36s;
+}
+
+html, body {
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Background ─────────────────────────────────────────────────────────── */
+#bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 900px 700px at 50% 25%, rgba(6,95,70,.28) 0%, transparent 65%),
+    radial-gradient(ellipse 700px 500px at 10% 75%, rgba(5,150,105,.14) 0%, transparent 55%),
+    radial-gradient(ellipse 600px 400px at 90% 60%, rgba(217,119,6,.10) 0%, transparent 50%),
+    linear-gradient(180deg, #04080f 0%, #070f1c 50%, #04080f 100%);
+  animation: bgBreath var(--dur) ease-in-out infinite;
+}
+@keyframes bgBreath {
+  0%,100% { opacity: .85; }
+  50%      { opacity: 1; }
+}
+
+/* Grid */
+#grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(6,95,70,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6,95,70,.06) 1px, transparent 1px);
+  background-size: 90px 90px;
+  animation: gridScroll 25s linear infinite;
+}
+@keyframes gridScroll {
+  to { transform: translateY(90px); }
+}
+
+/* Particles */
+#ptcl { position: absolute; inset: 0; overflow: hidden; }
+.pt {
+  position: absolute;
+  border-radius: 50%;
+  animation: ptFloat linear infinite;
+}
+@keyframes ptFloat {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: .6; }
+  100% { transform: translateY(-1980px) scale(.3); opacity: 0; }
+}
+
+/* ── Scene base ─────────────────────────────────────────────────────────── */
+.sc {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCENE 1 — Brand Intro  (0 – 6s = 0 – 16.7%)
+══════════════════════════════════════════════════════════════════════════ */
+#s1 { animation: s1vis var(--dur) ease infinite; }
+@keyframes s1vis {
+  0%   { opacity: 0; }
+  1.5% { opacity: 1; }
+  14%  { opacity: 1; }
+  17%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+.s1-icon {
+  font-size: 160px;
+  animation: s1icon var(--dur) ease infinite;
+  filter: drop-shadow(0 0 40px rgba(5,150,105,.7));
+}
+@keyframes s1icon {
+  0%   { transform: scale(0) rotate(-180deg); opacity: 0; }
+  4%   { transform: scale(1.1) rotate(8deg); opacity: 1; }
+  6%   { transform: scale(1) rotate(0deg); opacity: 1; }
+  14%  { transform: scale(1); opacity: 1; }
+  17%  { transform: scale(1.2); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+.s1-brand {
+  font-size: 108px;
+  font-weight: 900;
+  letter-spacing: -3px;
+  color: white;
+  animation: s1brand var(--dur) ease infinite;
+  text-shadow: 0 0 60px rgba(5,150,105,.5);
+}
+.s1-brand em { color: var(--s); font-style: normal; }
+
+@keyframes s1brand {
+  0%   { transform: translateY(60px); opacity: 0; filter: blur(12px); }
+  5%   { transform: translateY(0); opacity: 1; filter: blur(0); }
+  14%  { opacity: 1; }
+  17%  { transform: translateY(-30px); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+.s1-tag {
+  font-size: 38px;
+  color: rgba(255,255,255,.65);
+  margin-top: 14px;
+  text-align: center;
+  animation: s1tag var(--dur) ease infinite;
+}
+.s1-tag2 {
+  font-size: 36px;
+  color: var(--s);
+  margin-top: 8px;
+  font-weight: 700;
+  animation: s1tag var(--dur) ease infinite;
+  animation-delay: .4s;
+}
+@keyframes s1tag {
+  0%,6%  { opacity: 0; transform: translateY(24px); }
+  9%     { opacity: 1; transform: translateY(0); }
+  14%    { opacity: 1; }
+  17%    { opacity: 0; }
+  100%   { opacity: 0; }
+}
+
+.s1-pill {
+  margin-top: 40px;
+  background: linear-gradient(135deg, rgba(6,95,70,.5), rgba(5,150,105,.3));
+  border: 1px solid rgba(5,150,105,.4);
+  border-radius: 50px;
+  padding: 14px 44px;
+  font-size: 28px;
+  color: rgba(255,255,255,.8);
+  letter-spacing: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  animation: s1pill var(--dur) ease infinite;
+}
+@keyframes s1pill {
+  0%,7%  { opacity: 0; transform: scale(.8); }
+  10%    { opacity: 1; transform: scale(1); }
+  14%    { opacity: 1; }
+  17%    { opacity: 0; }
+  100%   { opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCENE 2 — 3D Phone  (6 – 22s = 16.7 – 61%)
+══════════════════════════════════════════════════════════════════════════ */
+#s2 { animation: s2vis var(--dur) ease infinite; }
+@keyframes s2vis {
+  0%,16%  { opacity: 0; }
+  19%     { opacity: 1; }
+  57%     { opacity: 1; }
+  61%     { opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* Phone wrapper — 3D perspective */
+.ph-stage { perspective: 1400px; }
+
+.ph-3d {
+  width: 360px;
+  height: 740px;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: ph3d var(--dur) ease infinite;
+}
+@keyframes ph3d {
+  0%,16%  { transform: perspective(1400px) rotateY(-55deg) rotateX(12deg) scale(.55); opacity: 0; }
+  21%     { transform: perspective(1400px) rotateY(-6deg) rotateX(3deg) scale(1);  opacity: 1; }
+  36%     { transform: perspective(1400px) rotateY(-6deg) rotateX(3deg) scale(1); }
+  42%     { transform: perspective(1400px) rotateY(6deg)  rotateX(-2deg) scale(1); }
+  50%     { transform: perspective(1400px) rotateY(-4deg) rotateX(2deg) scale(1); }
+  57%     { transform: perspective(1400px) rotateY(-4deg) rotateX(2deg) scale(1); opacity: 1; }
+  61%     { transform: perspective(1400px) rotateY(40deg) scale(.7); opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* Phone body */
+.ph-body {
+  width: 360px;
+  height: 740px;
+  border-radius: 52px;
+  background: linear-gradient(155deg, #1e1e32, #131320, #1a1a2e);
+  border: 1.5px solid rgba(255,255,255,.13);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    0 50px 120px rgba(0,0,0,.95),
+    0 0 80px rgba(6,95,70,.35),
+    0 0 140px rgba(6,95,70,.15);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Metallic edge highlight */
+.ph-body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 52px;
+  background: linear-gradient(135deg, rgba(255,255,255,.09) 0%, transparent 40%, rgba(255,255,255,.04) 100%);
+  pointer-events: none;
+}
+
+/* Dynamic island */
+.ph-di {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130px; height: 38px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  gap: 5px;
+}
+.ph-di::after {
+  content: '';
+  width: 14px; height: 14px;
+  background: radial-gradient(circle at 40% 35%, #333, #111);
+  border-radius: 50%;
+  border: 1.5px solid #222;
+}
+
+/* Buttons */
+.ph-btn { position: absolute; border-radius: 2px; }
+.ph-v1  { left: -3px; top: 170px; width: 3px; height: 65px;
+           background: linear-gradient(rgba(255,255,255,.15), rgba(255,255,255,.07)); border-radius: 2px 0 0 2px; }
+.ph-v2  { left: -3px; top: 252px; width: 3px; height: 50px;
+           background: linear-gradient(rgba(255,255,255,.15), rgba(255,255,255,.07)); border-radius: 2px 0 0 2px; }
+.ph-pw  { right: -3px; top: 215px; width: 3px; height: 60px;
+           background: linear-gradient(rgba(255,255,255,.13), rgba(255,255,255,.06)); border-radius: 0 2px 2px 0; }
+
+/* Screen */
+.ph-scr {
+  position: absolute;
+  top: 11px; left: 7px; right: 7px; bottom: 11px;
+  border-radius: 44px;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+/* ── App UI on screen ─────────────────────────────── */
+.app-hdr {
+  background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+  padding: 52px 18px 14px;
+  animation: appHdrIn var(--dur) ease infinite;
+}
+@keyframes appHdrIn {
+  0%,20%  { transform: translateY(-110%); }
+  24%     { transform: translateY(0); }
+  100%    { transform: translateY(0); }
+}
+
+.app-hdr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.app-hdr-name {
+  font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.4px;
+}
+.app-hdr-icons { display: flex; gap: 10px; }
+.app-hdr-ic {
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,.2);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #fff;
+}
+.app-filter {
+  margin-top: 10px;
+  background: rgba(255,255,255,.18);
+  border-radius: 20px;
+  padding: 5px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.app-body {
+  padding: 12px;
+  overflow: hidden;
+  animation: appBodyIn var(--dur) ease infinite;
+}
+@keyframes appBodyIn {
+  0%,24%  { opacity: 0; transform: translateY(18px); }
+  28%     { opacity: 1; transform: translateY(0); }
+  100%    { opacity: 1; }
+}
+
+.sum-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sum-c {
+  background: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+}
+.sum-lbl { font-size: 10px; color: #6b7280; font-weight: 600; }
+.sum-val { font-size: 18px; font-weight: 800; color: #065f46; margin-top: 2px; }
+.sum-val.r { color: #dc2626; }
+
+.txn-list { display: flex; flex-direction: column; gap: 7px; }
+.txn {
+  background: #fff;
+  border-radius: 12px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.txn-ico {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.txn-ico.g { background: #d1fae5; }
+.txn-ico.r { background: #fee2e2; }
+.txn-ico.y { background: #fef3c7; }
+.txn-i  { flex: 1; }
+.txn-sh { font-size: 11px; font-weight: 700; color: #111827; }
+.txn-ds { font-size: 10px; color: #9ca3af; }
+.txn-am { font-size: 13px; font-weight: 800; }
+.txn-am.g { color: #059669; }
+.txn-am.r { color: #dc2626; }
+
+.app-nav {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  padding: 8px 0 16px;
+  display: flex;
+  justify-content: space-around;
+  border-top: 1px solid #f3f4f6;
+}
+.nav-it {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; font-size: 9px; color: #9ca3af;
+}
+.nav-it.on { color: #065f46; }
+.nav-ico { font-size: 18px; }
+
+/* ── Feature label chips around phone ────────────────── */
+.feat-chip {
+  position: absolute;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(12px);
+  border-radius: 40px;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.fc-ico { font-size: 36px; }
+.fc-txt { }
+.fc-name { font-size: 22px; font-weight: 800; color: #fff; }
+.fc-desc { font-size: 16px; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+/* Chip 1 — Dashboard — top-right */
+#fc1 {
+  top: 155px; right: -320px;
+  animation: fc1a var(--dur) ease infinite;
+}
+@keyframes fc1a {
+  0%,29%  { transform: translateX(0); opacity: 0; }
+  32%     { transform: translateX(-340px); opacity: 1; }
+  38%     { transform: translateX(-340px); opacity: 1; }
+  41%     { transform: translateX(0); opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* Chip 2 — Ledger — mid-left */
+#fc2 {
+  top: 370px; left: -320px;
+  animation: fc2a var(--dur) ease infinite;
+}
+@keyframes fc2a {
+  0%,33%  { transform: translateX(0); opacity: 0; }
+  36%     { transform: translateX(340px); opacity: 1; }
+  42%     { transform: translateX(340px); opacity: 1; }
+  45%     { transform: translateX(0); opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* Chip 3 — Suppliers — mid-right */
+#fc3 {
+  top: 560px; right: -320px;
+  animation: fc3a var(--dur) ease infinite;
+}
+@keyframes fc3a {
+  0%,37%  { transform: translateX(0); opacity: 0; }
+  40%     { transform: translateX(-340px); opacity: 1; }
+  46%     { transform: translateX(-340px); opacity: 1; }
+  49%     { transform: translateX(0); opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* Chip 4 — Reports — lower-left */
+#fc4 {
+  top: 750px; left: -320px;
+  animation: fc4a var(--dur) ease infinite;
+}
+@keyframes fc4a {
+  0%,41%  { transform: translateX(0); opacity: 0; }
+  44%     { transform: translateX(340px); opacity: 1; }
+  50%     { transform: translateX(340px); opacity: 1; }
+  53%     { transform: translateX(0); opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* Chip 5 — Offline — lower-right */
+#fc5 {
+  top: 940px; right: -320px;
+  animation: fc5a var(--dur) ease infinite;
+}
+@keyframes fc5a {
+  0%,45%  { transform: translateX(0); opacity: 0; }
+  48%     { transform: translateX(-340px); opacity: 1; }
+  54%     { transform: translateX(-340px); opacity: 1; }
+  57%     { transform: translateX(0); opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCENE 3 — Coming Soon  (22 – 30s = 61 – 83%)
+══════════════════════════════════════════════════════════════════════════ */
+#s3 { animation: s3vis var(--dur) ease infinite; gap: 0; }
+@keyframes s3vis {
+  0%,60%  { opacity: 0; }
+  63%     { opacity: 1; }
+  80%     { opacity: 1; }
+  84%     { opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* "Coming Soon" headline */
+.cs-head {
+  text-align: center;
+  margin-bottom: 64px;
+  animation: csHead var(--dur) ease infinite;
+}
+@keyframes csHead {
+  0%,60%  { transform: translateY(50px); opacity: 0; }
+  64%     { transform: translateY(0); opacity: 1; }
+  80%     { opacity: 1; }
+  84%     { opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+.cs-head-pre {
+  font-size: 30px;
+  letter-spacing: 8px;
+  color: var(--s);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.cs-head-title {
+  font-size: 80px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+}
+.cs-head-title em { color: var(--a2); font-style: normal; }
+
+/* Coming soon card */
+.cs-card {
+  width: 880px;
+  border-radius: 36px;
+  padding: 50px 56px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 40px;
+}
+
+.cs-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 36px;
+  border: 1px solid rgba(255,255,255,.15);
+  pointer-events: none;
+}
+
+/* inner shine sweep */
+.cs-card::before {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -60%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.07) 50%, transparent 60%);
+  animation: shine 4s ease-in-out infinite;
+}
+@keyframes shine {
+  0%   { transform: translateX(-100%) rotate(0deg); }
+  60%  { transform: translateX(600%) rotate(0deg); }
+  100% { transform: translateX(600%) rotate(0deg); }
+}
+
+.cs-card.fin {
+  background: linear-gradient(135deg, rgba(6,95,70,.85) 0%, rgba(5,150,105,.65) 100%);
+  box-shadow:
+    0 30px 80px rgba(6,95,70,.55),
+    0 0 120px rgba(5,150,105,.25),
+    inset 0 1px 0 rgba(255,255,255,.12);
+  animation: csCard1 var(--dur) ease infinite;
+}
+@keyframes csCard1 {
+  0%,62%  { transform: translateX(-120px) scale(.9); opacity: 0; }
+  66%     { transform: translateX(0) scale(1); opacity: 1; }
+  80%     { opacity: 1; }
+  84%     { opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+.cs-card.att {
+  background: linear-gradient(135deg, rgba(180,83,9,.85) 0%, rgba(217,119,6,.65) 100%);
+  box-shadow:
+    0 30px 80px rgba(180,83,9,.55),
+    0 0 120px rgba(217,119,6,.25),
+    inset 0 1px 0 rgba(255,255,255,.12);
+  animation: csCard2 var(--dur) ease infinite;
+}
+@keyframes csCard2 {
+  0%,67%  { transform: translateX(120px) scale(.9); opacity: 0; }
+  71%     { transform: translateX(0) scale(1); opacity: 1; }
+  80%     { opacity: 1; }
+  84%     { opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+.cs-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+.cs-ico { font-size: 100px; flex-shrink: 0; line-height: 1; }
+.cs-info { flex: 1; }
+.cs-name {
+  font-size: 46px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+}
+.cs-subs {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.cs-sub {
+  background: rgba(255,255,255,.18);
+  border-radius: 20px;
+  padding: 6px 18px;
+  font-size: 20px;
+  color: rgba(255,255,255,.9);
+  font-weight: 600;
+}
+
+/* COMING SOON badge */
+.cs-badge {
+  position: absolute;
+  top: -18px;
+  right: 44px;
+  background: linear-gradient(135deg, #d97706, #fbbf24);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  padding: 12px 30px;
+  border-radius: 40px;
+  box-shadow: 0 10px 40px rgba(217,119,6,.7);
+  text-transform: uppercase;
+  animation: bdgPulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes bdgPulse {
+  0%   { transform: scale(1);    box-shadow: 0 10px 40px rgba(217,119,6,.7); }
+  100% { transform: scale(1.07); box-shadow: 0 10px 60px rgba(217,119,6,1); }
+}
+
+/* Hook label */
+.cs-hook {
+  text-align: center;
+  color: rgba(255,255,255,.45);
+  font-size: 26px;
+  font-style: italic;
+  margin-top: 20px;
+  animation: csHook var(--dur) ease infinite;
+}
+@keyframes csHook {
+  0%,70%  { opacity: 0; }
+  74%     { opacity: 1; }
+  80%     { opacity: 1; }
+  84%     { opacity: 0; }
+  100%    { opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCENE 4 — Download CTA  (30 – 36s = 83 – 100%)
+══════════════════════════════════════════════════════════════════════════ */
+#s4 { animation: s4vis var(--dur) ease infinite; gap: 0; }
+@keyframes s4vis {
+  0%,83%  { opacity: 0; }
+  86%     { opacity: 1; }
+  97%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+.cta-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+}
+
+.cta-logo {
+  text-align: center;
+  animation: ctaLogo var(--dur) ease infinite;
+}
+@keyframes ctaLogo {
+  0%,83%  { transform: scale(.6); opacity: 0; filter: blur(12px); }
+  87%     { transform: scale(1); opacity: 1; filter: blur(0); }
+  97%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+.cta-logo-ico { font-size: 160px; display: block;
+  filter: drop-shadow(0 0 50px rgba(5,150,105,.8)); }
+.cta-logo-name {
+  font-size: 100px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -3px;
+  line-height: 1;
+}
+.cta-logo-name em { color: var(--s); font-style: normal; }
+.cta-logo-sub {
+  font-size: 30px;
+  color: rgba(255,255,255,.5);
+  margin-top: 6px;
+  letter-spacing: 2px;
+}
+
+.glow-div {
+  width: 400px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--s), transparent);
+  border-radius: 2px;
+}
+
+.cta-pills {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: ctaPills var(--dur) ease infinite;
+}
+@keyframes ctaPills {
+  0%,87%  { transform: translateY(30px); opacity: 0; }
+  91%     { transform: translateY(0); opacity: 1; }
+  97%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+.pill {
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 30px;
+  padding: 14px 32px;
+  font-size: 24px;
+  color: rgba(255,255,255,.8);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cta-btn-main {
+  background: linear-gradient(135deg, #065f46, #059669);
+  color: #fff;
+  font-size: 36px;
+  font-weight: 900;
+  padding: 28px 80px;
+  border-radius: 50px;
+  box-shadow: 0 20px 60px rgba(6,95,70,.6), 0 0 100px rgba(5,150,105,.3);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid rgba(255,255,255,.15);
+  animation: ctaBtn var(--dur) ease infinite;
+}
+@keyframes ctaBtn {
+  0%,89%  { transform: translateY(40px); opacity: 0; }
+  93%     { transform: translateY(0); opacity: 1; }
+  97%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+.cta-url {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--s);
+  letter-spacing: 1px;
+  animation: ctaUrl var(--dur) ease infinite;
+}
+@keyframes ctaUrl {
+  0%,91%  { opacity: 0; }
+  95%     { opacity: 1; }
+  97%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+.cta-lang {
+  font-size: 24px;
+  color: rgba(255,255,255,.35);
+  text-align: center;
+}
+
+/* ── Continuous glow ring behind phone ──────────────── */
+.ph-glow {
+  position: absolute;
+  width: 500px; height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(5,150,105,.18) 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  animation: glowRing 3s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes glowRing {
+  0%   { transform: translate(-50%,-50%) scale(1); opacity: .7; }
+  100% { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ── Background ───────────────────────────────────────────────────────── -->
+<div id="bg"></div>
+<div id="grid"></div>
+<div id="ptcl"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SCENE 1 — Brand Intro
+════════════════════════════════════════════════════════════════════════ -->
+<div class="sc" id="s1">
+  <div class="s1-icon">💼</div>
+  <div class="s1-brand"><em>Artha</em>Note</div>
+  <div class="s1-tag">Smart Shop Ledger for Tamil Nadu</div>
+  <div class="s1-tag2">கணக்கு வைக்க Easy ஆகிடும்!</div>
+  <div class="s1-pill">&#9733; &nbsp;New App Launch&nbsp; &#9733;</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SCENE 2 — 3D Phone + Feature Chips
+════════════════════════════════════════════════════════════════════════ -->
+<div class="sc" id="s2">
+  <div class="ph-glow"></div>
+
+  <div class="ph-stage" style="position:relative;">
+
+    <!-- Feature chips positioned relative to phone stage -->
+    <div class="feat-chip" id="fc1">
+      <span class="fc-ico">📊</span>
+      <div class="fc-txt">
+        <div class="fc-name">Dashboard</div>
+        <div class="fc-desc">Real-time sales across all shops</div>
+      </div>
+    </div>
+
+    <div class="feat-chip" id="fc2">
+      <span class="fc-ico">📝</span>
+      <div class="fc-txt">
+        <div class="fc-name">Daily Ledger</div>
+        <div class="fc-desc">Offline-first, syncs to cloud</div>
+      </div>
+    </div>
+
+    <div class="feat-chip" id="fc3">
+      <span class="fc-ico">👥</span>
+      <div class="fc-txt">
+        <div class="fc-name">Suppliers</div>
+        <div class="fc-desc">Track balances & payments</div>
+      </div>
+    </div>
+
+    <div class="feat-chip" id="fc4">
+      <span class="fc-ico">📈</span>
+      <div class="fc-txt">
+        <div class="fc-name">MIS Reports</div>
+        <div class="fc-desc">15+ sections · P&amp;L charts</div>
+      </div>
+    </div>
+
+    <div class="feat-chip" id="fc5">
+      <span class="fc-ico">📶</span>
+      <div class="fc-txt">
+        <div class="fc-name">Works Offline</div>
+        <div class="fc-desc">Tamil + English · No internet needed</div>
+      </div>
+    </div>
+
+    <!-- 3D Phone -->
+    <div class="ph-3d">
+      <div class="ph-body">
+        <div class="ph-di"></div>
+        <div class="ph-btn ph-v1"></div>
+        <div class="ph-btn ph-v2"></div>
+        <div class="ph-btn ph-pw"></div>
+
+        <!-- App Screen -->
+        <div class="ph-scr">
+
+          <!-- Header -->
+          <div class="app-hdr">
+            <div class="app-hdr-row">
+              <div class="app-hdr-name">💼 ArthaNote</div>
+              <div class="app-hdr-icons">
+                <div class="app-hdr-ic">🔔</div>
+                <div class="app-hdr-ic">⚙️</div>
+              </div>
+            </div>
+            <div class="app-filter">🏪 All Shops ▾</div>
+          </div>
+
+          <!-- Body -->
+          <div class="app-body">
+            <div class="sum-row">
+              <div class="sum-c">
+                <div class="sum-lbl">📈 Today Sales</div>
+                <div class="sum-val">₹12,450</div>
+              </div>
+              <div class="sum-c">
+                <div class="sum-lbl">📉 Expense</div>
+                <div class="sum-val r">₹3,200</div>
+              </div>
+            </div>
+            <div class="txn-list">
+              <div class="txn">
+                <div class="txn-ico g">💰</div>
+                <div class="txn-i">
+                  <div class="txn-sh">Tulsi Thuckaly</div>
+                  <div class="txn-ds">Vegetables · 9:30 AM</div>
+                </div>
+                <div class="txn-am g">+₹4,200</div>
+              </div>
+              <div class="txn">
+                <div class="txn-ico r">🧾</div>
+                <div class="txn-i">
+                  <div class="txn-sh">Tea Shop</div>
+                  <div class="txn-ds">Stock Purchase</div>
+                </div>
+                <div class="txn-am r">−₹1,800</div>
+              </div>
+              <div class="txn">
+                <div class="txn-ico y">💳</div>
+                <div class="txn-i">
+                  <div class="txn-sh">Tulsi Bridal</div>
+                  <div class="txn-ds">Customer Payment</div>
+                </div>
+                <div class="txn-am g">+₹8,000</div>
+              </div>
+              <div class="txn">
+                <div class="txn-ico g">💰</div>
+                <div class="txn-i">
+                  <div class="txn-sh">Monday Market</div>
+                  <div class="txn-ds">Daily Sales</div>
+                </div>
+                <div class="txn-am g">+₹2,650</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Nav -->
+          <div class="app-nav">
+            <div class="nav-it on"><span class="nav-ico">🏠</span><span>Home</span></div>
+            <div class="nav-it"><span class="nav-ico">📝</span><span>Entry</span></div>
+            <div class="nav-it"><span class="nav-ico">📋</span><span>Ledger</span></div>
+            <div class="nav-it"><span class="nav-ico">👥</span><span>Suppliers</span></div>
+            <div class="nav-it"><span class="nav-ico">📊</span><span>Reports</span></div>
+          </div>
+
+        </div><!-- /ph-scr -->
+      </div><!-- /ph-body -->
+    </div><!-- /ph-3d -->
+  </div><!-- /ph-stage -->
+</div><!-- /s2 -->
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SCENE 3 — Coming Soon Modules
+════════════════════════════════════════════════════════════════════════ -->
+<div class="sc" id="s3">
+
+  <div class="cs-head">
+    <div class="cs-head-pre">🚀 New Modules</div>
+    <div class="cs-head-title"><em>Coming</em> Soon</div>
+  </div>
+
+  <!-- Finance Card -->
+  <div class="cs-card fin">
+    <div class="cs-badge">COMING SOON</div>
+    <div class="cs-card-inner">
+      <div class="cs-ico">💰</div>
+      <div class="cs-info">
+        <div class="cs-name">Finance &amp;<br>Chit Fund</div>
+        <div class="cs-subs">
+          <span class="cs-sub">📋 Members</span>
+          <span class="cs-sub">💵 Collections</span>
+          <span class="cs-sub">🏆 Chit Groups</span>
+          <span class="cs-sub">⚠️ Defaulters</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendance Card -->
+  <div class="cs-card att">
+    <div class="cs-badge">COMING SOON</div>
+    <div class="cs-card-inner">
+      <div class="cs-ico">✅</div>
+      <div class="cs-info">
+        <div class="cs-name">Attendance<br>Module</div>
+        <div class="cs-subs">
+          <span class="cs-sub">📱 QR Scan</span>
+          <span class="cs-sub">⏱️ Mark IN/OUT</span>
+          <span class="cs-sub">☕ Break Track</span>
+          <span class="cs-sub">📊 Monthly Report</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cs-hook">"உங்கள் கடை — Digital ஆகுது!" 🎉</div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SCENE 4 — Download CTA
+════════════════════════════════════════════════════════════════════════ -->
+<div class="sc" id="s4">
+  <div class="cta-wrap">
+
+    <div class="cta-logo">
+      <span class="cta-logo-ico">💼</span>
+      <div class="cta-logo-name"><em>Artha</em>Note</div>
+      <div class="cta-logo-sub">SMART SHOP LEDGER</div>
+    </div>
+
+    <div class="glow-div"></div>
+
+    <div class="cta-pills">
+      <div class="pill">🆓 Free Forever</div>
+      <div class="pill">📶 Works Offline</div>
+      <div class="pill">🌐 Tamil + English</div>
+      <div class="pill">🔒 Secure</div>
+    </div>
+
+    <div class="cta-btn-main">
+      📥 &nbsp;Download Free Now
+    </div>
+
+    <div class="cta-url">🌐 arthanote.com</div>
+
+    <div class="glow-div"></div>
+
+    <div class="cta-lang">Android APK &nbsp;·&nbsp; PWA &nbsp;·&nbsp; Play Store Coming Soon</div>
+
+  </div>
+</div>
+
+<!-- ── JavaScript: particles ───────────────────────────────────────────── -->
+<script>
+const ptcl = document.getElementById('ptcl');
+for (let i = 0; i < 45; i++) {
+  const d = document.createElement('div');
+  d.className = 'pt';
+  const sz = Math.random() * 6 + 2;
+  const green = Math.random() > .35;
+  d.style.cssText = [
+    `width:${sz}px`, `height:${sz}px`,
+    `left:${Math.random() * 100}%`,
+    `bottom:${Math.random() * 15}%`,
+    `animation-duration:${(Math.random() * 14 + 8).toFixed(1)}s`,
+    `animation-delay:${(Math.random() * 14).toFixed(1)}s`,
+    `background:${green ? 'rgba(5,150,105,.65)' : 'rgba(217,119,6,.5)'}`,
+    `box-shadow:0 0 ${sz * 3}px ${green ? 'rgba(5,150,105,.5)' : 'rgba(217,119,6,.4)'}`,
+  ].join(';');
+  ptcl.appendChild(d);
+}
+</script>
+
+</body>
+</html>
