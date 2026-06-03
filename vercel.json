@@ -6,7 +6,8 @@
     { "source": "/attend",  "destination": "/attend.html"  },
     { "source": "/finance", "destination": "/finance.html" },
     { "source": "/admin",   "destination": "/admin.html"   },
-    { "source": "/privacy", "destination": "/privacy.html" }
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/voice",   "destination": "/marketing/voice-engineer.html" }
   ],
   "headers": [
     {

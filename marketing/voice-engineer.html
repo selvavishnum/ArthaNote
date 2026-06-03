@@ -3,105 +3,124 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ArthaNote — Voice Engineer</title>
+<title>ArthaNote — AI Voice Engineer</title>
 <style>
-:root{--p:#065f46;--s:#059669;--a:#d97706;--bg:#0f172a;--surface:#1e293b;--card:#162032;--border:#2d3f55;--text:#e2e8f0;--muted:#64748b;--green:#34d399;--red:#f87171;--amber:#fbbf24;}
+:root{--p:#065f46;--s:#059669;--a:#d97706;--bg:#0f172a;--surface:#1e293b;--card:#0d1929;--border:#2d3f55;--text:#e2e8f0;--muted:#64748b;--green:#34d399;--red:#f87171;--amber:#fbbf24;}
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI','Helvetica Neue',sans-serif;overflow-x:hidden;}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI','Helvetica Neue',sans-serif;}
 
-/* TOPBAR */
-.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;position:sticky;top:0;z-index:100;}
+.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:12px;position:sticky;top:0;z-index:100;}
 .logo{width:34px;height:34px;background:linear-gradient(135deg,var(--p),var(--s));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.app-title{font-size:17px;font-weight:800;color:#fff;}
-.app-sub{font-size:12px;color:var(--muted);}
-.badge-eng{margin-left:auto;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:100px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--green);letter-spacing:.5px;}
+.app-title{font-size:16px;font-weight:800;color:#fff;}
+.app-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.badge{margin-left:auto;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:100px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--green);}
 
-.main{max-width:820px;margin:0 auto;padding:20px 16px 40px;}
+/* HTTPS ALERT */
+.https-alert{background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.3);border-radius:12px;padding:14px 18px;margin:16px;display:flex;align-items:flex-start;gap:12px;}
+.https-alert .ico{font-size:20px;flex-shrink:0;margin-top:2px;}
+.https-alert h3{font-size:14px;font-weight:700;color:var(--amber);margin-bottom:4px;}
+.https-alert p{font-size:12px;color:rgba(255,255,255,.7);line-height:1.5;}
+.https-alert a{color:var(--green);font-weight:700;}
+.https-alert.hidden{display:none;}
+
+.main{max-width:820px;margin:0 auto;padding:16px 14px 48px;}
 
 /* TRANSPORT */
-.transport{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:14px;margin-bottom:16px;}
-.transport-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-.btn{padding:9px 18px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .2s;white-space:nowrap;}
-.btn:disabled{opacity:.4;cursor:not-allowed;}
-.btn-rec{background:#dc2626;color:#fff;}
-.btn-rec:hover:not(:disabled){background:#b91c1c;}
-.btn-rec.recording{background:#ef4444;animation:recPulse 1.2s ease infinite;}
-.btn-upload{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--border);}
-.btn-upload:hover{background:rgba(255,255,255,.12);}
-.btn-play{background:var(--s);color:#fff;}
-.btn-play:hover:not(:disabled){background:var(--p);}
-.btn-process{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;}
-.btn-process:hover:not(:disabled){background:linear-gradient(135deg,#6d28d9,#5b21b6);}
-.btn-download{background:linear-gradient(135deg,var(--a),#f59e0b);color:#fff;}
-.btn-download:hover:not(:disabled){background:var(--a);}
-.btn-sm{padding:6px 12px;font-size:11px;font-weight:600;}
+.transport{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:14px;}
+.t-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.btn{padding:9px 16px;border-radius:10px;font-size:13px;font-weight:700;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn-rec{background:#dc2626;color:#fff;} .btn-rec:hover:not(:disabled){background:#b91c1c;}
+.btn-rec.recording{animation:recPulse 1.1s ease infinite;}
+.btn-up{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--border);}
+.btn-up:hover:not(:disabled){background:rgba(255,255,255,.12);}
+.btn-play{background:var(--s);color:#fff;} .btn-play:hover:not(:disabled){background:var(--p);}
+.btn-proc{background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;}
+.btn-proc:hover:not(:disabled){opacity:.85;}
+.btn-dl{background:linear-gradient(135deg,var(--a),#f59e0b);color:#fff;}
+.btn-dl:hover:not(:disabled){opacity:.85;}
+.btn-sm{padding:6px 12px;font-size:11px;}
 
-.ab-toggle{display:flex;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.ab-row{display:none;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;overflow:hidden;width:fit-content;}
 .ab-btn{padding:7px 16px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:transparent;color:var(--muted);transition:all .2s;}
 .ab-btn.active{background:rgba(5,150,105,.2);color:var(--green);}
 
-.status-bar{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;}
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
-.status-dot.active{background:var(--green);animation:recPulse 1.2s ease infinite;}
-.status-dot.warn{background:var(--amber);}
+.status-bar{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px;}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.sdot.active{background:var(--green);animation:recPulse 1.2s ease infinite;}
+.sdot.warn{background:var(--amber);}
+
+/* PROGRESS */
+.progress-wrap{display:none;background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden;height:6px;margin-top:4px;}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--s),var(--green));width:0%;transition:width .3s;border-radius:6px;}
 
 /* WAVEFORM */
-.waveform-wrap{background:#080e18;border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden;margin-bottom:16px;height:96px;}
-#waveCanvas{width:100%;height:96px;display:block;}
-.wf-label{position:absolute;top:8px;left:12px;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
-.wf-time{position:absolute;top:8px;right:12px;font-size:11px;font-weight:600;color:var(--muted);}
-.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--green);opacity:.7;pointer-events:none;display:none;}
+.wf-wrap{background:#060d1a;border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden;margin-bottom:12px;}
+#waveCanvas{width:100%;height:80px;display:block;}
+.wf-lbl{position:absolute;top:6px;left:10px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.wf-time{position:absolute;top:6px;right:10px;font-size:11px;color:var(--muted);font-weight:600;}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--green);opacity:.8;pointer-events:none;display:none;}
+.wf-legend{display:flex;gap:16px;padding:6px 12px;border-top:1px solid var(--border);}
+.leg{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);}
+.leg-dot{width:10px;height:3px;border-radius:2px;}
 
-/* VU METER */
-.vu-row{display:flex;gap:6px;align-items:center;margin-bottom:16px;}
-.vu-label{font-size:11px;color:var(--muted);width:32px;flex-shrink:0;}
-.vu-track{flex:1;height:14px;background:#080e18;border:1px solid var(--border);border-radius:4px;overflow:hidden;position:relative;}
-.vu-fill{height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#86efac 60%,#fbbf24 80%,#f87171 100%);border-radius:3px;transition:width .05s;}
-.vu-dB{font-size:10px;color:var(--muted);width:36px;text-align:right;flex-shrink:0;}
-
-/* PROCESSING CHAIN */
-.section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
-.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
-
-.module{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:border-color .2s;}
-.module.enabled{border-color:rgba(52,211,153,.25);}
-.module-header{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;user-select:none;}
-.module-num{width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--muted);flex-shrink:0;}
-.module.enabled .module-num{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.3);color:var(--green);}
-.module-info{flex:1;}
-.module-name{font-size:14px;font-weight:700;color:var(--text);}
-.module-desc{font-size:11px;color:var(--muted);margin-top:1px;}
-.toggle{width:42px;height:24px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--border);position:relative;cursor:pointer;flex-shrink:0;transition:all .25s;}
-.toggle.on{background:var(--s);border-color:var(--s);}
-.toggle::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.4);}
-.toggle.on::after{transform:translateX(18px);}
-.module-expand{font-size:18px;color:var(--muted);transition:transform .2s;flex-shrink:0;}
-.module.open .module-expand{transform:rotate(180deg);}
-
-.module-body{display:none;padding:0 16px 16px;border-top:1px solid var(--border);}
-.module.open .module-body{display:block;}
-
-.slider-row{display:flex;align-items:center;gap:10px;margin-top:10px;}
-.slider-label{font-size:12px;color:var(--muted);width:90px;flex-shrink:0;}
-.slider{flex:1;-webkit-appearance:none;height:5px;border-radius:3px;background:var(--border);outline:none;cursor:pointer;}
-.slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--green);border:2px solid #fff;cursor:pointer;box-shadow:0 0 6px rgba(52,211,153,.4);}
-.slider-val{font-size:12px;font-weight:700;color:var(--green);width:48px;text-align:right;flex-shrink:0;}
-
-.noise-capture{margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.noise-status{font-size:11px;color:var(--muted);}
-.noise-status.ok{color:var(--green);}
+/* VU */
+.vu-wrap{margin-bottom:12px;display:flex;flex-direction:column;gap:6px;}
+.vu-row{display:flex;align-items:center;gap:8px;}
+.vu-lbl{font-size:10px;color:var(--muted);width:44px;flex-shrink:0;font-weight:600;}
+.vu-track{flex:1;height:10px;background:#060d1a;border:1px solid var(--border);border-radius:5px;overflow:hidden;}
+.vu-fill{height:100%;width:0%;background:linear-gradient(90deg,#22c55e 0%,#86efac 60%,#fbbf24 80%,#f87171 100%);border-radius:4px;transition:width .05s;}
+.vu-db{font-size:10px;color:var(--muted);width:44px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;}
 
 /* PRESETS */
-.presets-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
-.preset-btn{padding:7px 16px;border-radius:100px;font-size:12px;font-weight:700;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;transition:all .2s;}
-.preset-btn:hover{border-color:var(--s);color:var(--green);background:rgba(5,150,105,.1);}
-.preset-btn.active{background:rgba(5,150,105,.15);border-color:var(--s);color:var(--green);}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.pbtn{padding:6px 14px;border-radius:100px;font-size:11px;font-weight:700;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);cursor:pointer;transition:all .2s;}
+.pbtn:hover{border-color:var(--s);color:var(--green);}
+.pbtn.active{background:rgba(5,150,105,.15);border-color:var(--s);color:var(--green);}
 
-/* TOAST */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--s);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;color:var(--green);z-index:9999;transition:transform .3s ease;}
+/* SECTION */
+.sec-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* MODULE */
+.module{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:7px;overflow:hidden;transition:border-color .2s;}
+.module.enabled{border-color:rgba(52,211,153,.22);}
+.mod-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;}
+.mnum{width:24px;height:24px;border-radius:7px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);flex-shrink:0;}
+.module.enabled .mnum{background:rgba(52,211,153,.12);color:var(--green);}
+.minfo{flex:1;}
+.mname{font-size:13px;font-weight:700;}
+.mdesc{font-size:10px;color:var(--muted);margin-top:1px;}
+.toggle{width:40px;height:22px;border-radius:11px;background:rgba(255,255,255,.08);border:1px solid var(--border);position:relative;cursor:pointer;flex-shrink:0;transition:all .22s;}
+.toggle.on{background:var(--s);border-color:var(--s);}
+.toggle::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform .22s;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+.toggle.on::after{transform:translateX(18px);}
+.mchev{color:var(--muted);font-size:14px;transition:transform .2s;flex-shrink:0;}
+.module.open .mchev{transform:rotate(180deg);}
+.mod-body{display:none;padding:4px 14px 14px;border-top:1px solid var(--border);}
+.module.open .mod-body{display:block;}
+
+.sl-row{display:flex;align-items:center;gap:8px;margin-top:9px;}
+.sl-lbl{font-size:11px;color:var(--muted);width:80px;flex-shrink:0;}
+.slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer;}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--green);border:2px solid #fff;cursor:pointer;box-shadow:0 0 6px rgba(52,211,153,.4);}
+.sl-val{font-size:11px;font-weight:700;color:var(--green);width:52px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;}
+
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.chip{padding:5px 11px;border-radius:6px;font-size:10px;font-weight:700;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);cursor:pointer;transition:all .15s;}
+.chip:hover{border-color:var(--s);color:var(--green);}
+.chip.active{background:rgba(52,211,153,.1);border-color:var(--s);color:var(--green);}
+
+.noise-cap{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.ncap-status{font-size:10px;color:var(--muted);}
+.ncap-status.ok{color:var(--green);}
+
+.info-box{background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);border-radius:8px;padding:10px 12px;margin-top:10px;font-size:11px;color:rgba(255,255,255,.6);line-height:1.5;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--surface);border:1px solid var(--s);border-radius:10px;padding:10px 18px;font-size:12px;font-weight:700;color:var(--green);z-index:9999;transition:transform .28s ease;white-space:nowrap;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 
-@keyframes recPulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes recPulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{opacity:.85;box-shadow:0 0 0 8px rgba(220,38,38,0)}}
 </style>
 </head>
 <body>
@@ -109,297 +128,230 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:-ap
 <div class="topbar">
   <div class="logo">🎙️</div>
   <div>
-    <div class="app-title">Voice Engineer</div>
-    <div class="app-sub" id="statusSub">Ready to record</div>
+    <div class="app-title">AI Voice Engineer</div>
+    <div class="app-sub" id="topSub">arthanote.com/voice</div>
   </div>
-  <div class="badge-eng">🎚️ Sound Engineer</div>
+  <div class="badge">🤖 AI Noise Cancel</div>
+</div>
+
+<!-- HTTPS ALERT (shown when opened from file://) -->
+<div class="https-alert" id="httpsAlert">
+  <div class="ico">⚠️</div>
+  <div>
+    <h3>Recording needs HTTPS</h3>
+    <p>File-ல் open பண்ணும்போது microphone block ஆகும். Recording-க்கு இந்த link-ல் open பண்ணுங்க:<br>
+    <a href="https://arthanote.com/voice" target="_blank">🔗 arthanote.com/voice</a><br>
+    <span style="color:rgba(255,255,255,.5)">Upload Audio button மூலம் existing file process பண்ணலாம் (works here too).</span></p>
+  </div>
 </div>
 
 <div class="main">
 
   <!-- TRANSPORT -->
   <div class="transport">
-    <div class="transport-top">
+    <div class="t-row">
       <button class="btn btn-rec" id="recBtn" onclick="toggleRecord()">🔴 Record</button>
-      <label class="btn btn-upload" style="cursor:pointer">
+      <label class="btn btn-up" style="cursor:pointer">
         📂 Upload Audio
         <input type="file" id="fileInput" accept="audio/*" style="display:none" onchange="loadFile(this)">
       </label>
-      <button class="btn btn-play" id="playBeforeBtn" onclick="playAudio('before')" disabled>▶ Before</button>
-      <button class="btn btn-play" id="playAfterBtn" onclick="playAudio('after')" disabled style="background:#0284c7">▶ After</button>
-      <button class="btn btn-process" id="processBtn" onclick="processAudio()" disabled>🎚️ Process</button>
-      <button class="btn btn-download" id="downloadBtn" onclick="downloadAudio()" disabled>💾 Download</button>
+      <button class="btn btn-play" id="btnBefore" onclick="playAudio('before')" disabled>▶ Before</button>
+      <button class="btn btn-play" id="btnAfter"  onclick="playAudio('after')"  disabled style="background:#0369a1;">▶ After</button>
+      <button class="btn btn-proc" id="btnProc"   onclick="processAudio()"      disabled>🤖 AI Process</button>
+      <button class="btn btn-dl"   id="btnDl"     onclick="downloadAudio()"     disabled>💾 Download</button>
     </div>
-    <div class="ab-toggle" style="width:fit-content;display:none" id="abRow">
-      <button class="ab-btn active" id="abA" onclick="setAB('before')">A — Original</button>
-      <button class="ab-btn" id="abB" onclick="setAB('after')">B — Processed</button>
+    <div class="t-row">
+      <div class="ab-row" id="abRow">
+        <button class="ab-btn active" id="abA" onclick="setAB('before')">A — Original</button>
+        <button class="ab-btn" id="abB" onclick="setAB('after')">B — AI Processed</button>
+      </div>
+      <div class="status-bar" style="margin-left:4px;">
+        <div class="sdot" id="sdot"></div>
+        <span id="stext">Upload or record audio to begin</span>
+      </div>
     </div>
-    <div class="status-bar">
-      <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">Upload or record audio to begin</span>
+    <div class="progress-wrap" id="progWrap">
+      <div class="progress-bar" id="progBar"></div>
     </div>
   </div>
 
   <!-- WAVEFORM -->
-  <div class="waveform-wrap">
-    <span class="wf-label">WAVEFORM</span>
+  <div class="wf-wrap">
+    <span class="wf-lbl">Waveform</span>
     <span class="wf-time" id="wfTime">0:00</span>
     <canvas id="waveCanvas"></canvas>
     <div class="playhead" id="playhead"></div>
+    <div class="wf-legend">
+      <div class="leg"><div class="leg-dot" style="background:rgba(52,211,153,.5)"></div>Original</div>
+      <div class="leg"><div class="leg-dot" style="background:rgba(251,191,36,.7)"></div>AI Processed</div>
+    </div>
   </div>
 
-  <!-- VU METERS -->
-  <div style="margin-bottom:16px;">
+  <!-- VU -->
+  <div class="vu-wrap">
     <div class="vu-row">
-      <span class="vu-label" style="color:var(--muted);font-size:10px;">INPUT</span>
+      <span class="vu-lbl">INPUT</span>
       <div class="vu-track"><div class="vu-fill" id="vuIn"></div></div>
-      <span class="vu-dB" id="vuInDb">—</span>
+      <span class="vu-db" id="vuInDb">— dB</span>
     </div>
     <div class="vu-row">
-      <span class="vu-label" style="color:var(--green);font-size:10px;">OUTPUT</span>
+      <span class="vu-lbl" style="color:var(--green)">OUTPUT</span>
       <div class="vu-track"><div class="vu-fill" id="vuOut"></div></div>
-      <span class="vu-dB" id="vuOutDb">—</span>
+      <span class="vu-db" id="vuOutDb">— dB</span>
     </div>
   </div>
 
   <!-- PRESETS -->
-  <div class="section-title">Presets</div>
-  <div class="presets-row">
-    <button class="preset-btn active" onclick="applyPreset('reels',this)">📱 Instagram Reels</button>
-    <button class="preset-btn" onclick="applyPreset('youtube',this)">▶️ YouTube</button>
-    <button class="preset-btn" onclick="applyPreset('podcast',this)">🎙️ Podcast</button>
-    <button class="preset-btn" onclick="applyPreset('voice',this)">🗣️ Voice Note</button>
-    <button class="preset-btn" onclick="applyPreset('flat',this)">⚪ Flat / Reset</button>
+  <div class="sec-title">Quick Presets</div>
+  <div class="presets">
+    <button class="pbtn active" onclick="applyPreset('reels',this)">📱 Instagram Reels</button>
+    <button class="pbtn" onclick="applyPreset('youtube',this)">▶️ YouTube</button>
+    <button class="pbtn" onclick="applyPreset('podcast',this)">🎙️ Podcast</button>
+    <button class="pbtn" onclick="applyPreset('clean',this)">✨ Max Clean</button>
+    <button class="pbtn" onclick="applyPreset('flat',this)">⚪ Reset Flat</button>
   </div>
 
-  <!-- PROCESSING CHAIN -->
-  <div class="section-title" style="margin-top:4px;">Processing Chain</div>
+  <!-- PROCESSING MODULES -->
+  <div class="sec-title" style="margin-top:4px;">AI Processing Chain</div>
 
-  <!-- Module 1: Noise Reduction -->
-  <div class="module enabled open" id="mod-noise">
-    <div class="module-header" onclick="toggleModule('noise')">
-      <div class="module-num">1</div>
-      <div class="module-info">
-        <div class="module-name">🔇 Noise Reduction</div>
-        <div class="module-desc">Background hiss, room noise, fan sound remove</div>
+  <!-- 1: Noise Reduction -->
+  <div class="module enabled open" id="mod-nr">
+    <div class="mod-head" onclick="toggleMod('nr')">
+      <div class="mnum">1</div>
+      <div class="minfo">
+        <div class="mname">🤖 AI Noise Cancellation</div>
+        <div class="mdesc">Wiener filter — complete hiss, fan, AC noise removal</div>
       </div>
-      <div class="toggle on" id="tog-noise" onclick="event.stopPropagation();toggleSwitch('noise')"></div>
-      <div class="module-expand">⌄</div>
+      <div class="toggle on" id="tog-nr" onclick="event.stopPropagation();toggleSw('nr')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Strength</span>
-        <input type="range" class="slider" id="sl-noiseStr" min="0" max="100" value="80" oninput="updateVal('noiseStr',this.value,'%')">
-        <span class="slider-val" id="val-noiseStr">80%</span>
+    <div class="mod-body">
+      <div class="sl-row">
+        <span class="sl-lbl">Strength</span>
+        <input type="range" class="slider" id="sl-nrStr" min="0" max="100" value="85" oninput="sv('nrStr',this.value,'%')">
+        <span class="sl-val" id="sv-nrStr">85%</span>
       </div>
-      <div class="slider-row">
-        <span class="slider-label">Sensitivity</span>
-        <input type="range" class="slider" id="sl-noiseSens" min="1" max="5" value="3" step="1" oninput="updateVal('noiseSens',this.value,'')">
-        <span class="slider-val" id="val-noiseSens">3</span>
+      <div class="sl-row">
+        <span class="sl-lbl">Noise Floor</span>
+        <input type="range" class="slider" id="sl-nrFloor" min="1" max="10" value="4" step="1" oninput="sv('nrFloor',this.value,'')">
+        <span class="sl-val" id="sv-nrFloor">4</span>
       </div>
-      <div class="noise-capture">
-        <button class="btn btn-sm btn-upload" onclick="captureNoise()">🎤 Capture Noise Profile</button>
-        <span class="noise-status" id="noiseStatus">Not captured — uses first 0.3s of audio automatically</span>
+      <div class="sl-row">
+        <span class="sl-lbl">Smooth α</span>
+        <input type="range" class="slider" id="sl-nrAlpha" min="70" max="99" value="92" oninput="sv('nrAlpha',this.value,'%')">
+        <span class="sl-val" id="sv-nrAlpha">92%</span>
       </div>
+      <div class="noise-cap">
+        <button class="btn btn-sm btn-up" onclick="captureNoise()">🎤 Capture Noise Profile</button>
+        <span class="ncap-status" id="ncapSt">Auto-detect from first 0.5s</span>
+      </div>
+      <div class="info-box">🤖 Decision-Directed MMSE Wiener Filter — noise-ஐ speech-ல் இருந்து தனியாக identify பண்ணும். Simple spectral subtraction-விட 3x powerful.</div>
     </div>
   </div>
 
-  <!-- Module 2: High-Pass Filter -->
+  <!-- 2: HP Filter -->
   <div class="module enabled" id="mod-hp">
-    <div class="module-header" onclick="toggleModule('hp')">
-      <div class="module-num">2</div>
-      <div class="module-info">
-        <div class="module-name">📻 High-Pass Filter</div>
-        <div class="module-desc">Cut rumble, fan vibration, wind noise below 80 Hz</div>
-      </div>
-      <div class="toggle on" id="tog-hp" onclick="event.stopPropagation();toggleSwitch('hp')"></div>
-      <div class="module-expand">⌄</div>
+    <div class="mod-head" onclick="toggleMod('hp')">
+      <div class="mnum">2</div>
+      <div class="minfo"><div class="mname">📻 High-Pass Filter</div><div class="mdesc">Rumble, fan vibration, wind — 80Hz below cut</div></div>
+      <div class="toggle on" id="tog-hp" onclick="event.stopPropagation();toggleSw('hp')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Cutoff Freq</span>
-        <input type="range" class="slider" id="sl-hpFreq" min="40" max="200" value="80" oninput="updateVal('hpFreq',this.value,' Hz')">
-        <span class="slider-val" id="val-hpFreq">80 Hz</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Slope</span>
-        <input type="range" class="slider" id="sl-hpSlope" min="1" max="4" value="2" step="1" oninput="updateVal('hpSlope',this.value,' pole')">
-        <span class="slider-val" id="val-hpSlope">2 pole</span>
-      </div>
+    <div class="mod-body">
+      <div class="sl-row"><span class="sl-lbl">Cutoff</span><input type="range" class="slider" id="sl-hpFreq" min="40" max="250" value="80" oninput="sv('hpFreq',this.value,' Hz')"><span class="sl-val" id="sv-hpFreq">80 Hz</span></div>
+      <div class="sl-row"><span class="sl-lbl">Slope</span><input type="range" class="slider" id="sl-hpSlope" min="1" max="4" value="2" step="1" oninput="sv('hpSlope',this.value,' pole')"><span class="sl-val" id="sv-hpSlope">2 pole</span></div>
     </div>
   </div>
 
-  <!-- Module 3: Bass Warmth -->
+  <!-- 3: Bass -->
   <div class="module enabled" id="mod-bass">
-    <div class="module-header" onclick="toggleModule('bass')">
-      <div class="module-num">3</div>
-      <div class="module-info">
-        <div class="module-name">🔊 Bass Warmth</div>
-        <div class="module-desc">Voice-க்கு fullness, depth வரும் (+3dB low shelf)</div>
-      </div>
-      <div class="toggle on" id="tog-bass" onclick="event.stopPropagation();toggleSwitch('bass')"></div>
-      <div class="module-expand">⌄</div>
+    <div class="mod-head" onclick="toggleMod('bass')">
+      <div class="mnum">3</div>
+      <div class="minfo"><div class="mname">🔊 Bass Warmth</div><div class="mdesc">Voice-க்கு fullness வரும் — low shelf boost</div></div>
+      <div class="toggle on" id="tog-bass" onclick="event.stopPropagation();toggleSw('bass')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Gain</span>
-        <input type="range" class="slider" id="sl-bassGain" min="-6" max="6" value="3" step="0.5" oninput="updateVal('bassGain',this.value,' dB')">
-        <span class="slider-val" id="val-bassGain">3 dB</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Shelf Freq</span>
-        <input type="range" class="slider" id="sl-bassFreq" min="100" max="400" value="200" oninput="updateVal('bassFreq',this.value,' Hz')">
-        <span class="slider-val" id="val-bassFreq">200 Hz</span>
-      </div>
+    <div class="mod-body">
+      <div class="sl-row"><span class="sl-lbl">Gain</span><input type="range" class="slider" id="sl-bassG" min="-6" max="6" value="3" step=".5" oninput="sv('bassG',this.value,' dB')"><span class="sl-val" id="sv-bassG">3 dB</span></div>
+      <div class="sl-row"><span class="sl-lbl">Freq</span><input type="range" class="slider" id="sl-bassF" min="100" max="400" value="200" oninput="sv('bassF',this.value,' Hz')"><span class="sl-val" id="sv-bassF">200 Hz</span></div>
     </div>
   </div>
 
-  <!-- Module 4: Presence -->
-  <div class="module enabled" id="mod-presence">
-    <div class="module-header" onclick="toggleModule('presence')">
-      <div class="module-num">4</div>
-      <div class="module-info">
-        <div class="module-name">🎯 Presence Boost</div>
-        <div class="module-desc">Voice clear-ஆ, forward-ஆ கேக்கும் (+4dB @ 3kHz)</div>
-      </div>
-      <div class="toggle on" id="tog-presence" onclick="event.stopPropagation();toggleSwitch('presence')"></div>
-      <div class="module-expand">⌄</div>
+  <!-- 4: Presence -->
+  <div class="module enabled" id="mod-pres">
+    <div class="mod-head" onclick="toggleMod('pres')">
+      <div class="mnum">4</div>
+      <div class="minfo"><div class="mname">🎯 Presence Boost</div><div class="mdesc">Voice clarity, forward sound — 3kHz peak</div></div>
+      <div class="toggle on" id="tog-pres" onclick="event.stopPropagation();toggleSw('pres')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Gain</span>
-        <input type="range" class="slider" id="sl-presGain" min="-6" max="8" value="4" step="0.5" oninput="updateVal('presGain',this.value,' dB')">
-        <span class="slider-val" id="val-presGain">4 dB</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Center Freq</span>
-        <input type="range" class="slider" id="sl-presFreq" min="1500" max="5000" value="3000" step="100" oninput="updateVal('presFreq',this.value,' Hz')">
-        <span class="slider-val" id="val-presFreq">3000 Hz</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Q (Width)</span>
-        <input type="range" class="slider" id="sl-presQ" min="0.5" max="4" value="2" step="0.1" oninput="updateVal('presQ',this.value,'')">
-        <span class="slider-val" id="val-presQ">2.0</span>
-      </div>
+    <div class="mod-body">
+      <div class="sl-row"><span class="sl-lbl">Gain</span><input type="range" class="slider" id="sl-presG" min="-6" max="8" value="4" step=".5" oninput="sv('presG',this.value,' dB')"><span class="sl-val" id="sv-presG">4 dB</span></div>
+      <div class="sl-row"><span class="sl-lbl">Freq</span><input type="range" class="slider" id="sl-presF" min="1000" max="6000" value="3000" step="100" oninput="sv('presF',this.value,' Hz')"><span class="sl-val" id="sv-presF">3000 Hz</span></div>
+      <div class="sl-row"><span class="sl-lbl">Q Width</span><input type="range" class="slider" id="sl-presQ" min=".5" max="4" value="2" step=".1" oninput="sv('presQ',this.value,'')"><span class="sl-val" id="sv-presQ">2.0</span></div>
     </div>
   </div>
 
-  <!-- Module 5: Air -->
+  <!-- 5: Air -->
   <div class="module enabled" id="mod-air">
-    <div class="module-header" onclick="toggleModule('air')">
-      <div class="module-num">5</div>
-      <div class="module-info">
-        <div class="module-name">✨ Air / Brightness</div>
-        <div class="module-desc">Intelligibility, crispness boost (+3dB @ 8kHz+)</div>
-      </div>
-      <div class="toggle on" id="tog-air" onclick="event.stopPropagation();toggleSwitch('air')"></div>
-      <div class="module-expand">⌄</div>
+    <div class="mod-head" onclick="toggleMod('air')">
+      <div class="mnum">5</div>
+      <div class="minfo"><div class="mname">✨ Air / Brightness</div><div class="mdesc">Crisp intelligibility — high shelf above 8kHz</div></div>
+      <div class="toggle on" id="tog-air" onclick="event.stopPropagation();toggleSw('air')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Gain</span>
-        <input type="range" class="slider" id="sl-airGain" min="-6" max="8" value="3" step="0.5" oninput="updateVal('airGain',this.value,' dB')">
-        <span class="slider-val" id="val-airGain">3 dB</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Shelf Freq</span>
-        <input type="range" class="slider" id="sl-airFreq" min="5000" max="12000" value="8000" step="500" oninput="updateVal('airFreq',this.value,' Hz')">
-        <span class="slider-val" id="val-airFreq">8000 Hz</span>
-      </div>
+    <div class="mod-body">
+      <div class="sl-row"><span class="sl-lbl">Gain</span><input type="range" class="slider" id="sl-airG" min="-6" max="8" value="3" step=".5" oninput="sv('airG',this.value,' dB')"><span class="sl-val" id="sv-airG">3 dB</span></div>
+      <div class="sl-row"><span class="sl-lbl">Freq</span><input type="range" class="slider" id="sl-airF" min="5000" max="14000" value="8000" step="500" oninput="sv('airF',this.value,' Hz')"><span class="sl-val" id="sv-airF">8000 Hz</span></div>
     </div>
   </div>
 
-  <!-- Module 6: Compressor -->
+  <!-- 6: Compressor -->
   <div class="module enabled" id="mod-comp">
-    <div class="module-header" onclick="toggleModule('comp')">
-      <div class="module-num">6</div>
-      <div class="module-info">
-        <div class="module-name">🗜️ Compressor</div>
-        <div class="module-desc">Loud/soft parts even out ஆகும் — consistent volume</div>
-      </div>
-      <div class="toggle on" id="tog-comp" onclick="event.stopPropagation();toggleSwitch('comp')"></div>
-      <div class="module-expand">⌄</div>
+    <div class="mod-head" onclick="toggleMod('comp')">
+      <div class="mnum">6</div>
+      <div class="minfo"><div class="mname">🗜️ Compressor</div><div class="mdesc">Loud/soft parts even — consistent volume</div></div>
+      <div class="toggle on" id="tog-comp" onclick="event.stopPropagation();toggleSw('comp')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Threshold</span>
-        <input type="range" class="slider" id="sl-compThresh" min="-40" max="-6" value="-18" oninput="updateVal('compThresh',this.value,' dB')">
-        <span class="slider-val" id="val-compThresh">-18 dB</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Ratio</span>
-        <input type="range" class="slider" id="sl-compRatio" min="1" max="12" value="4" step="0.5" oninput="updateVal('compRatio',this.value,':1')">
-        <span class="slider-val" id="val-compRatio">4:1</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Attack</span>
-        <input type="range" class="slider" id="sl-compAtk" min="1" max="50" value="10" oninput="updateVal('compAtk',this.value,' ms')">
-        <span class="slider-val" id="val-compAtk">10 ms</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Release</span>
-        <input type="range" class="slider" id="sl-compRel" min="50" max="500" value="100" oninput="updateVal('compRel',this.value,' ms')">
-        <span class="slider-val" id="val-compRel">100 ms</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Knee</span>
-        <input type="range" class="slider" id="sl-compKnee" min="0" max="12" value="6" oninput="updateVal('compKnee',this.value,' dB')">
-        <span class="slider-val" id="val-compKnee">6 dB</span>
-      </div>
+    <div class="mod-body">
+      <div class="sl-row"><span class="sl-lbl">Threshold</span><input type="range" class="slider" id="sl-cTh" min="-40" max="-6" value="-18" oninput="sv('cTh',this.value,' dB')"><span class="sl-val" id="sv-cTh">-18 dB</span></div>
+      <div class="sl-row"><span class="sl-lbl">Ratio</span><input type="range" class="slider" id="sl-cRa" min="1" max="12" value="4" step=".5" oninput="sv('cRa',this.value,':1')"><span class="sl-val" id="sv-cRa">4:1</span></div>
+      <div class="sl-row"><span class="sl-lbl">Attack</span><input type="range" class="slider" id="sl-cAt" min="1" max="50" value="10" oninput="sv('cAt',this.value,' ms')"><span class="sl-val" id="sv-cAt">10 ms</span></div>
+      <div class="sl-row"><span class="sl-lbl">Release</span><input type="range" class="slider" id="sl-cRl" min="50" max="500" value="100" oninput="sv('cRl',this.value,' ms')"><span class="sl-val" id="sv-cRl">100 ms</span></div>
+      <div class="sl-row"><span class="sl-lbl">Knee</span><input type="range" class="slider" id="sl-cKn" min="0" max="12" value="6" oninput="sv('cKn',this.value,' dB')"><span class="sl-val" id="sv-cKn">6 dB</span></div>
     </div>
   </div>
 
-  <!-- Module 7: De-esser -->
-  <div class="module enabled" id="mod-dess">
-    <div class="module-header" onclick="toggleModule('dess')">
-      <div class="module-num">7</div>
-      <div class="module-info">
-        <div class="module-name">🔕 De-esser</div>
-        <div class="module-desc">Harsh "ஸ்" / "ட்" sibilance sounds reduce</div>
-      </div>
-      <div class="toggle on" id="tog-dess" onclick="event.stopPropagation();toggleSwitch('dess')"></div>
-      <div class="module-expand">⌄</div>
+  <!-- 7: De-esser -->
+  <div class="module enabled" id="mod-de">
+    <div class="mod-head" onclick="toggleMod('de')">
+      <div class="mnum">7</div>
+      <div class="minfo"><div class="mname">🔕 De-esser</div><div class="mdesc">Harsh sibilance "ஸ்" reduce — 6kHz+ zone</div></div>
+      <div class="toggle on" id="tog-de" onclick="event.stopPropagation();toggleSw('de')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Freq</span>
-        <input type="range" class="slider" id="sl-dessFreq" min="4000" max="10000" value="6000" step="500" oninput="updateVal('dessFreq',this.value,' Hz')">
-        <span class="slider-val" id="val-dessFreq">6000 Hz</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Threshold</span>
-        <input type="range" class="slider" id="sl-dessThresh" min="0" max="100" value="60" oninput="updateVal('dessThresh',this.value,'%')">
-        <span class="slider-val" id="val-dessThresh">60%</span>
-      </div>
-      <div class="slider-row">
-        <span class="slider-label">Reduction</span>
-        <input type="range" class="slider" id="sl-dessRed" min="0" max="100" value="50" oninput="updateVal('dessRed',this.value,'%')">
-        <span class="slider-val" id="val-dessRed">50%</span>
-      </div>
+    <div class="mod-body">
+      <div class="sl-row"><span class="sl-lbl">Freq</span><input type="range" class="slider" id="sl-deF" min="4000" max="10000" value="6000" step="500" oninput="sv('deF',this.value,' Hz')"><span class="sl-val" id="sv-deF">6000 Hz</span></div>
+      <div class="sl-row"><span class="sl-lbl">Threshold</span><input type="range" class="slider" id="sl-deTh" min="0" max="100" value="60" oninput="sv('deTh',this.value,'%')"><span class="sl-val" id="sv-deTh">60%</span></div>
+      <div class="sl-row"><span class="sl-lbl">Reduction</span><input type="range" class="slider" id="sl-deRd" min="0" max="100" value="50" oninput="sv('deRd',this.value,'%')"><span class="sl-val" id="sv-deRd">50%</span></div>
     </div>
   </div>
 
-  <!-- Module 8: Loudness -->
-  <div class="module enabled" id="mod-lufs">
-    <div class="module-header" onclick="toggleModule('lufs')">
-      <div class="module-num">8</div>
-      <div class="module-info">
-        <div class="module-name">📊 Loudness Normalize</div>
-        <div class="module-desc">Instagram Reels / YouTube standard — -14 LUFS</div>
-      </div>
-      <div class="toggle on" id="tog-lufs" onclick="event.stopPropagation();toggleSwitch('lufs')"></div>
-      <div class="module-expand">⌄</div>
+  <!-- 8: Normalize -->
+  <div class="module enabled" id="mod-luf">
+    <div class="mod-head" onclick="toggleMod('luf')">
+      <div class="mnum">8</div>
+      <div class="minfo"><div class="mname">📊 Loudness Normalize</div><div class="mdesc">-14 LUFS — Instagram / YouTube standard</div></div>
+      <div class="toggle on" id="tog-luf" onclick="event.stopPropagation();toggleSw('luf')"></div>
+      <div class="mchev">⌄</div>
     </div>
-    <div class="module-body">
-      <div class="slider-row">
-        <span class="slider-label">Target LUFS</span>
-        <input type="range" class="slider" id="sl-lufsTarget" min="-23" max="-6" value="-14" oninput="updateVal('lufsTarget',this.value,' LUFS')">
-        <span class="slider-val" id="val-lufsTarget">-14 LUFS</span>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-sm btn-upload" onclick="setLufs(-14)">📱 -14 Reels</button>
-        <button class="btn btn-sm btn-upload" onclick="setLufs(-16)">▶️ -16 YouTube</button>
-        <button class="btn btn-sm btn-upload" onclick="setLufs(-19)">🎙️ -19 Podcast</button>
+    <div class="mod-body">
+      <div class="sl-row"><span class="sl-lbl">Target</span><input type="range" class="slider" id="sl-lufT" min="-23" max="-6" value="-14" oninput="sv('lufT',this.value,' LUFS')"><span class="sl-val" id="sv-lufT">-14 LUFS</span></div>
+      <div class="chip-row">
+        <button class="chip active" onclick="setLufs(-14,this)">📱 -14 Reels</button>
+        <button class="chip" onclick="setLufs(-16,this)">▶️ -16 YouTube</button>
+        <button class="chip" onclick="setLufs(-19,this)">🎙️ -19 Podcast</button>
       </div>
     </div>
   </div>
@@ -409,668 +361,482 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:-ap
 <div class="toast" id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════
-let audioCtx        = null;
-let originalBuffer  = null;
-let processedBuffer = null;
-let activeBuffer    = null;
-let currentSource   = null;
-let mediaRecorder   = null;
-let recordChunks    = [];
-let isRecording     = false;
-let isPlaying       = false;
-let noiseProfile    = null;
-let animRAF         = null;
-let playStartTime   = 0;
-let playOffset      = 0;
+// ═══════════════════ STATE ═══════════════════
+let audioCtx, origBuf, procBuf, recorder, recChunks=[], isRec=false, curSrc=null, playRAF=null, playStart=0, isPlay=false;
+let noiseProfile=null, noiseProfileAuto=null;
+const SW = {nr:true,hp:true,bass:true,pres:true,air:true,comp:true,de:true,luf:true};
 
-const switches = {noise:true, hp:true, bass:true, presence:true, air:true, comp:true, dess:true, lufs:true};
+// ═══════════════════ HTTPS CHECK ═══════════════════
+(function(){
+  const isFile = location.protocol==='file:' || location.protocol==='content:' || (location.hostname!=='localhost' && location.hostname!=='127.0.0.1' && !location.hostname.includes('.'));
+  if(isFile) document.getElementById('httpsAlert').classList.remove('hidden');
+  else       document.getElementById('httpsAlert').classList.add('hidden');
+})();
 
-// ═══════════════════════════════════════════════
-//  AUDIO CONTEXT
-// ═══════════════════════════════════════════════
-function ensureCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
+// ═══════════════════ UI HELPERS ═══════════════════
+function sv(id,v,sfx){ document.getElementById('sv-'+id).textContent=v+sfx; }
+function setStatus(txt,type){
+  document.getElementById('stext').textContent=txt;
+  const d=document.getElementById('sdot');
+  d.className='sdot'+(type==='active'?' active':type==='warn'?' warn':'');
 }
-
-// ═══════════════════════════════════════════════
-//  UI HELPERS
-// ═══════════════════════════════════════════════
-function updateVal(id, val, suffix) {
-  document.getElementById('val-' + id).textContent = val + suffix;
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800);
 }
-function toggleModule(id) {
-  const m = document.getElementById('mod-' + id);
-  m.classList.toggle('open');
+function toggleMod(id){ document.getElementById('mod-'+id).classList.toggle('open'); }
+function toggleSw(id){
+  SW[id]=!SW[id];
+  document.getElementById('tog-'+id).classList.toggle('on',SW[id]);
+  document.getElementById('mod-'+id).classList.toggle('enabled',SW[id]);
 }
-function toggleSwitch(id) {
-  switches[id] = !switches[id];
-  const tog = document.getElementById('tog-' + id);
-  const mod = document.getElementById('mod-' + id);
-  tog.classList.toggle('on', switches[id]);
-  mod.classList.toggle('enabled', switches[id]);
-}
-function setStatus(txt, type) {
-  document.getElementById('statusText').textContent = txt;
-  const d = document.getElementById('statusDot');
-  d.className = 'status-dot' + (type === 'active' ? ' active' : type === 'warn' ? ' warn' : '');
-  document.getElementById('statusSub').textContent = txt;
-}
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-function setLufs(v) {
-  document.getElementById('sl-lufsTarget').value = v;
-  updateVal('lufsTarget', v, ' LUFS');
-}
-
-// ═══════════════════════════════════════════════
-//  WAVEFORM
-// ═══════════════════════════════════════════════
-function drawWaveform(buf, color, secondary) {
-  const canvas = document.getElementById('waveCanvas');
-  const W = canvas.parentElement.offsetWidth;
-  const H = 96;
-  canvas.width  = W;
-  canvas.height = H;
-  const ctx2 = canvas.getContext('2d');
-  ctx2.clearRect(0, 0, W, H);
-  ctx2.fillStyle = '#080e18';
-  ctx2.fillRect(0, 0, W, H);
-
-  if (!buf) return;
-  const data  = buf.getChannelData(0);
-  const step  = Math.ceil(data.length / W);
-  const mid   = H / 2;
-
-  ctx2.strokeStyle = secondary || 'rgba(52,211,153,0.25)';
-  ctx2.lineWidth = 1;
-  ctx2.beginPath();
-  for (let x = 0; x < W; x++) {
-    let min = 1, max = -1;
-    for (let s = 0; s < step; s++) {
-      const v = data[x * step + s] || 0;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    ctx2.moveTo(x, mid + min * mid * 0.9);
-    ctx2.lineTo(x, mid + max * mid * 0.9);
-  }
-  ctx2.stroke();
-  document.getElementById('wfTime').textContent =
-    Math.floor(buf.duration / 60) + ':' + String(Math.round(buf.duration % 60)).padStart(2, '0');
-}
-
-function drawWaveformBoth() {
-  if (originalBuffer)  drawWaveform(originalBuffer, '#34d399', 'rgba(52,211,153,0.3)');
-  if (processedBuffer) {
-    const canvas = document.getElementById('waveCanvas');
-    const W = canvas.width, H = canvas.height;
-    const ctx2 = canvas.getContext('2d');
-    const data = processedBuffer.getChannelData(0);
-    const step = Math.ceil(data.length / W);
-    const mid  = H / 2;
-    ctx2.strokeStyle = 'rgba(251,191,36,0.6)';
-    ctx2.lineWidth = 1;
-    ctx2.beginPath();
-    for (let x = 0; x < W; x++) {
-      let min = 1, max = -1;
-      for (let s = 0; s < step; s++) {
-        const v = data[x * step + s] || 0;
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-      ctx2.moveTo(x, mid + min * mid * 0.9);
-      ctx2.lineTo(x, mid + max * mid * 0.9);
-    }
-    ctx2.stroke();
-  }
-}
-
-function updateVU(buf, prefix) {
-  if (!buf) return;
-  const data = buf.getChannelData(0);
-  let rms = 0;
-  for (let i = 0; i < data.length; i++) rms += data[i] * data[i];
-  rms = Math.sqrt(rms / data.length);
-  const db = 20 * Math.log10(rms + 1e-9);
-  const pct = Math.max(0, Math.min(100, (db + 60) / 60 * 100));
-  document.getElementById('vu' + prefix).style.width = pct + '%';
-  document.getElementById('vu' + prefix + 'Db').textContent = db.toFixed(1) + ' dB';
-}
-
-// ═══════════════════════════════════════════════
-//  RECORDING
-// ═══════════════════════════════════════════════
-async function toggleRecord() {
-  const btn = document.getElementById('recBtn');
-  if (isRecording) {
-    mediaRecorder.stop();
-    isRecording = false;
-    btn.textContent = '🔴 Record';
-    btn.classList.remove('recording');
-    setStatus('Processing recording…', '');
-  } else {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-      recordChunks = [];
-      mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' });
-      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordChunks.push(e.data); };
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(recordChunks, { type: recordChunks[0]?.type || 'audio/webm' });
-        await loadBlob(blob);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      mediaRecorder.start(100);
-      isRecording = true;
-      btn.innerHTML = '⏹ Stop Recording';
-      btn.classList.add('recording');
-      setStatus('Recording… (click Stop when done)', 'active');
-    } catch (e) {
-      showToast('Microphone access denied: ' + e.message);
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════
-//  LOAD AUDIO
-// ═══════════════════════════════════════════════
-async function loadFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  setStatus('Loading ' + file.name + '…', 'warn');
-  const blob = new Blob([await file.arrayBuffer()], { type: file.type });
-  await loadBlob(blob, file.name);
-}
-
-async function loadBlob(blob, name) {
-  try {
-    const ctx = ensureCtx();
-    const arrayBuf = await blob.arrayBuffer();
-    originalBuffer  = await ctx.decodeAudioData(arrayBuf);
-    processedBuffer = null;
-    activeBuffer    = originalBuffer;
-    drawWaveform(originalBuffer);
-    updateVU(originalBuffer, 'In');
-    document.getElementById('processBtn').disabled   = false;
-    document.getElementById('playBeforeBtn').disabled = false;
-    document.getElementById('playAfterBtn').disabled  = true;
-    document.getElementById('downloadBtn').disabled   = true;
-    document.getElementById('abRow').style.display    = 'none';
-    setStatus((name || 'Audio') + ' loaded — ' + originalBuffer.duration.toFixed(1) + 's ready. Click 🎚️ Process.', '');
-    showToast('Loaded! Click 🎚️ Process to apply effects.');
-  } catch (e) {
-    setStatus('Error loading audio: ' + e.message, 'warn');
-    showToast('Load error: ' + e.message);
-  }
-}
-
-// ═══════════════════════════════════════════════
-//  NOISE CAPTURE
-// ═══════════════════════════════════════════════
-async function captureNoise() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
-    const ctx = ensureCtx();
-    const src  = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    src.connect(analyser);
-    const el = document.getElementById('noiseStatus');
-    el.textContent = '🔴 Capturing 1s of background noise…';
-    el.className = 'noise-status';
-
-    await new Promise(r => setTimeout(r, 1000));
-
-    const data = new Float32Array(analyser.frequencyBinCount);
-    analyser.getFloatFrequencyData(data);
-    noiseProfile = data.map(v => Math.pow(10, v / 20));
-    stream.getTracks().forEach(t => t.stop());
-    el.textContent = '✅ Noise profile captured!';
-    el.className = 'noise-status ok';
-    showToast('Noise profile captured!');
-  } catch (e) {
-    showToast('Microphone error: ' + e.message);
-  }
-}
-
-// ═══════════════════════════════════════════════
-//  SIMPLE FFT (Cooley-Tukey, power-of-2)
-// ═══════════════════════════════════════════════
-function nextPow2(n) { let p = 1; while (p < n) p <<= 1; return p; }
-
-function fftRadix2(re, im) {
-  const n = re.length;
-  if (n <= 1) return;
-  // Bit reversal
-  let j = 0;
-  for (let i = 1; i < n; i++) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) {
-      [re[i], re[j]] = [re[j], re[i]];
-      [im[i], im[j]] = [im[j], im[i]];
-    }
-  }
-  // FFT butterfly
-  for (let len = 2; len <= n; len <<= 1) {
-    const ang = -2 * Math.PI / len;
-    const wRe = Math.cos(ang), wIm = Math.sin(ang);
-    for (let i = 0; i < n; i += len) {
-      let curRe = 1, curIm = 0;
-      for (let k = 0; k < len / 2; k++) {
-        const uRe = re[i+k], uIm = im[i+k];
-        const vRe = re[i+k+len/2]*curRe - im[i+k+len/2]*curIm;
-        const vIm = re[i+k+len/2]*curIm + im[i+k+len/2]*curRe;
-        re[i+k]         = uRe + vRe; im[i+k]         = uIm + vIm;
-        re[i+k+len/2]   = uRe - vRe; im[i+k+len/2]   = uIm - vIm;
-        const newRe = curRe*wRe - curIm*wIm;
-        curIm = curRe*wIm + curIm*wRe; curRe = newRe;
-      }
-    }
-  }
-}
-
-function ifftRadix2(re, im) {
-  // Conjugate, FFT, conjugate, scale
-  for (let i = 0; i < im.length; i++) im[i] = -im[i];
-  fftRadix2(re, im);
-  for (let i = 0; i < re.length; i++) { re[i] /= re.length; im[i] = -im[i] / re.length; }
-}
-
-// ═══════════════════════════════════════════════
-//  SPECTRAL SUBTRACTION (noise reduction)
-// ═══════════════════════════════════════════════
-function spectralSubtract(signal, noiseFloor, strength) {
-  const FFT_SIZE = 2048;
-  const HOP      = FFT_SIZE / 4;
-  const out      = new Float32Array(signal.length);
-  const norm     = new Float32Array(signal.length);
-
-  // Hanning window
-  const win = new Float32Array(FFT_SIZE);
-  for (let i = 0; i < FFT_SIZE; i++) win[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / FFT_SIZE));
-
-  for (let pos = 0; pos + FFT_SIZE <= signal.length; pos += HOP) {
-    const re = new Float32Array(FFT_SIZE);
-    const im = new Float32Array(FFT_SIZE);
-    for (let i = 0; i < FFT_SIZE; i++) re[i] = signal[pos + i] * win[i];
-
-    fftRadix2(re, im);
-
-    // Spectral subtraction
-    const alpha = strength / 100 * 2.0;
-    for (let k = 0; k < FFT_SIZE; k++) {
-      const mag = Math.sqrt(re[k]*re[k] + im[k]*im[k]);
-      const noise = noiseFloor[k % (FFT_SIZE/2)] || 0;
-      const newMag = Math.max(mag - alpha * noise, 0.05 * mag);
-      const scale  = mag > 1e-10 ? newMag / mag : 0;
-      re[k] *= scale; im[k] *= scale;
-    }
-
-    ifftRadix2(re, im);
-
-    // Overlap-add
-    for (let i = 0; i < FFT_SIZE; i++) {
-      if (pos + i < out.length) { out[pos+i] += re[i] * win[i]; norm[pos+i] += win[i] * win[i]; }
-    }
-  }
-  for (let i = 0; i < out.length; i++) out[i] = norm[i] > 0.01 ? out[i] / norm[i] : out[i];
-  return out;
-}
-
-// ═══════════════════════════════════════════════
-//  COMPRESSOR (sample-by-sample)
-// ═══════════════════════════════════════════════
-function applyCompressor(audio, rate, threshDb, ratio, atkMs, relMs, kneeDb) {
-  const atkC = Math.exp(-1 / (rate * atkMs / 1000));
-  const relC = Math.exp(-1 / (rate * relMs / 1000));
-  const out  = new Float32Array(audio.length);
-  let env    = 0;
-  const halfKnee = kneeDb / 2;
-  for (let i = 0; i < audio.length; i++) {
-    const level = Math.abs(audio[i]);
-    env = level > env ? atkC*env + (1-atkC)*level : relC*env + (1-relC)*level;
-    const envDb = 20 * Math.log10(env + 1e-9);
-    let gainDb  = 0;
-    const over  = envDb - threshDb;
-    if (over > halfKnee)       gainDb = (threshDb + (envDb-threshDb)/ratio) - envDb;
-    else if (over > -halfKnee) gainDb = (over+halfKnee)*(over+halfKnee) / (4*(kneeDb||0.001)) * (1/ratio-1);
-    out[i] = audio[i] * Math.pow(10, gainDb / 20);
-  }
-  return out;
-}
-
-// ═══════════════════════════════════════════════
-//  DE-ESSER (spectral)
-// ═══════════════════════════════════════════════
-function applyDeEsser(audio, rate, freqHz, threshPct, redPct) {
-  const FFT_SIZE = 2048;
-  const HOP      = FFT_SIZE / 4;
-  const out      = new Float32Array(audio.length);
-  const norm     = new Float32Array(audio.length);
-  const win      = new Float32Array(FFT_SIZE);
-  for (let i = 0; i < FFT_SIZE; i++) win[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / FFT_SIZE));
-  const freqBin   = Math.round(freqHz / (rate / FFT_SIZE));
-  const threshold = threshPct / 100 * 0.5;
-  const reduction = redPct / 100;
-
-  for (let pos = 0; pos + FFT_SIZE <= audio.length; pos += HOP) {
-    const re = new Float32Array(FFT_SIZE);
-    const im = new Float32Array(FFT_SIZE);
-    for (let i = 0; i < FFT_SIZE; i++) re[i] = audio[pos+i] * win[i];
-    fftRadix2(re, im);
-
-    // Compute high-freq energy
-    let hfEnergy = 0;
-    for (let k = freqBin; k < FFT_SIZE/2; k++) hfEnergy += re[k]*re[k] + im[k]*im[k];
-    hfEnergy = Math.sqrt(hfEnergy / (FFT_SIZE/2 - freqBin));
-
-    if (hfEnergy > threshold) {
-      const gain = 1 - reduction * Math.min((hfEnergy - threshold) / threshold, 1);
-      for (let k = freqBin; k < FFT_SIZE - freqBin; k++) { re[k] *= gain; im[k] *= gain; }
-    }
-
-    ifftRadix2(re, im);
-    for (let i = 0; i < FFT_SIZE; i++) {
-      if (pos+i < out.length) { out[pos+i] += re[i]*win[i]; norm[pos+i] += win[i]*win[i]; }
-    }
-  }
-  for (let i = 0; i < out.length; i++) out[i] = norm[i] > 0.01 ? out[i]/norm[i] : out[i];
-  return out;
-}
-
-// ═══════════════════════════════════════════════
-//  MAIN PROCESS
-// ═══════════════════════════════════════════════
-async function processAudio() {
-  if (!originalBuffer) return;
-
-  const btn = document.getElementById('processBtn');
-  btn.disabled = true;
-  btn.innerHTML = '⏳ Processing…';
-  setStatus('Applying processing chain…', 'warn');
-
-  await new Promise(r => setTimeout(r, 30));
-
-  try {
-    const ctx    = ensureCtx();
-    const rate   = originalBuffer.sampleRate;
-    let   audio  = originalBuffer.getChannelData(0).slice(); // copy
-
-    // ─ 1. NOISE REDUCTION ─
-    if (switches.noise) {
-      const str = parseInt(document.getElementById('sl-noiseStr').value);
-      let nf;
-      if (noiseProfile) {
-        nf = noiseProfile;
-      } else {
-        // Auto: derive noise floor from first 0.3s
-        const noiseSamples = audio.slice(0, Math.round(rate * 0.3));
-        const ns = Math.min(noiseSamples.length, 2048);
-        const re2 = new Float32Array(2048), im2 = new Float32Array(2048);
-        for (let i = 0; i < ns; i++) re2[i] = noiseSamples[i];
-        fftRadix2(re2, im2);
-        nf = new Float32Array(1024);
-        for (let k = 0; k < 1024; k++) nf[k] = Math.sqrt(re2[k]*re2[k] + im2[k]*im2[k]);
-      }
-      audio = spectralSubtract(audio, nf, str);
-    }
-
-    // ─ 2. HIGH-PASS + EQ via OfflineAudioContext ─
-    const offCtx = new OfflineAudioContext(1, audio.length, rate);
-    const srcBuf = offCtx.createBuffer(1, audio.length, rate);
-    srcBuf.copyToChannel(audio, 0);
-    const src = offCtx.createBufferSource();
-    src.buffer = srcBuf;
-
-    let node = src;
-
-    // HP filter
-    if (switches.hp) {
-      const hp = offCtx.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = parseInt(document.getElementById('sl-hpFreq').value);
-      hp.Q.value = [0, 0.707, 1.0, 1.3][parseInt(document.getElementById('sl-hpSlope').value)-1] || 0.707;
-      node.connect(hp); node = hp;
-    }
-    // Bass warmth
-    if (switches.bass) {
-      const ls = offCtx.createBiquadFilter();
-      ls.type = 'lowshelf';
-      ls.frequency.value = parseInt(document.getElementById('sl-bassFreq').value);
-      ls.gain.value = parseFloat(document.getElementById('sl-bassGain').value);
-      node.connect(ls); node = ls;
-    }
-    // Presence
-    if (switches.presence) {
-      const pk = offCtx.createBiquadFilter();
-      pk.type = 'peaking';
-      pk.frequency.value = parseInt(document.getElementById('sl-presFreq').value);
-      pk.gain.value = parseFloat(document.getElementById('sl-presGain').value);
-      pk.Q.value = parseFloat(document.getElementById('sl-presQ').value);
-      node.connect(pk); node = pk;
-    }
-    // Air
-    if (switches.air) {
-      const hs = offCtx.createBiquadFilter();
-      hs.type = 'highshelf';
-      hs.frequency.value = parseInt(document.getElementById('sl-airFreq').value);
-      hs.gain.value = parseFloat(document.getElementById('sl-airGain').value);
-      node.connect(hs); node = hs;
-    }
-    // Compressor
-    if (switches.comp) {
-      const comp = offCtx.createDynamicsCompressor();
-      comp.threshold.value = parseInt(document.getElementById('sl-compThresh').value);
-      comp.ratio.value     = parseFloat(document.getElementById('sl-compRatio').value);
-      comp.attack.value    = parseInt(document.getElementById('sl-compAtk').value) / 1000;
-      comp.release.value   = parseInt(document.getElementById('sl-compRel').value) / 1000;
-      comp.knee.value      = parseInt(document.getElementById('sl-compKnee').value);
-      node.connect(comp); node = comp;
-    }
-
-    node.connect(offCtx.destination);
-    src.start();
-    const rendered = await offCtx.startRendering();
-    audio = rendered.getChannelData(0).slice();
-
-    // ─ 3. DE-ESSER ─
-    if (switches.dess) {
-      audio = applyDeEsser(audio, rate,
-        parseInt(document.getElementById('sl-dessFreq').value),
-        parseInt(document.getElementById('sl-dessThresh').value),
-        parseInt(document.getElementById('sl-dessRed').value));
-    }
-
-    // ─ 4. LUFS NORMALIZE ─
-    if (switches.lufs) {
-      const targetLufs = parseInt(document.getElementById('sl-lufsTarget').value);
-      const rms = Math.sqrt(audio.reduce((s,x)=>s+x*x,0)/audio.length);
-      const targetRms = Math.pow(10, targetLufs / 20);
-      const g = targetRms / (rms + 1e-9);
-      for (let i = 0; i < audio.length; i++) audio[i] = Math.max(-0.891, Math.min(0.891, audio[i]*g));
-    }
-
-    // Build output buffer
-    processedBuffer = ctx.createBuffer(1, audio.length, rate);
-    processedBuffer.copyToChannel(audio, 0);
-
-    activeBuffer = processedBuffer;
-    drawWaveform(originalBuffer);
-    drawWaveformBoth();
-    updateVU(originalBuffer,  'In');
-    updateVU(processedBuffer, 'Out');
-
-    document.getElementById('playAfterBtn').disabled  = false;
-    document.getElementById('downloadBtn').disabled   = false;
-    document.getElementById('abRow').style.display    = 'flex';
-    setAB('after');
-    setStatus('✅ Processing complete! Play to hear the result.', '');
-    showToast('✅ Processing done! Play "After" to hear it.');
-
-  } catch (e) {
-    setStatus('Processing error: ' + e.message, 'warn');
-    showToast('Error: ' + e.message);
-    console.error(e);
-  }
-
-  btn.disabled = false;
-  btn.innerHTML = '🎚️ Process';
-}
-
-// ═══════════════════════════════════════════════
-//  PLAYBACK
-// ═══════════════════════════════════════════════
-function playAudio(which) {
-  const ctx = ensureCtx();
-  stopAudio();
-  const buf = which === 'after' ? processedBuffer : originalBuffer;
-  if (!buf) return;
-  activeBuffer = buf;
-
-  currentSource = ctx.createBufferSource();
-  currentSource.buffer = buf;
-
-  // Live VU during playback via AnalyserNode
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 256;
-  currentSource.connect(analyser);
-  analyser.connect(ctx.destination);
-
-  const vuFill = document.getElementById(which === 'after' ? 'vuOut' : 'vuIn');
-  const vuDb   = document.getElementById(which === 'after' ? 'vuOutDb' : 'vuInDb');
-  const vuData = new Float32Array(analyser.fftSize);
-
-  function animVU() {
-    if (!isPlaying) return;
-    analyser.getFloatTimeDomainData(vuData);
-    let rms = 0;
-    for (let i = 0; i < vuData.length; i++) rms += vuData[i]*vuData[i];
-    rms = Math.sqrt(rms/vuData.length);
-    const db = 20*Math.log10(rms+1e-9);
-    const pct = Math.max(0, Math.min(100, (db+60)/60*100));
-    vuFill.style.width = pct + '%';
-    vuDb.textContent   = db.toFixed(1) + ' dB';
-
-    // Playhead
-    const elapsed = ctx.currentTime - playStartTime;
-    const frac    = Math.min(elapsed / buf.duration, 1);
-    const ph = document.getElementById('playhead');
-    const cw = document.getElementById('waveCanvas').width;
-    ph.style.left    = (frac * cw) + 'px';
-    ph.style.display = 'block';
-
-    animRAF = requestAnimationFrame(animVU);
-  }
-
-  currentSource.onended = () => {
-    isPlaying = false;
-    document.getElementById('playhead').style.display = 'none';
-    cancelAnimationFrame(animRAF);
-    setStatus('Playback finished', '');
-  };
-
-  playStartTime = ctx.currentTime;
-  currentSource.start();
-  isPlaying = true;
-  setStatus('▶ Playing ' + (which === 'after' ? 'processed' : 'original') + '…', 'active');
-  animVU();
-}
-
-function stopAudio() {
-  if (currentSource) { try { currentSource.stop(); } catch(e){} currentSource = null; }
-  isPlaying = false;
-  cancelAnimationFrame(animRAF);
-  document.getElementById('playhead').style.display = 'none';
-}
-
-function setAB(which) {
-  document.getElementById('abA').classList.toggle('active', which === 'before');
-  document.getElementById('abB').classList.toggle('active', which === 'after');
-  stopAudio();
-  playAudio(which);
-}
-
-// ═══════════════════════════════════════════════
-//  DOWNLOAD WAV
-// ═══════════════════════════════════════════════
-function downloadAudio() {
-  if (!processedBuffer) return;
-  const rate  = processedBuffer.sampleRate;
-  const data  = processedBuffer.getChannelData(0);
-  const n     = data.length;
-  const buf   = new ArrayBuffer(44 + n*2);
-  const view  = new DataView(buf);
-  const str4  = (off,s) => { for(let i=0;i<4;i++) view.setUint8(off+i, s.charCodeAt(i)); };
-  str4(0,'RIFF'); view.setUint32(4, 36+n*2, true);
-  str4(8,'WAVE'); str4(12,'fmt ');
-  view.setUint32(16,16,true); view.setUint16(20,1,true);
-  view.setUint16(22,1,true);  view.setUint32(24,rate,true);
-  view.setUint32(28,rate*2,true); view.setUint16(32,2,true);
-  view.setUint16(34,16,true); str4(36,'data');
-  view.setUint32(40,n*2,true);
-  for (let i=0;i<n;i++) view.setInt16(44+i*2, Math.round(Math.max(-1,Math.min(1,data[i]))*32767), true);
-  const a = document.createElement('a');
-  a.href     = URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
-  a.download = 'ArthaNote-voice-clean.wav';
-  a.click();
-  showToast('💾 Downloaded as ArthaNote-voice-clean.wav');
-}
-
-// ═══════════════════════════════════════════════
-//  PRESETS
-// ═══════════════════════════════════════════════
-const PRESETS = {
-  reels:   { noiseStr:80, hpFreq:80,  bassGain:3,  bassFreq:200, presGain:4, presFreq:3000, presQ:2, airGain:3,  airFreq:8000,  compThresh:-18, compRatio:4,  compAtk:10, compRel:100, compKnee:6, dessFreq:6000, dessThresh:60, dessRed:50, lufsTarget:-14 },
-  youtube: { noiseStr:75, hpFreq:80,  bassGain:2,  bassFreq:180, presGain:3, presFreq:3000, presQ:2, airGain:2,  airFreq:9000,  compThresh:-20, compRatio:3,  compAtk:12, compRel:120, compKnee:6, dessFreq:6000, dessThresh:55, dessRed:45, lufsTarget:-16 },
-  podcast: { noiseStr:90, hpFreq:100, bassGain:1,  bassFreq:150, presGain:5, presFreq:2500, presQ:1.5,airGain:2, airFreq:10000, compThresh:-16, compRatio:3.5,compAtk:8,  compRel:80,  compKnee:4, dessFreq:7000, dessThresh:65, dessRed:55, lufsTarget:-19 },
-  voice:   { noiseStr:70, hpFreq:60,  bassGain:4,  bassFreq:250, presGain:3, presFreq:2500, presQ:1.5,airGain:1.5,airFreq:7000, compThresh:-22, compRatio:5,  compAtk:15, compRel:150, compKnee:8, dessFreq:5500, dessThresh:50, dessRed:40, lufsTarget:-12 },
-  flat:    { noiseStr:0,  hpFreq:20,  bassGain:0,  bassFreq:200, presGain:0, presFreq:3000, presQ:2, airGain:0,  airFreq:8000,  compThresh:-6,  compRatio:1,  compAtk:10, compRel:100, compKnee:0, dessFreq:6000, dessThresh:100,dessRed:0,  lufsTarget:-14 },
-};
-
-function applyPreset(name, btn) {
-  const p = PRESETS[name]; if (!p) return;
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+function setLufs(v,btn){
+  document.getElementById('sl-lufT').value=v;
+  sv('lufT',v,' LUFS');
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   btn.classList.add('active');
-  const set = (id, v, suf) => {
-    const el = document.getElementById('sl-'+id);
-    if (el) { el.value = v; updateVal(id, v, suf); }
-  };
-  set('noiseStr',    p.noiseStr,    '%');
-  set('hpFreq',      p.hpFreq,      ' Hz');
-  set('bassGain',    p.bassGain,    ' dB');
-  set('bassFreq',    p.bassFreq,    ' Hz');
-  set('presGain',    p.presGain,    ' dB');
-  set('presFreq',    p.presFreq,    ' Hz');
-  set('presQ',       p.presQ,       '');
-  set('airGain',     p.airGain,     ' dB');
-  set('airFreq',     p.airFreq,     ' Hz');
-  set('compThresh',  p.compThresh,  ' dB');
-  set('compRatio',   p.compRatio,   ':1');
-  set('compAtk',     p.compAtk,     ' ms');
-  set('compRel',     p.compRel,     ' ms');
-  set('compKnee',    p.compKnee,    ' dB');
-  set('dessFreq',    p.dessFreq,    ' Hz');
-  set('dessThresh',  p.dessThresh,  '%');
-  set('dessRed',     p.dessRed,     '%');
-  set('lufsTarget',  p.lufsTarget,  ' LUFS');
-  showToast('Preset applied: ' + btn.textContent.trim());
+}
+function setProgress(pct){
+  const w=document.getElementById('progWrap');
+  const b=document.getElementById('progBar');
+  w.style.display=pct>0&&pct<100?'block':'none';
+  b.style.width=pct+'%';
 }
 
-// ═══════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════
-window.addEventListener('resize', () => { if(originalBuffer) drawWaveformBoth(); });
-drawWaveform(null);
+// ═══════════════════ AUDIO CONTEXT ═══════════════════
+function ctx(){ if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();} if(audioCtx.state==='suspended')audioCtx.resume(); return audioCtx; }
+
+// ═══════════════════ WAVEFORM ═══════════════════
+function drawWaveform(){
+  const canvas=document.getElementById('waveCanvas');
+  const W=canvas.parentElement.offsetWidth; const H=80;
+  canvas.width=W; canvas.height=H;
+  const c=canvas.getContext('2d');
+  c.fillStyle='#060d1a'; c.fillRect(0,0,W,H);
+  // center line
+  c.strokeStyle='rgba(255,255,255,.05)'; c.lineWidth=1;
+  c.beginPath(); c.moveTo(0,H/2); c.lineTo(W,H/2); c.stroke();
+  if(!origBuf&&!procBuf){ setWfTime(0); return; }
+  // draw original (green)
+  if(origBuf) drawBuf(c,origBuf,W,H,'rgba(52,211,153,.4)');
+  // draw processed (amber) overlay
+  if(procBuf) drawBuf(c,procBuf,W,H,'rgba(251,191,36,.65)');
+  setWfTime(origBuf?origBuf.duration:procBuf?procBuf.duration:0);
+}
+function drawBuf(c,buf,W,H,color){
+  const data=buf.getChannelData(0); const step=Math.ceil(data.length/W); const mid=H/2;
+  c.strokeStyle=color; c.lineWidth=1; c.beginPath();
+  for(let x=0;x<W;x++){
+    let mn=1,mx=-1;
+    for(let s=0;s<step;s++){const v=data[x*step+s]||0;if(v<mn)mn=v;if(v>mx)mx=v;}
+    c.moveTo(x,mid+mn*mid*.85); c.lineTo(x,mid+mx*mid*.85);
+  }
+  c.stroke();
+}
+function setWfTime(dur){
+  document.getElementById('wfTime').textContent=Math.floor(dur/60)+':'+String(Math.round(dur%60)).padStart(2,'0');
+}
+function updateVU(buf,sfx){
+  if(!buf)return;
+  const d=buf.getChannelData(0); let rms=0;
+  for(let i=0;i<d.length;i++)rms+=d[i]*d[i];
+  rms=Math.sqrt(rms/d.length);
+  const db=20*Math.log10(rms+1e-9);
+  const pct=Math.max(0,Math.min(100,(db+60)/60*100));
+  document.getElementById('vu'+sfx).style.width=pct+'%';
+  document.getElementById('vu'+sfx+'Db').textContent=db.toFixed(1)+' dB';
+}
+
+// ═══════════════════ RECORD ═══════════════════
+async function toggleRecord(){
+  const btn=document.getElementById('recBtn');
+  if(isRec){
+    recorder.stop(); isRec=false;
+    btn.textContent='🔴 Record'; btn.classList.remove('recording');
+    setStatus('Processing recording…','warn');
+    return;
+  }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,sampleRate:44100}
+    });
+    recChunks=[];
+    const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
+    recorder=new MediaRecorder(stream,{mimeType:mime});
+    recorder.ondataavailable=e=>{if(e.data.size>0)recChunks.push(e.data);};
+    recorder.onstop=async()=>{ await loadBlob(new Blob(recChunks,{type:mime}),'Recording'); stream.getTracks().forEach(t=>t.stop()); };
+    recorder.start(100); isRec=true;
+    btn.innerHTML='⏹ Stop'; btn.classList.add('recording');
+    setStatus('🔴 Recording… click Stop when done','active');
+  }catch(e){
+    let msg='Microphone error: '+e.message;
+    if(e.name==='NotAllowedError')  msg='Microphone permission denied. Allow in browser settings.';
+    if(e.name==='NotSupportedError')msg='Recording needs HTTPS. Open arthanote.com/voice';
+    if(e.name==='NotFoundError')    msg='No microphone found.';
+    showToast('❌ '+msg);
+    setStatus(msg,'warn');
+    document.getElementById('httpsAlert').classList.remove('hidden');
+  }
+}
+
+// ═══════════════════ LOAD ═══════════════════
+async function loadFile(inp){
+  const f=inp.files[0]; if(!f)return;
+  setStatus('Loading '+f.name+'…','warn');
+  await loadBlob(new Blob([await f.arrayBuffer()],{type:f.type}),f.name);
+}
+async function loadBlob(blob,name){
+  try{
+    const ab=await blob.arrayBuffer();
+    origBuf=await ctx().decodeAudioData(ab);
+    procBuf=null;
+    // Auto noise profile from first 0.5s
+    const ns=Math.round(origBuf.sampleRate*.5);
+    const ndata=origBuf.getChannelData(0).slice(0,ns);
+    noiseProfileAuto=computeNoiseSpectrum(ndata,2048);
+    drawWaveform(); updateVU(origBuf,'In');
+    document.getElementById('btnProc').disabled=false;
+    document.getElementById('btnBefore').disabled=false;
+    document.getElementById('btnAfter').disabled=true;
+    document.getElementById('btnDl').disabled=true;
+    document.getElementById('abRow').style.display='none';
+    setStatus((name||'Audio')+' loaded ('+origBuf.duration.toFixed(1)+'s). Click 🤖 AI Process.','');
+    showToast('Loaded! Click 🤖 AI Process to clean voice.');
+  }catch(e){ showToast('Load error: '+e.message); setStatus('Error: '+e.message,'warn'); }
+}
+
+// ═══════════════════ NOISE CAPTURE ═══════════════════
+async function captureNoise(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false}});
+    const ac=ctx(); const src=ac.createMediaStreamSource(stream);
+    const an=ac.createAnalyser(); an.fftSize=2048; src.connect(an);
+    const el=document.getElementById('ncapSt');
+    el.textContent='🔴 Recording 1.5s noise…'; el.className='ncap-status';
+    await new Promise(r=>setTimeout(r,1500));
+    const fd=new Float32Array(an.frequencyBinCount);
+    an.getFloatFrequencyData(fd);
+    noiseProfile=fd.map(v=>Math.max(Math.pow(10,v/20),1e-6));
+    stream.getTracks().forEach(t=>t.stop());
+    el.textContent='✅ Noise profile captured!'; el.className='ncap-status ok';
+    showToast('Noise profile ready!');
+  }catch(e){ showToast('Mic error: '+e.message); }
+}
+
+// ═══════════════════ FFT (Cooley-Tukey iterative) ═══════════════════
+function fft(re,im){
+  const n=re.length; let j=0;
+  for(let i=1;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1)j^=bit;
+    j^=bit;
+    if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len, wRe=Math.cos(ang), wIm=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cRe=1,cIm=0;
+      for(let k=0;k<len/2;k++){
+        const uR=re[i+k],uI=im[i+k];
+        const vR=re[i+k+len/2]*cRe-im[i+k+len/2]*cIm;
+        const vI=re[i+k+len/2]*cIm+im[i+k+len/2]*cRe;
+        re[i+k]=uR+vR; im[i+k]=uI+vI;
+        re[i+k+len/2]=uR-vR; im[i+k+len/2]=uI-vI;
+        const nR=cRe*wRe-cIm*wIm; cIm=cRe*wIm+cIm*wRe; cRe=nR;
+      }
+    }
+  }
+}
+function ifft(re,im){
+  for(let i=0;i<im.length;i++)im[i]=-im[i];
+  fft(re,im);
+  for(let i=0;i<re.length;i++){re[i]/=re.length;im[i]=-im[i]/re.length;}
+}
+
+// ═══════════════════ NOISE SPECTRUM ESTIMATE ═══════════════════
+function computeNoiseSpectrum(samples,N){
+  const len=Math.min(samples.length,N);
+  const re=new Float32Array(N), im=new Float32Array(N);
+  const win=new Float32Array(N);
+  for(let i=0;i<N;i++)win[i]=0.5*(1-Math.cos(2*Math.PI*i/N));
+  for(let i=0;i<len;i++)re[i]=samples[i]*win[i];
+  fft(re,im);
+  const spec=new Float32Array(N/2);
+  for(let k=0;k<N/2;k++)spec[k]=Math.sqrt(re[k]*re[k]+im[k]*im[k]);
+  return spec;
+}
+
+// ═══════════════════ AI WIENER FILTER (Decision-Directed MMSE) ═══════════════════
+function wienerFilter(signal, noiseFloor, strength, alpha){
+  // Decision-Directed MMSE Wiener: SNR_prio = alpha*|Y_prev|^2/noise^2 + (1-alpha)*max(SNR_post-1,0)
+  // Gain: H = SNR_prio / (1 + SNR_prio)   (MMSE optimal)
+  const N=2048, HOP=N/4;
+  const out=new Float32Array(signal.length);
+  const norm=new Float32Array(signal.length);
+  const win=new Float32Array(N);
+  for(let i=0;i<N;i++)win[i]=0.5*(1-Math.cos(2*Math.PI*i/N));
+  const prevMag=new Float32Array(N/2).fill(0.001);
+  const str=strength/100;
+
+  for(let pos=0;pos+N<=signal.length;pos+=HOP){
+    const re=new Float32Array(N), im=new Float32Array(N);
+    for(let i=0;i<N;i++)re[i]=signal[pos+i]*win[i];
+    fft(re,im);
+
+    for(let k=0;k<N/2;k++){
+      const mag=Math.sqrt(re[k]*re[k]+im[k]*im[k]);
+      const noise=noiseFloor[k%noiseFloor.length]||0.001;
+      const noise2=noise*noise;
+      // A posteriori SNR
+      const snrPost=Math.max(mag*mag/noise2-1,0);
+      // A priori SNR (decision-directed)
+      const snrPrior=alpha*(prevMag[k]*prevMag[k]/noise2)+(1-alpha)*snrPost;
+      // MMSE Wiener gain
+      let gain=snrPrior/(1+snrPrior);
+      gain=gain*str+(1-str);
+      const newMag=Math.max(mag*gain,0.01*mag); // 1% floor to avoid musical noise
+      prevMag[k]=newMag;
+      const scale=mag>1e-10?newMag/mag:0;
+      re[k]*=scale; im[k]*=scale;
+      if(k>0&&k<N/2){re[N-k]*=scale;im[N-k]*=scale;}
+    }
+
+    ifft(re,im);
+    for(let i=0;i<N;i++){
+      if(pos+i<out.length){out[pos+i]+=re[i]*win[i];norm[pos+i]+=win[i]*win[i];}
+    }
+  }
+  for(let i=0;i<out.length;i++)out[i]=norm[i]>0.01?out[i]/norm[i]:out[i];
+  return out;
+}
+
+// ═══════════════════ DE-ESSER ═══════════════════
+function deEsser(signal,rate,freqHz,threshPct,redPct){
+  const N=2048, HOP=N/4;
+  const out=new Float32Array(signal.length);
+  const norm=new Float32Array(signal.length);
+  const win=new Float32Array(N);
+  for(let i=0;i<N;i++)win[i]=0.5*(1-Math.cos(2*Math.PI*i/N));
+  const bin=Math.round(freqHz/(rate/N));
+  const thresh=threshPct/100*0.4;
+  const red=redPct/100;
+  for(let pos=0;pos+N<=signal.length;pos+=HOP){
+    const re=new Float32Array(N),im=new Float32Array(N);
+    for(let i=0;i<N;i++)re[i]=signal[pos+i]*win[i];
+    fft(re,im);
+    let hf=0; for(let k=bin;k<N/2;k++)hf+=re[k]*re[k]+im[k]*im[k];
+    hf=Math.sqrt(hf/(N/2-bin));
+    if(hf>thresh){
+      const g=1-red*Math.min((hf-thresh)/thresh,1);
+      for(let k=bin;k<N-bin;k++){re[k]*=g;im[k]*=g;}
+    }
+    ifft(re,im);
+    for(let i=0;i<N;i++){if(pos+i<out.length){out[pos+i]+=re[i]*win[i];norm[pos+i]+=win[i]*win[i];}}
+  }
+  for(let i=0;i<out.length;i++)out[i]=norm[i]>0.01?out[i]/norm[i]:out[i];
+  return out;
+}
+
+// ═══════════════════ MAIN PROCESS ═══════════════════
+async function processAudio(){
+  if(!origBuf)return;
+  const btn=document.getElementById('btnProc');
+  btn.disabled=true; btn.innerHTML='⏳ Processing…';
+  setStatus('AI processing…','warn');
+  setProgress(5);
+  await new Promise(r=>setTimeout(r,30));
+
+  try{
+    const rate=origBuf.sampleRate;
+    let audio=origBuf.getChannelData(0).slice();
+    setProgress(10);
+
+    // 1. WIENER NOISE REDUCTION
+    if(SW.nr){
+      const nf=noiseProfile||noiseProfileAuto;
+      if(nf){
+        const str=parseInt(document.getElementById('sl-nrStr').value);
+        const alpha=parseInt(document.getElementById('sl-nrAlpha').value)/100;
+        const floorMult=parseInt(document.getElementById('sl-nrFloor').value);
+        const scaledNF=nf.map(v=>v*floorMult);
+        audio=wienerFilter(audio,scaledNF,str,alpha);
+      }
+    }
+    setProgress(40);
+
+    // 2-6. EQ + COMPRESSOR via OfflineAudioContext
+    const off=new OfflineAudioContext(1,audio.length,rate);
+    const srcBuf=off.createBuffer(1,audio.length,rate);
+    srcBuf.copyToChannel(audio,0);
+    const src=off.createBufferSource(); src.buffer=srcBuf;
+    let node=src;
+
+    if(SW.hp){
+      const f=off.createBiquadFilter(); f.type='highpass';
+      f.frequency.value=parseInt(document.getElementById('sl-hpFreq').value);
+      f.Q.value=[0.707,0.707,1.0,1.3][Math.min(parseInt(document.getElementById('sl-hpSlope').value)-1,3)];
+      node.connect(f); node=f;
+    }
+    if(SW.bass){
+      const f=off.createBiquadFilter(); f.type='lowshelf';
+      f.frequency.value=parseInt(document.getElementById('sl-bassF').value);
+      f.gain.value=parseFloat(document.getElementById('sl-bassG').value);
+      node.connect(f); node=f;
+    }
+    if(SW.pres){
+      const f=off.createBiquadFilter(); f.type='peaking';
+      f.frequency.value=parseInt(document.getElementById('sl-presF').value);
+      f.gain.value=parseFloat(document.getElementById('sl-presG').value);
+      f.Q.value=parseFloat(document.getElementById('sl-presQ').value);
+      node.connect(f); node=f;
+    }
+    if(SW.air){
+      const f=off.createBiquadFilter(); f.type='highshelf';
+      f.frequency.value=parseInt(document.getElementById('sl-airF').value);
+      f.gain.value=parseFloat(document.getElementById('sl-airG').value);
+      node.connect(f); node=f;
+    }
+    if(SW.comp){
+      const c=off.createDynamicsCompressor();
+      c.threshold.value=parseInt(document.getElementById('sl-cTh').value);
+      c.ratio.value=parseFloat(document.getElementById('sl-cRa').value);
+      c.attack.value=parseInt(document.getElementById('sl-cAt').value)/1000;
+      c.release.value=parseInt(document.getElementById('sl-cRl').value)/1000;
+      c.knee.value=parseInt(document.getElementById('sl-cKn').value);
+      node.connect(c); node=c;
+    }
+    node.connect(off.destination); src.start();
+    const rendered=await off.startRendering();
+    audio=rendered.getChannelData(0).slice();
+    setProgress(70);
+
+    // 7. DE-ESSER
+    if(SW.de){
+      audio=deEsser(audio,rate,
+        parseInt(document.getElementById('sl-deF').value),
+        parseInt(document.getElementById('sl-deTh').value),
+        parseInt(document.getElementById('sl-deRd').value));
+    }
+    setProgress(88);
+
+    // 8. LOUDNESS NORMALIZE
+    if(SW.luf){
+      const target=parseInt(document.getElementById('sl-lufT').value);
+      const rms=Math.sqrt(audio.reduce((s,x)=>s+x*x,0)/audio.length);
+      const tRms=Math.pow(10,target/20);
+      const g=tRms/(rms+1e-9);
+      for(let i=0;i<audio.length;i++)audio[i]=Math.max(-0.891,Math.min(0.891,audio[i]*g));
+    }
+    setProgress(96);
+
+    procBuf=ctx().createBuffer(1,audio.length,rate);
+    procBuf.copyToChannel(audio,0);
+    drawWaveform();
+    updateVU(origBuf,'In'); updateVU(procBuf,'Out');
+    document.getElementById('btnAfter').disabled=false;
+    document.getElementById('btnDl').disabled=false;
+    document.getElementById('abRow').style.display='flex';
+    setAB('after');
+    setProgress(100);
+    setTimeout(()=>setProgress(0),800);
+    setStatus('✅ AI processing complete! A/B compare பண்ணுங்க.','');
+    showToast('✅ AI Voice cleaning done!');
+  }catch(e){
+    setStatus('Error: '+e.message,'warn');
+    showToast('Error: '+e.message);
+    console.error(e);
+    setProgress(0);
+  }
+  btn.disabled=false; btn.innerHTML='🤖 AI Process';
+}
+
+// ═══════════════════ PLAYBACK ═══════════════════
+function stopPlay(){
+  if(curSrc){try{curSrc.stop();}catch(e){} curSrc=null;}
+  cancelAnimationFrame(playRAF); isPlay=false;
+  document.getElementById('playhead').style.display='none';
+}
+function playAudio(which){
+  stopPlay();
+  const buf=which==='after'?procBuf:origBuf; if(!buf)return;
+  const ac=ctx();
+  curSrc=ac.createBufferSource(); curSrc.buffer=buf;
+  const an=ac.createAnalyser(); an.fftSize=512;
+  curSrc.connect(an); an.connect(ac.destination);
+  const vuF=document.getElementById(which==='after'?'vuOut':'vuIn');
+  const vuD=document.getElementById((which==='after'?'vuOut':'vuIn')+'Db');
+  const td=new Float32Array(an.fftSize);
+  const canvas=document.getElementById('waveCanvas');
+  function tick(){
+    if(!isPlay)return;
+    an.getFloatTimeDomainData(td);
+    let rms=0; for(let i=0;i<td.length;i++)rms+=td[i]*td[i];
+    rms=Math.sqrt(rms/td.length);
+    const db=20*Math.log10(rms+1e-9);
+    const pct=Math.max(0,Math.min(100,(db+60)/60*100));
+    vuF.style.width=pct+'%'; vuD.textContent=db.toFixed(1)+' dB';
+    const elapsed=ac.currentTime-playStart;
+    const frac=Math.min(elapsed/buf.duration,1);
+    const ph=document.getElementById('playhead');
+    ph.style.left=(frac*canvas.width)+'px'; ph.style.display='block';
+    playRAF=requestAnimationFrame(tick);
+  }
+  curSrc.onended=()=>{ isPlay=false; document.getElementById('playhead').style.display='none'; cancelAnimationFrame(playRAF); setStatus('Playback done',''); };
+  playStart=ac.currentTime; curSrc.start(); isPlay=true;
+  setStatus('▶ Playing '+(which==='after'?'AI processed':'original')+'…','active');
+  tick();
+}
+function setAB(w){
+  document.getElementById('abA').classList.toggle('active',w==='before');
+  document.getElementById('abB').classList.toggle('active',w==='after');
+  stopPlay(); playAudio(w);
+}
+
+// ═══════════════════ DOWNLOAD WAV ═══════════════════
+function downloadAudio(){
+  if(!procBuf)return;
+  const rate=procBuf.sampleRate, data=procBuf.getChannelData(0), n=data.length;
+  const buf=new ArrayBuffer(44+n*2); const view=new DataView(buf);
+  const s4=(o,s)=>{for(let i=0;i<4;i++)view.setUint8(o+i,s.charCodeAt(i));};
+  s4(0,'RIFF'); view.setUint32(4,36+n*2,true);
+  s4(8,'WAVE'); s4(12,'fmt '); view.setUint32(16,16,true);
+  view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,rate,true); view.setUint32(28,rate*2,true);
+  view.setUint16(32,2,true); view.setUint16(34,16,true);
+  s4(36,'data'); view.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++)view.setInt16(44+i*2,Math.round(Math.max(-1,Math.min(1,data[i]))*32767),true);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+  a.download='voice-clean.wav'; a.click();
+  showToast('💾 Downloaded voice-clean.wav');
+}
+
+// ═══════════════════ PRESETS ═══════════════════
+const PRESETS={
+  reels: {nrStr:85,nrAlpha:92,nrFloor:4,hpFreq:80,hpSlope:2,bassG:3,bassF:200,presG:4,presF:3000,presQ:2,airG:3,airF:8000,cTh:-18,cRa:4,cAt:10,cRl:100,cKn:6,deF:6000,deTh:60,deRd:50,lufT:-14},
+  youtube:{nrStr:78,nrAlpha:90,nrFloor:3,hpFreq:80,hpSlope:2,bassG:2,bassF:200,presG:3,presF:3000,presQ:2,airG:2,airF:9000,cTh:-20,cRa:3,cAt:12,cRl:120,cKn:6,deF:6000,deTh:55,deRd:45,lufT:-16},
+  podcast:{nrStr:90,nrAlpha:95,nrFloor:5,hpFreq:100,hpSlope:2,bassG:1,bassF:150,presG:5,presF:2500,presQ:1.5,airG:2,airF:10000,cTh:-16,cRa:3.5,cAt:8,cRl:80,cKn:4,deF:7000,deTh:65,deRd:55,lufT:-19},
+  clean: {nrStr:100,nrAlpha:98,nrFloor:6,hpFreq:100,hpSlope:3,bassG:2,bassF:180,presG:5,presF:2800,presQ:2,airG:3,airF:8000,cTh:-15,cRa:5,cAt:8,cRl:80,cKn:4,deF:5500,deTh:50,deRd:60,lufT:-14},
+  flat:  {nrStr:0, nrAlpha:92,nrFloor:1,hpFreq:20, hpSlope:1,bassG:0,bassF:200,presG:0,presF:3000,presQ:2,airG:0,airF:8000,cTh:-6, cRa:1,cAt:10,cRl:100,cKn:0,deF:6000,deTh:100,deRd:0,lufT:-14}
+};
+function applyPreset(name,btn){
+  const p=PRESETS[name]; if(!p)return;
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const set=(id,v,sfx)=>{const el=document.getElementById('sl-'+id);if(el){el.value=v;sv(id,v,sfx);}};
+  set('nrStr',p.nrStr,'%'); set('nrAlpha',p.nrAlpha,'%'); set('nrFloor',p.nrFloor,'');
+  set('hpFreq',p.hpFreq,' Hz'); set('hpSlope',p.hpSlope,' pole');
+  set('bassG',p.bassG,' dB'); set('bassF',p.bassF,' Hz');
+  set('presG',p.presG,' dB'); set('presF',p.presF,' Hz'); set('presQ',p.presQ,'');
+  set('airG',p.airG,' dB'); set('airF',p.airF,' Hz');
+  set('cTh',p.cTh,' dB'); set('cRa',p.cRa,':1'); set('cAt',p.cAt,' ms'); set('cRl',p.cRl,' ms'); set('cKn',p.cKn,' dB');
+  set('deF',p.deF,' Hz'); set('deTh',p.deTh,'%'); set('deRd',p.deRd,'%');
+  set('lufT',p.lufT,' LUFS');
+  showToast('Preset: '+btn.textContent.trim());
+}
+
+window.addEventListener('resize',()=>drawWaveform());
+drawWaveform();
 </script>
 </body>
 </html>
