@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>ArthaNote – Text Post</title>
+<style>
+  :root {
+    --p: #065f46;
+    --s: #059669;
+    --a: #d97706;
+    --bg: #ffffff;
+    --txt: #111827;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    position: relative;
+  }
+  /* Header */
+  .header {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 110px;
+    background: linear-gradient(135deg, var(--p) 0%, var(--s) 100%);
+    display: flex; align-items: center; padding: 0 56px;
+    z-index: 10;
+  }
+  .logo-mark {
+    width: 52px; height: 52px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin-right: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+  }
+  .logo-text { color: #fff; }
+  .logo-text .name { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text .tagline { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+
+  /* Footer */
+  .footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 90px;
+    background: linear-gradient(135deg, var(--p) 0%, var(--s) 100%);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+    overflow: hidden;
+  }
+  .footer-url {
+    font-size: 32px; font-weight: 800; color: #fff;
+    letter-spacing: 1px;
+    transform: translateY(100px);
+    animation: slideUp 0.6s ease forwards;
+    animation-delay: 5.5s;
+  }
+  .footer-sub { font-size: 15px; color: rgba(255,255,255,0.75); margin-top: 4px; }
+
+  /* Main content area */
+  .content {
+    position: absolute;
+    top: 110px; bottom: 90px; left: 0; right: 0;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 60px 80px;
+    background: #fff;
+  }
+
+  /* Emoji */
+  .big-emoji {
+    font-size: 90px; line-height: 1;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;
+    animation-delay: 0.3s;
+  }
+
+  /* Headline */
+  .headline {
+    font-size: 58px; font-weight: 900;
+    color: var(--txt);
+    text-align: center;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+    min-height: 130px;
+    display: flex; flex-wrap: wrap;
+    justify-content: center; align-items: flex-start;
+    gap: 12px;
+  }
+  .headline .word {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: wordIn 0.4s ease forwards;
+  }
+
+  /* Subtext */
+  .subtext {
+    font-size: 24px; color: #6b7280;
+    text-align: center; margin-bottom: 40px;
+    opacity: 0;
+    animation: fadeIn 0.5s ease forwards;
+    animation-delay: 2.5s;
+  }
+
+  /* Points */
+  .points { width: 100%; max-width: 860px; }
+  .point {
+    display: flex; align-items: center;
+    padding: 16px 24px; margin-bottom: 14px;
+    background: #f0fdf4;
+    border-radius: 16px;
+    border-left: 6px solid var(--s);
+    opacity: 0;
+    transform: translateX(-40px);
+    animation: slideRight 0.5s ease forwards;
+  }
+  .point .bullet {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--s);
+    color: #fff; font-weight: 800; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-right: 18px;
+  }
+  .point .pt-text { font-size: 22px; color: var(--txt); font-weight: 600; }
+
+  /* Animations */
+  @keyframes slideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+  }
+  @keyframes popIn {
+    from { transform: scale(0.3); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  @keyframes wordIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slideRight {
+    from { opacity: 0; transform: translateX(-40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes headerIn {
+    from { opacity: 0; transform: translateY(-100px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .header { animation: headerIn 0.7s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+  /* Accent color variant */
+  body.amber .point { background: #fffbeb; border-left-color: var(--a); }
+  body.amber .point .bullet { background: var(--a); }
+  body.amber .header, body.amber .footer { background: linear-gradient(135deg, #92400e, var(--a)); }
+</style>
+</head>
+<body id="body">
+  <div class="header">
+    <div class="logo-mark">₹</div>
+    <div class="logo-text">
+      <div class="name">ArthaNote</div>
+      <div class="tagline">Smart Shop Ledger · Tamil Nadu</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="big-emoji" id="emoji">📒</div>
+    <div class="headline" id="headline"></div>
+    <div class="subtext" id="subtext">உங்கள் கடையை டிஜிட்டல் ஆக்குங்கள்</div>
+    <div class="points" id="points"></div>
+  </div>
+
+  <div class="footer">
+    <div>
+      <div class="footer-url">arthanote.com</div>
+    </div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const headline = params.get('headline') || 'உங்கள் கடை லெட்ஜரை டிஜிட்டல் ஆக்குங்கள்!';
+  const subtext  = params.get('subtext')  || 'Free • Offline • Tamil & English';
+  const rawPts   = params.get('points')   || 'Daily sales in 10 seconds|Never lose a rupee|Works offline always|Multi-shop in one app';
+  const emoji    = params.get('emoji')    || '📒';
+  const color    = params.get('color')    || 'green';
+
+  if (color === 'amber') document.getElementById('body').classList.add('amber');
+
+  document.getElementById('emoji').textContent = emoji;
+  document.getElementById('subtext').textContent = subtext;
+
+  // Animate headline word by word
+  const hEl = document.getElementById('headline');
+  headline.split(' ').forEach((w, i) => {
+    const span = document.createElement('span');
+    span.className = 'word';
+    span.textContent = w;
+    span.style.animationDelay = (1 + i * 0.18) + 's';
+    hEl.appendChild(span);
+  });
+
+  // Points
+  const pts = rawPts.split('|');
+  const pEl = document.getElementById('points');
+  pts.forEach((pt, i) => {
+    const div = document.createElement('div');
+    div.className = 'point';
+    div.style.animationDelay = (3 + i * 0.8) + 's';
+    div.innerHTML = `<div class="bullet">${i+1}</div><div class="pt-text">${pt}</div>`;
+    pEl.appendChild(div);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>ArthaNote – Feature Card</title>
+<style>
+  :root {
+    --p: #065f46;
+    --s: #059669;
+    --a: #d97706;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px;
+    overflow: hidden;
+    background: linear-gradient(145deg, #022c22 0%, #065f46 45%, #059669 100%);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative;
+  }
+
+  /* Background pattern */
+  .bg-pattern {
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 80%, rgba(5,150,105,0.25) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(217,119,6,0.15) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .grid-lines {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* Top branding */
+  .top-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 80px;
+    display: flex; align-items: center;
+    padding: 0 56px;
+    opacity: 0;
+    animation: fadeDown 0.6s ease forwards 0.2s;
+  }
+  .logo-pill {
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-radius: 40px;
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-pill .mark { font-size: 22px; }
+  .logo-pill .name { font-size: 20px; font-weight: 800; color: #fff; }
+
+  /* Main card */
+  .card {
+    width: 900px;
+    background: rgba(255,255,255,0.08);
+    border: 1.5px solid rgba(255,255,255,0.18);
+    border-radius: 36px;
+    padding: 64px 72px 56px;
+    backdrop-filter: blur(20px);
+    position: relative;
+    z-index: 5;
+    opacity: 0;
+    transform: scale(0.82);
+    animation: cardIn 0.7s cubic-bezier(0.16,1,0.3,1) forwards 0.5s;
+    box-shadow:
+      0 40px 80px rgba(0,0,0,0.4),
+      0 0 0 1px rgba(255,255,255,0.1),
+      inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+
+  /* Glow */
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 38px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent, rgba(5,150,105,0.3));
+    z-index: -1;
+    animation: glowPulse 3s ease-in-out infinite;
+    animation-delay: 2s;
+  }
+
+  /* Icon */
+  .feat-icon {
+    width: 110px; height: 110px;
+    background: linear-gradient(135deg, var(--a), #f59e0b);
+    border-radius: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 58px;
+    margin-bottom: 32px;
+    box-shadow: 0 16px 40px rgba(217,119,6,0.4);
+    animation: bounce 0.6s cubic-bezier(0.36,0.07,0.19,0.97) forwards 1.3s;
+    transform: scale(0);
+  }
+
+  .feat-title {
+    font-size: 52px; font-weight: 900;
+    color: #fff; line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 14px;
+    opacity: 0;
+    transform: translateX(-30px);
+    animation: slideRight 0.5s ease forwards 1.6s;
+  }
+  .feat-desc {
+    font-size: 22px; color: rgba(255,255,255,0.75);
+    line-height: 1.5; margin-bottom: 44px;
+    opacity: 0;
+    animation: fadeIn 0.5s ease forwards 2s;
+  }
+
+  /* Sub-points grid */
+  .points-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .pt {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: ptIn 0.4s ease forwards;
+  }
+  .pt .pt-icon { font-size: 28px; }
+  .pt .pt-label { font-size: 19px; font-weight: 600; color: rgba(255,255,255,0.9); }
+
+  /* Footer */
+  .bottom-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 80px;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 56px;
+    opacity: 0;
+    animation: fadeIn 0.5s ease forwards 3.6s;
+  }
+  .url-badge {
+    background: var(--a);
+    color: #fff; font-size: 18px; font-weight: 800;
+    padding: 10px 28px; border-radius: 40px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Animations */
+  @keyframes fadeDown {
+    from { opacity:0; transform: translateY(-20px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes cardIn {
+    from { opacity:0; transform: scale(0.82); }
+    to   { opacity:1; transform: scale(1); }
+  }
+  @keyframes bounce {
+    0%   { transform: scale(0); }
+    60%  { transform: scale(1.15); }
+    80%  { transform: scale(0.93); }
+    100% { transform: scale(1); }
+  }
+  @keyframes slideRight {
+    from { opacity:0; transform: translateX(-30px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity:0; }
+    to   { opacity:1; }
+  }
+  @keyframes ptIn {
+    from { opacity:0; transform: translateY(20px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  @keyframes glowPulse {
+    0%,100% { opacity: 0.6; }
+    50%      { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg-pattern"></div>
+  <div class="grid-lines"></div>
+
+  <div class="top-bar">
+    <div class="logo-pill">
+      <span class="mark">₹</span>
+      <span class="name">ArthaNote</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="feat-icon" id="featIcon">📊</div>
+    <div class="feat-title" id="featTitle">Daily Ledger</div>
+    <div class="feat-desc" id="featDesc">Track every rupee instantly — sales, expenses, payments all in one place.</div>
+    <div class="points-grid" id="pointsGrid"></div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="url-badge">arthanote.com</div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const feature  = params.get('feature')     || 'Daily Ledger';
+  const desc     = params.get('description') || 'Track every rupee instantly — sales, expenses, payments all in one place.';
+  const rawPts   = params.get('points')      || 'Works offline always|Tamil & English|Multi-shop support|Free to download';
+  const icon     = params.get('icon')        || '📊';
+
+  document.getElementById('featIcon').textContent  = icon;
+  document.getElementById('featTitle').textContent = feature;
+  document.getElementById('featDesc').textContent  = desc;
+
+  const icons = ['✅','⚡','🔒','🌟','📱','💡','📈','🎯'];
+  const pts = rawPts.split('|').slice(0,4);
+  const grid = document.getElementById('pointsGrid');
+  pts.forEach((pt, i) => {
+    const div = document.createElement('div');
+    div.className = 'pt';
+    div.style.animationDelay = (2.4 + i * 0.3) + 's';
+    div.innerHTML = `<span class="pt-icon">${icons[i % icons.length]}</span><span class="pt-label">${pt}</span>`;
+    grid.appendChild(div);
+  });
+</script>
+</body>
+</html>

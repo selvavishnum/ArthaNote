@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>ArthaNote – How-To Post</title>
+<style>
+  :root {
+    --p: #065f46;
+    --s: #059669;
+    --a: #d97706;
+    --bg: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1350px;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    position: relative;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--p), var(--s));
+    height: 130px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 60px;
+  }
+  .logo-area { display: flex; align-items: center; gap: 18px; }
+  .logo-circle {
+    width: 58px; height: 58px;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; color: #fff;
+  }
+  .logo-name { font-size: 28px; font-weight: 800; color: #fff; }
+  .howto-badge {
+    background: rgba(255,255,255,0.2);
+    border: 1.5px solid rgba(255,255,255,0.4);
+    color: #fff; font-size: 16px; font-weight: 700;
+    padding: 8px 22px; border-radius: 40px;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* Title section */
+  .title-section {
+    padding: 52px 80px 40px;
+    background: #f0fdf4;
+    border-bottom: 3px solid #d1fae5;
+  }
+  .title-label {
+    font-size: 16px; font-weight: 700;
+    color: var(--s); text-transform: uppercase;
+    letter-spacing: 2px; margin-bottom: 12px;
+  }
+  .main-title {
+    font-size: 52px; font-weight: 900;
+    color: #111827; line-height: 1.1;
+    letter-spacing: -1px;
+  }
+
+  /* Slides area */
+  .slides-wrap {
+    position: relative;
+    height: 900px; /* remaining area minus footer */
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    justify-content: center; align-items: flex-start;
+    padding: 70px 80px;
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateX(60px);
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .slide.exit {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* Step slides */
+  .step-num {
+    width: 80px; height: 80px;
+    background: linear-gradient(135deg, var(--p), var(--s));
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 900; color: #fff;
+    margin-bottom: 32px;
+    box-shadow: 0 12px 30px rgba(6,95,70,0.35);
+  }
+  .step-icon { font-size: 64px; margin-bottom: 24px; }
+  .step-title {
+    font-size: 50px; font-weight: 900;
+    color: #111827; line-height: 1.15;
+    letter-spacing: -1px; margin-bottom: 20px;
+  }
+  .step-detail {
+    font-size: 26px; color: #6b7280;
+    line-height: 1.5; max-width: 820px;
+  }
+
+  /* Step bullets inside detail slides */
+  .step-bullets { margin-top: 24px; }
+  .bullet-item {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 16px;
+  }
+  .bullet-dot {
+    width: 12px; height: 12px;
+    background: var(--s); border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .bullet-text { font-size: 24px; color: #374151; font-weight: 500; }
+
+  /* Final CTA slide */
+  .cta-slide { text-align: center; align-items: center !important; }
+  .cta-emoji { font-size: 100px; margin-bottom: 28px; }
+  .cta-title { font-size: 56px; font-weight: 900; color: var(--p); margin-bottom: 20px; text-align: center; }
+  .cta-sub { font-size: 26px; color: #6b7280; margin-bottom: 48px; text-align: center; }
+  .cta-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--p), var(--s));
+    color: #fff; font-size: 28px; font-weight: 800;
+    padding: 22px 72px; border-radius: 60px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 12px 40px rgba(6,95,70,0.4);
+  }
+  .cta-url { font-size: 22px; color: var(--s); margin-top: 20px; font-weight: 700; text-align: center; }
+
+  /* Progress bar */
+  .progress-wrap {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 10px; background: #e5e7eb;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--p), var(--s));
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  /* Dots */
+  .dots {
+    position: absolute; bottom: 20px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 10px;
+  }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #d1d5db; transition: all 0.3s ease;
+  }
+  .dot.active { background: var(--s); transform: scale(1.4); }
+
+  /* Footer */
+  .footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 120px;
+    background: linear-gradient(135deg, var(--p), var(--s));
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  .footer-url { font-size: 28px; font-weight: 800; color: #fff; }
+  .footer-sub { font-size: 15px; color: rgba(255,255,255,0.75); margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-area">
+      <div class="logo-circle">₹</div>
+      <div class="logo-name">ArthaNote</div>
+    </div>
+    <div class="howto-badge">How To</div>
+  </div>
+
+  <div class="title-section">
+    <div class="title-label">Step-by-Step Guide</div>
+    <div class="main-title" id="mainTitle">ArthaNote பயன்படுத்துவது எப்படி?</div>
+  </div>
+
+  <div class="slides-wrap" id="slidesWrap">
+    <!-- Slides injected by JS -->
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-url">arthanote.com</div>
+    <div class="footer-sub">Free Download · Works Offline</div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const title    = params.get('title') || 'ArthaNote பயன்படுத்துவது எப்படி?';
+  const rawSteps = params.get('steps') || 'Download ArthaNote free from arthanote.com|Create your shop profile in 30 seconds|Add your first sale — tap + and enter amount|View full report at end of day|Share daily summary on WhatsApp';
+
+  document.getElementById('mainTitle').textContent = title;
+
+  const stepIcons = ['📲','🏪','💰','📊','📤','✅','🔔','🗂️'];
+  const steps = rawSteps.split('|').slice(0, 5);
+
+  const slidesWrap = document.getElementById('slidesWrap');
+  const progressBar = document.getElementById('progressBar');
+
+  // Build step slides
+  const allSlides = [];
+
+  steps.forEach((step, i) => {
+    const div = document.createElement('div');
+    div.className = 'slide';
+    if (i === 0) div.classList.add('active');
+    div.innerHTML = `
+      <div class="step-num">${i+1}</div>
+      <div class="step-icon">${stepIcons[i]}</div>
+      <div class="step-title">${step}</div>
+    `;
+    slidesWrap.insertBefore(div, slidesWrap.querySelector('.progress-wrap'));
+    allSlides.push(div);
+  });
+
+  // CTA slide
+  const cta = document.createElement('div');
+  cta.className = 'slide cta-slide';
+  cta.innerHTML = `
+    <div class="cta-emoji">🚀</div>
+    <div class="cta-title">இப்போதே தொடங்குங்கள்!</div>
+    <div class="cta-sub">100% Free · Offline · Tamil Support</div>
+    <div class="cta-btn">Download Free</div>
+    <div class="cta-url">arthanote.com</div>
+  `;
+  slidesWrap.insertBefore(cta, slidesWrap.querySelector('.progress-wrap'));
+  allSlides.push(cta);
+
+  // Dots
+  const dotsEl = document.createElement('div');
+  dotsEl.className = 'dots';
+  allSlides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i===0?' active':'');
+    dotsEl.appendChild(d);
+  });
+  slidesWrap.appendChild(dotsEl);
+
+  let current = 0;
+  const totalSlides = allSlides.length;
+  const interval = 2500;
+
+  function goTo(n) {
+    allSlides[current].classList.remove('active');
+    allSlides[current].classList.add('exit');
+    setTimeout(() => allSlides[current].classList.remove('exit'), 500);
+
+    current = n % totalSlides;
+    allSlides[current].classList.add('active');
+
+    // Update dots
+    dotsEl.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+
+    // Update progress
+    progressBar.style.width = ((current + 1) / totalSlides * 100) + '%';
+  }
+
+  setInterval(() => goTo(current + 1), interval);
+</script>
+</body>
+</html>
