@@ -3,160 +3,172 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ArthaNote — Sound Studio Pro</title>
+<title>ArthaNote — Zero Noise Studio</title>
 <style>
 :root{
-  --bg:#080d16;--surf:#0f1825;--card:#141f30;--card2:#192540;
-  --border:#1e2f48;--border2:#253655;
-  --blue:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#a855f7;
+  --bg:#080c13;--surf:#0d1422;--card:#111c2e;--card2:#162236;
+  --border:#1a2d45;--border2:#223654;
+  --blue:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--teal:#14b8a6;
   --text:#e2e8f0;--dim:#64748b;--mid:#94a3b8;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',sans-serif;min-height:100vh;}
 
-/* === TOPBAR === */
-.topbar{height:52px;background:linear-gradient(135deg,#065f46,#0d9488);display:flex;align-items:center;padding:0 16px;gap:10px;position:sticky;top:0;z-index:200;}
+.topbar{height:50px;background:linear-gradient(135deg,#0c4a6e,#1e40af);display:flex;align-items:center;padding:0 16px;gap:10px;position:sticky;top:0;z-index:200;}
 .topbar-logo{font-size:20px;}
-.topbar-title{font-size:16px;font-weight:800;color:#fff;}
-.topbar-sub{margin-left:auto;font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.5px;}
+.topbar-title{font-size:15px;font-weight:800;color:#fff;}
+.topbar-badge{margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:rgba(255,255,255,.8);letter-spacing:.5px;}
 
-/* === ALERT === */
-.alert{margin:12px 14px 0;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--amber);display:flex;gap:10px;align-items:flex-start;line-height:1.5;}
-.alert a{color:var(--blue);text-decoration:none;font-weight:700;}
+.alert{margin:10px 12px 0;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:9px 13px;font-size:12px;color:var(--amber);display:flex;gap:9px;line-height:1.5;}
+.alert a{color:var(--blue);font-weight:700;text-decoration:none;}
 .hidden{display:none!important;}
 
-/* === LAYOUT === */
-.studio{display:grid;grid-template-columns:360px 1fr;min-height:calc(100vh - 52px);}
-@media(max-width:800px){.studio{grid-template-columns:1fr;}}
-.pane{padding:14px;overflow-y:auto;}
+.studio{display:grid;grid-template-columns:370px 1fr;min-height:calc(100vh - 50px);}
+@media(max-width:820px){.studio{grid-template-columns:1fr;}}
+.pane{padding:12px;overflow-y:auto;}
 .pane-left{border-right:1px solid var(--border);}
 
-/* === CARDS === */
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;}
-.card-label{font-size:10px;font-weight:700;color:var(--dim);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px;}
+.card-label{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1.3px;text-transform:uppercase;margin-bottom:9px;}
 
-/* === DROP ZONE === */
-.dropzone{border:2px dashed var(--border2);border-radius:10px;padding:22px 14px;text-align:center;cursor:pointer;background:var(--surf);transition:.2s;}
-.dropzone:hover,.dropzone.over{border-color:var(--blue);background:#0d1e3a;}
-.dropzone .dz-icon{font-size:32px;margin-bottom:6px;}
-.dropzone .dz-t{font-size:13px;font-weight:600;}
-.dropzone .dz-s{font-size:11px;color:var(--dim);margin-top:3px;}
-.btn-rec{display:flex;align-items:center;gap:7px;margin:8px auto 0;background:var(--surf);border:1px solid var(--border2);border-radius:8px;padding:7px 14px;color:var(--mid);cursor:pointer;font-size:12px;font-weight:600;transition:.2s;}
-.btn-rec:hover{border-color:var(--red);color:var(--text);}
-.btn-rec.on{background:#2d0808;border-color:var(--red);color:var(--red);}
-.recdot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0;}
-.btn-rec.on .recdot{animation:blink 1s infinite;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
-
-/* File info */
-.finfo{display:none;align-items:center;gap:10px;background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12px;}
+/* Drop zone */
+.dz{border:2px dashed var(--border2);border-radius:10px;padding:18px 14px;text-align:center;cursor:pointer;background:var(--surf);transition:.2s;}
+.dz:hover,.dz.over{border-color:var(--blue);background:#0b1929;}
+.dz-icon{font-size:28px;margin-bottom:5px;}
+.dz-t{font-size:13px;font-weight:600;}
+.dz-s{font-size:11px;color:var(--dim);margin-top:3px;}
+.btn-mic{display:flex;align-items:center;gap:7px;margin:7px auto 0;background:var(--surf);border:1px solid var(--border2);border-radius:8px;padding:7px 14px;color:var(--mid);cursor:pointer;font-size:12px;font-weight:600;transition:.2s;}
+.btn-mic:hover{border-color:var(--red);color:var(--text);}
+.btn-mic.on{background:#2d0808;border-color:var(--red);color:var(--red);}
+.recdot{width:7px;height:7px;border-radius:50%;background:var(--red);}
+.btn-mic.on .recdot{animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+.finfo{display:none;align-items:center;gap:8px;background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:7px 11px;margin-top:7px;font-size:11px;}
 .finfo.show{display:flex;}
 .finfo-name{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.finfo-meta{color:var(--dim);white-space:nowrap;}
+.finfo-meta{color:var(--dim);white-space:nowrap;font-size:10px;}
 
-/* === MODE CARDS === */
-.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.mcard{background:var(--surf);border:2px solid var(--border);border-radius:10px;padding:11px 6px;text-align:center;cursor:pointer;transition:.2s;user-select:none;}
+/* Noise profile card */
+.noise-profile-card{background:linear-gradient(135deg,#0c1f38,#0d2440);border:1px solid #1e3a5f;border-radius:12px;padding:13px;margin-bottom:10px;}
+.np-hint{font-size:11px;color:var(--mid);line-height:1.5;margin-bottom:10px;}
+.np-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;}
+.np-btn{padding:9px 8px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--mid);font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:.2s;line-height:1.3;}
+.np-btn:hover:not(:disabled){border-color:var(--teal);color:var(--text);}
+.np-btn:disabled{opacity:.35;cursor:not-allowed;}
+.np-btn.captured{background:rgba(20,184,166,.12);border-color:var(--teal);color:var(--teal);}
+.np-status{font-size:11px;border-radius:7px;padding:7px 11px;background:rgba(255,255,255,.04);color:var(--dim);line-height:1.5;}
+.np-status.ok{background:rgba(34,197,94,.08);color:var(--green);}
+.np-status.warn{background:rgba(245,158,11,.08);color:var(--amber);}
+
+/* Modes */
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+.mcard{background:var(--surf);border:2px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:.2s;}
 .mcard:hover{border-color:var(--blue);}
-.mcard.active{border-color:var(--blue);background:rgba(59,130,246,.1);}
-.mcard-icon{font-size:22px;margin-bottom:4px;}
-.mcard-title{font-size:11px;font-weight:700;color:var(--text);}
+.mcard.active{border-color:var(--blue);background:rgba(59,130,246,.08);}
+.mcard-icon{font-size:20px;margin-bottom:3px;}
+.mcard-title{font-size:10px;font-weight:800;color:var(--text);}
 .mcard-sub{font-size:9px;color:var(--dim);margin-top:2px;line-height:1.3;}
 
-/* === SLIDERS === */
-.srow{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
-.slabel{font-size:11px;color:var(--mid);width:105px;flex-shrink:0;}
+/* Sliders */
+.srow{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.slbl{font-size:11px;color:var(--mid);width:105px;flex-shrink:0;}
 .srow input[type=range]{flex:1;height:3px;cursor:pointer;accent-color:var(--blue);}
-.sval{font-size:11px;color:var(--text);width:40px;text-align:right;font-family:monospace;flex-shrink:0;}
+.sval{font-size:11px;font-family:monospace;color:var(--text);width:42px;text-align:right;flex-shrink:0;}
 
-/* === PRESETS === */
-.presets{display:flex;gap:6px;flex-wrap:wrap;}
-.pbtn{background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:10px;font-weight:600;color:var(--mid);cursor:pointer;transition:.2s;}
+/* Presets */
+.presets{display:flex;gap:5px;flex-wrap:wrap;}
+.pbtn{background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:10px;font-weight:600;color:var(--dim);cursor:pointer;transition:.2s;}
 .pbtn:hover{border-color:var(--blue);color:var(--text);}
 .pbtn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
 
-/* === ADVANCED === */
-details summary{font-size:11px;color:var(--dim);cursor:pointer;padding:5px 0;user-select:none;display:flex;align-items:center;gap:6px;list-style:none;}
+/* Advanced */
+details summary{font-size:11px;color:var(--dim);cursor:pointer;padding:5px 0;list-style:none;display:flex;align-items:center;gap:6px;}
 details summary::-webkit-details-marker{display:none;}
 details summary::before{content:'▶';font-size:9px;transition:.2s;display:inline-block;}
 details[open] summary::before{transform:rotate(90deg);}
-.adv-sec-label{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;padding-left:2px;}
+.adv-hd{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin:9px 0 5px;}
 
-/* === PROCESS BTN === */
-.btn-process{width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),#1d4ed8);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;transition:.2s;letter-spacing:.5px;margin-top:2px;}
-.btn-process:hover:not(:disabled){opacity:.88;transform:translateY(-1px);}
-.btn-process:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+/* Process */
+.btn-proc{width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,var(--blue));border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:800;cursor:pointer;transition:.2s;margin-top:4px;}
+.btn-proc:hover:not(:disabled){opacity:.88;transform:translateY(-1px);}
+.btn-proc:disabled{opacity:.38;cursor:not-allowed;transform:none;}
 
-/* === PROGRESS === */
-.prog-wrap{margin-top:10px;display:none;}
+/* Progress */
+.prog-wrap{display:none;margin-top:9px;}
 .prog-wrap.show{display:block;}
-.prog-bar{background:var(--surf);border-radius:6px;height:5px;overflow:hidden;}
-.prog-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:6px;transition:width .4s;}
+.prog-bar{background:var(--surf);border-radius:5px;height:5px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:5px;transition:width .35s;background:linear-gradient(90deg,var(--blue),var(--teal));}
+.prog-stages{display:flex;gap:4px;margin-top:7px;}
+.prog-stage{flex:1;font-size:9px;text-align:center;padding:4px 2px;border-radius:5px;background:var(--surf);color:var(--dim);transition:.3s;border:1px solid var(--border);}
+.prog-stage.active{background:rgba(59,130,246,.15);color:var(--blue);border-color:var(--blue);}
+.prog-stage.done{background:rgba(34,197,94,.1);color:var(--green);border-color:var(--green);}
 .prog-lbl{font-size:10px;color:var(--dim);margin-top:5px;text-align:center;}
 
-/* === RIGHT PANE === */
-.pane-right{display:flex;flex-direction:column;gap:0;}
-
-/* Status row */
-.status-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
-.sbadge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;}
+/* Right pane */
+.pane-right{display:flex;flex-direction:column;}
+.status-row{display:flex;align-items:center;gap:10px;padding:9px 13px;border-bottom:1px solid var(--border);}
+.sbadge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.4px;}
 .sbadge.idle{background:var(--surf);color:var(--dim);}
-.sbadge.processing{background:rgba(59,130,246,.15);color:var(--blue);}
-.sbadge.ready{background:rgba(34,197,94,.12);color:var(--green);}
-
-/* A/B toggle */
-.ab-bar{background:var(--surf);border:1px solid var(--border);border-radius:30px;display:flex;padding:2px;}
-.ab-btn{flex:1;padding:5px 14px;border-radius:26px;border:none;background:transparent;color:var(--dim);font-size:11px;font-weight:700;cursor:pointer;transition:.2s;white-space:nowrap;}
+.sbadge.proc{background:rgba(59,130,246,.12);color:var(--blue);}
+.sbadge.done{background:rgba(34,197,94,.1);color:var(--green);}
+.ab-bar{background:var(--surf);border:1px solid var(--border);border-radius:30px;display:flex;padding:2px;margin-left:auto;}
+.ab-btn{padding:4px 13px;border-radius:26px;border:none;background:transparent;color:var(--dim);font-size:11px;font-weight:700;cursor:pointer;transition:.2s;}
 .ab-btn.active{background:var(--blue);color:#fff;}
 
 /* Waveforms */
-.wv-wrap{position:relative;padding:10px 12px;background:var(--surf);border-bottom:1px solid var(--border);}
-.wv-lbl{position:absolute;top:7px;left:12px;font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;text-transform:uppercase;}
-canvas.wv{width:100%;height:64px;display:block;border-radius:6px;background:#060d18;}
-.wv-sep{height:1px;background:var(--border);}
+.wv-wrap{position:relative;padding:9px 12px;background:var(--surf);border-bottom:1px solid var(--border);}
+.wv-lbl{position:absolute;top:6px;left:12px;font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;}
+canvas.wv{width:100%;height:60px;display:block;border-radius:6px;background:#050b14;}
 
 /* Timeline */
-.timeline-wrap{padding:10px 14px 0;background:var(--surf);border-bottom:1px solid var(--border);}
-.timeline{height:18px;background:#060d18;border-radius:4px;cursor:pointer;position:relative;overflow:hidden;}
-.tl-fill{position:absolute;left:0;top:0;bottom:0;background:rgba(59,130,246,.25);pointer-events:none;}
-.tl-head{position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;background:var(--blue);border-radius:50%;pointer-events:none;box-shadow:0 0 6px rgba(59,130,246,.8);}
-.tl-times{display:flex;justify-content:space-between;font-size:9px;color:var(--dim);margin-top:3px;padding-bottom:8px;}
+.tl-wrap{padding:8px 13px 4px;background:var(--surf);border-bottom:1px solid var(--border);}
+.tl{height:16px;background:#050b14;border-radius:4px;cursor:pointer;position:relative;overflow:hidden;}
+.tl-fill{position:absolute;inset:0;right:auto;background:rgba(59,130,246,.22);pointer-events:none;}
+.tl-head{position:absolute;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;background:var(--blue);border-radius:50%;pointer-events:none;box-shadow:0 0 5px rgba(59,130,246,.9);}
+.tl-times{display:flex;justify-content:space-between;font-size:9px;color:var(--dim);margin-top:2px;padding-bottom:6px;}
 
 /* Play controls */
-.play-row{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);}
-.btn-play{flex:1;padding:9px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.play-row{display:flex;gap:7px;padding:9px 12px;border-bottom:1px solid var(--border);}
+.btn-play{flex:1;padding:8px 9px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
 .btn-play:hover:not(:disabled){border-color:var(--green);}
-.btn-play.playing{background:rgba(34,197,94,.1);border-color:var(--green);color:var(--green);}
-.btn-play:disabled{opacity:.35;cursor:not-allowed;}
-.btn-stop{flex:0 0 44px;padding:9px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--mid);font-size:16px;cursor:pointer;transition:.2s;}
+.btn-play.playing{background:rgba(34,197,94,.08);border-color:var(--green);color:var(--green);}
+.btn-play:disabled{opacity:.3;cursor:not-allowed;}
+.btn-stop{flex:0 0 40px;padding:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--mid);font-size:15px;cursor:pointer;transition:.2s;}
 .btn-stop:hover{border-color:var(--red);color:var(--red);}
 
-/* VU Meters */
-.vu-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);}
-.vu{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
-.vu-title{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
-.vu-bg{background:#060d18;border-radius:3px;height:8px;overflow:hidden;}
-.vu-fill{height:100%;border-radius:3px;transition:width .05s;background:linear-gradient(90deg,var(--green) 0%,var(--amber) 72%,var(--red) 90%);}
+/* VU */
+.vu-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:9px 12px;border-bottom:1px solid var(--border);}
+.vu{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 10px;}
+.vu-title{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.vu-bg{background:#050b14;border-radius:3px;height:7px;overflow:hidden;}
+.vu-fill{height:100%;border-radius:3px;transition:width .06s;background:linear-gradient(90deg,var(--green) 0%,var(--amber) 74%,var(--red) 90%);}
 .vu-val{font-size:10px;color:var(--text);margin-top:3px;font-family:monospace;}
 
+/* 3-stage indicator */
+.stages-row{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:9px 12px;border-bottom:1px solid var(--border);}
+.stage-pill{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 8px;text-align:center;}
+.stage-icon{font-size:16px;margin-bottom:2px;}
+.stage-name{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.5px;}
+.stage-pill.on{border-color:var(--green);background:rgba(34,197,94,.07);}
+.stage-pill.on .stage-name{color:var(--green);}
+
 /* Spectrum */
-.spec-wrap{padding:10px 14px;border-bottom:1px solid var(--border);}
-.spec-label{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
-canvas.spec{width:100%;height:100px;display:block;border-radius:6px;background:#060d18;}
+.spec-wrap{padding:9px 12px;border-bottom:1px solid var(--border);}
+.spec-lbl{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
+canvas.spec{width:100%;height:90px;display:block;border-radius:6px;background:#050b14;}
 
 /* Stats */
-.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);}
-.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px;text-align:center;}
-.stat-v{font-size:17px;font-weight:800;color:var(--blue);}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:9px 12px;border-bottom:1px solid var(--border);}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;}
+.stat-v{font-size:15px;font-weight:800;color:var(--blue);}
 .stat-l{font-size:9px;color:var(--dim);margin-top:2px;}
 
 /* Download */
-.dl-wrap{padding:12px 14px;}
-.btn-dl{width:100%;padding:12px;background:linear-gradient(135deg,var(--green),#15803d);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:800;cursor:pointer;transition:.2s;}
+.dl-wrap{padding:10px 12px;}
+.btn-dl{width:100%;padding:11px;background:linear-gradient(135deg,var(--green),#15803d);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:800;cursor:pointer;transition:.2s;}
 .btn-dl:hover:not(:disabled){opacity:.88;}
-.btn-dl:disabled{opacity:.35;cursor:not-allowed;}
+.btn-dl:disabled{opacity:.3;cursor:not-allowed;}
 
-/* Scrollbar */
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
@@ -166,24 +178,23 @@ canvas.spec{width:100%;height:100px;display:block;border-radius:6px;background:#
 
 <div class="topbar">
   <span class="topbar-logo">🎚️</span>
-  <span class="topbar-title">ArthaNote Sound Studio</span>
-  <span class="topbar-sub">STUDIO-GRADE VOICE PROCESSING</span>
+  <span class="topbar-title">ArthaNote — Zero Noise Studio</span>
+  <span class="topbar-badge">3-PASS AI NOISE REMOVAL</span>
 </div>
 
 <div id="httpsAlert" class="alert hidden">
-  <span>⚠️</span>
-  <span>Recording requires HTTPS. Open <a href="https://arthanote.com/voice">arthanote.com/voice</a> on your phone to use the microphone. File upload works from any location.</span>
+  ⚠️ Recording requires HTTPS. Open <a href="https://arthanote.com/voice">arthanote.com/voice</a> for microphone access. File upload works here.
 </div>
 
 <div class="studio">
 
-  <!-- ═══ LEFT PANE ═══ -->
+  <!-- ═══ LEFT ═══ -->
   <div class="pane pane-left">
 
     <!-- Input -->
     <div class="card">
       <div class="card-label">📁 Input Audio</div>
-      <div class="dropzone" id="dz">
+      <div class="dz" id="dz">
         <div class="dz-icon">🎵</div>
         <div class="dz-t">Drop audio file here or click to browse</div>
         <div class="dz-s">MP3 · WAV · OGG · M4A · WebM</div>
@@ -193,10 +204,23 @@ canvas.spec{width:100%;height:100px;display:block;border-radius:6px;background:#
         <span class="finfo-name" id="fname">—</span>
         <span class="finfo-meta" id="fmeta">—</span>
       </div>
-      <button class="btn-rec" id="recBtn">
+      <button class="btn-mic" id="micBtn">
         <span class="recdot"></span>
-        <span id="recLbl">Record from Microphone</span>
+        <span id="micLbl">Record from Microphone</span>
       </button>
+    </div>
+
+    <!-- Noise Profile -->
+    <div class="noise-profile-card">
+      <div class="card-label" style="color:#7dd3fc">🔊 Noise Profile — Key to Zero Noise</div>
+      <div class="np-hint">
+        For best results: play the audio, find a 2s section with <b>only fan/background noise</b> (no voice), then click <b>📍 Capture Here</b>. This teaches the AI exactly what to remove.
+      </div>
+      <div class="np-btns">
+        <button class="np-btn" id="btnAutoNP" disabled>🔍 Auto-Detect<br><span style="font-weight:400;font-size:9px;">Finds quiet frames</span></button>
+        <button class="np-btn" id="btnCaptureNP" disabled>📍 Capture Here<br><span style="font-weight:400;font-size:9px;">Use current playback position</span></button>
+      </div>
+      <div class="np-status" id="npStatus">⚪ No profile yet — load audio first, then capture noise</div>
     </div>
 
     <!-- Processing Mode -->
@@ -204,9 +228,9 @@ canvas.spec{width:100%;height:100px;display:block;border-radius:6px;background:#
       <div class="card-label">🎛️ Processing Mode</div>
       <div class="modes">
         <div class="mcard active" data-mode="denoise">
-          <div class="mcard-icon">🎙️</div>
-          <div class="mcard-title">Clean Voice</div>
-          <div class="mcard-sub">AI noise removal, hiss &amp; room</div>
+          <div class="mcard-icon">🔇</div>
+          <div class="mcard-title">Zero Noise</div>
+          <div class="mcard-sub">3-pass AI removal</div>
         </div>
         <div class="mcard" data-mode="voice">
           <div class="mcard-icon">🎤</div>
@@ -219,38 +243,26 @@ canvas.spec{width:100%;height:100px;display:block;border-radius:6px;background:#
           <div class="mcard-sub">Keep music, remove voice</div>
         </div>
       </div>
-      <div style="margin-top:10px;font-size:10px;color:var(--dim);line-height:1.5;" id="modeHint">
-        🧠 AI Wiener filter — removes room noise, mic hiss, background hum. Best for voice recordings.
+      <div style="margin-top:8px;font-size:10px;color:var(--mid);line-height:1.5;" id="modeHint">
+        🧠 <b>3-pass AI pipeline:</b> Wiener noise filter → Hard spectral gate → VAD silence gate. Best for fan, AC, crowd, traffic noise.
       </div>
     </div>
 
     <!-- Quick Controls -->
     <div class="card">
       <div class="card-label">⚡ Quick Controls</div>
-      <div class="srow">
-        <span class="slabel">Strength</span>
-        <input type="range" id="strength" min="0" max="100" value="75">
-        <span class="sval" id="strengthV">75%</span>
-      </div>
-      <div class="srow">
-        <span class="slabel">Voice Clarity</span>
-        <input type="range" id="clarity" min="0" max="100" value="65">
-        <span class="sval" id="clarityV">65%</span>
-      </div>
-      <div class="srow">
-        <span class="slabel">Warmth</span>
-        <input type="range" id="warmth" min="0" max="100" value="50">
-        <span class="sval" id="warmthV">50%</span>
-      </div>
-
-      <div style="margin-top:10px;">
-        <div class="card-label" style="margin-bottom:6px;">Presets</div>
+      <div class="srow"><span class="slbl">NR Strength</span><input type="range" id="strength" min="0" max="100" value="90"><span class="sval" id="strengthV">90%</span></div>
+      <div class="srow"><span class="slbl">Gate Aggression</span><input type="range" id="gateAgg" min="0" max="100" value="70"><span class="sval" id="gateAggV">70%</span></div>
+      <div class="srow"><span class="slbl">Voice Clarity</span><input type="range" id="clarity" min="0" max="100" value="65"><span class="sval" id="clarityV">65%</span></div>
+      <div class="srow"><span class="slbl">Warmth</span><input type="range" id="warmth" min="0" max="100" value="50"><span class="sval" id="warmthV">50%</span></div>
+      <div style="margin-top:9px;">
+        <div class="card-label" style="margin-bottom:5px;">Presets</div>
         <div class="presets">
-          <button class="pbtn" data-p="podcast">🎙️ Podcast</button>
+          <button class="pbtn" data-p="zeronoise">🔇 Zero Noise</button>
           <button class="pbtn active" data-p="studio">🏆 Studio</button>
+          <button class="pbtn" data-p="podcast">🎙️ Podcast</button>
           <button class="pbtn" data-p="phone">📱 Phone</button>
           <button class="pbtn" data-p="gentle">🌿 Gentle</button>
-          <button class="pbtn" data-p="maxclean">✨ Max Clean</button>
         </div>
       </div>
     </div>
@@ -260,111 +272,111 @@ canvas.spec{width:100%;height:100px;display:block;border-radius:6px;background:#
       <details>
         <summary>⚙️ Advanced Controls</summary>
 
-        <div class="adv-sec-label">Noise Reduction (AI Wiener)</div>
-        <div class="srow"><span class="slabel">NR Strength</span><input type="range" id="nrStr" min="0" max="100" value="75"><span class="sval" id="nrStrV">75%</span></div>
-        <div class="srow"><span class="slabel">Smoothing α</span><input type="range" id="nrAlpha" min="0" max="99" value="85"><span class="sval" id="nrAlphaV">85%</span></div>
-        <div class="srow"><span class="slabel">Noise Floor</span><input type="range" id="nrFloor" min="1" max="10" step=".5" value="3"><span class="sval" id="nrFloorV">3×</span></div>
+        <div class="adv-hd">Pass 1 — Wiener Filter</div>
+        <div class="srow"><span class="slbl">NR Strength</span><input type="range" id="nrStr" min="0" max="100" value="90"><span class="sval" id="nrStrV">90%</span></div>
+        <div class="srow"><span class="slbl">Smoothing α</span><input type="range" id="nrAlpha" min="0" max="99" value="90"><span class="sval" id="nrAlphaV">90%</span></div>
+        <div class="srow"><span class="slbl">Noise Floor</span><input type="range" id="nrFloor" min="1" max="12" step=".5" value="4"><span class="sval" id="nrFloorV">4×</span></div>
 
-        <div class="adv-sec-label">Source Separation (REPET)</div>
-        <div class="srow"><span class="slabel">Sep Strength</span><input type="range" id="sepStr" min="0" max="100" value="80"><span class="sval" id="sepStrV">80%</span></div>
-        <div class="srow"><span class="slabel">Median Window</span><input type="range" id="sepWin" min="5" max="40" step="1" value="20"><span class="sval" id="sepWinV">20f</span></div>
+        <div class="adv-hd">Pass 2 — Hard Spectral Gate</div>
+        <div class="srow"><span class="slbl">Gate Threshold</span><input type="range" id="gateT" min="0" max="100" value="70"><span class="sval" id="gateTVal">70%</span></div>
+        <div class="srow"><span class="slbl">Gate Ratio (×noise)</span><input type="range" id="gateR" min="0.5" max="5" step=".25" value="2"><span class="sval" id="gateRV">2.0×</span></div>
 
-        <div class="adv-sec-label">Equalizer</div>
-        <div class="srow"><span class="slabel">HP Filter</span><input type="range" id="hpFreq" min="40" max="200" step="5" value="80"><span class="sval" id="hpFreqV">80Hz</span></div>
-        <div class="srow"><span class="slabel">Bass Warmth</span><input type="range" id="bassG" min="-6" max="6" step=".5" value="1.5"><span class="sval" id="bassGV">+1.5</span></div>
-        <div class="srow"><span class="slabel">Presence 3kHz</span><input type="range" id="presG" min="-6" max="9" step=".5" value="2.5"><span class="sval" id="presGV">+2.5</span></div>
-        <div class="srow"><span class="slabel">Air 10kHz</span><input type="range" id="airG" min="-6" max="6" step=".5" value="1.5"><span class="sval" id="airGV">+1.5</span></div>
+        <div class="adv-hd">Pass 3 — VAD Silence Gate</div>
+        <div class="srow"><span class="slbl">VAD Sensitivity</span><input type="range" id="vadSens" min="1" max="10" step=".5" value="4"><span class="sval" id="vadSensV">4×</span></div>
+        <div class="srow"><span class="slbl">Hold Time</span><input type="range" id="vadHold" min="20" max="300" step="10" value="80"><span class="sval" id="vadHoldV">80ms</span></div>
 
-        <div class="adv-sec-label">Dynamics</div>
-        <div class="srow"><span class="slabel">Comp Threshold</span><input type="range" id="compT" min="-40" max="-6" step="1" value="-20"><span class="sval" id="compTV">-20dB</span></div>
-        <div class="srow"><span class="slabel">Comp Ratio</span><input type="range" id="compR" min="1" max="8" step=".5" value="3"><span class="sval" id="compRV">3:1</span></div>
-        <div class="srow"><span class="slabel">De-ess Freq</span><input type="range" id="deF" min="5000" max="10000" step="500" value="7500"><span class="sval" id="deFV">7.5k</span></div>
-        <div class="srow"><span class="slabel">De-ess Amt</span><input type="range" id="deA" min="0" max="100" value="40"><span class="sval" id="deAV">40%</span></div>
-        <div class="srow"><span class="slabel">Target LUFS</span><input type="range" id="lufs" min="-23" max="-9" step="1" value="-14"><span class="sval" id="lufsV">-14dB</span></div>
+        <div class="adv-hd">Source Separation (REPET)</div>
+        <div class="srow"><span class="slbl">Sep Strength</span><input type="range" id="sepStr" min="0" max="100" value="80"><span class="sval" id="sepStrV">80%</span></div>
+        <div class="srow"><span class="slbl">Median Window</span><input type="range" id="sepWin" min="5" max="40" step="1" value="20"><span class="sval" id="sepWinV">20f</span></div>
+
+        <div class="adv-hd">Equalizer</div>
+        <div class="srow"><span class="slbl">HP Filter</span><input type="range" id="hpFreq" min="40" max="200" step="5" value="80"><span class="sval" id="hpFreqV">80Hz</span></div>
+        <div class="srow"><span class="slbl">Bass Warmth</span><input type="range" id="bassG" min="-6" max="6" step=".5" value="1.5"><span class="sval" id="bassGV">+1.5</span></div>
+        <div class="srow"><span class="slbl">Presence 3kHz</span><input type="range" id="presG" min="-6" max="9" step=".5" value="2.5"><span class="sval" id="presGV">+2.5</span></div>
+        <div class="srow"><span class="slbl">Air 10kHz</span><input type="range" id="airG" min="-6" max="6" step=".5" value="1.5"><span class="sval" id="airGV">+1.5</span></div>
+
+        <div class="adv-hd">Dynamics</div>
+        <div class="srow"><span class="slbl">Comp Threshold</span><input type="range" id="compT" min="-40" max="-6" step="1" value="-20"><span class="sval" id="compTV">-20dB</span></div>
+        <div class="srow"><span class="slbl">Comp Ratio</span><input type="range" id="compR" min="1" max="8" step=".5" value="3"><span class="sval" id="compRV">3:1</span></div>
+        <div class="srow"><span class="slbl">De-ess Freq</span><input type="range" id="deF" min="5000" max="10000" step="500" value="7500"><span class="sval" id="deFV">7.5k</span></div>
+        <div class="srow"><span class="slbl">De-ess Amt</span><input type="range" id="deA" min="0" max="100" value="40"><span class="sval" id="deAV">40%</span></div>
+        <div class="srow"><span class="slbl">Target LUFS</span><input type="range" id="lufs" min="-23" max="-9" step="1" value="-14"><span class="sval" id="lufsV">-14dB</span></div>
       </details>
     </div>
 
-    <!-- Process -->
-    <button class="btn-process" id="procBtn" disabled>✨ Process Audio</button>
+    <button class="btn-proc" id="procBtn" disabled>✨ Process — Zero Noise</button>
+
     <div class="prog-wrap" id="progWrap">
       <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0"></div></div>
-      <div class="prog-lbl" id="progLbl">Initializing…</div>
+      <div class="prog-stages">
+        <div class="prog-stage" id="ps1">🧠 Wiener</div>
+        <div class="prog-stage" id="ps2">⚡ Hard Gate</div>
+        <div class="prog-stage" id="ps3">🔕 VAD Gate</div>
+        <div class="prog-stage" id="ps4">🎛️ EQ+Comp</div>
+      </div>
+      <div class="prog-lbl" id="progLbl">Ready…</div>
     </div>
 
   </div>
 
-  <!-- ═══ RIGHT PANE ═══ -->
+  <!-- ═══ RIGHT ═══ -->
   <div class="pane pane-right">
 
-    <!-- Status + A/B -->
     <div class="status-row">
       <span class="sbadge idle" id="sbadge">⏳ Idle</span>
-      <div style="flex:1"></div>
       <div class="ab-bar">
         <button class="ab-btn active" id="btnA" onclick="abSwitch('A')">A Original</button>
         <button class="ab-btn" id="btnB" onclick="abSwitch('B')">B Processed</button>
       </div>
     </div>
 
-    <!-- Input Waveform -->
     <div class="wv-wrap">
       <div class="wv-lbl">INPUT</div>
       <canvas class="wv" id="wvIn"></canvas>
     </div>
-
-    <!-- Output Waveform -->
     <div class="wv-wrap">
       <div class="wv-lbl">OUTPUT</div>
       <canvas class="wv" id="wvOut"></canvas>
     </div>
 
-    <!-- Timeline -->
-    <div class="timeline-wrap">
-      <div class="timeline" id="tl">
+    <div class="tl-wrap">
+      <div class="tl" id="tl">
         <div class="tl-fill" id="tlFill" style="width:0"></div>
         <div class="tl-head" id="tlHead" style="left:0"></div>
       </div>
-      <div class="tl-times">
-        <span id="tElap">0:00</span>
-        <span id="tDur">0:00</span>
-      </div>
+      <div class="tl-times"><span id="tElap">0:00</span><span id="tDur">0:00</span></div>
     </div>
 
-    <!-- Playback -->
     <div class="play-row">
       <button class="btn-play" id="btnOrig" disabled onclick="play('orig')">▶ Original</button>
       <button class="btn-play" id="btnProc" disabled onclick="play('proc')">▶ Processed</button>
       <button class="btn-stop" onclick="stop()">■</button>
     </div>
 
-    <!-- VU Meters -->
     <div class="vu-grid">
-      <div class="vu">
-        <div class="vu-title">Input Level</div>
-        <div class="vu-bg"><div class="vu-fill" id="vuIn" style="width:0"></div></div>
-        <div class="vu-val" id="vuInV">— dBFS</div>
-      </div>
-      <div class="vu">
-        <div class="vu-title">Output Level</div>
-        <div class="vu-bg"><div class="vu-fill" id="vuOut" style="width:0"></div></div>
-        <div class="vu-val" id="vuOutV">— dBFS</div>
-      </div>
+      <div class="vu"><div class="vu-title">Input Level</div><div class="vu-bg"><div class="vu-fill" id="vuIn" style="width:0"></div></div><div class="vu-val" id="vuInV">—</div></div>
+      <div class="vu"><div class="vu-title">Output Level</div><div class="vu-bg"><div class="vu-fill" id="vuOut" style="width:0"></div></div><div class="vu-val" id="vuOutV">—</div></div>
     </div>
 
-    <!-- Spectrum Analyzer -->
+    <!-- 3-pass pipeline status -->
+    <div class="stages-row">
+      <div class="stage-pill" id="sp1"><div class="stage-icon">🧠</div><div class="stage-name">WIENER NR</div></div>
+      <div class="stage-pill" id="sp2"><div class="stage-icon">⚡</div><div class="stage-name">HARD GATE</div></div>
+      <div class="stage-pill" id="sp3"><div class="stage-icon">🔕</div><div class="stage-name">VAD GATE</div></div>
+    </div>
+
     <div class="spec-wrap">
-      <div class="spec-label">Spectrum Analyzer (live)</div>
+      <div class="spec-lbl">Live Spectrum Analyzer</div>
       <canvas class="spec" id="spec"></canvas>
     </div>
 
-    <!-- Stats -->
     <div class="stats-grid">
       <div class="stat"><div class="stat-v" id="sDur">—</div><div class="stat-l">Duration</div></div>
       <div class="stat"><div class="stat-v" id="sLufs">—</div><div class="stat-l">Output LUFS</div></div>
       <div class="stat"><div class="stat-v" id="sNR">—</div><div class="stat-l">Noise Cut</div></div>
+      <div class="stat"><div class="stat-v" id="sSpeech">—</div><div class="stat-l">Speech %</div></div>
     </div>
 
-    <!-- Download -->
     <div class="dl-wrap">
       <button class="btn-dl" id="dlBtn" disabled onclick="download()">⬇️ Download Processed WAV</button>
     </div>
@@ -377,285 +389,331 @@ canvas.spec{width:100%;height:100px;display:block;border-radius:6px;background:#
    COOLEY-TUKEY FFT (iterative in-place)
    ============================================================ */
 function fft(re, im) {
-  const N = re.length;
-  for (let i = 1, j = 0; i < N; i++) {
-    let bit = N >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) {
-      [re[i],re[j]]=[re[j],re[i]];
-      [im[i],im[j]]=[im[j],im[i]];
-    }
-  }
-  for (let len = 2; len <= N; len <<= 1) {
-    const ang = -2 * Math.PI / len;
-    const wR = Math.cos(ang), wI = Math.sin(ang);
-    for (let i = 0; i < N; i += len) {
-      let cR = 1, cI = 0;
-      for (let j = 0; j < (len >> 1); j++) {
-        const uR=re[i+j], uI=im[i+j];
-        const vR=re[i+j+len/2]*cR - im[i+j+len/2]*cI;
-        const vI=re[i+j+len/2]*cI + im[i+j+len/2]*cR;
-        re[i+j]=uR+vR; im[i+j]=uI+vI;
-        re[i+j+len/2]=uR-vR; im[i+j+len/2]=uI-vI;
-        const nR=cR*wR-cI*wI; cI=cR*wI+cI*wR; cR=nR;
-      }
-    }
-  }
-}
-function ifft(re, im) {
-  for (let i=0;i<im.length;i++) im[i]=-im[i];
-  fft(re, im);
   const N=re.length;
-  for (let i=0;i<N;i++){re[i]/=N; im[i]=-im[i]/N;}
+  for(let i=1,j=0;i<N;i++){let b=N>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}}
+  for(let l=2;l<=N;l<<=1){const a=-2*Math.PI/l,wR=Math.cos(a),wI=Math.sin(a);for(let i=0;i<N;i+=l){let cR=1,cI=0;for(let j=0;j<(l>>1);j++){const uR=re[i+j],uI=im[i+j],vR=re[i+j+l/2]*cR-im[i+j+l/2]*cI,vI=re[i+j+l/2]*cI+im[i+j+l/2]*cR;re[i+j]=uR+vR;im[i+j]=uI+vI;re[i+j+l/2]=uR-vR;im[i+j+l/2]=uI-vI;const nR=cR*wR-cI*wI;cI=cR*wI+cI*wR;cR=nR;}}}
 }
-function hann(N) {
-  const w=new Float32Array(N);
-  for (let i=0;i<N;i++) w[i]=0.5*(1-Math.cos(2*Math.PI*i/N));
-  return w;
+function ifft(re,im){for(let i=0;i<im.length;i++)im[i]=-im[i];fft(re,im);const N=re.length;for(let i=0;i<N;i++){re[i]/=N;im[i]=-im[i]/N;}}
+function hann(N){const w=new Float32Array(N);for(let i=0;i<N;i++)w[i]=0.5*(1-Math.cos(2*Math.PI*i/N));return w;}
+
+/* ============================================================
+   SMART NOISE PROFILE — VAD-based auto-detection
+   Analyses entire signal, picks lowest 30% energy frames
+   as noise-only frames, averages their spectra.
+   Much more accurate than using first 0.3s.
+   ============================================================ */
+function buildSmartNoiseProfile(signal) {
+  const N=2048, HOP=512, win=hann(N);
+  const numF=Math.floor((signal.length-N)/HOP);
+  if(numF<4) return new Float32Array(N).fill(0.001);
+  const energies=new Float32Array(numF);
+  const spectra=[];
+  for(let fi=0;fi<numF;fi++){
+    const re=new Float32Array(N),im=new Float32Array(N);
+    const off=fi*HOP;
+    for(let k=0;k<N;k++)re[k]=(signal[off+k]||0)*win[k];
+    fft(re,im);
+    const mag=new Float32Array(N);
+    let e=0;
+    for(let k=0;k<N;k++){mag[k]=Math.sqrt(re[k]*re[k]+im[k]*im[k]);e+=mag[k]*mag[k];}
+    energies[fi]=e; spectra.push(mag);
+  }
+  // Use lowest 30% energy frames as noise
+  const sorted=energies.slice().sort((a,b)=>a-b);
+  const thresh=sorted[Math.floor(numF*0.30)];
+  const profile=new Float32Array(N);
+  let cnt=0;
+  for(let fi=0;fi<numF;fi++){
+    if(energies[fi]<=thresh){for(let k=0;k<N;k++)profile[k]+=spectra[fi][k];cnt++;}
+  }
+  if(cnt>0)for(let k=0;k<N;k++)profile[k]/=cnt;
+  return profile;
 }
 
 /* ============================================================
-   AI NOISE CANCELLATION — Decision-Directed MMSE Wiener Filter
-   Best-in-class spectral subtraction without musical noise.
+   MANUAL NOISE CAPTURE — from specific time offset
+   Captures 2s of audio at timeOffset as noise sample.
+   Use when: play audio → hear fan noise → click capture.
    ============================================================ */
-function wienerFilter(sig, floorMult, strength, alphaP) {
-  const N=2048, HOP=N>>2;
-  const win=hann(N);
-  const str=strength/100, alp=alphaP/100;
-
-  // Auto-detect noise floor from first 0.4s of silence
-  const noiseFrames=Math.max(1, Math.floor(0.4*44100/HOP));
-  const noiseEst=new Float32Array(N);
-  for (let fi=0;fi<Math.min(noiseFrames,Math.floor((sig.length-N)/HOP));fi++) {
-    const re=new Float32Array(N), im=new Float32Array(N);
-    for (let k=0;k<N;k++) re[k]=sig[fi*HOP+k]*win[k];
-    fft(re,im);
-    for (let k=0;k<N;k++) noiseEst[k]+=Math.sqrt(re[k]*re[k]+im[k]*im[k]);
-  }
-  for (let k=0;k<N;k++) noiseEst[k]=(noiseEst[k]/noiseFrames)*floorMult;
-
-  const numF=Math.floor((sig.length-N)/HOP)+1;
-  const out=new Float32Array(sig.length+N);
-  const nrm=new Float32Array(sig.length+N);
-  const prevMag=new Float32Array(N);
-
-  for (let fi=0;fi<numF;fi++) {
+function captureNoiseAt(signal, rate, timeOffset, dur=2.0) {
+  const start=Math.floor(timeOffset*rate);
+  const end=Math.min(signal.length, start+Math.floor(dur*rate));
+  const seg=signal.slice(start, end);
+  const N=2048, HOP=512, win=hann(N);
+  const numF=Math.max(1,Math.floor((seg.length-N)/HOP));
+  const profile=new Float32Array(N);
+  for(let fi=0;fi<numF;fi++){
+    const re=new Float32Array(N),im=new Float32Array(N);
     const off=fi*HOP;
-    const re=new Float32Array(N), im=new Float32Array(N);
-    for (let k=0;k<N;k++) re[k]=(off+k<sig.length?sig[off+k]:0)*win[k];
+    for(let k=0;k<N;k++)re[k]=(seg[off+k]||0)*win[k];
     fft(re,im);
-    const mag=new Float32Array(N), ph=new Float32Array(N);
-    for (let k=0;k<N;k++){mag[k]=Math.sqrt(re[k]*re[k]+im[k]*im[k]);ph[k]=Math.atan2(im[k],re[k]);}
-
-    const oRe=new Float32Array(N), oIm=new Float32Array(N);
-    for (let k=0;k<N;k++){
-      const n2=noiseEst[k]*noiseEst[k]+1e-14;
-      const snrPost=mag[k]*mag[k]/n2-1;
-      const snrPrio=alp*(prevMag[k]*prevMag[k])/n2+(1-alp)*Math.max(0,snrPost);
-      const H=snrPrio/(1+snrPrio);
-      const gain=Math.max(0.01, 1-str*(1-H));
-      const nm=mag[k]*gain;
-      prevMag[k]=nm;
-      oRe[k]=nm*Math.cos(ph[k]); oIm[k]=nm*Math.sin(ph[k]);
-    }
-    ifft(oRe,oIm);
-    for (let k=0;k<N;k++){if(off+k<out.length){out[off+k]+=oRe[k]*win[k];nrm[off+k]+=win[k]*win[k];}}
+    for(let k=0;k<N;k++)profile[k]+=Math.sqrt(re[k]*re[k]+im[k]*im[k]);
   }
-  const res=new Float32Array(sig.length);
-  for (let i=0;i<sig.length;i++) res[i]=nrm[i]>0.001?out[i]/nrm[i]:0;
+  for(let k=0;k<N;k++)profile[k]/=numF;
+  return profile;
+}
+
+/* ============================================================
+   PASS 1 — DECISION-DIRECTED MMSE WIENER FILTER
+   Uses explicit noise profile (auto or manually captured).
+   snrPrio = α*|prevMag|²/noise² + (1-α)*max(snrPost-1,0)
+   gain H = snrPrio/(1+snrPrio)
+   ============================================================ */
+function wienerPass(signal, noiseProfile, strength, alpha) {
+  const N=2048, HOP=N>>2, win=hann(N);
+  const str=strength/100, alp=alpha/100;
+  const noise=noiseProfile;
+  const numF=Math.floor((signal.length-N)/HOP)+1;
+  const out=new Float32Array(signal.length+N);
+  const nrm=new Float32Array(signal.length+N);
+  const prev=new Float32Array(N);
+  for(let fi=0;fi<numF;fi++){
+    const off=fi*HOP;
+    const re=new Float32Array(N),im=new Float32Array(N);
+    for(let k=0;k<N;k++)re[k]=(off+k<signal.length?signal[off+k]:0)*win[k];
+    fft(re,im);
+    const mag=new Float32Array(N),ph=new Float32Array(N);
+    for(let k=0;k<N;k++){mag[k]=Math.sqrt(re[k]*re[k]+im[k]*im[k]);ph[k]=Math.atan2(im[k],re[k]);}
+    const oR=new Float32Array(N),oI=new Float32Array(N);
+    for(let k=0;k<N;k++){
+      const n=noise[k],n2=n*n+1e-14;
+      const sp=mag[k]*mag[k]/n2-1;
+      const spr=alp*(prev[k]*prev[k])/n2+(1-alp)*Math.max(0,sp);
+      const H=spr/(1+spr);
+      const g=Math.max(0.001,1-str*(1-H));
+      const nm=mag[k]*g; prev[k]=nm;
+      oR[k]=nm*Math.cos(ph[k]); oI[k]=nm*Math.sin(ph[k]);
+    }
+    ifft(oR,oI);
+    for(let k=0;k<N;k++){if(off+k<out.length){out[off+k]+=oR[k]*win[k];nrm[off+k]+=win[k]*win[k];}}
+  }
+  const res=new Float32Array(signal.length);
+  for(let i=0;i<signal.length;i++)res[i]=nrm[i]>0.001?out[i]/nrm[i]:0;
   return res;
 }
 
 /* ============================================================
-   SOURCE SEPARATION — REPET (REpeating Pattern Extraction)
-   Background music = stationary/repetitive → estimated via
-   temporal median filter on the magnitude spectrogram.
-   Voice = rapidly-changing → total minus background.
-   Soft Wiener mask applied to avoid musical noise artifacts.
+   PASS 2 — HARD SPECTRAL GATE
+   After Wiener, any bin below gateRatio × noise profile = zero.
+   Eliminates musical noise and residual noise floor.
+   This is the second pass that gets to near-zero noise.
    ============================================================ */
-async function separateSource(sig, mode, strength, medHalf, onProgress) {
-  const N=2048, HOP=512;
-  const win=hann(N);
+function hardSpectralGate(signal, noiseProfile, gateRatio) {
+  if(gateRatio<=0) return signal;
+  const N=2048, HOP=N>>2, win=hann(N);
+  const numF=Math.floor((signal.length-N)/HOP)+1;
+  const out=new Float32Array(signal.length+N);
+  const nrm=new Float32Array(signal.length+N);
+  for(let fi=0;fi<numF;fi++){
+    const off=fi*HOP;
+    const re=new Float32Array(N),im=new Float32Array(N);
+    for(let k=0;k<N;k++)re[k]=(off+k<signal.length?signal[off+k]:0)*win[k];
+    fft(re,im);
+    for(let k=0;k<N;k++){
+      const mag=Math.sqrt(re[k]*re[k]+im[k]*im[k]);
+      if(mag<noiseProfile[k]*gateRatio){re[k]=0;im[k]=0;}
+    }
+    ifft(re,im);
+    for(let k=0;k<N;k++){if(off+k<out.length){out[off+k]+=re[k]*win[k];nrm[off+k]+=win[k]*win[k];}}
+  }
+  const res=new Float32Array(signal.length);
+  for(let i=0;i<signal.length;i++)res[i]=nrm[i]>0.001?out[i]/nrm[i]:0;
+  return res;
+}
+
+/* ============================================================
+   PASS 3 — VAD NOISE GATE
+   Voice Activity Detection: silences frames where no speech
+   detected. Smoothed attack/release avoids clicks.
+   holdMs: keep gate open this long after speech ends.
+   ============================================================ */
+function vadGate(signal, rate, vadSensitivity, holdMs=80) {
+  const fSamp=Math.floor(0.02*rate); // 20ms frames
+  const numF=Math.floor(signal.length/fSamp);
+  const energies=new Float32Array(numF);
+  for(let fi=0;fi<numF;fi++){
+    let e=0;
+    for(let k=0;k<fSamp;k++){const v=signal[fi*fSamp+k]||0;e+=v*v;}
+    energies[fi]=Math.sqrt(e/fSamp);
+  }
+  // Noise floor = median of lowest 40% frames
+  const sorted=energies.slice().sort((a,b)=>a-b);
+  const noiseFloor=sorted[Math.floor(numF*0.40)]+1e-9;
+  const thresh=noiseFloor*vadSensitivity;
+
+  // VAD with hold
+  const holdF=Math.ceil(holdMs/20), attF=3, relF=8;
+  const vadOn=new Float32Array(numF);
+  let hold=0;
+  for(let fi=0;fi<numF;fi++){
+    if(energies[fi]>thresh){vadOn[fi]=1;hold=holdF;}
+    else if(hold>0){vadOn[fi]=1;hold--;}
+  }
+
+  // Smooth gain envelope
+  const gains=new Float32Array(numF);
+  let g=0;
+  for(let fi=0;fi<numF;fi++){
+    const t=vadOn[fi];
+    const spd=t>g?(1/attF):(1/relF);
+    g=Math.min(1,Math.max(0.0001,g+(t-g)*spd));
+    gains[fi]=g;
+  }
+
+  // Apply
+  const res=signal.slice();
+  for(let fi=0;fi<numF;fi++){
+    const s=fi*fSamp, e2=Math.min(signal.length,s+fSamp);
+    for(let i=s;i<e2;i++)res[i]*=gains[fi];
+  }
+  return res;
+}
+
+/* ============================================================
+   SOURCE SEPARATION — REPET (temporal median filter)
+   Background (music) = repeating/stationary spectral pattern
+   Voice = rapidly changing → total minus background
+   ============================================================ */
+async function separateSource(sig, mode, strength, medHalf, onProg) {
+  const N=2048, HOP=512, win=hann(N);
   const str=strength/100;
   const numF=Math.max(1,Math.floor((sig.length-N)/HOP)+1);
-
-  // STFT
-  const magS=[], phS=[];
-  for (let fi=0;fi<numF;fi++){
+  const magS=[],phS=[];
+  for(let fi=0;fi<numF;fi++){
     const off=fi*HOP;
-    const re=new Float32Array(N), im=new Float32Array(N);
-    for (let k=0;k<N;k++) re[k]=(off+k<sig.length?sig[off+k]:0)*win[k];
+    const re=new Float32Array(N),im=new Float32Array(N);
+    for(let k=0;k<N;k++)re[k]=(off+k<sig.length?sig[off+k]:0)*win[k];
     fft(re,im);
-    const mag=new Float32Array(N/2+1), ph=new Float32Array(N/2+1);
-    for (let k=0;k<=N/2;k++){mag[k]=Math.sqrt(re[k]*re[k]+im[k]*im[k]);ph[k]=Math.atan2(im[k],re[k]);}
-    magS.push(mag); phS.push(ph);
-    if(fi%200===0){onProgress&&onProgress(5+fi/numF*25); await tick();}
+    const mag=new Float32Array(N/2+1),ph=new Float32Array(N/2+1);
+    for(let k=0;k<=N/2;k++){mag[k]=Math.sqrt(re[k]*re[k]+im[k]*im[k]);ph[k]=Math.atan2(im[k],re[k]);}
+    magS.push(mag);phS.push(ph);
+    if(fi%200===0){onProg&&onProg(5+fi/numF*25);await tick();}
   }
-
-  // Temporal median filter → background model
   const mh=Math.min(medHalf,Math.floor(numF/4));
   const bgS=[];
-  for (let fi=0;fi<numF;fi++){
+  for(let fi=0;fi<numF;fi++){
     const bg=new Float32Array(N/2+1);
-    const t0=Math.max(0,fi-mh), t1=Math.min(numF-1,fi+mh);
-    const span=t1-t0+1;
-    const mid=span>>1;
-    for (let k=0;k<=N/2;k++){
-      const vals=new Float32Array(span);
-      for (let t=t0;t<=t1;t++) vals[t-t0]=magS[t][k];
-      vals.sort();
-      bg[k]=vals[mid];
+    const t0=Math.max(0,fi-mh),t1=Math.min(numF-1,fi+mh),span=t1-t0+1;
+    for(let k=0;k<=N/2;k++){
+      const v=new Float32Array(span);
+      for(let t=t0;t<=t1;t++)v[t-t0]=magS[t][k];
+      v.sort();bg[k]=v[span>>1];
     }
     bgS.push(bg);
-    if(fi%100===0){onProgress&&onProgress(30+fi/numF*30); await tick();}
+    if(fi%100===0){onProg&&onProg(30+fi/numF*30);await tick();}
   }
-
-  // Soft Wiener masks
   const masks=[];
-  for (let fi=0;fi<numF;fi++){
+  for(let fi=0;fi<numF;fi++){
     const mask=new Float32Array(N/2+1);
-    for (let k=0;k<=N/2;k++){
-      const bg=bgS[fi][k]*str;
-      const voice=Math.max(0,magS[fi][k]-bg);
+    for(let k=0;k<=N/2;k++){
+      const bg=bgS[fi][k]*str,voice=Math.max(0,magS[fi][k]-bg);
       if(mode==='voice'){const v2=voice*voice+1e-12,b2=bg*bg+1e-12;mask[k]=v2/(v2+b2);}
-      else              {const b2=bg*bg+1e-12,v2=voice*voice+1e-12;mask[k]=b2/(v2+b2);}
+      else{const b2=bg*bg+1e-12,v2=voice*voice+1e-12;mask[k]=b2/(v2+b2);}
     }
     masks.push(mask);
   }
-
-  // ISTFT with overlap-add
-  const out=new Float32Array(sig.length+N);
-  const nrm=new Float32Array(sig.length+N);
-  for (let fi=0;fi<numF;fi++){
+  const out=new Float32Array(sig.length+N),nrm=new Float32Array(sig.length+N);
+  for(let fi=0;fi<numF;fi++){
     const off=fi*HOP;
-    const re=new Float32Array(N), im=new Float32Array(N);
-    for (let k=0;k<=N/2;k++){
-      const m=masks[fi][k]*magS[fi][k], p=phS[fi][k];
-      re[k]=m*Math.cos(p); im[k]=m*Math.sin(p);
+    const re=new Float32Array(N),im=new Float32Array(N);
+    for(let k=0;k<=N/2;k++){
+      const m=masks[fi][k]*magS[fi][k],p=phS[fi][k];
+      re[k]=m*Math.cos(p);im[k]=m*Math.sin(p);
       if(k>0&&k<N/2){re[N-k]=re[k];im[N-k]=-im[k];}
     }
     ifft(re,im);
-    for (let k=0;k<N;k++){if(off+k<out.length){out[off+k]+=re[k]*win[k];nrm[off+k]+=win[k]*win[k];}}
-    if(fi%200===0){onProgress&&onProgress(60+fi/numF*15); await tick();}
+    for(let k=0;k<N;k++){if(off+k<out.length){out[off+k]+=re[k]*win[k];nrm[off+k]+=win[k]*win[k];}}
+    if(fi%200===0){onProg&&onProg(60+fi/numF*15);await tick();}
   }
   const res=new Float32Array(sig.length);
-  for (let i=0;i<sig.length;i++) res[i]=nrm[i]>0.001?out[i]/nrm[i]:0;
+  for(let i=0;i<sig.length;i++)res[i]=nrm[i]>0.001?out[i]/nrm[i]:0;
   return res;
 }
 
 /* ============================================================
-   EQ — OfflineAudioContext BiquadFilter chain
+   EQ, COMPRESSOR, DE-ESSER, LUFS (OfflineAudioContext chain)
    ============================================================ */
-async function applyEQ(sig, rate, hpF, bassG, presG, airG) {
+async function applyEQ(sig,rate,hpF,bgn,pgn,agn){
   const ctx=new OfflineAudioContext(1,sig.length,rate);
-  const buf=ctx.createBuffer(1,sig.length,rate);
-  buf.copyToChannel(sig,0);
-  const src=ctx.createBufferSource(); src.buffer=buf;
-  const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=hpF; hp.Q.value=0.7;
-  const bs=ctx.createBiquadFilter(); bs.type='lowshelf'; bs.frequency.value=200; bs.gain.value=bassG;
-  const pr=ctx.createBiquadFilter(); pr.type='peaking'; pr.frequency.value=3000; pr.Q.value=1.0; pr.gain.value=presG;
-  const ai=ctx.createBiquadFilter(); ai.type='highshelf'; ai.frequency.value=10000; ai.gain.value=airG;
-  src.connect(hp);hp.connect(bs);bs.connect(pr);pr.connect(ai);ai.connect(ctx.destination);
-  src.start();
-  return (await ctx.startRendering()).getChannelData(0).slice();
+  const buf=ctx.createBuffer(1,sig.length,rate);buf.copyToChannel(sig,0);
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=hpF;hp.Q.value=0.7;
+  const bs=ctx.createBiquadFilter();bs.type='lowshelf';bs.frequency.value=200;bs.gain.value=bgn;
+  const pr=ctx.createBiquadFilter();pr.type='peaking';pr.frequency.value=3000;pr.Q.value=1.0;pr.gain.value=pgn;
+  const ai=ctx.createBiquadFilter();ai.type='highshelf';ai.frequency.value=10000;ai.gain.value=agn;
+  src.connect(hp);hp.connect(bs);bs.connect(pr);pr.connect(ai);ai.connect(ctx.destination);src.start();
+  return(await ctx.startRendering()).getChannelData(0).slice();
 }
-
-/* ============================================================
-   DYNAMICS — OfflineAudioContext DynamicsCompressor
-   ============================================================ */
-async function applyComp(sig, rate, thresh, ratio) {
+async function applyComp(sig,rate,thr,ratio){
   const ctx=new OfflineAudioContext(1,sig.length,rate);
-  const buf=ctx.createBuffer(1,sig.length,rate);
-  buf.copyToChannel(sig,0);
-  const src=ctx.createBufferSource(); src.buffer=buf;
-  const c=ctx.createDynamicsCompressor();
-  c.threshold.value=thresh; c.ratio.value=ratio;
-  c.attack.value=0.003; c.release.value=0.25; c.knee.value=6;
-  src.connect(c); c.connect(ctx.destination); src.start();
-  return (await ctx.startRendering()).getChannelData(0).slice();
+  const buf=ctx.createBuffer(1,sig.length,rate);buf.copyToChannel(sig,0);
+  const src=ctx.createBufferSource();src.buffer=buf;
+  const c=ctx.createDynamicsCompressor();c.threshold.value=thr;c.ratio.value=ratio;c.attack.value=0.003;c.release.value=0.25;c.knee.value=6;
+  src.connect(c);c.connect(ctx.destination);src.start();
+  return(await ctx.startRendering()).getChannelData(0).slice();
 }
-
-/* ============================================================
-   DE-ESSER — spectral sibilance reduction
-   ============================================================ */
-function deEss(sig, rate, freq, amt) {
-  if(amt<=0) return sig;
-  const N=1024, HOP=N>>2, win=hann(N);
-  const binHz=rate/N;
-  const b0=Math.floor(freq/binHz), b1=Math.min(N/2,Math.floor(freq*1.5/binHz));
-  const red=amt/100;
-  const numF=Math.floor((sig.length-N)/HOP)+1;
-  const out=new Float32Array(sig.length+N);
-  const nrm=new Float32Array(sig.length+N);
-  for (let fi=0;fi<numF;fi++){
-    const off=fi*HOP;
-    const re=new Float32Array(N), im=new Float32Array(N);
-    for (let k=0;k<N;k++) re[k]=(off+k<sig.length?sig[off+k]:0)*win[k];
+function deEss(sig,rate,freq,amt){
+  if(amt<=0)return sig;
+  const N=1024,HOP=N>>2,win=hann(N);
+  const binHz=rate/N,b0=Math.floor(freq/binHz),b1=Math.min(N/2,Math.floor(freq*1.5/binHz));
+  const red=amt/100,numF=Math.floor((sig.length-N)/HOP)+1;
+  const out=new Float32Array(sig.length+N),nrm=new Float32Array(sig.length+N);
+  for(let fi=0;fi<numF;fi++){
+    const off=fi*HOP;const re=new Float32Array(N),im=new Float32Array(N);
+    for(let k=0;k<N;k++)re[k]=(off+k<sig.length?sig[off+k]:0)*win[k];
     fft(re,im);
-    let ess=0, tot=0;
-    for (let k=b0;k<b1;k++) ess+=re[k]*re[k]+im[k]*im[k];
-    for (let k=1;k<N/2;k++) tot+=re[k]*re[k]+im[k]*im[k];
-    const ratio=ess/(tot+1e-10);
-    if(ratio>0.12){
-      const g=1-red*Math.min(1,(ratio-0.12)/0.18);
-      for (let k=b0;k<b1;k++){re[k]*=g;im[k]*=g;if(k>0){re[N-k]*=g;im[N-k]*=g;}}
-    }
+    let ess=0,tot=0;
+    for(let k=b0;k<b1;k++)ess+=re[k]*re[k]+im[k]*im[k];
+    for(let k=1;k<N/2;k++)tot+=re[k]*re[k]+im[k]*im[k];
+    const r=ess/(tot+1e-10);
+    if(r>0.12){const g=1-red*Math.min(1,(r-0.12)/0.18);for(let k=b0;k<b1;k++){re[k]*=g;im[k]*=g;if(k>0){re[N-k]*=g;im[N-k]*=g;}}}
     ifft(re,im);
-    for (let k=0;k<N;k++){if(off+k<out.length){out[off+k]+=re[k]*win[k];nrm[off+k]+=win[k]*win[k];}}
+    for(let k=0;k<N;k++){if(off+k<out.length){out[off+k]+=re[k]*win[k];nrm[off+k]+=win[k]*win[k];}}
   }
   const res=new Float32Array(sig.length);
-  for (let i=0;i<sig.length;i++) res[i]=nrm[i]>0.001?out[i]/nrm[i]:0;
+  for(let i=0;i<sig.length;i++)res[i]=nrm[i]>0.001?out[i]/nrm[i]:0;
   return res;
 }
-
-/* ============================================================
-   LUFS NORMALIZATION (RMS-based approximation)
-   ============================================================ */
-function normLUFS(sig, target) {
-  let rms=0;
-  for (let i=0;i<sig.length;i++) rms+=sig[i]*sig[i];
+function normLUFS(sig,target){
+  let rms=0;for(let i=0;i<sig.length;i++)rms+=sig[i]*sig[i];
   rms=Math.sqrt(rms/sig.length);
-  const cur=20*Math.log10(rms+1e-12);
-  const gain=Math.pow(10,(target-cur)/20);
+  const gain=Math.pow(10,(target-20*Math.log10(rms+1e-12))/20);
   const out=new Float32Array(sig.length);
-  for (let i=0;i<sig.length;i++) out[i]=Math.max(-0.98,Math.min(0.98,sig[i]*gain));
+  for(let i=0;i<sig.length;i++)out[i]=Math.max(-0.98,Math.min(0.98,sig[i]*gain));
   return out;
 }
 
 /* ============================================================
    WAV ENCODER
    ============================================================ */
-function encodeWAV(samples, rate) {
-  const buf=new ArrayBuffer(44+samples.length*2);
-  const v=new DataView(buf);
-  const s=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
-  s(0,'RIFF');v.setUint32(4,36+samples.length*2,true);s(8,'WAVE');
-  s(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+function encodeWAV(s,rate){
+  const buf=new ArrayBuffer(44+s.length*2),v=new DataView(buf);
+  const ws=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+  ws(0,'RIFF');v.setUint32(4,36+s.length*2,true);ws(8,'WAVE');
+  ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
   v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);
-  s(36,'data');v.setUint32(40,samples.length*2,true);
-  for (let i=0;i<samples.length;i++) v.setInt16(44+i*2,Math.max(-32768,Math.min(32767,samples[i]*32767)),true);
+  ws(36,'data');v.setUint32(40,s.length*2,true);
+  for(let i=0;i<s.length;i++)v.setInt16(44+i*2,Math.max(-32768,Math.min(32767,s[i]*32767)),true);
   return buf;
 }
 
 /* ============================================================
    WAVEFORM DRAWING
    ============================================================ */
-function drawWave(canvas, sig, color='#3b82f6') {
-  if(!canvas||!sig) return;
+function drawWave(canvas,sig,color='#3b82f6'){
+  if(!canvas||!sig)return;
   const dpr=window.devicePixelRatio||1;
   const W=canvas.width=canvas.offsetWidth*dpr||600;
-  const H=canvas.height=canvas.offsetHeight*dpr||64;
+  const H=canvas.height=canvas.offsetHeight*dpr||60;
   const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#060d18'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#050b14';ctx.fillRect(0,0,W,H);
   const step=Math.max(1,Math.floor(sig.length/W));
-  ctx.strokeStyle=color; ctx.lineWidth=1; ctx.beginPath();
-  for (let x=0;x<W;x++){
+  ctx.strokeStyle=color;ctx.lineWidth=1;ctx.beginPath();
+  for(let x=0;x<W;x++){
     let mn=0,mx=0;
-    for (let i=0;i<step;i++){const v=sig[x*step+i]||0;if(v<mn)mn=v;if(v>mx)mx=v;}
-    const y1=(0.5-mx/2)*H, y2=(0.5-mn/2)*H;
-    x===0?ctx.moveTo(x,y1):ctx.lineTo(x,y1);
-    ctx.lineTo(x,y2);
+    for(let i=0;i<step;i++){const v=sig[x*step+i]||0;if(v<mn)mn=v;if(v>mx)mx=v;}
+    x===0?ctx.moveTo(x,(0.5-mx/2)*H):ctx.lineTo(x,(0.5-mx/2)*H);
+    ctx.lineTo(x,(0.5-mn/2)*H);
   }
   ctx.stroke();
 }
@@ -663,11 +721,13 @@ function drawWave(canvas, sig, color='#3b82f6') {
 /* ============================================================
    STATE
    ============================================================ */
-let actx=null, inBuf=null, outBuf=null, inSig=null, outSig=null;
-let sr=44100, src=null, isPlay=false, playMode=null;
-let playStart=0, playOff=0, animId=null;
-let recStream=null, recOrder=null, recChunks=[], isRec=false;
-let specAn=null, curMode='denoise';
+let actx=null,inBuf=null,outBuf=null,inSig=null,outSig=null;
+let sr=44100,src=null,isPlay=false,playMode=null;
+let playStart=0,playOff=0,animId=null;
+let recStream=null,recMR=null,recChunks=[],isRec=false;
+let specAn=null,curMode='denoise';
+let capturedProfile=null; // explicit noise profile (null = auto-detect)
+let speechPct=0; // for stats
 
 const P=id=>parseFloat(document.getElementById(id).value);
 
@@ -675,63 +735,37 @@ const P=id=>parseFloat(document.getElementById(id).value);
    PRESETS
    ============================================================ */
 const PRESETS={
-  podcast:  {nrStr:75,nrAlpha:85,nrFloor:3,  sepStr:80,sepWin:20,hpFreq:80, bassG:1.5, presG:3.0,airG:1.5, compT:-18,compR:3,  deF:7500,deA:40,lufs:-16},
-  studio:   {nrStr:80,nrAlpha:88,nrFloor:3.5,sepStr:85,sepWin:20,hpFreq:80, bassG:2.0, presG:2.5,airG:2.0, compT:-20,compR:3,  deF:7500,deA:35,lufs:-14},
-  phone:    {nrStr:90,nrAlpha:90,nrFloor:4,  sepStr:90,sepWin:25,hpFreq:100,bassG:-1.0,presG:4.0,airG:-1.0,compT:-15,compR:4,  deF:8000,deA:50,lufs:-12},
-  gentle:   {nrStr:40,nrAlpha:75,nrFloor:2,  sepStr:50,sepWin:10,hpFreq:60, bassG:1.0, presG:1.5,airG:1.0, compT:-24,compR:2,  deF:7000,deA:20,lufs:-16},
-  maxclean: {nrStr:100,nrAlpha:97,nrFloor:6, sepStr:100,sepWin:30,hpFreq:100,bassG:1.0,presG:3.0,airG:1.5, compT:-18,compR:4,  deF:7500,deA:60,lufs:-14},
+  zeronoise:{nrStr:98,nrAlpha:95,nrFloor:6,  gateT:90,gateR:3.0,vadSens:5,vadHold:60, sepStr:90,sepWin:25,hpFreq:100,bassG:1.0,presG:3.0,airG:1.5,compT:-18,compR:4,deF:7500,deA:50,lufs:-14},
+  studio:   {nrStr:85,nrAlpha:88,nrFloor:4,  gateT:70,gateR:2.0,vadSens:4,vadHold:80, sepStr:85,sepWin:20,hpFreq:80, bassG:2.0,presG:2.5,airG:2.0,compT:-20,compR:3,deF:7500,deA:35,lufs:-14},
+  podcast:  {nrStr:75,nrAlpha:85,nrFloor:3,  gateT:60,gateR:1.5,vadSens:3,vadHold:100,sepStr:80,sepWin:20,hpFreq:80, bassG:1.5,presG:3.0,airG:1.5,compT:-18,compR:3,deF:7500,deA:40,lufs:-16},
+  phone:    {nrStr:92,nrAlpha:90,nrFloor:5,  gateT:80,gateR:2.5,vadSens:5,vadHold:60, sepStr:90,sepWin:25,hpFreq:100,bassG:-1,presG:4.0,airG:-1,compT:-15,compR:4,deF:8000,deA:50,lufs:-12},
+  gentle:   {nrStr:40,nrAlpha:75,nrFloor:2,  gateT:30,gateR:1.0,vadSens:2,vadHold:120,sepStr:50,sepWin:10,hpFreq:60, bassG:1.0,presG:1.5,airG:1.0,compT:-24,compR:2,deF:7000,deA:20,lufs:-16},
 };
-function loadPreset(name){
-  const p=PRESETS[name]; if(!p) return;
-  Object.keys(p).forEach(k=>{const el=document.getElementById(k);if(el){el.value=p[k];refreshDisplay(k);}});
-  document.querySelectorAll('.pbtn').forEach(b=>b.classList.toggle('active',b.dataset.p===name));
-  // sync quick sliders from advanced
-  syncQuickFromAdv();
-}
-function syncQuickFromAdv(){
-  const ns=P('nrStr'), bs=P('bassG'), pr=P('presG');
-  document.getElementById('strength').value=ns; refreshDisplay('strength');
-  document.getElementById('warmth').value=Math.round((bs+1)/4*100); refreshDisplay('warmth');
-  document.getElementById('clarity').value=Math.round((pr)/5*100); refreshDisplay('clarity');
-}
+const FMT={hpFreq:v=>v+'Hz',bassG:v=>(v>=0?'+':'')+v,presG:v=>(v>=0?'+':'')+v,airG:v=>(v>=0?'+':'')+v,compT:v=>v+'dB',compR:v=>v+':1',deF:v=>(v/1000).toFixed(1)+'k',lufs:v=>v+'dB',nrFloor:v=>v+'×',sepWin:v=>v+'f',gateR:v=>v+'×',vadSens:v=>v+'×',vadHold:v=>v+'ms'};
+function rfr(id){const el=document.getElementById(id);if(!el)return;const v=parseFloat(el.value);const vel=document.getElementById(id+'V');if(vel)vel.textContent=FMT[id]?FMT[id](v):Math.round(v)+'%';}
+function loadPreset(name){const p=PRESETS[name];if(!p)return;Object.keys(p).forEach(k=>{const el=document.getElementById(k);if(el){el.value=p[k];rfr(k);}});document.querySelectorAll('.pbtn').forEach(b=>b.classList.toggle('active',b.dataset.p===name));syncQuick();}
+function syncQuick(){document.getElementById('strength').value=P('nrStr');rfr('strength');document.getElementById('gateAgg').value=P('gateT');rfr('gateAgg');document.getElementById('clarity').value=Math.round(P('presG')/5*100);rfr('clarity');document.getElementById('warmth').value=Math.round((P('bassG')+1)/4*100);rfr('warmth');}
 
-/* ============================================================
-   SLIDER DISPLAY
-   ============================================================ */
-const FMT={
-  hpFreq:v=>v+'Hz', bassG:v=>(v>=0?'+':'')+v, presG:v=>(v>=0?'+':'')+v, airG:v=>(v>=0?'+':'')+v,
-  compT:v=>v+'dB', compR:v=>v+':1', deF:v=>(v/1000).toFixed(1)+'k', lufs:v=>v+'dB',
-  nrFloor:v=>v+'×', sepWin:v=>v+'f',
-};
-function refreshDisplay(id){
-  const el=document.getElementById(id); if(!el) return;
-  const vid=id+'V', vel=document.getElementById(vid); if(!vel) return;
-  const v=parseFloat(el.value);
-  vel.textContent=FMT[id]?FMT[id](v):Math.round(v)+'%';
-}
-['strength','clarity','warmth','nrStr','nrAlpha','nrFloor','sepStr','sepWin',
- 'hpFreq','bassG','presG','airG','compT','compR','deF','deA','lufs'].forEach(id=>{
-  const el=document.getElementById(id);
-  if(el){el.addEventListener('input',()=>{refreshDisplay(id);syncAdvFromQuick(id);});refreshDisplay(id);}
+['strength','gateAgg','clarity','warmth','nrStr','nrAlpha','nrFloor','gateT','gateR','vadSens','vadHold','sepStr','sepWin','hpFreq','bassG','presG','airG','compT','compR','deF','deA','lufs'].forEach(id=>{
+  const el=document.getElementById(id);if(!el)return;
+  el.addEventListener('input',()=>{rfr(id);
+    if(id==='strength'){document.getElementById('nrStr').value=el.value;rfr('nrStr');}
+    if(id==='gateAgg'){document.getElementById('gateT').value=el.value;rfr('gateT');}
+    if(id==='clarity'){const v=parseFloat(el.value)/100;document.getElementById('presG').value=(v*5).toFixed(1);rfr('presG');}
+    if(id==='warmth'){const v=parseFloat(el.value)/100;document.getElementById('bassG').value=(v*4-1).toFixed(1);rfr('bassG');}
+  });
+  rfr(id);
 });
-function syncAdvFromQuick(id){
-  if(id==='strength'){document.getElementById('nrStr').value=P('strength');refreshDisplay('nrStr');document.getElementById('sepStr').value=P('strength');refreshDisplay('sepStr');}
-  if(id==='clarity'){const v=P('clarity')/100;document.getElementById('presG').value=(v*5).toFixed(1);refreshDisplay('presG');document.getElementById('airG').value=(v*3).toFixed(1);refreshDisplay('airG');}
-  if(id==='warmth'){const v=P('warmth')/100;document.getElementById('bassG').value=(v*4-1).toFixed(1);refreshDisplay('bassG');}
-}
 
-/* ============================================================
-   MODE CARDS
-   ============================================================ */
+/* Modes */
 const HINTS={
-  denoise:'🧠 AI Wiener filter — removes room noise, mic hiss, background hum. Best for voice recordings.',
-  voice:'🎤 REPET source separation + Wiener noise cancel — isolates voice by removing repeating background music.',
-  music:'🎵 REPET source separation — extracts background music/instrumental by removing the vocal layer.'
+  denoise:'🧠 3-pass AI pipeline: Wiener filter → Hard spectral gate → VAD silence gate. Designed for fan, AC, crowd, traffic, room noise.',
+  voice:'🎤 REPET source separation (removes repeating background music) then full 3-pass NR for crystal-clear voice.',
+  music:'🎵 REPET extracts the music/instrumental layer. Optimal for background music with minimal voice bleed.'
 };
 document.querySelectorAll('.mcard').forEach(c=>{
   c.addEventListener('click',()=>{
-    document.querySelectorAll('.mcard').forEach(x=>x.classList.remove('active'));
-    c.classList.add('active'); curMode=c.dataset.mode;
+    document.querySelectorAll('.mcard').forEach(x=>x.classList.remove('active'));c.classList.add('active');curMode=c.dataset.mode;
     document.getElementById('modeHint').textContent=HINTS[curMode];
   });
 });
@@ -749,19 +783,12 @@ dzEl.addEventListener('dragleave',()=>dzEl.classList.remove('over'));
 dzEl.addEventListener('drop',e=>{e.preventDefault();dzEl.classList.remove('over');const f=e.dataTransfer.files[0];if(f)loadAudio(f);});
 
 async function loadAudio(file){
-  if(!file) return;
+  if(!file)return;
   try{
-    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();
     const ab=await file.arrayBuffer();
     inBuf=await actx.decodeAudioData(ab);
-    // Downmix to mono
-    if(inBuf.numberOfChannels>1){
-      const L=inBuf.getChannelData(0), R=inBuf.getChannelData(1);
-      inSig=new Float32Array(L.length);
-      for(let i=0;i<L.length;i++) inSig[i]=(L[i]+R[i])*0.5;
-    } else {
-      inSig=inBuf.getChannelData(0).slice();
-    }
+    inSig=inBuf.numberOfChannels>1?(()=>{const L=inBuf.getChannelData(0),R=inBuf.getChannelData(1),m=new Float32Array(L.length);for(let i=0;i<L.length;i++)m[i]=(L[i]+R[i])*.5;return m;})():inBuf.getChannelData(0).slice();
     sr=inBuf.sampleRate;
     const dur=inBuf.duration;
     document.getElementById('fname').textContent=file.name;
@@ -769,91 +796,175 @@ async function loadAudio(file){
     document.getElementById('finfo').classList.add('show');
     document.getElementById('sDur').textContent=fmt(dur);
     document.getElementById('tDur').textContent=fmt(dur);
-    setTimeout(()=>{drawWave(document.getElementById('wvIn'),inSig);},60);
+    setTimeout(()=>drawWave(document.getElementById('wvIn'),inSig),60);
     const rms=Math.sqrt(inSig.reduce((a,v)=>a+v*v,0)/inSig.length);
     const db=20*Math.log10(rms+1e-12);
     document.getElementById('vuInV').textContent=db.toFixed(1)+' dBFS';
     document.getElementById('vuIn').style.width=Math.min(100,(db+60)/60*100)+'%';
     document.getElementById('procBtn').disabled=false;
     document.getElementById('btnOrig').disabled=false;
-    setStatus('ready','✅ Ready');
-  } catch(e){ alert('Could not load audio: '+e.message); }
+    document.getElementById('btnAutoNP').disabled=false;
+    document.getElementById('btnCaptureNP').disabled=false;
+    capturedProfile=null;
+    document.getElementById('npStatus').className='np-status warn';
+    document.getElementById('npStatus').textContent='⚡ Play audio → find fan/noise-only section → click 📍 Capture Here for zero noise result';
+    setStatus('done','✅ Ready — capture noise profile for best results');
+  }catch(e){alert('Could not load audio: '+e.message);}
 }
+
+/* ============================================================
+   NOISE PROFILE CAPTURE
+   ============================================================ */
+document.getElementById('btnAutoNP').addEventListener('click',()=>{
+  if(!inSig)return;
+  document.getElementById('btnAutoNP').textContent='⏳ Analyzing…';
+  setTimeout(()=>{
+    capturedProfile=buildSmartNoiseProfile(inSig);
+    const noiseFrameCount=Math.floor(Math.floor((inSig.length-2048)/512)*0.30);
+    document.getElementById('npStatus').className='np-status ok';
+    document.getElementById('npStatus').textContent=`✅ Auto-detected noise profile — ${noiseFrameCount} quiet frames analyzed. Good for uniform background noise.`;
+    document.getElementById('btnAutoNP').classList.add('captured');
+    document.getElementById('btnAutoNP').textContent='✅ Auto-detected';
+  },100);
+});
+
+document.getElementById('btnCaptureNP').addEventListener('click',()=>{
+  if(!inSig)return;
+  if(isPlay&&actx){
+    const pos=actx.currentTime-playStart;
+    capturedProfile=captureNoiseAt(inSig,sr,pos,2.0);
+    document.getElementById('npStatus').className='np-status ok';
+    document.getElementById('npStatus').textContent=`✅ Captured 2s noise sample at ${fmt(pos)} — this is the gold standard for zero noise removal!`;
+    document.getElementById('btnCaptureNP').classList.add('captured');
+    document.getElementById('btnCaptureNP').textContent='✅ Captured at '+fmt(pos);
+  } else {
+    // Not playing: use first 2s
+    capturedProfile=captureNoiseAt(inSig,sr,0,2.0);
+    document.getElementById('npStatus').className='np-status ok';
+    document.getElementById('npStatus').textContent='✅ Captured first 2s as noise sample. For better results, play audio during a noise-only section then click capture.';
+    document.getElementById('btnCaptureNP').classList.add('captured');
+    document.getElementById('btnCaptureNP').textContent='✅ Captured (first 2s)';
+  }
+});
 
 /* ============================================================
    RECORDING
    ============================================================ */
-document.getElementById('recBtn').addEventListener('click',()=>{isRec?stopRec():startRec();});
+document.getElementById('micBtn').addEventListener('click',()=>{isRec?stopRec():startRec();});
 async function startRec(){
   try{
-    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();
     recStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,sampleRate:44100}});
-    recOrder=new MediaRecorder(recStream); recChunks=[];
-    recOrder.ondataavailable=e=>{if(e.data.size)recChunks.push(e.data);};
-    recOrder.onstop=async()=>{
-      const blob=new Blob(recChunks,{type:'audio/webm'});
-      await loadAudio(new File([blob],'recording.webm',{type:'audio/webm'}));
-    };
-    recOrder.start(100); isRec=true;
-    document.getElementById('recBtn').classList.add('on');
-    document.getElementById('recLbl').textContent='■ Stop Recording';
-  } catch(e){
-    const el=document.getElementById('httpsAlert');
-    if(e.name==='NotAllowedError') el.innerHTML='🚫 Microphone permission denied. Allow it in browser settings.';
-    else if(e.name==='NotSupportedError'||e.name==='SecurityError') el.innerHTML='⚠️ Recording requires HTTPS. Open <a href="https://arthanote.com/voice">arthanote.com/voice</a> on your phone.';
-    else if(e.name==='NotFoundError') el.innerHTML='🎤 No microphone found on this device.';
-    else el.innerHTML='❌ Microphone error: '+e.message;
-    el.classList.remove('hidden');
+    recMR=new MediaRecorder(recStream);recChunks=[];
+    recMR.ondataavailable=e=>{if(e.data.size)recChunks.push(e.data);};
+    recMR.onstop=async()=>{await loadAudio(new File(recChunks,'rec.webm',{type:'audio/webm'}));};
+    recMR.start(100);isRec=true;
+    document.getElementById('micBtn').classList.add('on');
+    document.getElementById('micLbl').textContent='■ Stop Recording';
+  }catch(e){
+    const al=document.getElementById('httpsAlert');
+    al.classList.remove('hidden');
+    if(e.name==='NotAllowedError')al.innerHTML='🚫 Microphone permission denied.';
+    else if(e.name==='NotSupportedError'||e.name==='SecurityError')al.innerHTML='⚠️ Recording requires HTTPS. Open <a href="https://arthanote.com/voice">arthanote.com/voice</a> on your phone.';
+    else al.innerHTML='❌ Microphone error: '+e.message;
   }
 }
-function stopRec(){
-  recOrder?.stop(); recStream?.getTracks().forEach(t=>t.stop());
-  isRec=false;
-  document.getElementById('recBtn').classList.remove('on');
-  document.getElementById('recLbl').textContent='Record from Microphone';
-}
+function stopRec(){recMR?.stop();recStream?.getTracks().forEach(t=>t.stop());isRec=false;document.getElementById('micBtn').classList.remove('on');document.getElementById('micLbl').textContent='Record from Microphone';}
 
 /* ============================================================
-   MAIN PROCESSING PIPELINE
+   MAIN PROCESSING — 3-PASS PIPELINE
    ============================================================ */
-document.getElementById('procBtn').addEventListener('click',process);
-async function process(){
-  if(!inSig) return;
+document.getElementById('procBtn').addEventListener('click',doProcess);
+
+function stageUI(n,state){
+  // state: 'active' | 'done' | ''
+  const ids=['ps1','ps2','ps3','ps4'];
+  ids.forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(i+1===n)el.className='prog-stage '+state;
+    else if(i+1<n)el.className='prog-stage done';
+    else el.className='prog-stage';
+  });
+  const spIds=['sp1','sp2','sp3'];
+  spIds.forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('on',i+1<=n&&n<=3);
+  });
+}
+
+async function doProcess(){
+  if(!inSig)return;
   stop();
   document.getElementById('procBtn').disabled=true;
-  showProg(true); setStatus('processing','⚙️ Processing…');
+  showProg(true);setStatus('proc','⚙️ Processing…');
+  // Reset stage pills
+  ['sp1','sp2','sp3'].forEach(id=>document.getElementById(id).classList.remove('on'));
+
   try{
     let s=inSig.slice();
-    const nr=P('nrStr'), alp=P('nrAlpha'), fl=P('nrFloor');
-    const sp=P('sepStr'), sw=Math.round(P('sepWin'));
-    const hp=P('hpFreq'), bg=P('bassG'), pg=P('presG'), ag=P('airG');
-    const ct=P('compT'), cr=P('compR'), df=P('deF'), da=P('deA'), lf=P('lufs');
+    const nrStr=P('nrStr'),nrAlpha=P('nrAlpha'),nrFloor=P('nrFloor');
+    const gateT=P('gateT'),gateR=P('gateR');
+    const vadS=P('vadSens'),vadH=P('vadHold');
+    const spStr=P('sepStr'),spWin=Math.round(P('sepWin'));
+    const hp=P('hpFreq'),bgn=P('bassG'),pgn=P('presG'),agn=P('airG');
+    const ct=P('compT'),cr=P('compR'),df=P('deF'),da=P('deA'),lf=P('lufs');
 
+    // Get or build noise profile
+    setProg(2,'🔊 Building noise profile…');await tick();
+    const noiseProfile=capturedProfile||buildSmartNoiseProfile(s);
+    setProg(8,'✅ Noise profile ready');await tick();
+
+    // Source separation (voice/music modes only)
     if(curMode==='voice'||curMode==='music'){
-      setProg(3,'🔍 Computing magnitude spectrogram…'); await tick();
-      s=await separateSource(s,curMode,sp,sw,pct=>{setProg(pct,'🎵 REPET source separation…');});
-      setProg(62,'✅ Source separated');await tick();
+      stageUI(0,'');
+      setProg(10,'🎵 REPET source separation…');await tick();
+      s=await separateSource(s,curMode,spStr,spWin,pct=>{setProg(pct,'🎵 Source separation…');});
+      setProg(62,'✅ Sources separated');await tick();
     }
 
-    setProg(65,'🧠 AI Wiener noise cancellation…'); await tick();
-    s=wienerFilter(s,fl,nr,alp);
-    setProg(75,'✅ Noise removed'); await tick();
+    // PASS 1 — Wiener filter
+    stageUI(1,'active');
+    setProg(curMode==='denoise'?10:63,'🧠 Pass 1: Wiener noise filter…');await tick();
+    s=wienerPass(s,noiseProfile,nrStr,nrAlpha);
+    stageUI(1,'done');
+    document.getElementById('sp1').classList.add('on');
+    setProg(curMode==='denoise'?42:80,'✅ Wiener done');await tick();
 
-    setProg(77,'🎛️ Applying EQ…'); await tick();
-    s=await applyEQ(s,sr,hp,bg,pg,ag);
-    setProg(82,'✅ EQ done');
+    // PASS 2 — Hard spectral gate
+    stageUI(2,'active');
+    setProg(curMode==='denoise'?44:82,'⚡ Pass 2: Hard spectral gate…');await tick();
+    const gateRatio=0.5+gateT/100*4.5; // 0.5x to 5x based on gate aggression
+    s=hardSpectralGate(s,noiseProfile,gateRatio);
+    stageUI(2,'done');
+    document.getElementById('sp2').classList.add('on');
+    setProg(curMode==='denoise'?72:88,'✅ Hard gate done');await tick();
 
-    setProg(84,'🗜️ Compressing dynamics…'); await tick();
+    // PASS 3 — VAD temporal gate
+    stageUI(3,'active');
+    setProg(curMode==='denoise'?74:89,'🔕 Pass 3: VAD silence gate…');await tick();
+    const preVadSig=s.slice();
+    s=vadGate(s,sr,vadS,vadH);
+    // Calculate speech percentage (frames that passed VAD)
+    const fSamp=Math.floor(0.02*sr);
+    const numF=Math.floor(s.length/fSamp);
+    let speechF=0;
+    for(let fi=0;fi<numF;fi++){let e=0;for(let k=0;k<fSamp;k++){const v=s[fi*fSamp+k]||0;e+=v*v;}if(Math.sqrt(e/fSamp)>0.001)speechF++;}
+    speechPct=Math.round(speechF/numF*100);
+    stageUI(3,'done');
+    document.getElementById('sp3').classList.add('on');
+    setProg(curMode==='denoise'?88:93,'✅ VAD gate done');await tick();
+
+    // EQ + Comp + De-ess + Normalize
+    stageUI(4,'active');
+    setProg(90,'🎛️ EQ + compression…');await tick();
+    s=await applyEQ(s,sr,hp,bgn,pgn,agn);
     s=await applyComp(s,sr,ct,cr);
-    setProg(88,'✅ Compression done');
-
-    if(da>0){setProg(90,'🔇 De-essing…');await tick();s=deEss(s,sr,df,da);}
-    setProg(93,'📊 Normalizing to '+lf+' LUFS…');await tick();
+    if(da>0)s=deEss(s,sr,df,da);
+    setProg(97,'📊 Normalizing to '+lf+' LUFS…');await tick();
     s=normLUFS(s,lf);
-    setProg(100,'✅ Complete!');
+    setProg(100,'🎉 Complete — pure voice extracted!');
 
     outSig=s;
-    if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();
     outBuf=actx.createBuffer(1,s.length,sr);
     outBuf.copyToChannel(s,0);
 
@@ -868,72 +979,62 @@ async function process(){
     const inRms=Math.sqrt(inSig.reduce((a,v)=>a+v*v,0)/inSig.length);
     const cut=Math.max(0,-20*Math.log10((rms+1e-12)/(inRms+1e-12)));
     document.getElementById('sNR').textContent=cut.toFixed(1)+'dB';
+    document.getElementById('sSpeech').textContent=speechPct+'%';
 
     document.getElementById('btnProc').disabled=false;
     document.getElementById('dlBtn').disabled=false;
     document.getElementById('btnB').classList.add('active');
     document.getElementById('btnA').classList.remove('active');
-    setStatus('ready','✅ Done — listen & compare');
-  } catch(e){
-    setStatus('idle','❌ '+e.message); console.error(e);
-  }
+    setStatus('done','✅ Zero noise applied — compare A/B');
+  }catch(e){setStatus('idle','❌ '+e.message);console.error(e);}
   document.getElementById('procBtn').disabled=false;
-  setTimeout(()=>showProg(false),2500);
+  setTimeout(()=>showProg(false),3000);
 }
 
 /* ============================================================
    PLAYBACK
    ============================================================ */
 function play(which){
-  const buf=which==='orig'?inBuf:outBuf;
-  if(!buf) return;
+  const buf=which==='orig'?inBuf:outBuf;if(!buf)return;
   if(isPlay&&playMode===which){stop();return;}
   stop();
-  if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)();
-  if(actx.state==='suspended') actx.resume();
-  src=actx.createBufferSource(); src.buffer=buf;
-  specAn=actx.createAnalyser(); specAn.fftSize=2048;
-  src.connect(specAn); specAn.connect(actx.destination);
+  if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==='suspended')actx.resume();
+  src=actx.createBufferSource();src.buffer=buf;
+  specAn=actx.createAnalyser();specAn.fftSize=2048;
+  src.connect(specAn);specAn.connect(actx.destination);
   src.start(0,playOff);
-  playStart=actx.currentTime-playOff; isPlay=true; playMode=which;
-  const btnId=which==='orig'?'btnOrig':'btnProc';
-  document.getElementById(btnId).classList.add('playing');
-  document.getElementById(btnId).innerHTML=which==='orig'?'■ Original':'■ Processed';
-  src.onended=()=>{if(playMode===which){isPlay=false;playOff=0;playMode=null;document.getElementById(btnId).classList.remove('playing');document.getElementById(btnId).innerHTML=which==='orig'?'▶ Original':'▶ Processed';cancelAnimationFrame(animId);clearSpec();}};
-  drawSpec(); updateTL();
+  playStart=actx.currentTime-playOff;isPlay=true;playMode=which;
+  const bid=which==='orig'?'btnOrig':'btnProc';
+  document.getElementById(bid).classList.add('playing');
+  document.getElementById(bid).innerHTML=which==='orig'?'■ Original':'■ Processed';
+  src.onended=()=>{if(playMode===which){isPlay=false;playOff=0;playMode=null;document.getElementById(bid).classList.remove('playing');document.getElementById(bid).innerHTML=which==='orig'?'▶ Original':'▶ Processed';cancelAnimationFrame(animId);clearSpec();}};
+  drawSpec();updateTL();
 }
 function stop(){
   try{src?.stop();}catch(e){}
-  src=null; isPlay=false; playOff=0; playMode=null;
-  cancelAnimationFrame(animId);
-  document.getElementById('btnOrig').classList.remove('playing');
-  document.getElementById('btnProc').classList.remove('playing');
-  document.getElementById('btnOrig').innerHTML='▶ Original';
-  document.getElementById('btnProc').innerHTML='▶ Processed';
-  document.getElementById('tlFill').style.width='0';
-  document.getElementById('tlHead').style.left='0';
-  document.getElementById('tElap').textContent='0:00';
-  clearSpec();
+  src=null;isPlay=false;playOff=0;playMode=null;cancelAnimationFrame(animId);
+  document.getElementById('btnOrig').classList.remove('playing');document.getElementById('btnProc').classList.remove('playing');
+  document.getElementById('btnOrig').innerHTML='▶ Original';document.getElementById('btnProc').innerHTML='▶ Processed';
+  document.getElementById('tlFill').style.width='0';document.getElementById('tlHead').style.left='0';
+  document.getElementById('tElap').textContent='0:00';clearSpec();
 }
 function abSwitch(x){
   document.getElementById('btnA').classList.toggle('active',x==='A');
   document.getElementById('btnB').classList.toggle('active',x==='B');
-  // Preserve position
-  if(isPlay&&actx){const pos=actx.currentTime-playStart;const buf=x==='A'?inBuf:outBuf;if(buf)playOff=Math.min(pos,buf.duration*0.99);}
+  if(isPlay&&actx){const pos=actx.currentTime-playStart;const buf=x==='A'?inBuf:outBuf;if(buf)playOff=Math.min(pos,buf.duration*.99);}
   play(x==='A'?'orig':'proc');
 }
 
-/* Timeline scrub */
 document.getElementById('tl').addEventListener('click',function(e){
-  const buf=playMode==='orig'?inBuf:(outBuf||inBuf); if(!buf) return;
-  const r=this.getBoundingClientRect();
-  playOff=(e.clientX-r.left)/r.width*buf.duration;
+  const buf=playMode==='orig'?inBuf:(outBuf||inBuf);if(!buf)return;
+  const r=this.getBoundingClientRect();playOff=(e.clientX-r.left)/r.width*buf.duration;
   if(isPlay){const m=playMode;stop();play(m);}
 });
 
 function updateTL(){
-  if(!isPlay||!actx) return;
-  const buf=playMode==='orig'?inBuf:outBuf; if(!buf) return;
+  if(!isPlay||!actx)return;
+  const buf=playMode==='orig'?inBuf:outBuf;if(!buf)return;
   const el=Math.max(0,actx.currentTime-playStart);
   const pct=Math.min(1,el/buf.duration)*100;
   document.getElementById('tlFill').style.width=pct+'%';
@@ -943,66 +1044,46 @@ function updateTL(){
 }
 
 /* ============================================================
-   SPECTRUM ANALYZER
+   SPECTRUM
    ============================================================ */
 function drawSpec(){
-  const canvas=document.getElementById('spec'); if(!canvas||!specAn) return;
+  const c=document.getElementById('spec');if(!c||!specAn)return;
   const dpr=window.devicePixelRatio||1;
-  const W=canvas.width=canvas.offsetWidth*dpr||600;
-  const H=canvas.height=canvas.offsetHeight*dpr||100;
-  const ctx=canvas.getContext('2d');
+  const W=c.width=c.offsetWidth*dpr||600;
+  const H=c.height=c.offsetHeight*dpr||90;
+  const ctx=c.getContext('2d');
   const data=new Uint8Array(specAn.frequencyBinCount);
   specAn.getByteFrequencyData(data);
-  ctx.fillStyle='#060d18'; ctx.fillRect(0,0,W,H);
-  // Grid
-  ctx.strokeStyle='#111d30'; ctx.lineWidth=1;
+  ctx.fillStyle='#050b14';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#0e1d30';ctx.lineWidth=1;
   [.25,.5,.75].forEach(y=>{ctx.beginPath();ctx.moveTo(0,y*H);ctx.lineTo(W,y*H);ctx.stroke();});
-  const bins=Math.min(data.length,600), bw=W/bins;
+  const bins=Math.min(data.length,600),bw=W/bins;
   for(let i=0;i<bins;i++){
-    const v=data[i]/255; const bh=v*H;
-    const hue=200+v*80;
-    ctx.fillStyle=`hsl(${hue},80%,${35+v*25}%)`;
+    const v=data[i]/255,bh=v*H,hue=200+v*80;
+    ctx.fillStyle=`hsl(${hue},80%,${32+v*28}%)`;
     ctx.fillRect(i*bw,H-bh,Math.max(1,bw-1),bh);
   }
-  // Freq labels
-  ctx.fillStyle='#334155'; ctx.font=`${9*dpr}px monospace`;
-  ['100','1k','5k','10k','20k'].forEach((l,i)=>{ctx.fillText(l,[.02,.12,.35,.55,.85][i]*W,H-2*dpr);});
+  ctx.fillStyle='#2d3f55';ctx.font=`${9*dpr}px monospace`;
+  ['100Hz','1kHz','5kHz','10kHz','20kHz'].forEach((l,i)=>ctx.fillText(l,[.02,.12,.35,.55,.85][i]*W,H-2*dpr));
   animId=requestAnimationFrame(drawSpec);
 }
-function clearSpec(){
-  const c=document.getElementById('spec'); if(!c) return;
-  const ctx=c.getContext('2d'); ctx.fillStyle='#060d18'; ctx.fillRect(0,0,c.width,c.height);
-}
+function clearSpec(){const c=document.getElementById('spec');if(!c)return;c.getContext('2d').fillStyle='#050b14';c.getContext('2d').fillRect(0,0,c.width,c.height);}
 
-/* ============================================================
-   DOWNLOAD
-   ============================================================ */
 function download(){
-  if(!outSig) return;
-  const wav=encodeWAV(outSig,sr);
+  if(!outSig)return;
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
-  a.download='arthanote-voice-processed.wav'; a.click();
+  a.href=URL.createObjectURL(new Blob([encodeWAV(outSig,sr)],{type:'audio/wav'}));
+  a.download='arthanote-zero-noise.wav';a.click();
 }
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
 const tick=()=>new Promise(r=>setTimeout(r,0));
 const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 function showProg(v){document.getElementById('progWrap').classList.toggle('show',v);}
 function setProg(pct,lbl){document.getElementById('progFill').style.width=pct+'%';document.getElementById('progLbl').textContent=lbl;}
 function setStatus(t,txt){const el=document.getElementById('sbadge');el.className='sbadge '+t;el.textContent=txt;}
 
-// Show HTTPS warning when not secure
-if(location.protocol!=='https:'&&location.hostname!=='localhost'){
-  document.getElementById('httpsAlert').classList.remove('hidden');
-}
-// Resize waveforms on window resize
-window.addEventListener('resize',()=>{
-  if(inSig) drawWave(document.getElementById('wvIn'),inSig);
-  if(outSig) drawWave(document.getElementById('wvOut'),outSig,'#22c55e');
-});
+if(location.protocol!=='https:'&&location.hostname!=='localhost')document.getElementById('httpsAlert').classList.remove('hidden');
+window.addEventListener('resize',()=>{if(inSig)drawWave(document.getElementById('wvIn'),inSig);if(outSig)drawWave(document.getElementById('wvOut'),outSig,'#22c55e');});
 </script>
 </body>
 </html>
