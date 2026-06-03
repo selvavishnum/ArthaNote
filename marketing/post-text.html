@@ -5,216 +5,143 @@
 <meta name="viewport" content="width=1080">
 <title>ArthaNote – Text Post</title>
 <style>
-  :root {
-    --p: #065f46;
-    --s: #059669;
-    --a: #d97706;
-    --bg: #ffffff;
-    --txt: #111827;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    width: 1080px; height: 1080px;
-    overflow: hidden;
-    background: var(--bg);
-    font-family: -apple-system, 'Segoe UI', sans-serif;
-    position: relative;
-  }
-  /* Header */
+  :root { --p:#065f46; --s:#059669; --a:#d97706; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1080px; height:1080px; overflow:hidden; background:#fff;
+    font-family:-apple-system,'Segoe UI','Helvetica Neue',sans-serif; }
+
   .header {
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 110px;
-    background: linear-gradient(135deg, var(--p) 0%, var(--s) 100%);
-    display: flex; align-items: center; padding: 0 56px;
-    z-index: 10;
+    width:100%; height:90px;
+    background:linear-gradient(135deg,var(--p) 0%,var(--s) 100%);
+    display:flex; align-items:center; padding:0 48px; gap:16px;
+    animation:slideDown 0.8s ease forwards;
   }
-  .logo-mark {
-    width: 52px; height: 52px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 28px; margin-right: 18px;
-    border: 2px solid rgba(255,255,255,0.4);
+  .logo-circle {
+    width:52px; height:52px; background:rgba(255,255,255,0.2);
+    border-radius:14px; display:flex; align-items:center; justify-content:center;
+    font-size:26px;
   }
-  .logo-text { color: #fff; }
-  .logo-text .name { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
-  .logo-text .tagline { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+  .brand-name { font-size:32px; font-weight:800; color:#fff; letter-spacing:-0.5px; }
+  .brand-tag { margin-left:auto; font-size:16px; color:rgba(255,255,255,0.8); font-weight:500; }
 
-  /* Footer */
-  .footer {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 90px;
-    background: linear-gradient(135deg, var(--p) 0%, var(--s) 100%);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 10;
-    overflow: hidden;
-  }
-  .footer-url {
-    font-size: 32px; font-weight: 800; color: #fff;
-    letter-spacing: 1px;
-    transform: translateY(100px);
-    animation: slideUp 0.6s ease forwards;
-    animation-delay: 5.5s;
-  }
-  .footer-sub { font-size: 15px; color: rgba(255,255,255,0.75); margin-top: 4px; }
-
-  /* Main content area */
   .content {
-    position: absolute;
-    top: 110px; bottom: 90px; left: 0; right: 0;
-    display: flex; flex-direction: column;
-    justify-content: center; align-items: center;
-    padding: 60px 80px;
-    background: #fff;
+    padding:50px 80px 20px; height:calc(1080px - 90px - 80px);
+    display:flex; flex-direction:column; justify-content:center;
+    gap:28px; position:relative; overflow:hidden;
   }
 
-  /* Emoji */
-  .big-emoji {
-    font-size: 90px; line-height: 1;
-    margin-bottom: 24px;
-    opacity: 0;
-    animation: popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;
-    animation-delay: 0.3s;
-  }
+  .post-emoji { font-size:76px; line-height:1; animation:popIn 0.5s ease 0.8s both; }
 
-  /* Headline */
-  .headline {
-    font-size: 58px; font-weight: 900;
-    color: var(--txt);
-    text-align: center;
-    line-height: 1.1;
-    letter-spacing: -1px;
-    margin-bottom: 16px;
-    min-height: 130px;
-    display: flex; flex-wrap: wrap;
-    justify-content: center; align-items: flex-start;
-    gap: 12px;
-  }
+  .headline { font-size:60px; font-weight:900; color:#0f172a; line-height:1.1; letter-spacing:-1px; }
   .headline .word {
-    display: inline-block;
-    opacity: 0;
-    transform: translateY(30px);
-    animation: wordIn 0.4s ease forwards;
+    display:inline-block; opacity:0; transform:translateY(30px); margin-right:8px;
+  }
+  .headline .word:nth-child(1)  { animation:wordIn 0.45s ease 1.0s forwards; }
+  .headline .word:nth-child(2)  { animation:wordIn 0.45s ease 1.2s forwards; }
+  .headline .word:nth-child(3)  { animation:wordIn 0.45s ease 1.4s forwards; }
+  .headline .word:nth-child(4)  { animation:wordIn 0.45s ease 1.6s forwards; }
+  .headline .word:nth-child(5)  { animation:wordIn 0.45s ease 1.8s forwards; }
+  .headline .word:nth-child(6)  { animation:wordIn 0.45s ease 2.0s forwards; }
+  .headline .word:nth-child(7)  { animation:wordIn 0.45s ease 2.2s forwards; }
+  .headline .word:nth-child(8)  { animation:wordIn 0.45s ease 2.4s forwards; }
+  .headline .word:nth-child(9)  { animation:wordIn 0.45s ease 2.6s forwards; }
+
+  .accent-line {
+    width:80px; height:6px; background:var(--a); border-radius:3px;
+    opacity:0; animation:fadeUp 0.5s ease 2.7s forwards;
   }
 
-  /* Subtext */
   .subtext {
-    font-size: 24px; color: #6b7280;
-    text-align: center; margin-bottom: 40px;
-    opacity: 0;
-    animation: fadeIn 0.5s ease forwards;
-    animation-delay: 2.5s;
+    font-size:26px; color:#475569; font-weight:400; line-height:1.4;
+    opacity:0; animation:fadeUp 0.6s ease 2.8s forwards;
   }
 
-  /* Points */
-  .points { width: 100%; max-width: 860px; }
-  .point {
-    display: flex; align-items: center;
-    padding: 16px 24px; margin-bottom: 14px;
-    background: #f0fdf4;
-    border-radius: 16px;
-    border-left: 6px solid var(--s);
-    opacity: 0;
-    transform: translateX(-40px);
-    animation: slideRight 0.5s ease forwards;
+  .points-list { display:flex; flex-direction:column; gap:16px; margin-top:4px; }
+  .point-item {
+    display:flex; align-items:center; gap:16px;
+    opacity:0; transform:translateX(-30px);
   }
-  .point .bullet {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--s);
-    color: #fff; font-weight: 800; font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; margin-right: 18px;
-  }
-  .point .pt-text { font-size: 22px; color: var(--txt); font-weight: 600; }
+  .point-item:nth-child(1) { animation:slideRight 0.5s ease 3.0s forwards; }
+  .point-item:nth-child(2) { animation:slideRight 0.5s ease 3.8s forwards; }
+  .point-item:nth-child(3) { animation:slideRight 0.5s ease 4.6s forwards; }
+  .point-item:nth-child(4) { animation:slideRight 0.5s ease 5.4s forwards; }
+  .point-dot { width:14px; height:14px; border-radius:50%; background:var(--a); flex-shrink:0; }
+  .point-text { font-size:24px; font-weight:600; color:#0f172a; }
 
-  /* Animations */
-  @keyframes slideUp {
-    from { transform: translateY(100px); opacity: 0; }
-    to   { transform: translateY(0);     opacity: 1; }
+  .footer-cta {
+    position:absolute; bottom:0; left:0; right:0; height:80px;
+    background:linear-gradient(135deg,var(--p) 0%,var(--s) 100%);
+    display:flex; align-items:center; justify-content:center; gap:16px;
+    transform:translateY(80px); animation:slideUp 0.6s ease 5.8s forwards;
   }
+  .cta-text { font-size:28px; font-weight:700; color:#fff; letter-spacing:1px; }
+  .cta-arrow { font-size:28px; animation:bounce 1s ease 6.5s infinite; }
+
+  .deco-circle {
+    position:absolute; border-radius:50%; opacity:0.04; background:var(--p); pointer-events:none;
+  }
+  .c1 { width:400px; height:400px; top:-100px; right:-100px; }
+  .c2 { width:250px; height:250px; bottom:90px; right:40px; }
+  .c3 { width:150px; height:150px; top:180px; left:-50px; }
+
+  @keyframes slideDown { from{transform:translateY(-90px);opacity:0} to{transform:translateY(0);opacity:1} }
   @keyframes popIn {
-    from { transform: scale(0.3); opacity: 0; }
-    to   { transform: scale(1);   opacity: 1; }
+    0%{transform:scale(0) rotate(-15deg);opacity:0}
+    70%{transform:scale(1.2) rotate(5deg)}
+    100%{transform:scale(1) rotate(0);opacity:1}
   }
-  @keyframes wordIn {
-    from { opacity: 0; transform: translateY(30px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-  @keyframes slideRight {
-    from { opacity: 0; transform: translateX(-40px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes headerIn {
-    from { opacity: 0; transform: translateY(-100px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .header { animation: headerIn 0.7s cubic-bezier(0.16,1,0.3,1) forwards; }
-
-  /* Accent color variant */
-  body.amber .point { background: #fffbeb; border-left-color: var(--a); }
-  body.amber .point .bullet { background: var(--a); }
-  body.amber .header, body.amber .footer { background: linear-gradient(135deg, #92400e, var(--a)); }
+  @keyframes wordIn { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes slideRight { from{opacity:0;transform:translateX(-30px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes slideUp { from{transform:translateY(80px)} to{transform:translateY(0)} }
+  @keyframes bounce { 0%,100%{transform:translateX(0)} 50%{transform:translateX(8px)} }
 </style>
 </head>
-<body id="body">
-  <div class="header">
-    <div class="logo-mark">₹</div>
-    <div class="logo-text">
-      <div class="name">ArthaNote</div>
-      <div class="tagline">Smart Shop Ledger · Tamil Nadu</div>
-    </div>
-  </div>
-
-  <div class="content">
-    <div class="big-emoji" id="emoji">📒</div>
-    <div class="headline" id="headline"></div>
-    <div class="subtext" id="subtext">உங்கள் கடையை டிஜிட்டல் ஆக்குங்கள்</div>
-    <div class="points" id="points"></div>
-  </div>
-
-  <div class="footer">
-    <div>
-      <div class="footer-url">arthanote.com</div>
-    </div>
-  </div>
-
+<body>
+<div class="header">
+  <div class="logo-circle">📒</div>
+  <span class="brand-name">ArthaNote</span>
+  <span class="brand-tag">Tamil Nadu's Shop Ledger</span>
+</div>
+<div class="content">
+  <div class="deco-circle c1"></div>
+  <div class="deco-circle c2"></div>
+  <div class="deco-circle c3"></div>
+  <div class="post-emoji" id="postEmoji">📊</div>
+  <div class="headline" id="headline"></div>
+  <div class="accent-line"></div>
+  <div class="subtext" id="subtext"></div>
+  <div class="points-list" id="pointsList"></div>
+</div>
+<div class="footer-cta">
+  <span class="cta-text">arthanote.com</span>
+  <span class="cta-arrow">→</span>
+  <span class="cta-text">இலவசம் Download</span>
+</div>
 <script>
-  const params = new URLSearchParams(location.search);
-  const headline = params.get('headline') || 'உங்கள் கடை லெட்ஜரை டிஜிட்டல் ஆக்குங்கள்!';
-  const subtext  = params.get('subtext')  || 'Free • Offline • Tamil & English';
-  const rawPts   = params.get('points')   || 'Daily sales in 10 seconds|Never lose a rupee|Works offline always|Multi-shop in one app';
-  const emoji    = params.get('emoji')    || '📒';
-  const color    = params.get('color')    || 'green';
+  const p = new URLSearchParams(window.location.search);
+  const headline  = p.get('headline') || 'உங்கள் கடை கணக்கு இனி Digital!';
+  const subtext   = p.get('subtext')  || 'Track sales, expenses & payments easily';
+  const pointsRaw = p.get('points')   || 'Daily sales tracking|Expense management|Supplier ledger|Works offline too';
+  const emoji     = p.get('emoji')    || '📊';
 
-  if (color === 'amber') document.getElementById('body').classList.add('amber');
+  document.getElementById('postEmoji').textContent = emoji;
+  document.getElementById('subtext').textContent   = subtext;
 
-  document.getElementById('emoji').textContent = emoji;
-  document.getElementById('subtext').textContent = subtext;
-
-  // Animate headline word by word
-  const hEl = document.getElementById('headline');
-  headline.split(' ').forEach((w, i) => {
-    const span = document.createElement('span');
-    span.className = 'word';
-    span.textContent = w;
-    span.style.animationDelay = (1 + i * 0.18) + 's';
-    hEl.appendChild(span);
+  const hlEl = document.getElementById('headline');
+  headline.split(' ').forEach(w => {
+    const s = document.createElement('span');
+    s.className = 'word'; s.textContent = w;
+    hlEl.appendChild(s);
   });
 
-  // Points
-  const pts = rawPts.split('|');
-  const pEl = document.getElementById('points');
-  pts.forEach((pt, i) => {
-    const div = document.createElement('div');
-    div.className = 'point';
-    div.style.animationDelay = (3 + i * 0.8) + 's';
-    div.innerHTML = `<div class="bullet">${i+1}</div><div class="pt-text">${pt}</div>`;
-    pEl.appendChild(div);
+  const points = pointsRaw.split('|').slice(0,4);
+  const pl = document.getElementById('pointsList');
+  points.forEach(pt => {
+    const d = document.createElement('div');
+    d.className = 'point-item';
+    d.innerHTML = `<div class="point-dot"></div><span class="point-text">${pt}</span>`;
+    pl.appendChild(d);
   });
 </script>
 </body>

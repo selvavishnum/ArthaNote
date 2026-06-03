@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ArthaNote Marketing Studio</title>
+<style>
+:root {
+  --p:#065f46; --s:#059669; --a:#d97706;
+  --bg:#0f172a; --surface:#1e293b; --border:#334155;
+  --text:#e2e8f0; --muted:#94a3b8; --green:#34d399;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,'Segoe UI','Helvetica Neue',sans-serif;overflow:hidden;}
+
+/* ── TOPBAR ── */
+.topbar{
+  height:56px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;
+  position:relative;z-index:100;
+}
+.top-logo{display:flex;align-items:center;gap:10px;}
+.top-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--p),var(--s));
+  border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.top-logo-name{font-size:18px;font-weight:800;color:#fff;}
+.top-logo-sub{font-size:12px;color:var(--muted);}
+.top-day{margin-left:20px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);
+  border-radius:100px;padding:4px 14px;font-size:13px;font-weight:700;color:var(--green);}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+
+/* Music Player */
+.music-player{display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  border-radius:100px;padding:6px 16px;}
+.music-btn{width:30px;height:30px;border-radius:50%;background:var(--s);border:none;
+  color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.music-btn:hover{background:var(--p);}
+.music-styles{display:flex;gap:4px;}
+.music-style{padding:4px 10px;border-radius:100px;font-size:11px;font-weight:600;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;}
+.music-style.active{background:rgba(5,150,105,0.2);border-color:var(--s);color:var(--green);}
+.music-vol{width:70px;accent-color:var(--s);}
+
+/* ── LAYOUT ── */
+.layout{display:flex;height:calc(100vh - 56px);}
+
+/* ── LEFT CALENDAR ── */
+.calendar{
+  width:280px;flex-shrink:0;
+  background:var(--surface);border-right:1px solid var(--border);
+  overflow-y:auto;padding:16px 12px;
+}
+.cal-header{font-size:13px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding:0 4px;}
+.cal-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.cal-day{
+  padding:10px 8px;border-radius:10px;cursor:pointer;
+  border:1px solid transparent;transition:all 0.2s;
+  background:rgba(255,255,255,0.02);
+}
+.cal-day:hover{background:rgba(255,255,255,0.06);border-color:var(--border);}
+.cal-day.active{background:rgba(5,150,105,0.15);border-color:var(--s);}
+.cal-day.today{background:rgba(52,211,153,0.12);border-color:var(--green);
+  box-shadow:0 0 0 1px rgba(52,211,153,0.2);}
+.cal-day-num{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.cal-day.today .cal-day-num{color:var(--green);}
+.cal-day.active .cal-day-num{color:var(--green);}
+.cal-day-icons{display:flex;gap:3px;font-size:14px;}
+.cal-day-label{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.2;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ── CENTER ── */
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#0a0f1a;}
+
+.format-tabs{
+  display:flex;gap:0;border-bottom:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+}
+.fmt-tab{
+  padding:12px 20px;font-size:13px;font-weight:600;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;
+  white-space:nowrap;
+}
+.fmt-tab:hover{color:var(--text);}
+.fmt-tab.active{color:var(--green);border-bottom-color:var(--green);}
+
+.preview-area{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;padding:20px;overflow:auto;}
+.preview-frame-wrap{
+  position:relative;background:#111;border-radius:12px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  flex-shrink:0;
+}
+.preview-iframe{border:none;display:block;
+  transform-origin:top left;}
+
+.preview-actions{display:flex;gap:10px;align-items:center;flex-shrink:0;}
+.btn{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;
+  cursor:pointer;border:none;transition:all 0.2s;}
+.btn-primary{background:var(--s);color:#fff;}
+.btn-primary:hover{background:var(--p);}
+.btn-secondary{background:rgba(255,255,255,0.06);color:var(--text);border:1px solid var(--border);}
+.btn-secondary:hover{background:rgba(255,255,255,0.1);}
+.btn-amber{background:var(--a);color:#fff;}
+.btn-amber:hover{background:#b45309;}
+
+/* ── RIGHT PANEL ── */
+.right-panel{
+  width:320px;flex-shrink:0;
+  background:var(--surface);border-left:1px solid var(--border);
+  overflow-y:auto;padding:0;
+}
+.panel-section{padding:16px 18px;border-bottom:1px solid var(--border);}
+.panel-label{font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+
+/* Day info */
+.day-info{display:flex;flex-direction:column;gap:8px;}
+.day-info-row{display:flex;justify-content:space-between;align-items:center;}
+.di-label{font-size:13px;color:var(--muted);}
+.di-value{font-size:13px;font-weight:600;color:var(--text);}
+.topic-badge{
+  display:inline-block;padding:3px 10px;border-radius:100px;
+  font-size:11px;font-weight:700;
+  background:rgba(5,150,105,0.2);border:1px solid rgba(5,150,105,0.4);color:var(--green);
+}
+.format-badge{
+  display:inline-block;padding:3px 10px;border-radius:100px;
+  font-size:11px;font-weight:700;
+  background:rgba(217,119,6,0.2);border:1px solid rgba(217,119,6,0.4);color:#fbbf24;
+}
+
+/* Claude AI box */
+.claude-box{}
+.api-row{display:flex;gap:6px;margin-bottom:8px;}
+.api-input{
+  flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;
+}
+.api-input:focus{outline:none;border-color:var(--s);}
+.api-input::placeholder{color:var(--muted);}
+.gen-btn{
+  width:100%;padding:10px;border-radius:8px;
+  background:linear-gradient(135deg,#7c3aed,#6d28d9);
+  color:#fff;font-size:13px;font-weight:700;cursor:pointer;border:none;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all 0.2s;
+}
+.gen-btn:hover{background:linear-gradient(135deg,#6d28d9,#5b21b6);}
+.gen-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.gen-status{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;min-height:16px;}
+
+/* Caption */
+.caption-wrap{position:relative;}
+.caption-ta{
+  width:100%;min-height:100px;background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);border-radius:8px;padding:10px;
+  color:var(--text);font-size:12px;line-height:1.5;resize:vertical;
+  font-family:inherit;
+}
+.caption-ta:focus{outline:none;border-color:var(--s);}
+.caption-copy{
+  position:absolute;top:6px;right:6px;
+  background:rgba(255,255,255,0.08);border:1px solid var(--border);
+  border-radius:6px;padding:4px 8px;font-size:10px;font-weight:600;
+  color:var(--muted);cursor:pointer;
+}
+.caption-copy:hover{color:var(--text);}
+
+/* Hashtags */
+.hashtags-wrap{
+  background:rgba(255,255,255,0.02);border:1px solid var(--border);
+  border-radius:8px;padding:10px;font-size:11px;color:var(--green);
+  line-height:1.6;word-break:break-all;
+  position:relative;
+}
+.hash-copy{
+  position:absolute;top:6px;right:6px;
+  background:rgba(255,255,255,0.08);border:1px solid var(--border);
+  border-radius:6px;padding:4px 8px;font-size:10px;font-weight:600;
+  color:var(--muted);cursor:pointer;
+}
+.hash-copy:hover{color:var(--text);}
+
+/* Export links */
+.export-links{display:flex;flex-direction:column;gap:6px;}
+.export-link{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;background:rgba(255,255,255,0.03);
+  border:1px solid var(--border);border-radius:8px;
+  font-size:12px;color:var(--text);cursor:pointer;
+  text-decoration:none;transition:all 0.2s;
+}
+.export-link:hover{background:rgba(255,255,255,0.07);border-color:var(--s);}
+.export-link-label{display:flex;align-items:center;gap:8px;}
+.export-link-arrow{color:var(--muted);font-size:14px;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:#1e293b;border:1px solid var(--s);border-radius:8px;
+  padding:10px 20px;font-size:13px;color:var(--green);font-weight:600;
+  z-index:9999;pointer-events:none;
+  opacity:0;transition:opacity 0.3s;
+}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="top-logo">
+    <div class="top-logo-icon">📒</div>
+    <div>
+      <div class="top-logo-name">ArthaNote</div>
+    </div>
+  </div>
+  <div style="font-size:14px;color:var(--muted);font-weight:500;">Marketing Studio</div>
+  <div class="top-day" id="topDayBadge">Day 1 / 30</div>
+  <div class="top-right">
+    <!-- Music Player -->
+    <div class="music-player">
+      <button class="music-btn" id="playBtn" title="Play/Pause">▶</button>
+      <div class="music-styles">
+        <button class="music-style active" data-style="upbeat">Upbeat</button>
+        <button class="music-style" data-style="tamil">Tamil</button>
+        <button class="music-style" data-style="minimal">Minimal</button>
+      </div>
+      <input type="range" class="music-vol" id="volSlider" min="0" max="1" step="0.05" value="0.4">
+      <span style="font-size:11px;color:var(--muted);">🔊</span>
+    </div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT: Calendar -->
+  <div class="calendar">
+    <div class="cal-header">30-Day Plan</div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <!-- CENTER: Preview -->
+  <div class="center">
+    <div class="format-tabs" id="formatTabs">
+      <div class="fmt-tab active" data-fmt="text">📝 Text</div>
+      <div class="fmt-tab" data-fmt="card">🃏 Card</div>
+      <div class="fmt-tab" data-fmt="howto">📖 How-To</div>
+      <div class="fmt-tab" data-fmt="reel">🎬 Reel</div>
+      <div class="fmt-tab" data-fmt="stats">📊 Stats</div>
+    </div>
+    <div class="preview-area" id="previewArea">
+      <div class="preview-frame-wrap" id="frameWrap">
+        <iframe id="previewIframe" class="preview-iframe" scrolling="no"></iframe>
+      </div>
+      <div class="preview-actions">
+        <button class="btn btn-secondary" onclick="refreshPreview()">🔄 Refresh</button>
+        <button class="btn btn-primary" onclick="openFullscreen()">↗ Open Full Screen</button>
+        <button class="btn btn-amber" onclick="copyPostUrl()">🔗 Copy URL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Controls -->
+  <div class="right-panel">
+
+    <!-- Day Info -->
+    <div class="panel-section">
+      <div class="panel-label">Today's Content</div>
+      <div class="day-info">
+        <div class="day-info-row">
+          <span class="di-label">Day</span>
+          <span class="di-value" id="di-day">1 of 30</span>
+        </div>
+        <div class="day-info-row">
+          <span class="di-label">Topic</span>
+          <span class="topic-badge" id="di-topic">Benefits</span>
+        </div>
+        <div class="day-info-row">
+          <span class="di-label">Format</span>
+          <span class="format-badge" id="di-format">Reel</span>
+        </div>
+        <div class="day-info-row">
+          <span class="di-label">Headline (Tamil)</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:6px;line-height:1.4;" id="di-tahead">—</div>
+        <div class="day-info-row" style="margin-top:4px;">
+          <span class="di-label">Headline (EN)</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:6px;line-height:1.4;" id="di-enhead">—</div>
+      </div>
+    </div>
+
+    <!-- Claude AI -->
+    <div class="panel-section">
+      <div class="panel-label">🤖 Claude AI Content</div>
+      <div class="claude-box">
+        <div class="api-row">
+          <input type="password" class="api-input" id="claudeKey" placeholder="sk-ant-... API Key" autocomplete="off">
+          <button class="btn btn-secondary" style="padding:8px 10px;font-size:11px;" onclick="saveKey()">Save</button>
+        </div>
+        <button class="gen-btn" id="genBtn" onclick="generateContent()">
+          🤖 Generate Content
+        </button>
+        <div class="gen-status" id="genStatus"></div>
+      </div>
+    </div>
+
+    <!-- Caption -->
+    <div class="panel-section">
+      <div class="panel-label">Instagram Caption</div>
+      <div class="caption-wrap">
+        <textarea class="caption-ta" id="captionTA" rows="5" placeholder="Caption will appear here..."></textarea>
+        <button class="caption-copy" onclick="copyText('captionTA')">Copy</button>
+      </div>
+    </div>
+
+    <!-- Hashtags -->
+    <div class="panel-section">
+      <div class="panel-label">Hashtags</div>
+      <div class="hashtags-wrap" id="hashtagsWrap">
+        <button class="hash-copy" onclick="copyHashtags()">Copy</button>
+        <span id="hashtagsText"></span>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="panel-section">
+      <div class="panel-label">Export Links</div>
+      <div class="export-links" id="exportLinks"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  30-DAY CONTENT PLAN
+// ═══════════════════════════════════════════════
+const PLAN = [
+  {
+    day:1, topic:'benefits', topicLabel:'Benefits', format:'reel', emoji:'🚀',
+    taHead:'ArthaNote — உங்கள் கடைக்கு ஏன் தேவை?',
+    enHead:'Why Your Shop Needs ArthaNote',
+    points:['No more paper ledger mistakes','Access anytime from your phone','Offline support — no net needed','Free for small Tamil Nadu shops'],
+    caption:'📒 கடை கணக்கு இனி எளிது! ArthaNote உங்கள் daily sales, expenses & payments track பண்ணும். Paper ledger மறக்கவும்! 🚀 #ArthaNote',
+    tags:['#ArthaNote','#TamilNaduBusiness','#ShopLedger','#DigitalShop','#KadaiKanakku','#TamilEntrepreneur','#SmallBusiness','#RetailIndia','#DigitalIndia','#FreeApp']
+  },
+  {
+    day:2, topic:'howto', topicLabel:'How-To', format:'text', emoji:'📱',
+    taHead:'ArthaNote-ல் Entry எப்படி சேர்க்கலாம்?',
+    enHead:'How to Add Your First Entry',
+    points:['Download app from arthanote.com','Sign in with your phone number','Create your shop in 30 seconds','Tap Entry tab and add daily sales'],
+    caption:'📱 ArthaNote-ல் first entry சேர்க்கணுமா? Super simple! → App open → Entry tab → Amount type → Save! 30 seconds மட்டும்! arthanote.com 📒',
+    tags:['#HowTo','#ArthaNote','#ShopApp','#TamilBusiness','#LedgerApp','#KadaiApp','#EasyAccounting','#SmallShop','#TamilNadu','#DigitalLedger']
+  },
+  {
+    day:3, topic:'features', topicLabel:'Features', format:'card', emoji:'⭐',
+    taHead:'ArthaNote-ல் என்ன features இருக்கு?',
+    enHead:'ArthaNote Feature Highlights',
+    points:['📊 Dashboard with daily summary','✏️ One-tap entry: Sale/Expense/Payment','🏪 Multi-shop support','📋 MIS Reports with charts'],
+    caption:'⭐ ArthaNote features பாருங்க! Dashboard, Multi-shop, Offline mode, Tamil+English support — எல்லாமே FREE! arthanote.com 📒 #ArthaNote',
+    tags:['#AppFeatures','#ArthaNote','#ShopLedger','#MultiShop','#OfflineApp','#TamilApp','#BusinessApp','#SmallBusiness','#TamilNadu','#FreeApp']
+  },
+  {
+    day:4, topic:'personal', topicLabel:'Personal Module', format:'howto', emoji:'💰',
+    taHead:'Personal கணக்கு track பண்ண ArthaNote',
+    enHead:'Track Your Personal Expenses with ArthaNote',
+    points:['Add personal income separately','Log daily household expenses','View monthly expense breakdown','Compare months easily'],
+    caption:'💰 Personal finance track பண்றீங்களா? ArthaNote-ல் personal module இருக்கு! Daily expenses, savings எல்லாம் ஒரே place-ல். arthanote.com',
+    tags:['#PersonalFinance','#ArthaNote','#ExpenseTracker','#TamilNadu','#MoneyManagement','#DailyBudget','#FinanceTips','#TamilFinance','#SaveMoney','#LedgerApp']
+  },
+  {
+    day:5, topic:'finance', topicLabel:'Finance Module', format:'stats', emoji:'💎',
+    taHead:'Finance & Chit Fund module — ArthaNote-ல்',
+    enHead:'Finance & Chit Fund Module Coming Soon',
+    points:['Track chit fund members','Monthly collection records','Defaulter alerts automatic','Chit prize winner tracking'],
+    caption:'💎 Chit fund நடத்துறீங்களா? ArthaNote Finance module members, collections, chit prize எல்லாம் track பண்ணும்! Coming Soon 🚀 arthanote.com',
+    tags:['#ChitFund','#FinanceModule','#ArthaNote','#TamilNadu','#ChitFundApp','#MemberTracking','#CollectionApp','#TamilBusiness','#FinanceApp','#ComingSoon']
+  },
+  {
+    day:6, topic:'attendance', topicLabel:'Attendance QR', format:'reel', emoji:'📍',
+    taHead:'Attendance QR Module — Mark IN/OUT easily!',
+    enHead:'QR Attendance for Your Shop Staff',
+    points:['Mark IN with QR code scan','Tea break tracking included','Mark OUT at end of shift','Monthly attendance report auto-generated'],
+    caption:'📍 Staff attendance QR code மூலம் mark பண்ணலாம்! ArthaNote Attendance module — Mark IN, Tea Break, Mark OUT, Monthly report. Coming Soon! arthanote.com',
+    tags:['#AttendanceQR','#StaffAttendance','#ArthaNote','#QRCode','#TamilNadu','#ShopManagement','#EmployeeTracking','#AttendanceApp','#HRTech','#ComingSoon']
+  },
+  {
+    day:7, topic:'benefits', topicLabel:'Benefits', format:'text', emoji:'🌟',
+    taHead:'Paper ledger vs ArthaNote — வித்தியாசம் பாருங்க',
+    enHead:'Paper Ledger vs ArthaNote — The Difference',
+    points:['No paper losses or damage','Search any old entry instantly','Share reports with family','Works without electricity too (phone)'],
+    caption:'🌟 Paper ledger போதும்! ArthaNote-ல் உங்கள் கடை data safe, searchable, shareable! ஒரு mobile போதும். Download FREE arthanote.com 📒',
+    tags:['#PaperFree','#ArthaNote','#DigitalShop','#TamilRetail','#ModernShop','#LedgerApp','#TamilNadu','#NoMorePaper','#SmallBusiness','#FreeDownload']
+  },
+  {
+    day:8, topic:'howto', topicLabel:'How-To', format:'card', emoji:'🏪',
+    taHead:'Multiple shops ஒரே app-ல் manage பண்றது எப்படி?',
+    enHead:'Manage Multiple Shops in One App',
+    points:['Create your first shop during onboarding','Tap "+" to add more shops','Switch between shops in dashboard','Each shop has separate reports'],
+    caption:'🏪 Multiple shops நடத்துறீங்களா? ArthaNote-ல் எல்லா shops-ஐயும் ஒரே app-ல் manage பண்ணலாம்! arthanote.com 📒 #MultiShop',
+    tags:['#MultiShop','#ArthaNote','#ShopManagement','#TamilBusiness','#RetailApp','#MultipleShops','#TamilNadu','#BusinessApp','#LedgerApp','#FreeApp']
+  },
+  {
+    day:9, topic:'features', topicLabel:'Features', format:'reel', emoji:'📊',
+    taHead:'MIS Reports — உங்கள் business insight',
+    enHead:'MIS Reports — Know Your Business Inside Out',
+    points:['15+ report sections','Sales vs expense comparison','Supplier payment analysis','Monthly P&L statement'],
+    caption:'📊 உங்கள் shop எப்படி performance பண்றது தெரியுமா? ArthaNote MIS Reports — 15+ sections, charts, P&L எல்லாம்! arthanote.com',
+    tags:['#MISReports','#ArthaNote','#BusinessReports','#ProfitLoss','#TamilBusiness','#RetailAnalytics','#ShopInsights','#TamilNadu','#BusinessGrowth','#DataDriven']
+  },
+  {
+    day:10, topic:'personal', topicLabel:'Personal Module', format:'howto', emoji:'📋',
+    taHead:'Supplier ledger manage பண்றது எப்படி?',
+    enHead:'How to Manage Supplier Payments in ArthaNote',
+    points:['Add supplier with opening balance','Record each bill separately','Mark payments as you pay','View outstanding balance instantly'],
+    caption:'📋 Supplier கணக்கு confuse ஆகுதா? ArthaNote Supplier module — bills, payments, outstanding balance எல்லாம் crystal clear! arthanote.com',
+    tags:['#SupplierManagement','#ArthaNote','#SupplierLedger','#TamilBusiness','#PaymentTracking','#BusinessApp','#TamilNadu','#InventoryFree','#ShopLedger','#FreeApp']
+  },
+  {
+    day:11, topic:'finance', topicLabel:'Finance Module', format:'text', emoji:'🤝',
+    taHead:'Chit fund members manage பண்றது super easy!',
+    enHead:'Manage Chit Fund Members Effortlessly',
+    points:['Add all members with contact details','Track monthly payment status','Automatic defaulter identification','Record chit prize allocation'],
+    caption:'🤝 Chit fund நடத்துறது இனி easy! ArthaNote Finance module — members, collections, defaulters, prizes — எல்லாம் automatic! arthanote.com',
+    tags:['#ChitFund','#ArthaNote','#MemberManagement','#CollectionTracker','#TamilNadu','#FinanceApp','#ChitFundManagement','#TamilFinance','#SmallFinance','#MicroFinance']
+  },
+  {
+    day:12, topic:'attendance', topicLabel:'Attendance QR', format:'card', emoji:'⏰',
+    taHead:'Staff attendance எப்படி manage பண்றது?',
+    enHead:'Easy Staff Attendance Management',
+    points:['Print QR code once, use forever','Staff scan on their phone','Automatic time stamp recorded','Monthly report in one tap'],
+    caption:'⏰ Staff attendance register பழசு! ArthaNote QR Attendance — staff phone-ல் scan பண்ணா automatically record ஆகும்! arthanote.com 📒',
+    tags:['#QRAttendance','#StaffManagement','#ArthaNote','#AttendanceSystem','#TamilNadu','#ShopStaff','#AutoAttendance','#SmallBusiness','#HRApp','#TamilBusiness']
+  },
+  {
+    day:13, topic:'benefits', topicLabel:'Benefits', format:'reel', emoji:'💪',
+    taHead:'ArthaNote உபயோகிக்கும் retailers கூறுகிறார்கள்',
+    enHead:'What Tamil Nadu Retailers Say About ArthaNote',
+    points:['Saves 1 hour daily on accounts','Never miss a payment again','Family can check accounts remotely','Grew business by tracking expenses'],
+    caption:'💪 Tamil Nadu retailers ArthaNote பத்தி என்ன சொல்றாங்க? "Daily 1 hour save!" "Miss ஆன payment இல்ல!" Download FREE arthanote.com',
+    tags:['#CustomerReview','#ArthaNote','#TamilNadu','#RetailerStory','#ShopApp','#SuccessStory','#TamilBusiness','#BusinessGrowth','#HappyCustomer','#SmallBiz']
+  },
+  {
+    day:14, topic:'howto', topicLabel:'How-To', format:'stats', emoji:'📈',
+    taHead:'ArthaNote Reports எப்படி பார்க்கலாம்?',
+    enHead:'How to View Reports in ArthaNote',
+    points:['Tap Reports tab in bottom nav','Select date range (day/week/month)','View sales, expense, profit charts','Export or share as PDF'],
+    caption:'📈 Reports பார்க்கணுமா? ArthaNote Reports tab → Date select → Charts automatic! Share to WhatsApp கூட possible. arthanote.com 📊',
+    tags:['#Reports','#ArthaNote','#BusinessReports','#SalesReport','#TamilBusiness','#Charts','#DataInsights','#TamilNadu','#ShopReport','#Analytics']
+  },
+  {
+    day:15, topic:'features', topicLabel:'Features', format:'card', emoji:'🌐',
+    taHead:'Offline mode — Internet இல்லாமலும் works!',
+    enHead:'ArthaNote Works Perfectly Offline',
+    points:['All entries saved locally first','Syncs to cloud when connected','No data loss ever','Perfect for areas with weak signal'],
+    caption:'🌐 Internet இல்லாத areas-ல் shop நடத்துறீங்களா? ArthaNote offline நடக்கும்! Data sync ஆகும் later. arthanote.com 📒 #Offline',
+    tags:['#OfflineApp','#ArthaNote','#NoInternet','#TamilNadu','#RuralBusiness','#OfflineFirst','#SmallShop','#TamilRetail','#ReliableApp','#DataSync']
+  },
+  {
+    day:16, topic:'personal', topicLabel:'Personal Module', format:'howto', emoji:'💸',
+    taHead:'Daily expenses track பண்றது எப்படி?',
+    enHead:'How to Track Daily Expenses Step by Step',
+    points:['Open app → Entry tab','Select "Expense" as type','Enter amount and description','Category select (optional)'],
+    caption:'💸 Daily expenses track பண்றது ArthaNote-ல் super easy! Open app → Entry → Expense → Amount → Save! 10 seconds! arthanote.com',
+    tags:['#ExpenseTracking','#ArthaNote','#DailyExpense','#TamilNadu','#MoneyTracker','#BudgetApp','#PersonalFinance','#TamilBusiness','#SaveMoney','#FinanceTips']
+  },
+  {
+    day:17, topic:'finance', topicLabel:'Finance Module', format:'text', emoji:'📅',
+    taHead:'Monthly collection record — automatic reminders!',
+    enHead:'Never Miss Monthly Chit Collections',
+    points:['Set collection date once','Automatic reminders to members','One tap to mark payment received','See who paid, who didn\'t instantly'],
+    caption:'📅 Monthly collection track பண்றது கஷ்டமா? ArthaNote Finance module automatic reminders + payment tracking! arthanote.com #ChitFund',
+    tags:['#MonthlyCollection','#ArthaNote','#ChitFundReminder','#PaymentTracking','#TamilNadu','#FinanceApp','#CollectionAlert','#AutoReminder','#TamilFinance','#MicroFinance']
+  },
+  {
+    day:18, topic:'attendance', topicLabel:'Attendance QR', format:'reel', emoji:'🎯',
+    taHead:'Mark IN, Tea Break, Mark OUT — ஒரே QR code!',
+    enHead:'4-Punch Attendance System for Your Shop',
+    points:['Mark IN when arriving','Take Break — scan for REST','Back to Work — scan again','Mark OUT at end of day'],
+    caption:'🎯 4-punch attendance system! Mark IN → Take Break → Back to Work → Mark OUT. ArthaNote QR Attendance. arthanote.com #Attendance',
+    tags:['#FourPunch','#AttendanceSystem','#ArthaNote','#QRAttendance','#TamilNadu','#StaffTracking','#ShiftManagement','#MarkIN','#MarkOUT','#SmallBusiness']
+  },
+  {
+    day:19, topic:'benefits', topicLabel:'Benefits', format:'text', emoji:'🏆',
+    taHead:'Tamil Nadu-ல் 1000+ shops ArthaNote use பண்றார்கள்!',
+    enHead:'1000+ Tamil Nadu Shops Trust ArthaNote',
+    points:['Vegetables shops to jewellery stores','Hotels to medical shops','Tea stalls to hardware shops','All business types supported'],
+    caption:'🏆 Tamil Nadu-ல் 1000+ shops ArthaNote-ல் இருக்காங்க! Vegetables, Tea, Jewellery, Medical, Hotel — எல்லா shops-க்கும் perfect! arthanote.com',
+    tags:['#TamilNadu','#ArthaNote','#TamilShops','#AllShopTypes','#VegetableShop','#TamilBusiness','#ShopLedger','#1000Shops','#SmallBusiness','#FreeApp']
+  },
+  {
+    day:20, topic:'howto', topicLabel:'How-To', format:'howto', emoji:'🔔',
+    taHead:'Payment reminders எப்படி set பண்றது?',
+    enHead:'How to Set Payment Reminders in ArthaNote',
+    points:['Go to Reminders screen','Tap + to add new reminder','Set customer name, amount, date','App notifies you automatically'],
+    caption:'🔔 Customer payment miss ஆகுதா? ArthaNote Reminders! Set reminder → App automatically notify பண்ணும். arthanote.com 📒 #Reminder',
+    tags:['#PaymentReminder','#ArthaNote','#NeverMiss','#CustomerPayment','#TamilBusiness','#ReminderApp','#AutoNotify','#TamilNadu','#ShopApp','#SmartLedger']
+  },
+  {
+    day:21, topic:'features', topicLabel:'Features', format:'card', emoji:'🔒',
+    taHead:'உங்கள் data 100% secure! PIN lock இருக்கு',
+    enHead:'Your Shop Data is 100% Secure',
+    points:['PIN lock + Biometric fingerprint','Data encrypted in Firebase','Business-scoped security rules','Only you can see your data'],
+    caption:'🔒 உங்கள் கடை data safe-ஆ இருக்கா? ArthaNote PIN lock, biometric, encrypted cloud storage! 100% secure. arthanote.com',
+    tags:['#DataSecurity','#ArthaNote','#PINLock','#Biometric','#SecureApp','#TamilNadu','#PrivacyFirst','#EncryptedData','#SafeApp','#TrustArthaNote']
+  },
+  {
+    day:22, topic:'personal', topicLabel:'Personal Module', format:'stats', emoji:'📑',
+    taHead:'Supplier bills — ஒரே click-ல் outstanding balance!',
+    enHead:'Check Supplier Outstanding in One Click',
+    points:['Total bills added this month','Payments made to suppliers','Outstanding balance calculated','Overdue alerts automatic'],
+    caption:'📑 Supplier-கிட்ட எவ்வளவு கடன் இருக்கு? ArthaNote Supplier module — Outstanding balance instant! arthanote.com 📒 #SupplierLedger',
+    tags:['#SupplierBalance','#ArthaNote','#OutstandingPayment','#TamilBusiness','#SupplierLedger','#PaymentDue','#BusinessLedger','#TamilNadu','#AccountingApp','#FreeApp']
+  },
+  {
+    day:23, topic:'finance', topicLabel:'Finance Module', format:'howto', emoji:'🎰',
+    taHead:'Chit prize winner எப்படி record பண்றது?',
+    enHead:'How to Record Chit Prize Winner',
+    points:['Open Finance tab','Go to Chit Fund section','Select the chit group','Mark winner and prize amount'],
+    caption:'🎰 Chit prize winner record ArthaNote-ல் easy! Finance → Chit Fund → Select group → Mark winner. Done! arthanote.com #ChitFund',
+    tags:['#ChitPrize','#ArthaNote','#ChitFund','#PrizeRecord','#TamilNadu','#FinanceApp','#ChitWinner','#TamilFinance','#SmallFinance','#LedgerApp']
+  },
+  {
+    day:24, topic:'attendance', topicLabel:'Attendance QR', format:'text', emoji:'🗓️',
+    taHead:'Monthly attendance report — automatic!',
+    enHead:'Auto-Generated Monthly Attendance Report',
+    points:['All punches recorded automatically','Late arrivals highlighted','Total hours calculated','Share report as PDF or WhatsApp'],
+    caption:'🗓️ Monthly attendance report automatically ready! ArthaNote QR Attendance — hours, lates, absences all tracked. arthanote.com #HR',
+    tags:['#AttendanceReport','#ArthaNote','#MonthlyReport','#StaffHours','#TamilNadu','#HRSystem','#AutoReport','#WorkTracking','#ShopManagement','#SmallBusiness']
+  },
+  {
+    day:25, topic:'benefits', topicLabel:'Benefits', format:'reel', emoji:'✨',
+    taHead:'ArthaNote-ல் Tamil + English support!',
+    enHead:'Full Tamil and English Support in ArthaNote',
+    points:['Switch language with one tap','All menus in Tamil or English','Tamil font properly rendered','Family members can use easily'],
+    caption:'✨ Tamil-ல் use பண்ணலாம்! ArthaNote-ல் Tamil + English toggle. உங்கள் family members-க்கும் easy. arthanote.com 📒 #TamilApp',
+    tags:['#TamilApp','#ArthaNote','#TamilLanguage','#BilingualApp','#TamilNadu','#TamilTech','#Tamil','#TamilNaduTech','#TamilSoftware','#TamilBusiness']
+  },
+  {
+    day:26, topic:'howto', topicLabel:'How-To', format:'text', emoji:'📲',
+    taHead:'PWA install பண்றது எப்படி? (App Store இல்லாமல்)',
+    enHead:'How to Install ArthaNote Without App Store',
+    points:['Open arthanote.com in Chrome','Tap menu (3 dots) at top right','Select "Add to Home Screen"','App icon appears on phone!'],
+    caption:'📲 Play Store தேவையில்ல! arthanote.com → Chrome menu → Add to Home Screen. ArthaNote install ready! arthanote.com',
+    tags:['#PWAInstall','#ArthaNote','#NoPlayStore','#WebApp','#TamilNadu','#AppInstall','#HomeScreen','#PWA','#ProgressiveWebApp','#TamilTech']
+  },
+  {
+    day:27, topic:'features', topicLabel:'Features', format:'card', emoji:'📱',
+    taHead:'Multi-shop dashboard — எல்லாமே ஒரே screen-ல்!',
+    enHead:'All Your Shops in One Dashboard View',
+    points:['Total revenue across all shops','Today\'s combined sales at a glance','Filter by individual shop','Switch shops in 2 taps'],
+    caption:'📱 Multiple shops? ArthaNote Dashboard-ல் எல்லாமே ஒரே screen! Total revenue, individual shop filter. arthanote.com #MultiShop',
+    tags:['#MultiShopDashboard','#ArthaNote','#ShopDashboard','#TamilNadu','#MultipleShops','#BusinessDashboard','#RevenueTracker','#TamilBusiness','#FreeApp','#ShopLedger']
+  },
+  {
+    day:28, topic:'personal', topicLabel:'Personal Module', format:'stats', emoji:'📉',
+    taHead:'Monthly P&L — Profit or Loss உடனே தெரியும்!',
+    enHead:'See Monthly Profit & Loss Instantly',
+    points:['Total sales this month','Total expenses breakdown','Gross profit calculation','Compared to last month'],
+    caption:'📉 Monthly profit தெரியலையா? ArthaNote P&L report — Sales, Expenses, Net Profit எல்லாம் automatic! arthanote.com 📊 #ProfitLoss',
+    tags:['#ProfitAndLoss','#ArthaNote','#MonthlyReport','#BusinessProfit','#TamilNadu','#PLReport','#FinancialReport','#BusinessInsight','#TamilBusiness','#FreeApp']
+  },
+  {
+    day:29, topic:'finance', topicLabel:'Finance Module', format:'card', emoji:'💼',
+    taHead:'Finance overview — members, collections, chits ஒரே tap!',
+    enHead:'Complete Finance Overview in One Tap',
+    points:['Total active members count','This month collection status','Pending defaulters highlighted','Active chit groups at a glance'],
+    caption:'💼 Finance module overview — members, collections, chits எல்லாம் ஒரே screen! ArthaNote Finance Tab. arthanote.com #Finance',
+    tags:['#FinanceOverview','#ArthaNote','#FinanceTab','#ChitFund','#TamilNadu','#MemberCollection','#FinanceManagement','#TamilFinance','#MicroFinance','#SmallFinance']
+  },
+  {
+    day:30, topic:'attendance', topicLabel:'Attendance QR', format:'reel', emoji:'🎊',
+    taHead:'30 days of ArthaNote! Thanks Tamil Nadu! 🙏',
+    enHead:'30 Days Stronger — Join 1000+ Tamil Retailers',
+    points:['Free download at arthanote.com','Available for Android & Web','Tamil + English support','Offline-first, always works'],
+    caption:'🎊 30 days! Tamil Nadu retailers — ArthaNote உங்கள் shop-ஐ digital பண்ண ready! Free download arthanote.com 📒 #30Days #ArthaNote',
+    tags:['#30DaysChallenge','#ArthaNote','#TamilNadu','#TamilRetail','#FreeDownload','#DigitalShop','#TamilBusiness','#ShopApp','#LedgerApp','#JoinArthaNote']
+  }
+];
+
+// Format metadata
+const FORMAT_INFO = {
+  text:  { icon:'📝', label:'Text Post',   file:'post-text.html',  w:1080, h:1080 },
+  card:  { icon:'🃏', label:'Card Post',   file:'post-card.html',  w:1080, h:1080 },
+  howto: { icon:'📖', label:'How-To Post', file:'post-howto.html', w:1080, h:1350 },
+  reel:  { icon:'🎬', label:'Reel/Story',  file:'post-reel.html',  w:1080, h:1920 },
+  stats: { icon:'📊', label:'Stats Post',  file:'post-stats.html', w:1080, h:1080 }
+};
+
+const TOPIC_ICONS = {
+  benefits:'🚀', howto:'📖', features:'⭐', personal:'💰', finance:'💎', attendance:'📍'
+};
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let selectedDay = 1;
+let selectedFormat = 'reel';
+
+// Today's day in the 30-day cycle (1-based, based on current date)
+const today = new Date();
+const startOfYear = new Date(today.getFullYear(), 0, 1);
+const dayOfYear = Math.floor((today - startOfYear) / 86400000) + 1;
+const todayPlanDay = ((dayOfYear - 1) % 30) + 1;
+
+// ═══════════════════════════════════════════════
+//  CALENDAR
+// ═══════════════════════════════════════════════
+function buildCalendar() {
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  PLAN.forEach(d => {
+    const div = document.createElement('div');
+    div.className = 'cal-day' +
+      (d.day === selectedDay ? ' active' : '') +
+      (d.day === todayPlanDay ? ' today' : '');
+    div.innerHTML = `
+      <div class="cal-day-num">Day ${d.day}${d.day===todayPlanDay?' ●':''}</div>
+      <div class="cal-day-icons">
+        <span title="${d.topicLabel}">${TOPIC_ICONS[d.topic]||'📋'}</span>
+        <span title="${FORMAT_INFO[d.format]?.label||d.format}">${FORMAT_INFO[d.format]?.icon||'📄'}</span>
+      </div>
+      <div class="cal-day-label">${d.topicLabel}</div>
+    `;
+    div.addEventListener('click', () => { selectedDay = d.day; selectedFormat = d.format; loadDay(d.day); });
+    grid.appendChild(div);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  LOAD DAY
+// ═══════════════════════════════════════════════
+function loadDay(dayNum) {
+  const d = PLAN.find(x => x.day === dayNum);
+  if(!d) return;
+  selectedDay = dayNum;
+  selectedFormat = d.format;
+
+  // Update calendar highlight
+  document.querySelectorAll('.cal-day').forEach((el,i) => {
+    el.classList.toggle('active', PLAN[i].day === dayNum);
+  });
+
+  // Top badge
+  document.getElementById('topDayBadge').textContent = `Day ${dayNum} / 30`;
+
+  // Day info panel
+  document.getElementById('di-day').textContent    = `${dayNum} of 30`;
+  document.getElementById('di-topic').textContent  = d.topicLabel;
+  document.getElementById('di-format').textContent = FORMAT_INFO[d.format]?.label || d.format;
+  document.getElementById('di-tahead').textContent = d.taHead;
+  document.getElementById('di-enhead').textContent = d.enHead;
+
+  // Caption
+  document.getElementById('captionTA').value = d.caption;
+
+  // Hashtags
+  document.getElementById('hashtagsText').textContent = d.tags.join(' ');
+
+  // Format tabs — highlight current format
+  document.querySelectorAll('.fmt-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.fmt === d.format);
+  });
+
+  // Export links
+  buildExportLinks(d);
+
+  // Preview
+  renderPreview(d, d.format);
+}
+
+// ═══════════════════════════════════════════════
+//  FORMAT TABS
+// ═══════════════════════════════════════════════
+document.getElementById('formatTabs').addEventListener('click', e => {
+  const tab = e.target.closest('.fmt-tab');
+  if(!tab) return;
+  selectedFormat = tab.dataset.fmt;
+  document.querySelectorAll('.fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === selectedFormat));
+  const d = PLAN.find(x => x.day === selectedDay);
+  if(d) renderPreview(d, selectedFormat);
+});
+
+// ═══════════════════════════════════════════════
+//  PREVIEW
+// ═══════════════════════════════════════════════
+function buildPostUrl(d, fmt) {
+  const fi = FORMAT_INFO[fmt] || FORMAT_INFO.text;
+  const params = new URLSearchParams();
+  params.set('headline', d.taHead);
+  params.set('subtext',  d.enHead);
+  params.set('points',   d.points.join('|'));
+  params.set('emoji',    d.emoji);
+  params.set('feature',  d.topicLabel);
+  params.set('description', d.enHead);
+  params.set('icon',     d.emoji);
+  params.set('title',    d.enHead);
+  params.set('steps',    d.points.join('|'));
+  params.set('topic',    d.topicLabel);
+  // stats
+  const statsArr = [
+    `${d.points[0]?.split(' ').slice(0,3).join(' ')||'Shops'}:1200+:🏪`,
+    `${d.points[1]?.split(' ').slice(0,3).join(' ')||'Entries'}:50K+:✏️`,
+    `${d.points[2]?.split(' ').slice(0,3).join(' ')||'Cities'}:120+:📍`,
+    `${d.points[3]?.split(' ').slice(0,3).join(' ')||'Users'}:5K+:👤`
+  ];
+  params.set('stats', statsArr.join('|'));
+  return fi.file + '?' + params.toString();
+}
+
+function renderPreview(d, fmt) {
+  const fi = FORMAT_INFO[fmt] || FORMAT_INFO[d.format];
+  const fw = fi.w;
+  const fh = fi.h;
+
+  const wrap = document.getElementById('frameWrap');
+  const iframe = document.getElementById('previewIframe');
+
+  // Calculate scale to fit in preview area
+  const previewArea = document.getElementById('previewArea');
+  const areaW = previewArea.offsetWidth - 40;
+  const areaH = previewArea.offsetHeight - 100;
+  const scaleX = areaW / fw;
+  const scaleY = areaH / fh;
+  const scale  = Math.min(scaleX, scaleY, 0.5);
+
+  wrap.style.width  = (fw * scale) + 'px';
+  wrap.style.height = (fh * scale) + 'px';
+
+  iframe.style.width  = fw + 'px';
+  iframe.style.height = fh + 'px';
+  iframe.style.transform = `scale(${scale})`;
+  iframe.style.transformOrigin = 'top left';
+
+  const url = buildPostUrl(d, fmt);
+  iframe.src = url;
+}
+
+function refreshPreview() {
+  const d = PLAN.find(x => x.day === selectedDay);
+  if(d) renderPreview(d, selectedFormat);
+}
+
+function openFullscreen() {
+  const d = PLAN.find(x => x.day === selectedDay);
+  if(!d) return;
+  const url = buildPostUrl(d, selectedFormat);
+  window.open(url, '_blank');
+}
+
+function copyPostUrl() {
+  const d = PLAN.find(x => x.day === selectedDay);
+  if(!d) return;
+  const url = window.location.origin + window.location.pathname.replace('studio.html','') + buildPostUrl(d, selectedFormat);
+  navigator.clipboard.writeText(url).then(() => showToast('URL copied!')).catch(() => showToast('Copy URL from address bar'));
+}
+
+// ═══════════════════════════════════════════════
+//  EXPORT LINKS
+// ═══════════════════════════════════════════════
+function buildExportLinks(d) {
+  const el = document.getElementById('exportLinks');
+  el.innerHTML = '';
+  Object.entries(FORMAT_INFO).forEach(([fmt, fi]) => {
+    const url  = buildPostUrl(d, fmt);
+    const link = document.createElement('a');
+    link.href   = url;
+    link.target = '_blank';
+    link.className = 'export-link';
+    link.innerHTML = `
+      <span class="export-link-label">${fi.icon} ${fi.label} (${fi.w}×${fi.h})</span>
+      <span class="export-link-arrow">↗</span>
+    `;
+    el.appendChild(link);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  COPY HELPERS
+// ═══════════════════════════════════════════════
+function copyText(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.value || el.textContent).then(() => showToast('Copied!'));
+}
+function copyHashtags() {
+  const t = document.getElementById('hashtagsText').textContent;
+  navigator.clipboard.writeText(t).then(() => showToast('Hashtags copied!'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ═══════════════════════════════════════════════
+//  CLAUDE AI
+// ═══════════════════════════════════════════════
+const KEY_STORAGE = 'an_claude_key';
+document.getElementById('claudeKey').value = localStorage.getItem(KEY_STORAGE) || '';
+
+function saveKey() {
+  const k = document.getElementById('claudeKey').value.trim();
+  if(k) { localStorage.setItem(KEY_STORAGE, k); showToast('API key saved!'); }
+}
+
+async function generateContent() {
+  const key = document.getElementById('claudeKey').value.trim() || localStorage.getItem(KEY_STORAGE) || '';
+  if(!key) { showToast('Enter Claude API key first'); return; }
+
+  const d    = PLAN.find(x => x.day === selectedDay);
+  if(!d) return;
+
+  const btn    = document.getElementById('genBtn');
+  const status = document.getElementById('genStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating…';
+  status.textContent = 'Calling Claude API…';
+
+  const prompt = `You are a Tamil Nadu small business marketing expert writing Instagram posts for "ArthaNote" — a digital shop ledger app for Tamil Nadu retailers.
+
+Write an Instagram post for Day ${d.day} of a 30-day campaign.
+Topic: ${d.topicLabel}
+Focus: ${d.enHead}
+Key Points: ${d.points.join(', ')}
+
+Requirements:
+- Caption: 100-150 characters, Tamil+English mix (like how Tamil Nadu people actually write on Instagram)
+- Tone: Friendly, local, authentic — not corporate
+- Include relevant emoji
+- End with arthanote.com
+- 10 hashtags relevant to Tamil Nadu small business and the topic
+
+Format your response as:
+CAPTION:
+[caption here]
+
+HASHTAGS:
+[hashtags here]`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 512,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if(!resp.ok) {
+      const err = await resp.json().catch(()=>({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || '';
+
+    // Parse caption and hashtags
+    const capMatch  = text.match(/CAPTION:\s*\n([\s\S]*?)(?:\n\nHASHTAGS:|$)/i);
+    const hashMatch = text.match(/HASHTAGS:\s*\n([\s\S]*?)$/i);
+
+    if(capMatch) document.getElementById('captionTA').value = capMatch[1].trim();
+    if(hashMatch) document.getElementById('hashtagsText').textContent = hashMatch[1].trim();
+
+    status.textContent = '✅ Content generated!';
+    showToast('Content generated!');
+  } catch(e) {
+    status.textContent = '❌ Error: ' + e.message;
+    showToast('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🤖 Generate Content';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  MUSIC — Web Audio API
+// ═══════════════════════════════════════════════
+let audioCtx = null;
+let musicPlaying = false;
+let currentStyle = 'upbeat';
+let musicNodes = [];
+
+function ensureCtx() {
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function stopMusic() {
+  musicNodes.forEach(n => { try{ n.stop(); }catch(e){} });
+  musicNodes = [];
+  musicPlaying = false;
+  document.getElementById('playBtn').textContent = '▶';
+}
+
+function playUpbeat(ctx, masterGain) {
+  // C major arpeggio: C4 E4 G4 C5 at 120BPM (0.5s per 16th)
+  const notes = [261.63, 329.63, 392, 523.25, 392, 329.63, 261.63, 329.63];
+  const bpm   = 120;
+  const step  = 60 / bpm;
+  const loop  = () => {
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(masterGain);
+      osc.frequency.value = freq;
+      osc.type = 'triangle';
+      const t = ctx.currentTime + i * step * 0.5;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.3, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + step * 0.45);
+      osc.start(t); osc.stop(t + step * 0.5);
+    });
+  };
+  loop();
+  const interval = setInterval(() => { if(!musicPlaying) { clearInterval(interval); return; } loop(); }, notes.length * step * 500);
+  musicNodes.push({ stop: () => clearInterval(interval) });
+}
+
+function playTamil(ctx, masterGain) {
+  // Pentatonic: C D E G A (Sa Re Ga Pa Da)
+  const scale = [261.63, 293.66, 329.63, 392, 440, 523.25, 587.33];
+  const pattern = [0,2,4,5,4,2,0,1];
+  const step = 0.6;
+  const loop = () => {
+    pattern.forEach((ni, i) => {
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(masterGain);
+      osc.frequency.value = scale[ni];
+      osc.type = 'sine';
+      const t = ctx.currentTime + i * step;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.25, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + step * 0.8);
+      osc.start(t); osc.stop(t + step);
+    });
+  };
+  loop();
+  const interval = setInterval(() => { if(!musicPlaying){ clearInterval(interval); return; } loop(); }, pattern.length * step * 1000);
+  musicNodes.push({ stop: () => clearInterval(interval) });
+}
+
+function playMinimal(ctx, masterGain) {
+  // Kick + hihat pattern at 100BPM
+  const bpm = 100;
+  const beat = 60 / bpm;
+
+  const playKick = (t) => {
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.connect(g); g.connect(masterGain);
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc.start(t); osc.stop(t + 0.3);
+  };
+
+  const playHat = (t) => {
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1)*0.3;
+    const src = ctx.createBufferSource();
+    const g   = ctx.createGain();
+    const filt= ctx.createBiquadFilter();
+    filt.type = 'highpass'; filt.frequency.value = 5000;
+    src.buffer = buf;
+    src.connect(filt); filt.connect(g); g.connect(masterGain);
+    g.gain.setValueAtTime(0.2, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+    src.start(t); src.stop(t+0.05);
+  };
+
+  const loop = () => {
+    const now = ctx.currentTime;
+    // Kick on beats 1 and 3
+    playKick(now);
+    playKick(now + beat * 2);
+    // Hi-hat on every 8th
+    for(let i=0;i<8;i++) playHat(now + i * beat * 0.5);
+  };
+  loop();
+  const interval = setInterval(() => { if(!musicPlaying){clearInterval(interval);return;} loop(); }, beat * 4000);
+  musicNodes.push({ stop: () => clearInterval(interval) });
+}
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  if(musicPlaying) {
+    stopMusic();
+  } else {
+    const ctx = ensureCtx();
+    if(ctx.state === 'suspended') ctx.resume();
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = parseFloat(document.getElementById('volSlider').value);
+    masterGain.connect(ctx.destination);
+    musicNodes.push(masterGain);
+    musicPlaying = true;
+    document.getElementById('playBtn').textContent = '⏸';
+    if(currentStyle === 'upbeat') playUpbeat(ctx, masterGain);
+    else if(currentStyle === 'tamil') playTamil(ctx, masterGain);
+    else playMinimal(ctx, masterGain);
+  }
+});
+
+document.getElementById('volSlider').addEventListener('input', e => {
+  const g = musicNodes.find(n => n instanceof GainNode || (n.gain));
+  if(g && g.gain) g.gain.value = parseFloat(e.target.value);
+});
+
+document.querySelectorAll('.music-style').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.music-style').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStyle = btn.dataset.style;
+    if(musicPlaying) { stopMusic(); document.getElementById('playBtn').click(); }
+  });
+});
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+buildCalendar();
+loadDay(todayPlanDay);
+
+// Resize observer to re-scale preview
+const ro = new ResizeObserver(() => {
+  const d = PLAN.find(x => x.day === selectedDay);
+  if(d) renderPreview(d, selectedFormat);
+});
+ro.observe(document.getElementById('previewArea'));
+</script>
+</body>
+</html>

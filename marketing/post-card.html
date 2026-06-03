@@ -5,225 +5,189 @@
 <meta name="viewport" content="width=1080">
 <title>ArthaNote – Feature Card</title>
 <style>
-  :root {
-    --p: #065f46;
-    --s: #059669;
-    --a: #d97706;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    width: 1080px; height: 1080px;
-    overflow: hidden;
-    background: linear-gradient(145deg, #022c22 0%, #065f46 45%, #059669 100%);
-    font-family: -apple-system, 'Segoe UI', sans-serif;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    position: relative;
+  :root { --p:#065f46; --s:#059669; --a:#d97706; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body {
+    width:1080px; height:1080px; overflow:hidden;
+    background:linear-gradient(145deg, #022c22 0%, var(--p) 40%, var(--s) 100%);
+    font-family:-apple-system,'Segoe UI','Helvetica Neue',sans-serif;
+    display:flex; align-items:center; justify-content:center;
   }
 
-  /* Background pattern */
-  .bg-pattern {
-    position: absolute; inset: 0;
-    background-image:
-      radial-gradient(circle at 20% 80%, rgba(5,150,105,0.25) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(217,119,6,0.15) 0%, transparent 50%);
-    pointer-events: none;
+  /* Animated background dots */
+  .bg-dots {
+    position:fixed; inset:0; overflow:hidden; pointer-events:none;
   }
-  .grid-lines {
-    position: absolute; inset: 0;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-    background-size: 60px 60px;
+  .dot {
+    position:absolute; border-radius:50%;
+    background:rgba(5,150,105,0.15);
+    animation:floatDot 6s ease-in-out infinite;
   }
+  .dot:nth-child(1){width:180px;height:180px;top:5%;left:5%;animation-delay:0s;}
+  .dot:nth-child(2){width:120px;height:120px;top:60%;left:80%;animation-delay:1s;}
+  .dot:nth-child(3){width:80px;height:80px;top:80%;left:10%;animation-delay:2s;}
+  .dot:nth-child(4){width:220px;height:220px;top:-50px;right:-50px;animation-delay:0.5s;}
+  .dot:nth-child(5){width:100px;height:100px;bottom:80px;left:40%;animation-delay:3s;}
 
-  /* Top branding */
-  .top-bar {
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 80px;
-    display: flex; align-items: center;
-    padding: 0 56px;
-    opacity: 0;
-    animation: fadeDown 0.6s ease forwards 0.2s;
-  }
-  .logo-pill {
-    background: rgba(255,255,255,0.15);
-    border: 1.5px solid rgba(255,255,255,0.3);
-    border-radius: 40px;
-    padding: 10px 24px;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .logo-pill .mark { font-size: 22px; }
-  .logo-pill .name { font-size: 20px; font-weight: 800; color: #fff; }
-
-  /* Main card */
+  /* MAIN CARD */
   .card {
-    width: 900px;
-    background: rgba(255,255,255,0.08);
-    border: 1.5px solid rgba(255,255,255,0.18);
-    border-radius: 36px;
-    padding: 64px 72px 56px;
-    backdrop-filter: blur(20px);
-    position: relative;
-    z-index: 5;
-    opacity: 0;
-    transform: scale(0.82);
-    animation: cardIn 0.7s cubic-bezier(0.16,1,0.3,1) forwards 0.5s;
-    box-shadow:
-      0 40px 80px rgba(0,0,0,0.4),
-      0 0 0 1px rgba(255,255,255,0.1),
-      inset 0 1px 0 rgba(255,255,255,0.2);
+    width:880px; min-height:880px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:32px;
+    backdrop-filter:blur(20px);
+    padding:56px 64px;
+    display:flex; flex-direction:column; gap:36px;
+    position:relative; overflow:hidden;
+    animation:zoomIn 0.7s cubic-bezier(0.175,0.885,0.32,1.275) 0.3s both;
+    box-shadow:0 40px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
   }
 
-  /* Glow */
-  .card::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    border-radius: 38px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent, rgba(5,150,105,0.3));
-    z-index: -1;
-    animation: glowPulse 3s ease-in-out infinite;
-    animation-delay: 2s;
+  /* CARD TOP BRAND */
+  .card-brand {
+    display:flex; align-items:center; gap:12px;
+    opacity:0; animation:fadeIn 0.5s ease 0.9s forwards;
+  }
+  .brand-pill {
+    background:rgba(5,150,105,0.3);
+    border:1px solid rgba(5,150,105,0.5);
+    border-radius:100px; padding:6px 16px;
+    font-size:14px; font-weight:600; color:#34d399; letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .brand-dot { width:6px; height:6px; border-radius:50%; background:#34d399; margin-left:auto; animation:pulse 2s ease 1.5s infinite; }
+
+  /* FEATURE ICON */
+  .icon-wrapper {
+    display:flex; align-items:center; justify-content:center;
+    width:120px; height:120px; border-radius:28px;
+    background:linear-gradient(135deg,rgba(217,119,6,0.3) 0%,rgba(217,119,6,0.1) 100%);
+    border:2px solid rgba(217,119,6,0.4);
+    font-size:64px;
+    opacity:0;
+    animation:iconBounce 0.6s cubic-bezier(0.175,0.885,0.32,1.275) 1.1s forwards;
+    align-self:flex-start;
   }
 
-  /* Icon */
-  .feat-icon {
-    width: 110px; height: 110px;
-    background: linear-gradient(135deg, var(--a), #f59e0b);
-    border-radius: 32px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 58px;
-    margin-bottom: 32px;
-    box-shadow: 0 16px 40px rgba(217,119,6,0.4);
-    animation: bounce 0.6s cubic-bezier(0.36,0.07,0.19,0.97) forwards 1.3s;
-    transform: scale(0);
+  /* FEATURE TITLE */
+  .feature-title {
+    font-size:56px; font-weight:900; color:#fff;
+    line-height:1.1; letter-spacing:-1px;
+    opacity:0; animation:slideUp2 0.5s ease 1.4s forwards;
+  }
+  .feature-title .highlight { color:#fbbf24; }
+
+  /* DESCRIPTION */
+  .feature-desc {
+    font-size:22px; color:rgba(255,255,255,0.7); line-height:1.5;
+    opacity:0; animation:slideUp2 0.5s ease 1.6s forwards;
+    border-left:3px solid var(--a); padding-left:20px;
   }
 
-  .feat-title {
-    font-size: 52px; font-weight: 900;
-    color: #fff; line-height: 1.1;
-    letter-spacing: -1px;
-    margin-bottom: 14px;
-    opacity: 0;
-    transform: translateX(-30px);
-    animation: slideRight 0.5s ease forwards 1.6s;
-  }
-  .feat-desc {
-    font-size: 22px; color: rgba(255,255,255,0.75);
-    line-height: 1.5; margin-bottom: 44px;
-    opacity: 0;
-    animation: fadeIn 0.5s ease forwards 2s;
-  }
-
-  /* Sub-points grid */
+  /* SUB-POINTS */
   .points-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    display:grid; grid-template-columns:1fr 1fr; gap:20px;
+    margin-top:8px;
   }
-  .pt {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 20px;
-    padding: 20px 24px;
-    display: flex; align-items: center; gap: 16px;
-    opacity: 0;
-    transform: translateY(20px);
-    animation: ptIn 0.4s ease forwards;
+  .point-card {
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:16px; padding:20px 24px;
+    display:flex; align-items:flex-start; gap:14px;
+    opacity:0; transform:translateY(20px);
   }
-  .pt .pt-icon { font-size: 28px; }
-  .pt .pt-label { font-size: 19px; font-weight: 600; color: rgba(255,255,255,0.9); }
+  .point-card:nth-child(1) { animation:cardIn 0.5s ease 2.0s forwards; }
+  .point-card:nth-child(2) { animation:cardIn 0.5s ease 2.2s forwards; }
+  .point-card:nth-child(3) { animation:cardIn 0.5s ease 2.4s forwards; }
+  .point-card:nth-child(4) { animation:cardIn 0.5s ease 2.6s forwards; }
+  .point-icon { font-size:28px; flex-shrink:0; }
+  .point-text { font-size:18px; font-weight:600; color:#e2e8f0; line-height:1.3; }
 
-  /* Footer */
-  .bottom-bar {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 80px;
-    display: flex; align-items: center; justify-content: flex-end;
-    padding: 0 56px;
-    opacity: 0;
-    animation: fadeIn 0.5s ease forwards 3.6s;
-  }
-  .url-badge {
-    background: var(--a);
-    color: #fff; font-size: 18px; font-weight: 800;
-    padding: 10px 28px; border-radius: 40px;
-    letter-spacing: 0.5px;
+  /* GLOW BORDER */
+  .card::before {
+    content:''; position:absolute; inset:0; border-radius:32px;
+    background:linear-gradient(135deg,rgba(5,150,105,0.2) 0%,transparent 50%,rgba(217,119,6,0.1) 100%);
+    opacity:0; animation:glowPulse 3s ease 2.8s infinite;
+    pointer-events:none;
   }
 
-  /* Animations */
-  @keyframes fadeDown {
-    from { opacity:0; transform: translateY(-20px); }
-    to   { opacity:1; transform: translateY(0); }
+  /* FOOTER */
+  .card-footer {
+    display:flex; align-items:center; justify-content:space-between;
+    border-top:1px solid rgba(255,255,255,0.1); padding-top:24px; margin-top:4px;
+    opacity:0; animation:fadeIn 0.5s ease 2.8s forwards;
   }
-  @keyframes cardIn {
-    from { opacity:0; transform: scale(0.82); }
-    to   { opacity:1; transform: scale(1); }
+  .footer-brand { font-size:22px; font-weight:800; color:#fff; }
+  .footer-url { font-size:18px; color:#34d399; font-weight:600; }
+  .footer-badge {
+    background:linear-gradient(135deg,var(--a) 0%,#f59e0b 100%);
+    border-radius:100px; padding:8px 20px;
+    font-size:16px; font-weight:700; color:#fff;
+    animation:badgePulse 2s ease 3.5s infinite;
   }
-  @keyframes bounce {
-    0%   { transform: scale(0); }
-    60%  { transform: scale(1.15); }
-    80%  { transform: scale(0.93); }
-    100% { transform: scale(1); }
+
+  @keyframes floatDot { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.1)} }
+  @keyframes zoomIn { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  @keyframes iconBounce {
+    0%{transform:scale(0) rotate(-20deg);opacity:0}
+    60%{transform:scale(1.2) rotate(5deg);opacity:1}
+    100%{transform:scale(1) rotate(0);opacity:1}
   }
-  @keyframes slideRight {
-    from { opacity:0; transform: translateX(-30px); }
-    to   { opacity:1; transform: translateX(0); }
-  }
-  @keyframes fadeIn {
-    from { opacity:0; }
-    to   { opacity:1; }
-  }
-  @keyframes ptIn {
-    from { opacity:0; transform: translateY(20px); }
-    to   { opacity:1; transform: translateY(0); }
-  }
-  @keyframes glowPulse {
-    0%,100% { opacity: 0.6; }
-    50%      { opacity: 1; }
-  }
+  @keyframes slideUp2 { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes cardIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes glowPulse { 0%,100%{opacity:0} 50%{opacity:1} }
+  @keyframes badgePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
 </style>
 </head>
 <body>
-  <div class="bg-pattern"></div>
-  <div class="grid-lines"></div>
-
-  <div class="top-bar">
-    <div class="logo-pill">
-      <span class="mark">₹</span>
-      <span class="name">ArthaNote</span>
-    </div>
+<div class="bg-dots">
+  <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  <div class="dot"></div><div class="dot"></div>
+</div>
+<div class="card">
+  <div class="card-brand">
+    <span class="brand-pill">ArthaNote Feature</span>
+    <span class="brand-dot"></span>
   </div>
-
-  <div class="card">
-    <div class="feat-icon" id="featIcon">📊</div>
-    <div class="feat-title" id="featTitle">Daily Ledger</div>
-    <div class="feat-desc" id="featDesc">Track every rupee instantly — sales, expenses, payments all in one place.</div>
-    <div class="points-grid" id="pointsGrid"></div>
+  <div class="icon-wrapper" id="featureIcon">📊</div>
+  <div class="feature-title" id="featureTitle">Daily <span class="highlight">Ledger</span></div>
+  <div class="feature-desc" id="featureDesc">Track every sale, expense and payment. Your shop's complete financial picture in one place.</div>
+  <div class="points-grid" id="pointsGrid"></div>
+  <div class="card-footer">
+    <span class="footer-brand">ArthaNote</span>
+    <span class="footer-badge">FREE</span>
+    <span class="footer-url">arthanote.com</span>
   </div>
-
-  <div class="bottom-bar">
-    <div class="url-badge">arthanote.com</div>
-  </div>
-
+</div>
 <script>
-  const params = new URLSearchParams(location.search);
-  const feature  = params.get('feature')     || 'Daily Ledger';
-  const desc     = params.get('description') || 'Track every rupee instantly — sales, expenses, payments all in one place.';
-  const rawPts   = params.get('points')      || 'Works offline always|Tamil & English|Multi-shop support|Free to download';
-  const icon     = params.get('icon')        || '📊';
+  const p = new URLSearchParams(window.location.search);
+  const feature     = p.get('feature')     || 'Daily Ledger';
+  const description = p.get('description') || 'Track every sale, expense and payment. Your shop\'s complete financial picture in one place.';
+  const pointsRaw   = p.get('points')      || '📈 Sales tracking|💸 Expense log|🤝 Payments|📋 History';
+  const icon        = p.get('icon')        || '📊';
 
-  document.getElementById('featIcon').textContent  = icon;
-  document.getElementById('featTitle').textContent = feature;
-  document.getElementById('featDesc').textContent  = desc;
+  document.getElementById('featureIcon').textContent = icon;
+  document.getElementById('featureDesc').textContent = description;
 
-  const icons = ['✅','⚡','🔒','🌟','📱','💡','📈','🎯'];
-  const pts = rawPts.split('|').slice(0,4);
-  const grid = document.getElementById('pointsGrid');
-  pts.forEach((pt, i) => {
-    const div = document.createElement('div');
-    div.className = 'pt';
-    div.style.animationDelay = (2.4 + i * 0.3) + 's';
-    div.innerHTML = `<span class="pt-icon">${icons[i % icons.length]}</span><span class="pt-label">${pt}</span>`;
+  // Feature title – highlight last word
+  const words = feature.split(' ');
+  const lastW = words.pop();
+  document.getElementById('featureTitle').innerHTML =
+    (words.join(' ') + (words.length ? ' ' : '')) +
+    `<span class="highlight">${lastW}</span>`;
+
+  // Points
+  const points = pointsRaw.split('|').slice(0,4);
+  const grid   = document.getElementById('pointsGrid');
+  points.forEach(pt => {
+    const match = pt.match(/^([\p{Emoji}\p{So}]+)\s*(.*)/u);
+    const ico   = match ? match[1] : '✅';
+    const txt   = match ? match[2] : pt;
+    const div   = document.createElement('div');
+    div.className = 'point-card';
+    div.innerHTML = `<span class="point-icon">${ico}</span><span class="point-text">${txt}</span>`;
     grid.appendChild(div);
   });
 </script>
