@@ -7,7 +7,8 @@
     { "source": "/finance", "destination": "/finance.html" },
     { "source": "/admin",   "destination": "/admin.html"   },
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/voice",   "destination": "/marketing/voice-engineer.html" }
+    { "source": "/voice",         "destination": "/marketing/voice-engineer.html" },
+    { "source": "/voice-transform", "destination": "/marketing/voice-transform.html" }
   ],
   "headers": [
     {
