@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,50 @@ import '../services/db_service.dart';
 import 'login_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
+
+void _showConnectDialog(BuildContext context, AppProvider p) {
+  final ctrl = TextEditingController();
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Connect to Employer',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text(
+          'Ask your employer for their Business ID.\n'
+          'Owner opens: Settings → Staff App Access → copy the Business ID.',
+          style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.6),
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Business ID',
+            hintText: 'Paste the ID from your employer',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ]),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () async {
+            final bid = ctrl.text.trim();
+            if (bid.isEmpty) return;
+            Navigator.pop(ctx);
+            await p.setManualBusinessId(bid);
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+          child: const Text('Connect',
+              style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -211,6 +256,14 @@ class SettingsScreen extends StatelessWidget {
                   backgroundColor: Colors.transparent,
                   builder: (_) => _StaffAccessSheet(p: p),
                 ),
+              ),
+              const _ItemDivider(),
+              _SettingsItem(
+                icon: Icons.link_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                title: 'Connect to Employer',
+                subtitle: 'Staff: enter your employer\'s Business ID',
+                onTap: () => _showConnectDialog(context, p),
               ),
               const _ItemDivider(),
               _SettingsItem(
@@ -3565,21 +3618,46 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
             ),
           ),
           Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: const Color(0xFFF0FDF4),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFBBF7D0)),
             ),
-            child: const Row(children: [
-              Icon(Icons.info_outline, size: 16, color: Color(0xFF059669)),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Staff logs in with their Gmail on the ArthaNote app — they see only their assigned shop.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF065F46)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.vpn_key_outlined, size: 15, color: Color(0xFF059669)),
+                const SizedBox(width: 6),
+                const Text('Your Business ID',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF065F46))),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: widget.p.businessId));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Business ID copied'),
+                          behavior: SnackBarBehavior.floating,
+                          duration: Duration(seconds: 2)),
+                    );
+                  },
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.copy, size: 14, color: Color(0xFF059669)),
+                    SizedBox(width: 4),
+                    Text('Copy', style: TextStyle(fontSize: 11, color: Color(0xFF059669), fontWeight: FontWeight.w600)),
+                  ]),
                 ),
+              ]),
+              const SizedBox(height: 6),
+              Text(
+                widget.p.businessId,
+                style: const TextStyle(fontSize: 10, color: Colors.black54, fontFamily: 'monospace', letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Share this ID with staff. If auto-connect fails, staff goes to Settings → Connect to Employer and pastes this ID.',
+                style: TextStyle(fontSize: 10, color: Color(0xFF065F46), height: 1.5),
               ),
             ]),
           ),
@@ -3659,12 +3737,17 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
 
   void _showShareMessage(String email, dynamic shop) {
     final shopName = shop?.name as String? ?? 'the shop';
+    final bid = widget.p.businessId;
     final msg = Uri.encodeComponent(
       'Hi! I\'ve added you to ArthaNote for $shopName.\n\n'
-      'Download: https://arthanote.com\n'
-      'Login with: $email\n'
-      'Shop: $shopName\n\n'
-      'Use Google login with this email address.',
+      '📲 Download: https://arthanote.com\n'
+      '📧 Login with: $email\n'
+      '🏪 Shop: $shopName\n'
+      '🔑 Business ID: $bid\n\n'
+      'Steps:\n'
+      '1. Download ArthaNote app\n'
+      '2. Log in with Google using this email\n'
+      '3. If you see empty data, go to Settings → Connect to Employer and enter the Business ID above.',
     );
     showModalBottomSheet(
       context: context,
@@ -3679,8 +3762,8 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(12)),
             child: Text(
-              'Download ArthaNote: arthanote.com\nLogin with: $email\nShop: $shopName',
-              style: const TextStyle(fontSize: 13, height: 1.6),
+              'Download: arthanote.com\nLogin with: $email\nShop: $shopName\nBusiness ID: $bid',
+              style: const TextStyle(fontSize: 13, height: 1.6, fontFamily: 'monospace'),
             ),
           ),
           const SizedBox(height: 16),

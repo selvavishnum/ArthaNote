@@ -327,6 +327,31 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Manual business ID (staff fallback) ──────────────────────────────────
+  // Called when staff enters their employer's business ID manually.
+  // Updates their staff/{uid} doc in Firestore then re-initialises the provider.
+  Future<void> setManualBusinessId(String bid) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || bid.trim().isEmpty) return;
+    final email = _auth.currentUser?.email ?? '';
+    await _auth.saveProfile(uid, {
+      'uid':        uid,
+      'email':      email,
+      'businessId': bid.trim(),
+      'role':       'cashier',
+      'onboarded':  true,
+    });
+    _loaded      = false;
+    _txns        = [];
+    _shops       = {};
+    _profile     = {};
+    _businessId  = '';
+    _liveSyncSub?.cancel();
+    _liveSyncSub = null;
+    notifyListeners();
+    await init(uid);
+  }
+
   void addLocalTxn(Txn t) {
     _txns = [t, ..._txns];
     notifyListeners();

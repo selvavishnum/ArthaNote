@@ -806,6 +806,58 @@ class _CashierSettingsSheet extends StatelessWidget {
   final VoidCallback onLogout;
   const _CashierSettingsSheet({required this.provider, required this.onLogout});
 
+  static void _showConnectDialog(BuildContext context, AppProvider p) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setS) {
+          bool saving = false;
+          return AlertDialog(
+            title: const Text('Connect to Employer',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text(
+                'Ask your employer for their Business ID.\n'
+                'Owner: Settings → Staff App Access → copy the Business ID.',
+                style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.6),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Business ID',
+                  hintText: 'Paste the ID from your employer',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ]),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final bid = ctrl.text.trim();
+                        if (bid.isEmpty) return;
+                        setS(() => saving = true);
+                        Navigator.pop(ctx);
+                        await p.setManualBusinessId(bid);
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+                child: const Text('Connect',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p        = provider;
@@ -903,6 +955,27 @@ class _CashierSettingsSheet extends StatelessWidget {
           onTap: () {
             Navigator.pop(context);
             launchUrl(Uri.parse(attendUrl), mode: LaunchMode.externalApplication);
+          },
+        ),
+
+        ListTile(
+          leading: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEDE9FE),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.link_rounded,
+                color: Color(0xFF7C3AED), size: 20),
+          ),
+          title: const Text('Connect to Employer',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          subtitle: Text('Enter employer\'s Business ID',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          trailing: const Icon(Icons.chevron_right, size: 18, color: kMuted),
+          onTap: () {
+            Navigator.pop(context);
+            _showConnectDialog(context, provider);
           },
         ),
 
