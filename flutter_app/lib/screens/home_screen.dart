@@ -80,19 +80,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  List<Widget> _bodies(bool isAdmin) => [
+  List<Widget> _bodies(bool isAdmin, bool isCashier) => [
     const DashboardTab(),
     if (isAdmin) const ScanTab(),
     const EntryTab(),
     const LedgerTab(),
-    const SuppliersTab(),
-    const ReportsTab(),
+    if (!isCashier) const SuppliersTab(),
+    if (!isCashier) const ReportsTab(),
   ];
 
   void _showAiFab(BuildContext context, bool isAdmin) {
-    final entryIdx   = isAdmin ? 2 : 1;
-    final reportsIdx = isAdmin ? 5 : 4;
     final p          = context.read<AppProvider>();
+    final isCashier  = p.isCashier;
+    final entryIdx   = isAdmin ? 2 : 1;
+    final reportsIdx = isCashier ? -1 : (isAdmin ? 5 : 4);
     final useNativeFinance = _showFinanceTab(p);
 
     showModalBottomSheet(
@@ -119,20 +120,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 setState(() => _tab = entryIdx);
               },
             ),
-            _FabChip(
-              label: '📊 Quick Report',
-              onTap: () {
-                Navigator.pop(ctx);
-                _showQuickReport(context, p);
-              },
-            ),
-            _FabChip(
-              label: '📋 Full Reports',
-              onTap: () {
-                Navigator.pop(ctx);
-                setState(() => _tab = reportsIdx);
-              },
-            ),
+            if (!isCashier)
+              _FabChip(
+                label: '📊 Quick Report',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showQuickReport(context, p);
+                },
+              ),
+            if (!isCashier)
+              _FabChip(
+                label: '📋 Full Reports',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  if (reportsIdx >= 0) setState(() => _tab = reportsIdx);
+                },
+              ),
             _FabChip(
               label: '↻ Sync Data',
               onTap: () {
@@ -212,8 +215,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final p = context.watch<AppProvider>();
 
     final isAdmin    = p.isAdmin;
+    final isCashier  = p.isCashier;
     final showFinance = _showFinanceTab(p);
-    final bodies     = _bodies(isAdmin);
+    final bodies     = _bodies(isAdmin, isCashier);
     final safeTab    = _tab.clamp(0, bodies.length - 1);
 
     return Scaffold(
@@ -232,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, showFinance),
+      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, isCashier, showFinance),
       floatingActionButton: FloatingActionButton(
         backgroundColor: kPrimary,
         foregroundColor: Colors.white,
@@ -386,13 +390,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(width: 6),
-              // Hamburger → Settings
-              GestureDetector(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              // Hamburger → Settings (hidden for cashier staff)
+              if (!p.isCashier)
+                GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ),
+                  child: const Icon(Icons.menu, color: kText, size: 22),
                 ),
-                child: const Icon(Icons.menu, color: kText, size: 22),
-              ),
             ],
           ),
         ),
@@ -403,6 +408,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // ── Shop chips row ─────────────────────────────────────────────────────────
   Widget _buildShopChipsRow(BuildContext context, AppProvider p) {
     final l = p.lang;
+
+    // Cashier: show only their assigned shop chip, no "All" chip, no other shops
+    if (p.isCashier && p.staffShop.isNotEmpty) {
+      final assignedShop = p.shops[p.staffShop];
+      if (assignedShop != null) {
+        return Container(
+          color: Colors.white,
+          child: SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+              children: [
+                _ShopChip(
+                  label: '${assignedShop.icon} ${assignedShop.name}',
+                  active: true,
+                  isAllChip: false,
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
 
     return Container(
       color: Colors.white,
@@ -438,8 +468,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l, bool isAdmin, bool showFinance) {
-    final maxIdx = showFinance ? (isAdmin ? 6 : 5) : (isAdmin ? 5 : 4);
+  Widget _buildBottomNav(String l, bool isAdmin, bool isCashier, bool showFinance) {
+    // Cashier: Dashboard(0), Entry(1), Ledger(2) [, Finance(3 if applicable)]
+    // Normal:  Dashboard(0), [Scan(1 if admin)], Entry, Ledger, Suppliers, Reports [, Finance]
+    final maxIdx = isCashier
+        ? (showFinance ? 3 : 2)
+        : showFinance
+            ? (isAdmin ? 6 : 5)
+            : (isAdmin ? 5 : 4);
     final cur = _tab.clamp(0, maxIdx);
 
     BottomNavigationBarItem _item(NavIconType type, String label, int idx) =>
@@ -455,15 +491,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (isAdmin) _item(NavIconType.scan, t('scan', l), idx++),
       _item(NavIconType.entry, t('entry', l), idx++),
       _item(NavIconType.ledger, t('ledger', l), idx++),
-      _item(NavIconType.suppliers, t('suppliers', l), idx++),
-      _item(NavIconType.reports, t('reports', l), idx++),
+      // Hide suppliers and reports for cashier staff
+      if (!isCashier) _item(NavIconType.suppliers, t('suppliers', l), idx++),
+      if (!isCashier) _item(NavIconType.reports, t('reports', l), idx++),
       if (showFinance) _item(NavIconType.finance, 'Finance', idx),
     ];
 
     return BottomNavigationBar(
       currentIndex: cur,
       onTap: (i) {
-        final financeIdx = isAdmin ? 6 : 5;
+        final financeIdx = isCashier ? 3 : (isAdmin ? 6 : 5);
         if (showFinance && i == financeIdx) {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const FinanceTab()),

@@ -68,6 +68,11 @@ class AppProvider extends ChangeNotifier {
     }
     return _bizType == 'personal';
   }
+  bool get isCashier {
+    final role = (_profile['role'] as String?)?.toLowerCase() ?? '';
+    return role == 'cashier' && !isAdmin;
+  }
+  String get staffShop => (_profile['shop'] as String?) ?? '';
 
   // ── init ──────────────────────────────────────────────────────────────────
   Future<void> init(String uid) async {
@@ -125,6 +130,10 @@ class AppProvider extends ChangeNotifier {
     }
 
     _loaded = true;
+    // Auto-select assigned shop for cashier staff
+    if (isCashier && staffShop.isNotEmpty && _shops.containsKey(staffShop)) {
+      _selectedShop = staffShop;
+    }
     notifyListeners();
 
     // Non-blocking — loads txns in background (fast file read + optional daily sync)

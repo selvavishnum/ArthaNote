@@ -201,6 +201,19 @@ class SettingsScreen extends StatelessWidget {
               ),
               const _ItemDivider(),
               _SettingsItem(
+                icon: Icons.manage_accounts_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                title: 'Staff App Access',
+                subtitle: 'Let staff add entries from the app',
+                onTap: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _StaffAccessSheet(p: p),
+                ),
+              ),
+              const _ItemDivider(),
+              _SettingsItem(
                 icon: Icons.qr_code_outlined,
                 iconColor: kPrimary,
                 title: t('qr_attendance', l),
@@ -3411,4 +3424,367 @@ class _CategoryChip extends StatelessWidget {
       ]),
     ),
   );
+}
+
+// ══════════════════════════════════════════════════
+// STAFF APP ACCESS SHEET
+// ══════════════════════════════════════════════════
+
+class _StaffAccessSheet extends StatefulWidget {
+  final AppProvider p;
+  const _StaffAccessSheet({required this.p});
+  @override
+  State<_StaffAccessSheet> createState() => _StaffAccessSheetState();
+}
+
+class _StaffAccessSheetState extends State<_StaffAccessSheet> {
+  final _auth = AuthService();
+
+  void _showGrantSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _GrantAccessSheet(p: widget.p),
+    );
+  }
+
+  Future<void> _revoke(String docId, String email) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Access'),
+        content: Text('Remove app access for $email?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) await _auth.revokeStaffAccess(docId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Container(
+                  width: 40, height: 40,
+                  decoration: BoxDecoration(color: const Color(0xFFEDE9FE), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF7C3AED), size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Staff App Access', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    Text('Staff can add entries from their phone', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ]),
+                ),
+                TextButton.icon(
+                  onPressed: _showGrantSheet,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add'),
+                  style: TextButton.styleFrom(foregroundColor: const Color(0xFF059669)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          SizedBox(
+            height: 320,
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _auth.staffAccessStream(widget.p.businessId),
+              builder: (ctx, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final list = snap.data ?? [];
+                if (list.isEmpty) {
+                  return const Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.people_outline, size: 48, color: Colors.black12),
+                      SizedBox(height: 12),
+                      Text('No staff access granted yet', style: TextStyle(color: Colors.black45, fontSize: 13)),
+                      SizedBox(height: 6),
+                      Text('Tap Add to give a staff member app access', style: TextStyle(color: Colors.black26, fontSize: 11)),
+                    ]),
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final s = list[i];
+                    final email = s['email'] as String? ?? '';
+                    final shop = widget.p.shops[s['shop'] as String? ?? ''];
+                    final role = s['role'] as String? ?? 'cashier';
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFEDE9FE),
+                          child: Text(email.isNotEmpty ? email[0].toUpperCase() : '?', style: const TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.w800)),
+                        ),
+                        title: Text(email, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        subtitle: Text(
+                          '${shop != null ? "${shop.icon} ${shop.name}" : "All shops"} · ${role[0].toUpperCase()}${role.substring(1)}',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
+                          onPressed: () => _revoke(s['id'] as String, email),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBBF7D0)),
+            ),
+            child: const Row(children: [
+              Icon(Icons.info_outline, size: 16, color: Color(0xFF059669)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Staff logs in with their Gmail on the ArthaNote app — they see only their assigned shop.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF065F46)),
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────
+
+class _GrantAccessSheet extends StatefulWidget {
+  final AppProvider p;
+  const _GrantAccessSheet({required this.p});
+  @override
+  State<_GrantAccessSheet> createState() => _GrantAccessSheetState();
+}
+
+class _GrantAccessSheetState extends State<_GrantAccessSheet> {
+  final _auth = AuthService();
+  final _emailCtrl = TextEditingController();
+  String _selectedShopId = '';
+  String _role = 'cashier';
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.p.shops.isNotEmpty) {
+      _selectedShopId = widget.p.shops.keys.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _grant() async {
+    final email = _emailCtrl.text.trim().toLowerCase();
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid email address')),
+      );
+      return;
+    }
+    if (_selectedShopId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a shop')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final shop = widget.p.shops[_selectedShopId];
+      await _auth.grantStaffAccess(
+        businessId: widget.p.businessId,
+        email: email,
+        shopId: _selectedShopId,
+        shopName: shop?.name ?? '',
+        role: _role,
+      );
+      if (!mounted) return;
+      Navigator.pop(context); // close grant sheet
+      // Show share message
+      _showShareMessage(email, shop);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _saving = false);
+  }
+
+  void _showShareMessage(String email, dynamic shop) {
+    final shopName = shop?.name as String? ?? 'the shop';
+    final msg = Uri.encodeComponent(
+      'Hi! I\'ve added you to ArthaNote for $shopName.\n\n'
+      'Download: https://arthanote.com\n'
+      'Login with: $email\n'
+      'Shop: $shopName\n\n'
+      'Use Google login with this email address.',
+    );
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Access Granted!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text('Share these instructions with $email', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(12)),
+            child: Text(
+              'Download ArthaNote: arthanote.com\nLogin with: $email\nShop: $shopName',
+              style: const TextStyle(fontSize: 13, height: 1.6),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final url = Uri.parse('https://wa.me/?text=$msg');
+                if (await canLaunchUrl(url)) launchUrl(url, mode: LaunchMode.externalApplication);
+              },
+              icon: const Icon(Icons.send),
+              label: const Text('Share via WhatsApp'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shops = widget.p.shops;
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        left: 20, right: 20, top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+        const SizedBox(height: 20),
+        const Text('Grant App Access', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const Text('Staff can log in and add entries for their shop', style: TextStyle(color: Colors.grey, fontSize: 12)),
+        const SizedBox(height: 20),
+        // Email field
+        TextField(
+          controller: _emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            labelText: 'Staff Gmail Address',
+            hintText: 'staffname@gmail.com',
+            prefixIcon: const Icon(Icons.email_outlined),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Shop dropdown
+        DropdownButtonFormField<String>(
+          value: _selectedShopId.isNotEmpty ? _selectedShopId : null,
+          decoration: InputDecoration(
+            labelText: 'Assign Shop',
+            prefixIcon: const Icon(Icons.store_outlined),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          items: shops.entries.map((e) => DropdownMenuItem(
+            value: e.key,
+            child: Text('${e.value.icon} ${e.value.name}'),
+          )).toList(),
+          onChanged: (v) { if (v != null) setState(() => _selectedShopId = v); },
+        ),
+        const SizedBox(height: 14),
+        // Role selector
+        Row(children: [
+          const Text('Role:', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(width: 12),
+          ...['cashier', 'manager'].map((r) =>
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(r == 'cashier' ? 'Cashier' : 'Manager'),
+                selected: _role == r,
+                onSelected: (_) => setState(() => _role = r),
+                selectedColor: const Color(0xFFD1FAE5),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _saving ? null : _grant,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF059669),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _saving
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Grant Access & Share', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ),
+        ),
+      ]),
+    );
+  }
 }
