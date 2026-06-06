@@ -238,9 +238,9 @@ class _DashboardTabState extends State<DashboardTab> {
     final txns    = _filter(all, p);
     final sales   = txns.where((x) => x.type == 'sale')
         .fold(0.0, (s, x) => s + x.amount);
-    final expense = txns.where((x) => x.type == 'expense')
+    final expense = txns.where((x) => x.type == 'expense' || x.type == 'payment')
         .fold(0.0, (s, x) => s + x.amount);
-    final net = sales - expense; // payment type is supplier cash flow, not P&L
+    final net = sales - expense;
 
     // Last 7 days overdraft check
     final now7 = DateTime.now();
@@ -320,7 +320,7 @@ class _DashboardTabState extends State<DashboardTab> {
                     ],
                   ]),
                   GestureDetector(
-                    onTap: () => setState(() {}),
+                    onTap: () => context.read<AppProvider>().syncNow(),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
