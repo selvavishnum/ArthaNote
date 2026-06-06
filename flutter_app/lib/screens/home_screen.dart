@@ -369,27 +369,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(width: 8),
-              // Language toggle pill
-              GestureDetector(
-                onTap: () => p.setLang(l == 'en' ? 'ta' : 'en'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: Text(
-                    l == 'en' ? 'தமிழ்' : 'EN',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: kText,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
               // Settings: full settings for owner/admin, simplified sheet for cashier
               if (p.isCashier)
                 GestureDetector(

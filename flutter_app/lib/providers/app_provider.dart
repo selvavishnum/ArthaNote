@@ -329,16 +329,36 @@ class AppProvider extends ChangeNotifier {
 
   // ── Manual business ID (staff fallback) ──────────────────────────────────
   // Called when staff enters their employer's business ID manually.
-  // Updates their staff/{uid} doc in Firestore then re-initialises the provider.
+  // Looks up the owner-granted staff doc to get the assigned shop, then
+  // updates staff/{uid} in Firestore and re-initialises the provider.
   Future<void> setManualBusinessId(String bid) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || bid.trim().isEmpty) return;
     final email = _auth.currentUser?.email ?? '';
+
+    // Try to find the owner-granted doc (auto-ID doc created by grantStaffAccess)
+    // which holds the assigned shop. Look for any doc with matching email
+    // and businessId == bid that has a shop field set.
+    String shopId = '';
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('staff')
+          .where('email', isEqualTo: email.toLowerCase())
+          .where('businessId', isEqualTo: bid.trim())
+          .limit(3)
+          .get();
+      for (final doc in snap.docs) {
+        final s = (doc.data()['shop'] as String?)?.trim() ?? '';
+        if (s.isNotEmpty) { shopId = s; break; }
+      }
+    } catch (_) {}
+
     await _auth.saveProfile(uid, {
       'uid':        uid,
       'email':      email,
       'businessId': bid.trim(),
       'role':       'cashier',
+      'shop':       shopId,
       'onboarded':  true,
     });
     _loaded      = false;

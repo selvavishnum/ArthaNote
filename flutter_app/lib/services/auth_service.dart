@@ -137,10 +137,15 @@ class AuthService {
     return _db
         .collection('staff')
         .where('businessId', isEqualTo: businessId)
-        .where('email', isNull: false)
         .snapshots()
         .map((s) => s.docs
-            .where((d) => (d.data()['email'] as String?)?.isNotEmpty == true)
+            .where((d) {
+              final data  = d.data();
+              final email = (data['email'] as String?)?.trim() ?? '';
+              final role  = (data['role']  as String?)?.toLowerCase() ?? '';
+              // Show only granted staff — exclude the owner's own profile doc
+              return email.isNotEmpty && role != 'owner';
+            })
             .map((d) => {'id': d.id, ...d.data()})
             .toList());
   }
