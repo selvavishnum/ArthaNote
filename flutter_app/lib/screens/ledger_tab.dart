@@ -475,7 +475,7 @@ class _LedgerTabState extends State<LedgerTab> {
       ('◀ ${t("yesterday", l)}', _Period.yesterday,() => setState(() => _period = _Period.yesterday)),
       ('📅 ${t("this_week", l)}',_Period.week,     () => setState(() => _period = _Period.week)),
       (monthLabel,                _Period.month,    _pickMonth),
-      ('📅 Custom',              _Period.custom,   _pickCustomRange),
+      ('📅 Custom',              _Period.custom,   () => _pickCustomRange()),
       ('📋 ${t("all", l)}',      _Period.all,      () => setState(() => _period = _Period.all)),
     ];
 

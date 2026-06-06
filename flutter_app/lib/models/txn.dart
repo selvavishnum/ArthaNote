@@ -59,7 +59,9 @@ class Txn {
     'businessId': businessId,
     'shop':       shop,
     'shopName':   shopName,
-    'date':       Timestamp.fromDate(date),
+    // Store as "YYYY-MM-DD" string — consistent with website format so that
+    // string-based Firestore queries work correctly for all entries.
+    'date':       date.toIso8601String().split('T')[0],
     'type':       type,
     'amount':     amount,
     'desc':       desc,
