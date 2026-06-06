@@ -225,8 +225,73 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             : () => setState(() => _step = 1),
         child: Text(t('next', l)),
       ),
+      const SizedBox(height: 8),
+      TextButton(
+        onPressed: () => _showStaffConnectDialog(context),
+        child: const Text(
+          "I'm a staff member — Connect to employer",
+          style: TextStyle(color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
     ]),
   );
+
+  void _showStaffConnectDialog(BuildContext ctx) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: ctx,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Connect to Employer',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text(
+            'Ask your employer for their Business ID.\n'
+            'Owner: Settings → Staff App Access → copy the Business ID.',
+            style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.6),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Business ID',
+              hintText: 'Paste the ID from your employer',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (_) => _connectWithId(dctx, ctrl.text.trim()),
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => _connectWithId(dctx, ctrl.text.trim()),
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+            child: const Text('Connect', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _connectWithId(BuildContext dctx, String bid) async {
+    if (bid.isEmpty) return;
+    Navigator.pop(dctx); // close dialog
+    setState(() => _saving = true);
+    await context.read<AppProvider>().setManualBusinessId(bid);
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder:    (_, __, ___) => const HomeScreen(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: (_, a, __, child) =>
+              FadeTransition(opacity: a, child: child),
+        ),
+      );
+    }
+    if (mounted) setState(() => _saving = false);
+  }
 
   Widget _buildStep1(String l) => Padding(
     key: const ValueKey(1),
