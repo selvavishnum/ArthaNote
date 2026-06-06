@@ -97,4 +97,51 @@ class AuthService {
       await _db.collection('config').doc(businessId).set({'shops': shops}, SetOptions(merge: true));
     }
   }
+
+  // ── Staff App Access ──────────────────────────────────────────────────────
+
+  Future<void> grantStaffAccess({
+    required String businessId,
+    required String email,
+    required String shopId,
+    required String shopName,
+    required String role,
+  }) async {
+    final snap = await _db
+        .collection('staff')
+        .where('email', isEqualTo: email)
+        .where('businessId', isEqualTo: businessId)
+        .limit(1)
+        .get();
+    if (snap.docs.isNotEmpty) {
+      await _db.collection('staff').doc(snap.docs.first.id).update({
+        'shop': shopId, 'role': role, 'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      await _db.collection('staff').add({
+        'email': email,
+        'businessId': businessId,
+        'shop': shopId,
+        'shopName': shopName,
+        'role': role,
+        'accessGrantedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  Future<void> revokeStaffAccess(String docId) async {
+    await _db.collection('staff').doc(docId).delete();
+  }
+
+  Stream<List<Map<String, dynamic>>> staffAccessStream(String businessId) {
+    return _db
+        .collection('staff')
+        .where('businessId', isEqualTo: businessId)
+        .where('email', isNull: false)
+        .snapshots()
+        .map((s) => s.docs
+            .where((d) => (d.data()['email'] as String?)?.isNotEmpty == true)
+            .map((d) => {'id': d.id, ...d.data()})
+            .toList());
+  }
 }
