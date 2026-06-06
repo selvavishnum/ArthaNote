@@ -53,6 +53,8 @@ class AppProvider extends ChangeNotifier {
   // onboarding for new users whose email matches a staff record in another
   // business.
   bool get isOnboarded {
+    // Cashier staff are assigned to a shop by the owner — skip onboarding entirely
+    if (isCashier) return true;
     if (_profile['onboarded'] == true) return true;
     if (_shops.isNotEmpty) {
       final profileUid = (_profile['uid'] as String?)?.trim() ?? '';
@@ -261,21 +263,17 @@ class AppProvider extends ChangeNotifier {
     _liveSyncSub?.cancel();
     if (_businessId.isEmpty) return;
 
-    // String date comparison — 'date' field is stored as "YYYY-MM-DD" string
-    final since = DateTime.now()
-        .subtract(const Duration(days: 30))
-        .toIso8601String()
-        .split('T')[0];
-
+    // Single-field equality query — no composite index required.
+    // Avoids the Timestamp vs. String date type mismatch that caused compound
+    // queries to silently miss Flutter-app entries (which store date as Timestamp
+    // while website entries store it as a "YYYY-MM-DD" string).
     _liveSyncSub = FirebaseFirestore.instance
         .collection('transactions')
         .where('businessId', isEqualTo: _businessId)
-        .where('date', isGreaterThanOrEqualTo: since)
         .snapshots()
         .listen((snap) {
       if (snap.docChanges.isEmpty) return;
 
-      // O(1) dedup lookup
       final existingIds = {for (final t in _txns) t.id};
       var changed = false;
 

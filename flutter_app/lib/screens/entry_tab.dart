@@ -579,7 +579,40 @@ class _EntryTabState extends State<EntryTab> {
               runSpacing: 6,
               children: [
                 GestureDetector(
-                  onTap: () { _desc.clear(); setState(() {}); },
+                  onTap: () async {
+                    final ctrl = TextEditingController();
+                    final result = await showDialog<String>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Custom Description',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        content: TextField(
+                          controller: ctrl,
+                          autofocus: true,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            hintText: 'Enter description...',
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+                            child: const Text('Use', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (result != null && result.isNotEmpty) {
+                      setState(() => _desc.text = result);
+                    }
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 7),

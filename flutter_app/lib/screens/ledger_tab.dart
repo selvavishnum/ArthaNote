@@ -221,28 +221,24 @@ class _LedgerTabState extends State<LedgerTab> {
     }
   }
 
-  // ── Detect duplicate entries ──────────────────────────────────────────────
-  List<String> _detectDuplicates(List<Txn> all) {
-    final now      = DateTime.now();
-    final cutoff   = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
-    final recent   = all.where((tx) => !tx.date.isBefore(cutoff)).toList();
-    final warnings = <String>[];
+  // ── Detect duplicate entries (same day + same desc + exact same amount) ─────
+  static String _dayKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
 
-    for (int i = 0; i < recent.length; i++) {
-      for (int j = i + 1; j < recent.length; j++) {
-        final a = recent[i];
-        final b = recent[j];
+  List<String> _detectDuplicates(List<Txn> all) {
+    final warnings = <String>[];
+    for (int i = 0; i < all.length; i++) {
+      for (int j = i + 1; j < all.length; j++) {
+        final a = all[i];
+        final b = all[j];
         if (a.desc.isNotEmpty &&
             a.desc == b.desc &&
             a.shop == b.shop &&
-            a.type == b.type) {
-          final ratio = a.amount > 0 ? (b.amount - a.amount).abs() / a.amount : 0.0;
-          if (ratio <= 0.10) {
-            final warn = '⚠️ Possible duplicate: "${a.desc}" (${a.type}) ₹${a.amount.toStringAsFixed(0)} & ₹${b.amount.toStringAsFixed(0)}';
-            if (!warnings.contains(warn)) {
-              warnings.add(warn);
-            }
-          }
+            a.type == b.type &&
+            a.amount == b.amount &&
+            _dayKey(a.date) == _dayKey(b.date)) {
+          final warn = '⚠️ Duplicate on ${_dayKey(a.date)}: "${a.desc}" ₹${a.amount.toStringAsFixed(0)}';
+          if (!warnings.contains(warn)) warnings.add(warn);
         }
       }
     }
@@ -250,17 +246,19 @@ class _LedgerTabState extends State<LedgerTab> {
   }
 
   Set<String> _getDuplicateIds(List<Txn> all) {
-    final now    = DateTime.now();
-    final cutoff = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 7));
-    final recent = all.where((tx) => !tx.date.isBefore(cutoff)).toList();
-    final ids    = <String>{};
-    for (int i = 0; i < recent.length; i++) {
-      for (int j = i + 1; j < recent.length; j++) {
-        final a = recent[i];
-        final b = recent[j];
-        if (a.desc.isNotEmpty && a.desc == b.desc && a.shop == b.shop && a.type == b.type) {
-          final ratio = a.amount > 0 ? (b.amount - a.amount).abs() / a.amount : 0.0;
-          if (ratio <= 0.10) { ids.add(a.id); ids.add(b.id); }
+    final ids = <String>{};
+    for (int i = 0; i < all.length; i++) {
+      for (int j = i + 1; j < all.length; j++) {
+        final a = all[i];
+        final b = all[j];
+        if (a.desc.isNotEmpty &&
+            a.desc == b.desc &&
+            a.shop == b.shop &&
+            a.type == b.type &&
+            a.amount == b.amount &&
+            _dayKey(a.date) == _dayKey(b.date)) {
+          ids.add(a.id);
+          ids.add(b.id);
         }
       }
     }
@@ -475,7 +473,7 @@ class _LedgerTabState extends State<LedgerTab> {
       ('◀ ${t("yesterday", l)}', _Period.yesterday,() => setState(() => _period = _Period.yesterday)),
       ('📅 ${t("this_week", l)}',_Period.week,     () => setState(() => _period = _Period.week)),
       (monthLabel,                _Period.month,    _pickMonth),
-      ('📅 Custom',              _Period.custom,   _pickCustomRange),
+      ('📅 Custom',              _Period.custom,   () => _pickCustomRange()),
       ('📋 ${t("all", l)}',      _Period.all,      () => setState(() => _period = _Period.all)),
     ];
 

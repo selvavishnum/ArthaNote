@@ -110,18 +110,22 @@ class _ReportsTabState extends State<ReportsTab> {
     );
   }
 
-  List<Txn> _filteredTxns(List<Txn> all) {
+  List<Txn> _filteredTxns(List<Txn> all, String selectedShop) {
     final r = _getRange();
-    return all
-        .where((t) => !t.date.isBefore(r.start) && t.date.isBefore(r.end))
-        .toList();
+    return all.where((t) {
+      final inRange = !t.date.isBefore(r.start) && t.date.isBefore(r.end);
+      final inShop  = selectedShop.isEmpty || t.shop == selectedShop;
+      return inRange && inShop;
+    }).toList();
   }
 
-  List<Txn> _prevTxns(List<Txn> all) {
+  List<Txn> _prevTxns(List<Txn> all, String selectedShop) {
     final r = _getPrevRange();
-    return all
-        .where((t) => !t.date.isBefore(r.start) && t.date.isBefore(r.end))
-        .toList();
+    return all.where((t) {
+      final inRange = !t.date.isBefore(r.start) && t.date.isBefore(r.end);
+      final inShop  = selectedShop.isEmpty || t.shop == selectedShop;
+      return inRange && inShop;
+    }).toList();
   }
 
   Future<void> _pickCustomRange() async {
@@ -256,8 +260,8 @@ class _ReportsTabState extends State<ReportsTab> {
       return const Center(child: CircularProgressIndicator(color: kPrimary));
     }
 
-    final txns = _filteredTxns(all);
-    final prevTxns = _prevTxns(all);
+    final txns = _filteredTxns(all, p.selectedShop);
+    final prevTxns = _prevTxns(all, p.selectedShop);
 
     return Column(
       children: [

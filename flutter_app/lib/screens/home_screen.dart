@@ -390,8 +390,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(width: 6),
-              // Hamburger → Settings (hidden for cashier staff)
-              if (!p.isCashier)
+              // Settings: full settings for owner/admin, simplified sheet for cashier
+              if (p.isCashier)
+                GestureDetector(
+                  onTap: () => _showCashierSettings(context, p),
+                  child: const Icon(Icons.person_outline_rounded, color: kText, size: 22),
+                )
+              else
                 GestureDetector(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -536,6 +541,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (p.isAdmin) return const Color(0xFF7C3AED);
     if (p.profile['pro'] == true) return const Color(0xFFD97706);
     return const Color(0xFF16A34A);
+  }
+
+  void _showCashierSettings(BuildContext context, AppProvider p) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CashierSettingsSheet(provider: p, onLogout: _logout),
+    );
   }
 }
 
@@ -784,4 +798,156 @@ class _ShopChip extends StatelessWidget {
       ),
     ),
   );
+}
+
+// ── Cashier Settings Sheet ────────────────────────────────────────────────────
+class _CashierSettingsSheet extends StatelessWidget {
+  final AppProvider provider;
+  final VoidCallback onLogout;
+  const _CashierSettingsSheet({required this.provider, required this.onLogout});
+
+  @override
+  Widget build(BuildContext context) {
+    final p        = provider;
+    final profile  = p.profile;
+    final name     = (profile['name']  as String?) ?? 'Staff';
+    final email    = (profile['email'] as String?) ?? '';
+    final shopId   = p.staffShop;
+    final shop     = p.shops[shopId];
+    final shopName = shop?.name ?? shopId;
+    final shopIcon = shop?.icon ?? '🏪';
+    final attendUrl = 'https://arthanote.com/attend.html'
+        '?bid=${p.businessId}&shop=$shopId'
+        '&sname=${Uri.encodeComponent(shopName)}';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Center(
+          child: Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(top: 12, bottom: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+          child: Row(children: [
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                color: kPrimary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                  style: const TextStyle(
+                    color: kPrimary, fontWeight: FontWeight.w800, fontSize: 22,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 16, color: kText)),
+                const SizedBox(height: 2),
+                Text(email,
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$shopIcon $shopName · Cashier',
+                    style: const TextStyle(
+                        color: kPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+
+        const Divider(height: 1, thickness: 1),
+
+        ListTile(
+          leading: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.qr_code_rounded, color: kPrimary, size: 20),
+          ),
+          title: const Text('Attendance QR',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          subtitle: Text('Mark attendance — $shopName',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: kMuted),
+          onTap: () {
+            Navigator.pop(context);
+            launchUrl(Uri.parse(attendUrl), mode: LaunchMode.externalApplication);
+          },
+        ),
+
+        ListTile(
+          leading: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.switch_account_outlined,
+                color: Color(0xFFD97706), size: 20),
+          ),
+          title: const Text('Switch Account',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          subtitle: Text('Sign out and log in as owner',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          onTap: () {
+            Navigator.pop(context);
+            onLogout();
+          },
+        ),
+
+        ListTile(
+          leading: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.logout_rounded, color: kRed, size: 20),
+          ),
+          title: const Text('Sign Out',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700, fontSize: 14, color: kRed)),
+          subtitle: Text('Log out of staff account',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          onTap: () {
+            Navigator.pop(context);
+            onLogout();
+          },
+        ),
+
+        const SizedBox(height: 16),
+      ]),
+    );
+  }
 }
