@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (isAdmin) const ScanTab(),
     const EntryTab(),
     const LedgerTab(),
-    if (!isCashier) const SuppliersTab(),
+    const SuppliersTab(),
     if (!isCashier) const ReportsTab(),
   ];
 
@@ -342,6 +342,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onPressed: ap.syncing ? null : () => ap.syncNow(),
                 );
               }),
+              // Own Mode indicator — amber badge when staff is viewing own data
+              if (p.isOwnMode) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Own Mode',
+                    style: TextStyle(
+                      color: Color(0xFFD97706),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
               // Plan badge: Admin / Pro / Free
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -369,8 +388,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(width: 8),
-              // Settings: full settings for owner/admin, simplified sheet for cashier
-              if (p.isCashier)
+              // Settings: profile panel for staff users (any mode), full settings for owner/admin
+              if (p.isStaffRole)
                 GestureDetector(
                   onTap: () => _showCashierSettings(context, p),
                   child: const Icon(Icons.person_outline_rounded, color: kText, size: 22),
@@ -456,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Cashier: Dashboard(0), Entry(1), Ledger(2) [, Finance(3 if applicable)]
     // Normal:  Dashboard(0), [Scan(1 if admin)], Entry, Ledger, Suppliers, Reports [, Finance]
     final maxIdx = isCashier
-        ? (showFinance ? 3 : 2)
+        ? (showFinance ? 4 : 3)
         : showFinance
             ? (isAdmin ? 6 : 5)
             : (isAdmin ? 5 : 4);
@@ -475,8 +494,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (isAdmin) _item(NavIconType.scan, t('scan', l), idx++),
       _item(NavIconType.entry, t('entry', l), idx++),
       _item(NavIconType.ledger, t('ledger', l), idx++),
-      // Hide suppliers and reports for cashier staff
-      if (!isCashier) _item(NavIconType.suppliers, t('suppliers', l), idx++),
+      _item(NavIconType.suppliers, t('suppliers', l), idx++),
       if (!isCashier) _item(NavIconType.reports, t('reports', l), idx++),
       if (showFinance) _item(NavIconType.finance, 'Finance', idx),
     ];
@@ -484,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return BottomNavigationBar(
       currentIndex: cur,
       onTap: (i) {
-        final financeIdx = isCashier ? 3 : (isAdmin ? 6 : 5);
+        final financeIdx = isCashier ? 4 : (isAdmin ? 6 : 5);
         if (showFinance && i == financeIdx) {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const FinanceTab()),
@@ -901,13 +919,18 @@ class _CashierSettingsSheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
+                    color: p.isOwnMode
+                        ? const Color(0xFFFEF3C7)
+                        : const Color(0xFFDCFCE7),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    '$shopIcon $shopName · Cashier',
-                    style: const TextStyle(
-                        color: kPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                    p.isOwnMode
+                        ? '🏠 My Business · Own Mode'
+                        : '$shopIcon $shopName · Cashier',
+                    style: TextStyle(
+                        color: p.isOwnMode ? const Color(0xFFD97706) : kPrimary,
+                        fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),
               ]),
@@ -917,64 +940,93 @@ class _CashierSettingsSheet extends StatelessWidget {
 
         const Divider(height: 1, thickness: 1),
 
-        ListTile(
-          leading: Container(
-            width: 38, height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0FDF4),
-              borderRadius: BorderRadius.circular(10),
+        // Staff-mode-only tiles — hidden when viewing own data
+        if (!p.isOwnMode) ...[
+          ListTile(
+            leading: Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.qr_code_rounded, color: kPrimary, size: 20),
             ),
-            child: const Icon(Icons.qr_code_rounded, color: kPrimary, size: 20),
+            title: const Text('Attendance QR',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            subtitle: Text('Mark attendance — $shopName',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+            trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: kMuted),
+            onTap: () {
+              Navigator.pop(context);
+              launchUrl(Uri.parse(attendUrl), mode: LaunchMode.externalApplication);
+            },
           ),
-          title: const Text('Attendance QR',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-          subtitle: Text('Mark attendance — $shopName',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-          trailing: const Icon(Icons.open_in_new_rounded, size: 16, color: kMuted),
-          onTap: () {
-            Navigator.pop(context);
-            launchUrl(Uri.parse(attendUrl), mode: LaunchMode.externalApplication);
-          },
-        ),
 
-        ListTile(
-          leading: Container(
-            width: 38, height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEDE9FE),
-              borderRadius: BorderRadius.circular(10),
+          ListTile(
+            leading: Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEDE9FE),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.link_rounded,
+                  color: Color(0xFF7C3AED), size: 20),
             ),
-            child: const Icon(Icons.link_rounded,
-                color: Color(0xFF7C3AED), size: 20),
+            title: const Text('Connect to Employer',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            subtitle: Text('Enter employer\'s Business ID',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right, size: 18, color: kMuted),
+            onTap: () {
+              Navigator.pop(context);
+              _showConnectDialog(context, provider);
+            },
           ),
-          title: const Text('Connect to Employer',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-          subtitle: Text('Enter employer\'s Business ID',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-          trailing: const Icon(Icons.chevron_right, size: 18, color: kMuted),
-          onTap: () {
-            Navigator.pop(context);
-            _showConnectDialog(context, provider);
-          },
-        ),
+        ],
 
+        // Own Mode toggle
         ListTile(
           leading: Container(
             width: 38, height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
+              color: p.isOwnMode
+                  ? const Color(0xFFDCFCE7)
+                  : const Color(0xFFFEF3C7),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.switch_account_outlined,
-                color: Color(0xFFD97706), size: 20),
+            child: Icon(
+              p.isOwnMode ? Icons.work_outline_rounded : Icons.dashboard_rounded,
+              color: p.isOwnMode ? kPrimary : const Color(0xFFD97706),
+              size: 20,
+            ),
           ),
-          title: const Text('Switch Account',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-          subtitle: Text('Sign out and log in as owner',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+          title: Text(
+            p.isOwnMode ? 'Back to Staff Mode' : 'My Dashboard',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          ),
+          subtitle: Text(
+            p.isOwnMode
+                ? 'Return to employer\'s data'
+                : 'View your own business data',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+          ),
+          trailing: p.isOwnMode
+              ? null
+              : Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text('NEW',
+                      style: TextStyle(
+                          color: Color(0xFFD97706),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800)),
+                ),
           onTap: () {
             Navigator.pop(context);
-            onLogout();
+            provider.toggleOwnMode();
           },
         ),
 

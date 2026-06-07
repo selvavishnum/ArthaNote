@@ -133,6 +133,42 @@ class AuthService {
     await _db.collection('staff').doc(docId).delete();
   }
 
+  /// Permanently deletes the account and ALL data for this businessId.
+  /// Deletes: transactions, supplier_bills, suppliers, staff docs, config doc,
+  /// and finally the Firebase Auth account. Uses batched writes (400 per batch)
+  /// to handle large datasets without hitting Firestore limits.
+  Future<void> deleteAccount(String businessId) async {
+    Future<void> _deleteQuery(Query<Map<String, dynamic>> q) async {
+      while (true) {
+        final snap = await q.limit(400).get();
+        if (snap.docs.isEmpty) break;
+        final batch = _db.batch();
+        for (final doc in snap.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
+    }
+
+    // Delete all business data in parallel
+    await Future.wait([
+      _deleteQuery(_db.collection('transactions')
+          .where('businessId', isEqualTo: businessId)),
+      _deleteQuery(_db.collection('supplier_bills')
+          .where('businessId', isEqualTo: businessId)),
+      _deleteQuery(_db.collection('suppliers')
+          .where('businessId', isEqualTo: businessId)),
+      _deleteQuery(_db.collection('staff')
+          .where('businessId', isEqualTo: businessId)),
+    ]);
+
+    // Delete config doc
+    await _db.collection('config').doc(businessId).delete();
+
+    // Delete Firebase Auth account last
+    await _auth.currentUser?.delete();
+  }
+
   Stream<List<Map<String, dynamic>>> staffAccessStream(String businessId) {
     return _db
         .collection('staff')

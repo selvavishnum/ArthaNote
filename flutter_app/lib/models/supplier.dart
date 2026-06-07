@@ -5,7 +5,8 @@ class Supplier {
   final String businessId;
   final String name;
   final String phone;
-  final double balance; // positive = we owe them (due), 0/negative = settled
+  final double balance;
+  final String shopId; // '' = visible across all shops; 'sX' = this shop only
 
   const Supplier({
     required this.id,
@@ -13,6 +14,7 @@ class Supplier {
     required this.name,
     required this.phone,
     required this.balance,
+    this.shopId = '',
   });
 
   factory Supplier.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -23,6 +25,7 @@ class Supplier {
       name:       d['name']       as String? ?? '',
       phone:      d['phone']      as String? ?? '',
       balance:    (d['balance']   as num?)?.toDouble() ?? 0,
+      shopId:     d['shopId']     as String? ?? '',
     );
   }
 
@@ -31,6 +34,7 @@ class Supplier {
     'name':       name,
     'phone':      phone,
     'balance':    balance,
+    'shopId':     shopId,
     'updatedAt':  FieldValue.serverTimestamp(),
   };
 
@@ -40,11 +44,13 @@ class Supplier {
     String? name,
     String? phone,
     double? balance,
+    String? shopId,
   }) => Supplier(
     id:         id         ?? this.id,
     businessId: businessId ?? this.businessId,
     name:       name       ?? this.name,
     phone:      phone      ?? this.phone,
     balance:    balance    ?? this.balance,
+    shopId:     shopId     ?? this.shopId,
   );
 }

@@ -215,15 +215,20 @@ class _SuppliersTabState extends State<SuppliersTab> {
             !b.date.isBefore(range.start) && b.date.isBefore(range.end))
         .toList();
 
-    if (suppliers.isEmpty) {
+    // Cashier: only see their shop's suppliers (+ shared suppliers with empty shopId)
+    final visibleSuppliers = p.isCashier && p.staffShop.isNotEmpty
+        ? suppliers.where((s) => s.shopId.isEmpty || s.shopId == p.staffShop).toList()
+        : suppliers;
+
+    if (visibleSuppliers.isEmpty) {
       return _EmptyState(l: l);
     }
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-      itemCount: suppliers.length,
+      itemCount: visibleSuppliers.length,
       itemBuilder: (_, i) {
-        final sup      = suppliers[i];
+        final sup      = visibleSuppliers[i];
         final supBills = periodBills
             .where((b) => b.supplierId == sup.id)
             .toList();
@@ -244,6 +249,7 @@ class _SuppliersTabState extends State<SuppliersTab> {
     final phoneCtrl = TextEditingController();
     final balCtrl   = TextEditingController();
     bool saving     = false;
+    String shopId   = '';
 
     showModalBottomSheet(
       context: context,
@@ -295,6 +301,28 @@ class _SuppliersTabState extends State<SuppliersTab> {
                 prefixIcon: Icon(Icons.account_balance_wallet_outlined),
               ),
             ),
+            // Shop selector (owner only — cashier auto-assigned)
+            if (!p.isCashier && p.shops.length > 1) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: shopId.isEmpty ? null : shopId,
+                hint: const Text('All Shops (shared supplier)'),
+                decoration: const InputDecoration(
+                  labelText: 'Assign to Shop (optional)',
+                  prefixIcon: Icon(Icons.store_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                      value: '',
+                      child: Text('All Shops')),
+                  ...p.shops.values.map((s) => DropdownMenuItem(
+                        value: s.id,
+                        child: Text('${s.icon} ${s.name}'),
+                      )),
+                ],
+                onChanged: (v) => setSt(() => shopId = v ?? ''),
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -310,6 +338,7 @@ class _SuppliersTabState extends State<SuppliersTab> {
                           name:       nameCtrl.text.trim(),
                           phone:      phoneCtrl.text.trim(),
                           balance:    double.tryParse(balCtrl.text) ?? 0,
+                          shopId:     p.isCashier ? p.staffShop : shopId,
                         ));
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
@@ -384,7 +413,10 @@ class _AddBillSheetState extends State<_AddBillSheet> {
     return StreamBuilder<List<Supplier>>(
       stream: widget.db.supplierStream(widget.p.businessId),
       builder: (ctx, snap) {
-        final suppliers = snap.data ?? [];
+        final allSuppliers = snap.data ?? [];
+        final suppliers = widget.p.isCashier && widget.p.staffShop.isNotEmpty
+            ? allSuppliers.where((s) => s.shopId.isEmpty || s.shopId == widget.p.staffShop).toList()
+            : allSuppliers;
         return Padding(
           padding: EdgeInsets.fromLTRB(
               20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),

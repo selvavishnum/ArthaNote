@@ -2677,6 +2677,7 @@ class _BackupSheetState extends State<_BackupSheet> {
   bool _importing = false;
   bool _csvExp    = false;
   bool _clearing  = false;
+  bool _deleting  = false;
 
   Future<void> _forceSync() async {
     setState(() => _syncing = true);
@@ -2880,6 +2881,148 @@ class _BackupSheetState extends State<_BackupSheet> {
     }
   }
 
+  Future<void> _showDeleteConfirm() async {
+    final confirmCtrl = TextEditingController();
+    bool deleting = false;
+    final businessName = widget.p.shops.values.firstOrNull?.name
+        ?? widget.p.businessId;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.warning_amber_rounded,
+                    color: Color(0xFFDC2626), size: 22),
+                const SizedBox(width: 10),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Permanently Delete Account',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: Color(0xFFDC2626))),
+                    const SizedBox(height: 6),
+                    Text(
+                      'This will permanently delete ALL your data: '
+                      'transactions, shops, suppliers, staff records, '
+                      'and your login. This cannot be undone.',
+                      style: TextStyle(
+                          color: Colors.grey.shade700, fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                )),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Type your business name to confirm:',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: Colors.grey.shade800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '"$businessName"',
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: Color(0xFFDC2626)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: 'Type: $businessName',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide:
+                      const BorderSide(color: Color(0xFFDC2626), width: 2),
+                ),
+              ),
+              onChanged: (_) => setSt(() {}),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: (deleting ||
+                        confirmCtrl.text.trim() != businessName)
+                    ? null
+                    : () async {
+                        setSt(() => deleting = true);
+                        try {
+                          final AuthService auth = AuthService();
+                          await auth.deleteAccount(widget.p.businessId);
+                          widget.p.reset();
+                          if (ctx.mounted) Navigator.of(ctx).popUntil((r) => r.isFirst);
+                        } catch (e) {
+                          setSt(() => deleting = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                              content: Text('Deletion failed: $e'),
+                              backgroundColor: kRed,
+                            ));
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: deleting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5))
+                    : const Text('Permanently Delete Account',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 14)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel',
+                  style: TextStyle(color: Colors.grey.shade600)),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -2974,6 +3117,58 @@ class _BackupSheetState extends State<_BackupSheet> {
           child: Text('Cache cleared = fresh load from Firebase on next open',
               style: TextStyle(color: Colors.grey.shade400, fontSize: 10),
               textAlign: TextAlign.center),
+        ),
+
+        // ── Danger Zone ──────────────────────────────────────────────────────
+        const SizedBox(height: 24),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(1),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFFCA5A5)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF5F5),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Row(children: [
+                Icon(Icons.dangerous_outlined, color: Color(0xFFDC2626), size: 16),
+                SizedBox(width: 6),
+                Text('Danger Zone',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: Color(0xFFDC2626))),
+              ]),
+              const SizedBox(height: 8),
+              const Text(
+                'Permanently delete your account and all data. '
+                'This action cannot be undone.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF7F1D1D), height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton(
+                  onPressed: _showDeleteConfirm,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                    side: const BorderSide(color: Color(0xFFDC2626)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('🗑️  Delete Account',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 13)),
+                ),
+              ),
+            ]),
+          ),
         ),
       ]),
     );
