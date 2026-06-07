@@ -31,6 +31,12 @@
     .footer a{color:#6ee7b7;text-decoration:none}
     .section{display:none}
     .section.active{display:block}
+    .danger-box{background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;border-radius:6px;margin:16px 0}
+    .danger-box p{margin:0;font-size:13px;color:#991b1b}
+    .step-box{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
+    .step-num{background:#065f46;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+    .step-text{font-size:13px;color:#374151;line-height:1.5}
+    .step-text strong{color:#111827}
     @media(max-width:480px){.hero h1{font-size:22px}.content{padding:24px 16px 48px}}
   </style>
 </head>
@@ -49,6 +55,7 @@
 <div class="tabs">
   <div class="tab active" onclick="showTab('privacy',this)">Privacy Policy</div>
   <div class="tab" onclick="showTab('terms',this)">Terms of Service</div>
+  <div class="tab" onclick="showTab('delete',this)">Delete Account</div>
 </div>
 
 <!-- PRIVACY POLICY -->
@@ -261,6 +268,84 @@
   </div>
 </div>
 
+<!-- DELETE ACCOUNT -->
+<div class="section" id="section-delete">
+  <div class="content">
+    <div id="delete-account"></div>
+    <p class="last-updated">Last updated: 7 June 2026</p>
+
+    <div class="highlight">
+      <p><strong>Your right to be forgotten:</strong> You can permanently delete your ArthaNote account and all associated data at any time — directly from within the app or by contacting us.</p>
+    </div>
+
+    <div class="danger-box">
+      <p>⚠️ <strong>Account deletion is permanent.</strong> All your transaction records, shop data, supplier records, and staff information will be deleted. This action cannot be undone.</p>
+    </div>
+
+    <h2>Method 1 — Delete from Within the App (Recommended)</h2>
+    <p>Follow these steps on the Android app:</p>
+
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div class="step-text">Open the <strong>ArthaNote</strong> app and log in to your account</div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">2</div>
+      <div class="step-text">Tap the <strong>menu icon (☰)</strong> in the top right corner to open Settings</div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">3</div>
+      <div class="step-text">Scroll down and tap <strong>"Backup &amp; Restore"</strong></div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">4</div>
+      <div class="step-text">Scroll to the bottom of the Backup sheet and tap <strong>"Delete Account"</strong> (shown in red)</div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">5</div>
+      <div class="step-text">Type your <strong>business name</strong> in the confirmation field to confirm you want to delete</div>
+    </div>
+    <div class="step-box">
+      <div class="step-num">6</div>
+      <div class="step-text">Tap <strong>"Permanently Delete"</strong> — your account and all data will be deleted immediately</div>
+    </div>
+
+    <h2>Method 2 — Email Request</h2>
+    <p>If you cannot access the app, send a deletion request email:</p>
+    <ul>
+      <li><strong>Email subject:</strong> Account Deletion Request — ArthaNote</li>
+      <li><strong>Include:</strong> Your registered email address and business name</li>
+      <li><strong>Send to:</strong> Contact us via the app footer link</li>
+      <li><strong>Processing time:</strong> We will delete your account within 7 business days of receiving a valid request</li>
+    </ul>
+
+    <h2>What Data Gets Deleted</h2>
+    <p>When you delete your account, we permanently remove:</p>
+    <ul>
+      <li>All transaction records (sales, expenses, payments)</li>
+      <li>Shop configuration and business settings</li>
+      <li>Supplier records and payment history</li>
+      <li>Staff access records</li>
+      <li>Finance &amp; Chit Fund data (if used)</li>
+      <li>Your login credentials (Firebase Auth account)</li>
+    </ul>
+    <p>Local data cached on your device (in app storage) will also be cleared when you log out after deletion.</p>
+
+    <h2>What We Cannot Delete</h2>
+    <ul>
+      <li>Payment transaction records held by Razorpay (governed by Razorpay's own data policies)</li>
+      <li>Anonymised aggregated statistics (no personal data retained)</li>
+    </ul>
+
+    <h2>Data Retention After Deletion</h2>
+    <p>Once your deletion request is processed, your data is permanently removed from Firebase Firestore. Google Firebase may retain system logs for up to 30 days as part of their standard infrastructure operations — these logs contain no personally identifiable business data.</p>
+
+    <div class="highlight">
+      <p><strong>Questions?</strong> If you have any questions about account deletion, open the app and use the contact/support option in the app footer, or visit the Privacy Policy tab above for full data rights information.</p>
+    </div>
+  </div>
+</div>
+
 <div class="footer">
   © 2026 ArthaNote · Tuticorin, Tamil Nadu, India ·
   <a href="index.html">Back to App</a> ·
@@ -279,6 +364,9 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(location.hash==='#terms'){
     const el=document.querySelector('.tab:nth-child(2)');
     showTab('terms',el);
+  } else if(location.hash==='#delete-account'||location.hash==='#delete'){
+    const el=document.querySelector('.tab:nth-child(3)');
+    showTab('delete',el);
   }
 });
 </script>

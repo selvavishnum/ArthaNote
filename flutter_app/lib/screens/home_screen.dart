@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (isAdmin) const ScanTab(),
     const EntryTab(),
     const LedgerTab(),
-    if (!isCashier) const SuppliersTab(),
+    const SuppliersTab(),
     if (!isCashier) const ReportsTab(),
   ];
 
@@ -456,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Cashier: Dashboard(0), Entry(1), Ledger(2) [, Finance(3 if applicable)]
     // Normal:  Dashboard(0), [Scan(1 if admin)], Entry, Ledger, Suppliers, Reports [, Finance]
     final maxIdx = isCashier
-        ? (showFinance ? 3 : 2)
+        ? (showFinance ? 4 : 3)
         : showFinance
             ? (isAdmin ? 6 : 5)
             : (isAdmin ? 5 : 4);
@@ -475,8 +475,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (isAdmin) _item(NavIconType.scan, t('scan', l), idx++),
       _item(NavIconType.entry, t('entry', l), idx++),
       _item(NavIconType.ledger, t('ledger', l), idx++),
-      // Hide suppliers and reports for cashier staff
-      if (!isCashier) _item(NavIconType.suppliers, t('suppliers', l), idx++),
+      _item(NavIconType.suppliers, t('suppliers', l), idx++),
       if (!isCashier) _item(NavIconType.reports, t('reports', l), idx++),
       if (showFinance) _item(NavIconType.finance, 'Finance', idx),
     ];
@@ -484,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return BottomNavigationBar(
       currentIndex: cur,
       onTap: (i) {
-        final financeIdx = isCashier ? 3 : (isAdmin ? 6 : 5);
+        final financeIdx = isCashier ? 4 : (isAdmin ? 6 : 5);
         if (showFinance && i == financeIdx) {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const FinanceTab()),
