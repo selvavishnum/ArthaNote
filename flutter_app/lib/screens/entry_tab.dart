@@ -146,8 +146,11 @@ class _EntryTabState extends State<EntryTab> {
         contact:    _isPersonalShop(p) ? _contact.text.trim() : '',
         enteredBy:  FirebaseAuth.instance.currentUser?.email ?? '',
       );
-      await _db.addTxn(txn);
+      // Update UI immediately before the Firestore write so addLocalTxn populates
+      // _txns before _startLiveSync snapshot fires — prevents the duplicate where
+      // the listener sees the doc before addLocalTxn and adds it a second time.
       if (mounted) context.read<AppProvider>().addLocalTxn(txn);
+      await _db.addTxn(txn);
       _snack('Entry saved');
       // Teach the AI about this entry before resetting
       _ai.learn(description, savedType, savedDesc);

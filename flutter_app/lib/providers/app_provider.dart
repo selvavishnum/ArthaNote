@@ -278,6 +278,10 @@ class AppProvider extends ChangeNotifier {
       var changed = false;
 
       for (final change in snap.docChanges) {
+        // hasPendingWrites = true means this is OUR write, already added via
+        // addLocalTxn(). Only process changes from other devices (server-confirmed).
+        if (change.doc.metadata.hasPendingWrites) continue;
+
         if (change.type == DocumentChangeType.removed) {
           final before = _txns.length;
           _txns = _txns.where((t) => t.id != change.doc.id).toList();
