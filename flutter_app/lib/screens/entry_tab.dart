@@ -120,7 +120,7 @@ class _EntryTabState extends State<EntryTab> {
     setState(() => _saving = true);
 
     final shopId = _shopId.isEmpty
-        ? (p.shops.values.firstOrNull?.id ?? '')
+        ? (p.visibleShops.values.firstOrNull?.id ?? '')
         : _shopId;
     final shop = p.shops[shopId];
 
@@ -284,8 +284,8 @@ class _EntryTabState extends State<EntryTab> {
     final p = context.watch<AppProvider>();
     final l = p.lang;
 
-    if (_shopId.isEmpty && p.shops.isNotEmpty) {
-      _shopId = p.shops.values.first.id;
+    if (_shopId.isEmpty && p.visibleShops.isNotEmpty) {
+      _shopId = p.visibleShops.values.first.id;
     }
 
     final isPersonalMode = _isPersonalShop(p);
@@ -451,7 +451,7 @@ class _EntryTabState extends State<EntryTab> {
             Expanded(
               child: _LabelField(
                 label: 'SHOP',
-                child: p.shops.isEmpty
+                child: p.visibleShops.isEmpty
                     ? _FieldBox(
                         child: Text(
                           'No shops',
@@ -468,7 +468,7 @@ class _EntryTabState extends State<EntryTab> {
                                 size: 18, color: kMuted),
                             onChanged: (v) =>
                                 setState(() => _shopId = v ?? ''),
-                            items: p.shops.values
+                            items: p.visibleShops.values
                                 .map((s) => DropdownMenuItem(
                                       value: s.id,
                                       child: Text(

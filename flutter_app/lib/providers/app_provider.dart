@@ -32,6 +32,16 @@ class AppProvider extends ChangeNotifier {
   String             get businessId   => _businessId;
   String             get selectedShop => _selectedShop;
   Map<String, Shop>  get shops        => Map.unmodifiable(_shops);
+
+  /// Shops the current user may access.
+  /// Cashier with an assigned shop → only that shop.
+  /// Owner / Manager / Admin → all shops.
+  Map<String, Shop> get visibleShops {
+    if (isCashier && staffShop.isNotEmpty && _shops.containsKey(staffShop)) {
+      return {staffShop: _shops[staffShop]!};
+    }
+    return Map.unmodifiable(_shops);
+  }
   Map<String, dynamic> get profile    => Map.unmodifiable(_profile);
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
@@ -155,6 +165,8 @@ class AppProvider extends ChangeNotifier {
 
   // ── Shop selection ────────────────────────────────────────────────────────
   void setSelectedShop(String shopId) {
+    // Cashier is locked to their assigned shop — ignore any other selection.
+    if (isCashier && staffShop.isNotEmpty && shopId != staffShop) return;
     _selectedShop = shopId;
     notifyListeners();
   }

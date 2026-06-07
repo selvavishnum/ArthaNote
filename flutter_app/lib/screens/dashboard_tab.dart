@@ -509,16 +509,16 @@ class _DashboardTabState extends State<DashboardTab> {
               ),
               const SizedBox(height: 8),
 
-              if (p.syncing && p.shops.isEmpty)
+              if (p.syncing && p.visibleShops.isEmpty)
                 const Center(
                     child: Padding(
                   padding: EdgeInsets.all(16),
                   child: CircularProgressIndicator(color: kPrimary),
                 ))
-              else if (p.shops.isEmpty)
+              else if (p.visibleShops.isEmpty)
                 _EmptyCard(text: 'No shops set up yet')
               else
-                ...p.shops.values.map((shop) {
+                ...p.visibleShops.values.map((shop) {
                   final shopTxns =
                       txns.where((x) => x.shop == shop.id).toList();
                   final shopSales = shopTxns
@@ -571,7 +571,7 @@ class _DashboardTabState extends State<DashboardTab> {
                 missingItems:  missingItems,
                 onDismiss:     () => setState(() => _dismissedDate = todayKey),
                 businessId:    p.businessId,
-                shops:         p.shops,
+                shops:         p.visibleShops,
                 db:            _db,
               ),
             ],
