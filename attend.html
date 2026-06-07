@@ -84,6 +84,8 @@ body{font-family:'DM Sans',sans-serif;background:linear-gradient(160deg,#022c22 
 .s-detail{background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:12px;padding:14px;margin:12px 0}
 .s-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;color:#374151}
 .back-btn{width:100%;padding:13px;border-radius:12px;border:2px solid #065f46;background:#fff;color:#065f46;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.wa-share-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:12px;border:none;background:#25D366;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;box-shadow:0 4px 16px rgba(37,211,102,.35)}
+.wa-share-btn:active{transform:scale(.97)}
 
 .err-box{background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px;font-size:12px;color:#dc2626;text-align:center;margin-bottom:10px}
 .lbl{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
@@ -135,9 +137,91 @@ const TIME=NOW_DATE.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',
 const DATE_NICE=NOW_DATE.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 let _staff=[],_todayAtt=[],_sel=null,_activeTab='mark';
+let _lastAttend=null; // set when success screen shows, read by shareAttendCard()
 
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt_time=ts=>{if(!ts)return'—';const d=ts?.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});};
+
+// ── Attendance card image generator ──────────────────────────────────────────
+function _rr(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+
+function _genAttendCard(d){
+  const W=720,H=430,P=28;
+  const c=document.createElement('canvas');
+  c.width=W;c.height=H;
+  const ctx=c.getContext('2d');
+
+  // — Background: dark green gradient —
+  const bg=ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#022c22');bg.addColorStop(.55,'#065f46');bg.addColorStop(1,'#059669');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  // — Subtle diagonal stripes texture —
+  ctx.save();ctx.globalAlpha=.04;ctx.strokeStyle='#fff';ctx.lineWidth=18;
+  for(let i=-H;i<W+H;i+=36){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
+  ctx.restore();
+
+  // — White card —
+  const cx=P,cy=P,cw=W-P*2,ch=H-P*2-30;
+  ctx.save();_rr(ctx,cx,cy,cw,ch,20);
+  ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=24;ctx.shadowOffsetY=6;
+  ctx.fillStyle='#fff';ctx.fill();ctx.restore();
+
+  // — Big emoji —
+  ctx.font='60px serif';ctx.textAlign='center';
+  ctx.fillText(d.emoji,W/2,cy+86);
+
+  // — Name —
+  ctx.fillStyle='#111827';ctx.font='bold 28px "DM Sans",sans-serif';
+  ctx.fillText(d.name,W/2,cy+130);
+
+  // — Status label —
+  ctx.fillStyle=d.color;ctx.font='bold 16px "DM Sans",sans-serif';
+  ctx.fillText(d.label+' பதிவாகிவிட்டது!',W/2,cy+158);
+
+  // — Info box —
+  const bx=cx+36,by=cy+174,bw=cw-72,bh=102;
+  ctx.save();_rr(ctx,bx,by,bw,bh,12);
+  ctx.fillStyle='#f0fdf4';ctx.fill();
+  ctx.strokeStyle='#6ee7b7';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
+
+  ctx.textAlign='left';ctx.font='15px "DM Sans",sans-serif';
+  ctx.fillStyle='#374151';
+  ctx.fillText('🏪  '+d.shop,bx+18,by+32);
+  ctx.fillText('📅  '+d.date,bx+18,by+62);
+  ctx.fillStyle=d.color;ctx.font='bold 15px "DM Sans",sans-serif';
+  ctx.fillText('⏰  '+d.time,bx+18,by+90);
+
+  // — Footer brand —
+  ctx.fillStyle='rgba(255,255,255,.6)';
+  ctx.font='12px "DM Sans",sans-serif';ctx.textAlign='center';
+  ctx.fillText('ArthaNote · arthanote.com',W/2,H-10);
+
+  return c;
+}
+
+async function shareAttendCard(){
+  if(!_lastAttend)return;
+  const canvas=_genAttendCard(_lastAttend);
+  canvas.toBlob(async blob=>{
+    const file=new File([blob],'attendance.png',{type:'image/png'});
+    // Try native share sheet (works on Android Chrome / Safari iOS)
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:'Attendance Marked'});return;}catch(_){}
+    }
+    // Fallback: download the image
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='attendance_'+((_lastAttend.name||'').replace(/\s+/g,'_'))+'.png';
+    a.click();
+  },'image/png');
+}
 
 // LIVE CLOCK
 function tickClock(){
@@ -455,7 +539,9 @@ async function go(type){
       out: {label:'விடுதல் (OUT)', emoji:'🏁', color:'#d97706', next:'நாளைக்கு பார்க்கலாம்! 😊'}
     }[type];
 
-    const waText=encodeURIComponent(`${config.emoji} *${_sel}* — ${config.label}\n🏪 ${SHOP_NAME}\n📅 ${DATE_NICE}  ⏰ ${nowTime}\n_ArthaNote Attendance_`);
+    // Store for screenshot generation
+    _lastAttend={name:_sel,shop:SHOP_NAME,date:DATE_NICE,time:nowTime,
+                 label:config.label,emoji:config.emoji,color:config.color};
     card.innerHTML=`<div class="success-wrap">
       <div class="s-anim">${config.emoji}</div>
       <div class="s-name">${esc(_sel)}</div>
@@ -466,10 +552,10 @@ async function go(type){
         <div class="s-row">⏰ <b style="color:${config.color}">${nowTime}</b></div>
         <div class="s-row" style="border-top:1px solid #6ee7b7;margin-top:8px;padding-top:8px;font-size:12px;color:#6b7280">${config.next}</div>
       </div>
-      <a href="https://wa.me/?text=${waText}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border-radius:12px;border:none;background:#25D366;color:#fff;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:10px;box-sizing:border-box">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.555 4.115 1.527 5.847L.057 23.882l6.198-1.624A11.93 11.93 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.8 9.8 0 01-5.003-1.366l-.357-.212-3.706.972.988-3.604-.233-.371A9.772 9.772 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182S21.818 6.578 21.818 12 17.422 21.818 12 21.818z"/></svg>
-        Share on WhatsApp
-      </a>
+      <button class="wa-share-btn" onclick="shareAttendCard()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.555 4.115 1.527 5.847L.057 23.882l6.198-1.624A11.93 11.93 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.8 9.8 0 01-5.003-1.366l-.357-.212-3.706.972.988-3.604-.233-.371A9.772 9.772 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182S21.818 6.578 21.818 12 17.422 21.818 12 21.818z"/></svg>
+        📸 Share Screenshot on WhatsApp
+      </button>
       <button class="back-btn" onclick="location.reload()">⬅ Back (mark another)</button>
     </div>`;
 
