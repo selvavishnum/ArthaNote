@@ -23,12 +23,25 @@ class AppProvider extends ChangeNotifier {
   bool               _syncing      = false;
   DateTime?          _lastSynced;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _liveSyncSub;
+  // Debounce for file-cache saves triggered by the live listener.
+  // A batch of 50 Firestore events → 1 file write instead of 50.
+  Timer? _saveCacheDebounce;
 
   // ── Getters ───────────────────────────────────────────────────────────────
   String             get lang         => _lang;
   String             get businessId   => _businessId;
   String             get selectedShop => _selectedShop;
   Map<String, Shop>  get shops        => Map.unmodifiable(_shops);
+
+  /// Shops the current user may access.
+  /// Cashier with an assigned shop → only that shop.
+  /// Owner / Manager / Admin → all shops.
+  Map<String, Shop> get visibleShops {
+    if (isCashier && staffShop.isNotEmpty && _shops.containsKey(staffShop)) {
+      return {staffShop: _shops[staffShop]!};
+    }
+    return Map.unmodifiable(_shops);
+  }
   Map<String, dynamic> get profile    => Map.unmodifiable(_profile);
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
@@ -152,6 +165,8 @@ class AppProvider extends ChangeNotifier {
 
   // ── Shop selection ────────────────────────────────────────────────────────
   void setSelectedShop(String shopId) {
+    // Cashier is locked to their assigned shop — ignore any other selection.
+    if (isCashier && staffShop.isNotEmpty && shopId != staffShop) return;
     _selectedShop = shopId;
     notifyListeners();
   }
@@ -319,8 +334,12 @@ class AppProvider extends ChangeNotifier {
 
       if (changed) {
         _txns.sort((a, b) => b.date.compareTo(a.date));
-        _dbSvc.saveTxnsToCache(_businessId, _txns);
         notifyListeners();
+        // Debounce cache writes — a burst of 50 events becomes 1 file write.
+        _saveCacheDebounce?.cancel();
+        _saveCacheDebounce = Timer(const Duration(milliseconds: 800), () {
+          _dbSvc.saveTxnsToCache(_businessId, _txns);
+        });
       }
     }, onError: (_) {});
   }
@@ -425,6 +444,8 @@ class AppProvider extends ChangeNotifier {
   void reset() {
     _liveSyncSub?.cancel();
     _liveSyncSub  = null;
+    _saveCacheDebounce?.cancel();
+    _saveCacheDebounce = null;
     _businessId   = '';
     _selectedShop = '';
     _shops        = {};
