@@ -27,9 +27,12 @@ class DbService {
       if (!await file.exists()) return [];
       final content = await file.readAsString();
       if (content.isEmpty) return [];
-      final list = (jsonDecode(content) as List)
+      final raw = (jsonDecode(content) as List)
           .map((e) => Txn.fromJson(e as Map<String, dynamic>))
           .toList();
+      // Deduplicate by ID — guards against race-condition duplicates in cache file
+      final seen = <String>{};
+      final list = raw.where((t) => t.id.isNotEmpty && seen.add(t.id)).toList();
       list.sort((a, b) => b.date.compareTo(a.date));
       return list;
     } catch (_) {
@@ -204,9 +207,15 @@ class DbService {
         .then((_) => _removeFromPending(id))
         .catchError((_) => _addToPending(withId));
 
-    // 2. Update file cache (append)
+    // 2. Update file cache — upsert by ID so a concurrent sync that already
+    //    wrote this entry to the cache doesn't create a duplicate.
     final existing = await loadAllTxns(txn.businessId);
-    existing.insert(0, withId);
+    final idx = existing.indexWhere((t) => t.id == withId.id);
+    if (idx != -1) {
+      existing[idx] = withId; // replace stale version
+    } else {
+      existing.insert(0, withId);
+    }
     await saveTxnsToCache(txn.businessId, existing);
   }
 

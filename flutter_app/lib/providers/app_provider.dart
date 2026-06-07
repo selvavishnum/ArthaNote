@@ -243,8 +243,23 @@ class AppProvider extends ChangeNotifier {
       _syncing = true;
       notifyListeners();
       try {
+        // Flush any offline-pending entries first so they are included in the
+        // fresh fetch below. This recovers entries whose Firestore writes failed
+        // (e.g. a payment saved while briefly offline).
+        await _dbSvc.syncPending();
         final fresh = await _dbSvc.syncFromFirebase(_businessId);
-        _txns = fresh;
+        // Merge: preserve any in-memory entries that aren't in fresh yet
+        // (entries added since this sync started whose Firestore write is
+        // still in-flight). This prevents them from briefly disappearing.
+        final freshIds = {for (final t in fresh) t.id};
+        final localOnly = _txns.where((t) => !freshIds.contains(t.id)).toList();
+        if (localOnly.isNotEmpty) {
+          final merged = [...localOnly, ...fresh];
+          merged.sort((a, b) => b.date.compareTo(a.date));
+          _txns = merged;
+        } else {
+          _txns = fresh;
+        }
         await _dbSvc.saveTxnsToCache(_businessId, fresh);
         await _dbSvc.markSynced(_businessId);
         _lastSynced = DateTime.now();
@@ -315,14 +330,24 @@ class AppProvider extends ChangeNotifier {
     _syncing = true;
     notifyListeners();
     try {
+      // Flush offline-pending entries before fetching so they appear in fresh data.
+      await _dbSvc.syncPending();
+
       // Clear cursor so syncFromFirebase does a full paginated sync.
-      // Guarantees all missing entries are fetched — cursor may have advanced
-      // incorrectly due to previous incremental sync bugs.
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('kp_sync_cursor_$_businessId');
 
       final fresh = await _dbSvc.syncFromFirebase(_businessId);
-      _txns = fresh;
+      // Preserve in-memory entries not yet confirmed by Firestore.
+      final freshIds = {for (final t in fresh) t.id};
+      final localOnly = _txns.where((t) => !freshIds.contains(t.id)).toList();
+      if (localOnly.isNotEmpty) {
+        final merged = [...localOnly, ...fresh];
+        merged.sort((a, b) => b.date.compareTo(a.date));
+        _txns = merged;
+      } else {
+        _txns = fresh;
+      }
       await _dbSvc.saveTxnsToCache(_businessId, fresh);
       await _dbSvc.markSynced(_businessId);
       _lastSynced = DateTime.now();
@@ -377,7 +402,9 @@ class AppProvider extends ChangeNotifier {
   }
 
   void addLocalTxn(Txn t) {
-    _txns = [t, ..._txns];
+    // Upsert — remove any existing entry with the same ID before prepending,
+    // so a race condition that calls addLocalTxn twice never creates a duplicate.
+    _txns = [t, ..._txns.where((e) => e.id != t.id)];
     notifyListeners();
   }
 
