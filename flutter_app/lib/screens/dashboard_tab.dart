@@ -15,7 +15,10 @@ import 'shop_detail_screen.dart';
 import 'reminders_screen.dart';
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
-final _inrFmt = NumberFormat('#,##,##0', 'en_IN');
+final _inrFmt   = NumberFormat('#,##,##0', 'en_IN');
+// Module-level singletons — avoids allocating a new DateFormat on every
+// list iteration (was creating thousands of objects per render pass).
+final _dayFmt   = DateFormat('yyyy-MM-dd');
 String rupee(double v) => '₹${_inrFmt.format(v.abs())}';
 
 class DashboardTab extends StatefulWidget {
@@ -30,6 +33,13 @@ class _DashboardTabState extends State<DashboardTab> {
   bool _alertDismissed = false;
   String? _dismissedDate;
   int _streakCount     = 0;
+  // Track the last txn count we ran streak update on — avoids re-running
+  // the SharedPreferences I/O on every rebuild when nothing changed.
+  int _lastStreakTxnCount = -1;
+  // Per-shop health score cache: shopId → score map.
+  // Invalidated when the txn count changes.
+  final Map<String, Map<String, dynamic>> _healthCache = {};
+  int _healthCacheTxnCount = -1;
 
   @override
   void initState() {
@@ -44,28 +54,26 @@ class _DashboardTabState extends State<DashboardTab> {
   }
 
   Future<void> _updateStreak(List<Txn> all) async {
+    // Skip if nothing changed since last call.
+    if (all.length == _lastStreakTxnCount) return;
+    _lastStreakTxnCount = all.length;
+
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
-    final today = DateFormat('yyyy-MM-dd').format(now);
-    final yesterday = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 1)));
-    final lastDate = prefs.getString('slv_streak_date') ?? '';
+    final today     = _dayFmt.format(now);
+    final yesterday = _dayFmt.format(now.subtract(const Duration(days: 1)));
+    final lastDate  = prefs.getString('slv_streak_date') ?? '';
 
-    // Find last entry date
     if (all.isEmpty) return;
-    final sortedTxns = List<Txn>.from(all)
-      ..sort((a, b) => b.date.compareTo(a.date));
-    final lastEntryDate = DateFormat('yyyy-MM-dd').format(sortedTxns.first.date);
+    final lastEntryDate = _dayFmt.format(
+        all.reduce((a, b) => a.date.isAfter(b.date) ? a : b).date);
 
     int count = prefs.getInt('slv_streak_count') ?? 0;
 
-    if (lastDate == today) return; // already updated today
+    if (lastDate == today) return;
 
     if (lastEntryDate == today || lastEntryDate == yesterday) {
-      if (lastDate == yesterday || lastDate == today) {
-        count++;
-      } else {
-        count = 1;
-      }
+      count = (lastDate == yesterday || lastDate == today) ? count + 1 : 1;
     } else {
       count = 0;
     }
@@ -75,8 +83,21 @@ class _DashboardTabState extends State<DashboardTab> {
     if (mounted) setState(() => _streakCount = count);
   }
 
-  // ── Shop Health Score ───────────────────────────────────────────────────────
+  // ── Shop Health Score (memoized) ───────────────────────────────────────────
+  // O(7n) per shop per build is expensive with many shops. Cache by shopId and
+  // invalidate only when the total txn count changes (new entry → recompute).
   Map<String, dynamic> _shopHealthScore(String shopId, List<Txn> allTxns) {
+    if (allTxns.length != _healthCacheTxnCount) {
+      _healthCache.clear();
+      _healthCacheTxnCount = allTxns.length;
+    }
+    if (_healthCache.containsKey(shopId)) return _healthCache[shopId]!;
+    final result = _computeShopHealth(shopId, allTxns);
+    _healthCache[shopId] = result;
+    return result;
+  }
+
+  Map<String, dynamic> _computeShopHealth(String shopId, List<Txn> allTxns) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -112,7 +133,7 @@ class _DashboardTabState extends State<DashboardTab> {
     // Days active last 30 days
     final activeDays = allTxns
         .where((tx) => tx.shop == shopId && !tx.date.isBefore(last30Start))
-        .map((tx) => DateFormat('yyyy-MM-dd').format(tx.date))
+        .map((tx) => _dayFmt.format(tx.date))
         .toSet()
         .length;
 
@@ -270,7 +291,7 @@ class _DashboardTabState extends State<DashboardTab> {
     final now         = DateTime.now();
     final todayStart  = DateTime(now.year, now.month, now.day);
     final todayCount  = all.where((tx) => !tx.date.isBefore(todayStart)).length;
-    final todayKey    = DateFormat('yyyy-MM-dd').format(now);
+    final todayKey    = _dayFmt.format(now);
     final isEvening   = now.hour >= 18;
     final showAiAlert = isEvening && todayCount == 0 &&
         (_dismissedDate != todayKey);
@@ -575,7 +596,7 @@ class _DashboardTabState extends State<DashboardTab> {
       if (tx.desc.isEmpty) continue;
       final key = '${tx.desc}|${tx.type}|${tx.shop}';
       dayFreq.putIfAbsent(key, () => {});
-      dayFreq[key]!.add(DateFormat('yyyy-MM-dd').format(tx.date));
+      dayFreq[key]!.add(_dayFmt.format(tx.date));
       meta[key] = {
         'desc':     tx.desc,
         'type':     tx.type,

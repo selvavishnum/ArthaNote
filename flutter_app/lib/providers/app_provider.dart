@@ -23,6 +23,9 @@ class AppProvider extends ChangeNotifier {
   bool               _syncing      = false;
   DateTime?          _lastSynced;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _liveSyncSub;
+  // Debounce for file-cache saves triggered by the live listener.
+  // A batch of 50 Firestore events → 1 file write instead of 50.
+  Timer? _saveCacheDebounce;
 
   // ── Getters ───────────────────────────────────────────────────────────────
   String             get lang         => _lang;
@@ -319,8 +322,12 @@ class AppProvider extends ChangeNotifier {
 
       if (changed) {
         _txns.sort((a, b) => b.date.compareTo(a.date));
-        _dbSvc.saveTxnsToCache(_businessId, _txns);
         notifyListeners();
+        // Debounce cache writes — a burst of 50 events becomes 1 file write.
+        _saveCacheDebounce?.cancel();
+        _saveCacheDebounce = Timer(const Duration(milliseconds: 800), () {
+          _dbSvc.saveTxnsToCache(_businessId, _txns);
+        });
       }
     }, onError: (_) {});
   }
@@ -425,6 +432,8 @@ class AppProvider extends ChangeNotifier {
   void reset() {
     _liveSyncSub?.cancel();
     _liveSyncSub  = null;
+    _saveCacheDebounce?.cancel();
+    _saveCacheDebounce = null;
     _businessId   = '';
     _selectedShop = '';
     _shops        = {};

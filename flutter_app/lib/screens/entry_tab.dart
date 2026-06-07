@@ -56,7 +56,9 @@ class _EntryTabState extends State<EntryTab> {
 
   Future<void> _loadPatterns() async {
     final p    = context.read<AppProvider>();
-    final txns = await _db.loadLocalCache(p.businessId);
+    final txns = p.txns.isNotEmpty
+        ? p.txns
+        : await _db.loadLocalCache(p.businessId);
     _ai.learnFromTxns(txns);
   }
 

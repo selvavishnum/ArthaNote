@@ -30,7 +30,10 @@ class _LedgerTabState extends State<LedgerTab> {
   final Set<String> _collapsed = {};  // day keys that are folded
   List<String> _duplicateWarnings = [];
   Set<String>  _duplicateIds      = {};
-  bool _dupBannerDismissed = false;
+  bool   _dupBannerDismissed = false;
+  // Cheap digest: length + first/last ID. Avoids re-running O(n²) scan when
+  // the txn list hasn't meaningfully changed (e.g. only a rebuild triggered).
+  String _lastDupDigest = '';
 
   static const _typeOptions = [
     {'key': 'all',     'label': 'All'},
@@ -225,28 +228,10 @@ class _LedgerTabState extends State<LedgerTab> {
   static String _dayKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
 
-  List<String> _detectDuplicates(List<Txn> all) {
+  // Single O(n²) pass returning both warnings and IDs — avoids scanning twice.
+  static ({List<String> warnings, Set<String> ids}) _findDuplicates(List<Txn> all) {
     final warnings = <String>[];
-    for (int i = 0; i < all.length; i++) {
-      for (int j = i + 1; j < all.length; j++) {
-        final a = all[i];
-        final b = all[j];
-        if (a.desc.isNotEmpty &&
-            a.desc == b.desc &&
-            a.shop == b.shop &&
-            a.type == b.type &&
-            a.amount == b.amount &&
-            _dayKey(a.date) == _dayKey(b.date)) {
-          final warn = '⚠️ Duplicate on ${_dayKey(a.date)}: "${a.desc}" ₹${a.amount.toStringAsFixed(0)}';
-          if (!warnings.contains(warn)) warnings.add(warn);
-        }
-      }
-    }
-    return warnings.take(3).toList();
-  }
-
-  Set<String> _getDuplicateIds(List<Txn> all) {
-    final ids = <String>{};
+    final ids      = <String>{};
     for (int i = 0; i < all.length; i++) {
       for (int j = i + 1; j < all.length; j++) {
         final a = all[i];
@@ -259,10 +244,12 @@ class _LedgerTabState extends State<LedgerTab> {
             _dayKey(a.date) == _dayKey(b.date)) {
           ids.add(a.id);
           ids.add(b.id);
+          final warn = '⚠️ Duplicate on ${_dayKey(a.date)}: "${a.desc}" ₹${a.amount.toStringAsFixed(0)}';
+          if (!warnings.contains(warn)) warnings.add(warn);
         }
       }
     }
-    return ids;
+    return (warnings: warnings.take(3).toList(), ids: ids);
   }
 
   // ── Apply all filters ─────────────────────────────────────────────────────
@@ -291,19 +278,23 @@ class _LedgerTabState extends State<LedgerTab> {
     final l = p.lang;
 
     final all  = p.txns;
-    // Detect duplicates whenever data changes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final dups = _detectDuplicates(all);
-      final ids  = _getDuplicateIds(all);
-      if (dups.toString() != _duplicateWarnings.toString() || ids.length != _duplicateIds.length) {
-        setState(() {
-          _duplicateWarnings = dups;
-          _duplicateIds      = ids;
-          _dupBannerDismissed = false;
-        });
-      }
-    });
+    // Cheap digest: only re-run the O(n²) scan when list size or boundary IDs change.
+    final digest = '${all.length}/${all.isEmpty ? "" : all.first.id}/${all.length > 1 ? all.last.id : ""}';
+    if (digest != _lastDupDigest) {
+      _lastDupDigest = digest;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final result = _findDuplicates(all);
+        if (result.warnings.toString() != _duplicateWarnings.toString() ||
+            result.ids.length != _duplicateIds.length) {
+          setState(() {
+            _duplicateWarnings  = result.warnings;
+            _duplicateIds       = result.ids;
+            _dupBannerDismissed = false;
+          });
+        }
+      });
+    }
     final txns = _applyFilters(all, p.selectedShop);
 
     final totalSales   = txns.where((x) => x.type == 'sale')
