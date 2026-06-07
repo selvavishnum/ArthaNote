@@ -27,6 +27,16 @@ class AppProvider extends ChangeNotifier {
   // A batch of 50 Firestore events → 1 file write instead of 50.
   Timer? _saveCacheDebounce;
 
+  // ── Own Mode — staff user views their OWN business data ───────────────────
+  // Saved employer state while in own mode; restored on exit.
+  bool               _ownMode            = false;
+  String             _employerBusinessId = '';
+  Map<String, Shop>  _employerShops      = {};
+  Map<String, dynamic> _employerProfile  = {};
+  String             _employerBizType    = '';
+  Map<String, Map<String, List<String>>> _employerCats = {};
+  List<Txn>          _employerTxns       = [];
+
   // ── Getters ───────────────────────────────────────────────────────────────
   String             get lang         => _lang;
   String             get businessId   => _businessId;
@@ -66,6 +76,8 @@ class AppProvider extends ChangeNotifier {
   // onboarding for new users whose email matches a staff record in another
   // business.
   bool get isOnboarded {
+    // In own mode the user is viewing their own account — skip onboarding.
+    if (_ownMode) return true;
     // Cashier staff are assigned to a shop by the owner — skip onboarding entirely
     if (isCashier) return true;
     if (_profile['onboarded'] == true) return true;
@@ -77,16 +89,23 @@ class AppProvider extends ChangeNotifier {
     return false;
   }
   bool get isAdmin     => ((_profile['email'] as String?) ?? '') == 'selvavishnu.m@gmail.com';
+  bool get isOwnMode   => _ownMode;
+
+  /// True when the user's Firestore role is cashier — regardless of own mode.
+  /// Use this to decide UI chrome that belongs to the staff identity (e.g. the
+  /// profile panel icon).  Use [isCashier] for data-access / navigation guards.
+  bool get isStaffRole {
+    final role = (_profile['role'] as String?)?.toLowerCase() ?? '';
+    return role == 'cashier' && !isAdmin;
+  }
+
   bool get isPersonal {
     if (_selectedShop.isNotEmpty) {
       return _shops[_selectedShop]?.type == 'personal';
     }
     return _bizType == 'personal';
   }
-  bool get isCashier {
-    final role = (_profile['role'] as String?)?.toLowerCase() ?? '';
-    return role == 'cashier' && !isAdmin;
-  }
+  bool get isCashier => isStaffRole && !_ownMode;
   String get staffShop => (_profile['shop'] as String?) ?? '';
 
   // ── init ──────────────────────────────────────────────────────────────────
@@ -420,6 +439,89 @@ class AppProvider extends ChangeNotifier {
     await init(uid);
   }
 
+  // ── Own Mode toggle ───────────────────────────────────────────────────────
+  /// Switches between employer's data (staff mode) and the user's own business
+  /// data (own mode) without signing out.
+  Future<void> toggleOwnMode() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    if (!_ownMode) {
+      // — Enter own mode: save employer state, switch to own UID —
+      _employerBusinessId = _businessId;
+      _employerShops      = Map.from(_shops);
+      _employerProfile    = Map.from(_profile);
+      _employerBizType    = _bizType;
+      _employerCats       = Map.from(_cats);
+      _employerTxns       = List.from(_txns);
+
+      _liveSyncSub?.cancel();
+      _liveSyncSub = null;
+      _saveCacheDebounce?.cancel();
+      _saveCacheDebounce = null;
+
+      _ownMode      = true;
+      _businessId   = uid;
+      _selectedShop = '';
+      _txns         = [];
+      _shops        = {};
+      _cats         = {};
+      _bizType      = '';
+
+      // Load own config from Firestore
+      try {
+        final configData = await _auth.getConfig(uid);
+        if (configData != null) {
+          final rawShops = configData['shops'] as Map<String, dynamic>? ?? {};
+          _shops = rawShops.map(
+            (k, v) => MapEntry(k, Shop.fromMap(k, v as Map<String, dynamic>)),
+          );
+          _bizType = (configData['bizType'] as String?)?.toLowerCase().trim() ?? '';
+          final rawCats = configData['cats'] as Map<String, dynamic>? ?? {};
+          _cats = rawCats.map((k, v) {
+            final vMap = v as Map<String, dynamic>? ?? {};
+            return MapEntry(k, {
+              'sales':   List<String>.from(vMap['sales']   as List? ?? []),
+              'expense': List<String>.from(vMap['expense'] as List? ?? []),
+            });
+          });
+        }
+      } catch (_) {}
+
+      notifyListeners();
+      _loadTxns();
+    } else {
+      // — Exit own mode: restore employer state —
+      _liveSyncSub?.cancel();
+      _liveSyncSub = null;
+      _saveCacheDebounce?.cancel();
+      _saveCacheDebounce = null;
+
+      _ownMode    = false;
+      _businessId = _employerBusinessId;
+      _shops      = _employerShops;
+      _profile    = _employerProfile;
+      _bizType    = _employerBizType;
+      _cats       = _employerCats;
+      _txns       = _employerTxns;
+
+      final assignedShop = staffShop;
+      _selectedShop = assignedShop.isNotEmpty && _shops.containsKey(assignedShop)
+          ? assignedShop
+          : '';
+
+      _employerBusinessId = '';
+      _employerShops      = {};
+      _employerProfile    = {};
+      _employerBizType    = '';
+      _employerCats       = {};
+      _employerTxns       = [];
+
+      notifyListeners();
+      _startLiveSync();
+    }
+  }
+
   void addLocalTxn(Txn t) {
     // Upsert — remove any existing entry with the same ID before prepending,
     // so a race condition that calls addLocalTxn twice never creates a duplicate.
@@ -446,6 +548,13 @@ class AppProvider extends ChangeNotifier {
     _liveSyncSub  = null;
     _saveCacheDebounce?.cancel();
     _saveCacheDebounce = null;
+    _ownMode            = false;
+    _employerBusinessId = '';
+    _employerShops      = {};
+    _employerProfile    = {};
+    _employerBizType    = '';
+    _employerCats       = {};
+    _employerTxns       = [];
     _businessId   = '';
     _selectedShop = '';
     _shops        = {};
