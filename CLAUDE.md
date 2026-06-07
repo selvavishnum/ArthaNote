@@ -113,6 +113,9 @@ const API_CONFIG = {
   - Increment versionName patch digit (e.g. 1.0.5 → 1.0.6)
   - Example: `1.0.5+5` → `1.0.6+6`
 - Play Store rejects APK/AAB uploads with a previously used versionCode.
+- **⚠️ ALWAYS ASK PERMISSION before bumping the version.** Do NOT auto-bump.
+  Show the proposed version change (e.g. `1.3.5+35 → 1.3.6+36`) and wait
+  for explicit confirmation from the user before editing `pubspec.yaml`.
 
 ## PENDING ITEMS
 | Priority | Item |
