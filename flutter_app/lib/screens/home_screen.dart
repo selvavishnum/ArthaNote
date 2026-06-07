@@ -342,8 +342,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onPressed: ap.syncing ? null : () => ap.syncNow(),
                 );
               }),
-              // Own Mode indicator — amber badge when staff is viewing own data
-              if (p.isOwnMode) ...[
+              // Own Mode indicator — amber badge replaces the plan badge to avoid overflow
+              if (p.isOwnMode)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -358,25 +358,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              // Plan badge: Admin / Pro / Free
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _badgeBg(p),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _badgeLabel(p),
-                  style: TextStyle(
-                    color: _badgeFg(p),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                )
+              else
+                // Plan badge: Admin / Pro / Free
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _badgeBg(p),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _badgeLabel(p),
+                    style: TextStyle(
+                      color: _badgeFg(p),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: 8),
               // Green online dot
               Container(

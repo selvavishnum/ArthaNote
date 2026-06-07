@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>ArthaNote — Attendance</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
@@ -84,6 +85,8 @@ body{font-family:'DM Sans',sans-serif;background:linear-gradient(160deg,#022c22 
 .s-detail{background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:12px;padding:14px;margin:12px 0}
 .s-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;color:#374151}
 .back-btn{width:100%;padding:13px;border-radius:12px;border:2px solid #065f46;background:#fff;color:#065f46;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.wa-share-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:12px;border:none;background:#25D366;color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:10px;box-shadow:0 4px 16px rgba(37,211,102,.35)}
+.wa-share-btn:active{transform:scale(.97)}
 
 .err-box{background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:10px;font-size:12px;color:#dc2626;text-align:center;margin-bottom:10px}
 .lbl{font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
@@ -135,9 +138,50 @@ const TIME=NOW_DATE.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',
 const DATE_NICE=NOW_DATE.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 let _staff=[],_todayAtt=[],_sel=null,_activeTab='mark';
+let _lastAttend=null; // set when success screen shows, read by shareAttendCard()
 
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt_time=ts=>{if(!ts)return'—';const d=ts?.toDate?ts.toDate():new Date(ts);return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});};
+
+// ── Attendance screenshot share ───────────────────────────────────────────────
+// Captures the real DOM (exactly what the user sees) using html2canvas,
+// then shares via Web Share API (native Android/iOS share sheet) or downloads.
+async function shareAttendCard(){
+  // Hide buttons so they don't appear in the screenshot
+  const hide=document.querySelectorAll('.wa-share-btn,.back-btn');
+  hide.forEach(el=>{el.dataset.pv=el.style.visibility;el.style.visibility='hidden';});
+
+  try{
+    const canvas=await html2canvas(document.body,{
+      scale:2,
+      useCORS:true,
+      allowTaint:true,
+      logging:false,
+      backgroundColor:null,
+      scrollX:0,scrollY:0,
+      windowWidth:document.documentElement.scrollWidth,
+      windowHeight:document.documentElement.scrollHeight
+    });
+
+    canvas.toBlob(async blob=>{
+      const name=(_lastAttend?.name||'staff').replace(/\s+/g,'_');
+      const file=new File([blob],`attendance_${name}.png`,{type:'image/png'});
+      // Native share sheet — Android Chrome / Safari iOS opens app picker (WhatsApp, Telegram…)
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{await navigator.share({files:[file],title:'Attendance Confirmed — ArthaNote'});return;}
+        catch(e){if(e.name==='AbortError')return;} // user cancelled
+      }
+      // Fallback: download PNG
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`attendance_${name}.png`;
+      a.click();
+    },'image/png');
+  }finally{
+    // Restore button visibility
+    hide.forEach(el=>{el.style.visibility=el.dataset.pv||'';});
+  }
+}
 
 // LIVE CLOCK
 function tickClock(){
@@ -455,6 +499,9 @@ async function go(type){
       out: {label:'விடுதல் (OUT)', emoji:'🏁', color:'#d97706', next:'நாளைக்கு பார்க்கலாம்! 😊'}
     }[type];
 
+    // Store for screenshot generation
+    _lastAttend={name:_sel,shop:SHOP_NAME,date:DATE_NICE,time:nowTime,
+                 label:config.label,emoji:config.emoji,color:config.color};
     card.innerHTML=`<div class="success-wrap">
       <div class="s-anim">${config.emoji}</div>
       <div class="s-name">${esc(_sel)}</div>
@@ -465,6 +512,10 @@ async function go(type){
         <div class="s-row">⏰ <b style="color:${config.color}">${nowTime}</b></div>
         <div class="s-row" style="border-top:1px solid #6ee7b7;margin-top:8px;padding-top:8px;font-size:12px;color:#6b7280">${config.next}</div>
       </div>
+      <button class="wa-share-btn" onclick="shareAttendCard()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.555 4.115 1.527 5.847L.057 23.882l6.198-1.624A11.93 11.93 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.8 9.8 0 01-5.003-1.366l-.357-.212-3.706.972.988-3.604-.233-.371A9.772 9.772 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182S21.818 6.578 21.818 12 17.422 21.818 12 21.818z"/></svg>
+        📸 இந்த Screen Share பண்ணு
+      </button>
       <button class="back-btn" onclick="location.reload()">⬅ Back (mark another)</button>
     </div>`;
 
