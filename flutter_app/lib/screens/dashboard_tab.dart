@@ -554,7 +554,13 @@ class _DashboardTabState extends State<DashboardTab> {
               const SizedBox(height: 16),
 
               // ── Supplier Alerts ──────────────────────────────────────────
-              _SupplierAlertsSection(businessId: p.businessId, db: _db),
+              _SupplierAlertsSection(
+                businessId:   p.businessId,
+                db:           _db,
+                selectedShop: p.selectedShop,
+                isCashier:    p.isCashier,
+                staffShop:    p.staffShop,
+              ),
 
               const SizedBox(height: 16),
 
@@ -918,8 +924,16 @@ class _EmptyCard extends StatelessWidget {
 class _SupplierAlertsSection extends StatelessWidget {
   final String    businessId;
   final DbService db;
-  const _SupplierAlertsSection(
-      {required this.businessId, required this.db});
+  final String    selectedShop;
+  final bool      isCashier;
+  final String    staffShop;
+  const _SupplierAlertsSection({
+    required this.businessId,
+    required this.db,
+    this.selectedShop = '',
+    this.isCashier = false,
+    this.staffShop = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -927,7 +941,16 @@ class _SupplierAlertsSection extends StatelessWidget {
       stream: db.supplierStream(businessId),
       builder: (ctx, snap) {
         final suppliers = snap.data ?? [];
-        final dues      = suppliers.where((s) => s.balance > 0).toList();
+        // Filter by shop context (same logic as suppliers_tab.dart)
+        final List<Supplier> visible;
+        if (isCashier && staffShop.isNotEmpty) {
+          visible = suppliers.where((s) => s.shopId.isEmpty || s.shopId == staffShop).toList();
+        } else if (!isCashier && selectedShop.isNotEmpty) {
+          visible = suppliers.where((s) => s.shopId.isEmpty || s.shopId == selectedShop).toList();
+        } else {
+          visible = suppliers;
+        }
+        final dues = visible.where((s) => s.balance > 0).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

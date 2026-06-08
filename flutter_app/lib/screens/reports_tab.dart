@@ -262,6 +262,10 @@ class _ReportsTabState extends State<ReportsTab> {
 
     final txns = _filteredTxns(all, p.selectedShop);
     final prevTxns = _prevTxns(all, p.selectedShop);
+    // All txns filtered by shop only (no period) — used by Weekly/Monthly trend sections
+    final shopAll = p.selectedShop.isEmpty
+        ? all
+        : all.where((t) => t.shop == p.selectedShop).toList();
 
     return Column(
       children: [
@@ -277,7 +281,7 @@ class _ReportsTabState extends State<ReportsTab> {
         ),
         // Section content
         Expanded(
-          child: _buildSectionContent(txns, prevTxns, p, all),
+          child: _buildSectionContent(txns, prevTxns, p, shopAll),
         ),
       ],
     );
@@ -367,13 +371,13 @@ class _ReportsTabState extends State<ReportsTab> {
   }
 
   Widget _buildSectionContent(
-      List<Txn> txns, List<Txn> prevTxns, AppProvider p, List<Txn> allTxns) {
+      List<Txn> txns, List<Txn> prevTxns, AppProvider p, List<Txn> shopAll) {
     switch (_section) {
       case 'exec':
         return _ExecSection(
           txns: txns,
           prevTxns: prevTxns,
-          allTxns: allTxns,
+          allTxns: shopAll,
           shops: p.shops,
           onShareToday:  () => _shareWhatsApp('Today', txns),
           onShareMonth:  () => _shareWhatsApp('Month', txns),
@@ -384,9 +388,9 @@ class _ReportsTabState extends State<ReportsTab> {
       case 'daily':
         return _DailySection(txns: txns);
       case 'weekly':
-        return _WeeklySection(txns: txns);
+        return _WeeklySection(allTxns: shopAll);
       case 'monthly':
-        return _MonthlySection(allTxns: allTxns);
+        return _MonthlySection(allTxns: shopAll);
       case 'expense':
         return _ExpenseSection(txns: txns);
       case 'credit':
@@ -400,18 +404,18 @@ class _ReportsTabState extends State<ReportsTab> {
       case 'variance':
         return _VarianceSection(txns: txns, prevTxns: prevTxns, shops: p.shops);
       case 'charts':
-        return _ChartsSection(txns: txns, allTxns: allTxns);
+        return _ChartsSection(txns: txns, allTxns: shopAll);
       case 'alerts':
         return _AlertsSection(txns: txns, prevTxns: prevTxns);
       case 'insights':
-        return _InsightsSection(txns: txns, allTxns: allTxns);
+        return _InsightsSection(txns: txns, allTxns: shopAll);
       case 'actions':
         return _ActionsSection(txns: txns, prevTxns: prevTxns);
       default:
         return _ExecSection(
           txns: txns,
           prevTxns: prevTxns,
-          allTxns: allTxns,
+          allTxns: shopAll,
           shops: p.shops,
           onShareToday: () => _shareWhatsApp('Today', txns),
           onShareMonth: () => _shareWhatsApp('Month', txns),
@@ -684,26 +688,41 @@ class _ExecSection extends StatelessWidget {
 
 // ── Section 2: Shop P&L ───────────────────────────────────────────────────────
 
-class _ShopwiseSection extends StatelessWidget {
+class _ShopwiseSection extends StatefulWidget {
   final List<Txn> txns;
   final Map<String, Shop> shops;
 
   const _ShopwiseSection({required this.txns, required this.shops});
 
   @override
+  State<_ShopwiseSection> createState() => _ShopwiseSectionState();
+}
+
+class _ShopwiseSectionState extends State<_ShopwiseSection> {
+  final Set<String> _expanded = {};
+
+  @override
   Widget build(BuildContext context) {
-    final totalSales = _sumSales(txns);
+    final totalSales = _sumSales(widget.txns);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-      children: shops.entries.map((entry) {
+      children: widget.shops.entries.map((entry) {
         final shop = entry.value;
-        final shopTxns = txns.where((t) => t.shop == shop.id).toList();
+        final shopTxns = widget.txns.where((t) => t.shop == shop.id).toList();
         final shopSales = _sumSales(shopTxns);
         final shopExp = _sumExp(shopTxns);
         final shopNet = shopSales - shopExp;
         final pct = totalSales > 0 ? shopSales / totalSales : 0.0;
-        final recent = shopTxns.take(10).toList();
+        final isExpanded = _expanded.contains(shop.id);
+
+        // Group by date for day-wise breakdown
+        final Map<String, List<Txn>> byDay = {};
+        for (final t in shopTxns) {
+          final k = DateFormat('yyyy-MM-dd').format(t.date);
+          byDay.putIfAbsent(k, () => []).add(t);
+        }
+        final sortedDays = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
 
         return _SectionCard(
           title: '${shop.icon} ${shop.name}',
@@ -734,15 +753,61 @@ class _ShopwiseSection extends StatelessWidget {
                 '${_pct(shopSales, totalSales > 0 ? totalSales : 1)} of total sales',
                 style: const TextStyle(color: kMuted, fontSize: 11),
               ),
-              if (recent.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _DataRow(const ['Date', 'Type', 'Amount', 'Desc'], isHeader: true),
-                ...recent.map((t) => _DataRow([
-                  _fmtDate(t.date),
-                  t.type,
-                  rupee(t.amount),
-                  t.desc.length > 15 ? '${t.desc.substring(0, 15)}…' : t.desc,
-                ])),
+              if (shopTxns.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => setState(() {
+                    if (isExpanded) {
+                      _expanded.remove(shop.id);
+                    } else {
+                      _expanded.add(shop.id);
+                    }
+                  }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    decoration: BoxDecoration(
+                      color: isExpanded
+                          ? kPrimary.withOpacity(0.06)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isExpanded ? Icons.expand_less : Icons.expand_more,
+                          size: 18, color: kPrimary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isExpanded ? 'Hide Day-wise' : '📅 View Day-wise Breakdown',
+                          style: const TextStyle(
+                            color: kPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (isExpanded) ...[
+                  const SizedBox(height: 10),
+                  _DataRow(const ['Date', 'Sales', 'Expense', 'Net'], isHeader: true),
+                  ...sortedDays.map((k) {
+                    final dayTxns = byDay[k]!;
+                    final dSales = _sumSales(dayTxns);
+                    final dExp   = _sumExp(dayTxns);
+                    final dNet   = dSales - dExp;
+                    return _DataRow([
+                      _fmtDate(DateTime.parse(k)),
+                      rupee(dSales),
+                      rupee(dExp),
+                      rupee(dNet),
+                    ]);
+                  }),
+                ],
               ],
             ],
           ),
@@ -899,20 +964,21 @@ class _DailySection extends StatelessWidget {
 // ── Section 4: Weekly ─────────────────────────────────────────────────────────
 
 class _WeeklySection extends StatelessWidget {
-  final List<Txn> txns;
+  final List<Txn> allTxns;
 
-  const _WeeklySection({required this.txns});
+  const _WeeklySection({required this.allTxns});
 
   @override
   Widget build(BuildContext context) {
     final Map<String, List<Txn>> byWeek = {};
-    for (final t in txns) {
+    for (final t in allTxns) {
       final d = t.date;
       final week =
           '${d.year}-W${((d.difference(DateTime(d.year, 1, 1)).inDays / 7) + 1).floor()}';
       byWeek.putIfAbsent(week, () => []).add(t);
     }
-    final sortedKeys = byWeek.keys.toList()..sort();
+    // Show last 12 weeks (most recent first)
+    final sortedKeys = (byWeek.keys.toList()..sort()).reversed.take(12).toList().reversed.toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
