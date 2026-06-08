@@ -464,6 +464,37 @@ class SettingsScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
+          // ── Switch to Staff Mode (Own Mode only) ───────────────────────
+          if (p.isOwnMode) ...[
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: kCardShadow,
+              ),
+              child: ListTile(
+                leading: Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.work_outline_rounded,
+                      color: Color(0xFFD97706), size: 20),
+                ),
+                title: const Text('Switch to Staff Mode',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                subtitle: const Text('Return to employer\'s data'),
+                trailing: const Icon(Icons.chevron_right, color: kMuted),
+                onTap: () {
+                  Navigator.pop(context);
+                  p.toggleOwnMode();
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // ── Sign Out button ────────────────────────────────────────────
           OutlinedButton.icon(
             onPressed: () => _confirmSignOut(context, p),
@@ -524,18 +555,24 @@ class SettingsScreen extends StatelessWidget {
 
   static String _planBadgeLabel(AppProvider p) {
     if (p.isAdmin) return 'Admin';
+    if (p.isOwnMode) return 'Own Mode';
+    if (p.isStaffRole) return 'Staff';
     if (p.profile['pro'] == true) return 'Pro';
     return 'Free';
   }
 
   static Color _planBadgeBg(AppProvider p) {
     if (p.isAdmin) return const Color(0xFFF3E8FF);
+    if (p.isOwnMode) return const Color(0xFFFEF3C7);
+    if (p.isStaffRole) return const Color(0xFFDBEAFE);
     if (p.profile['pro'] == true) return const Color(0xFFFEF3C7);
     return const Color(0xFFDCFCE7);
   }
 
   static Color _planBadgeFg(AppProvider p) {
     if (p.isAdmin) return const Color(0xFF7C3AED);
+    if (p.isOwnMode) return const Color(0xFFD97706);
+    if (p.isStaffRole) return const Color(0xFF1D4ED8);
     if (p.profile['pro'] == true) return const Color(0xFFD97706);
     return const Color(0xFF16A34A);
   }

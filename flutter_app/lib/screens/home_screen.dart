@@ -387,8 +387,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(width: 8),
-              // Settings: profile panel for staff users (any mode), full settings for owner/admin
-              if (p.isStaffRole)
+              // Settings: cashier panel in staff mode; full settings for own mode / owner / admin
+              if (p.isStaffRole && !p.isOwnMode)
                 GestureDetector(
                   onTap: () => _showCashierSettings(context, p),
                   child: const Icon(Icons.person_outline_rounded, color: kText, size: 22),
@@ -523,18 +523,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   String _badgeLabel(AppProvider p) {
     if (p.isAdmin) return 'Admin';
+    if (p.isStaffRole && !p.isOwnMode) return 'Staff';
     if (p.profile['pro'] == true) return 'Pro';
     return 'Free';
   }
 
   Color _badgeBg(AppProvider p) {
     if (p.isAdmin) return const Color(0xFFF3E8FF);
+    if (p.isStaffRole && !p.isOwnMode) return const Color(0xFFDBEAFE);
     if (p.profile['pro'] == true) return const Color(0xFFFEF3C7);
     return const Color(0xFFDCFCE7);
   }
 
   Color _badgeFg(AppProvider p) {
     if (p.isAdmin) return const Color(0xFF7C3AED);
+    if (p.isStaffRole && !p.isOwnMode) return const Color(0xFF1D4ED8);
     if (p.profile['pro'] == true) return const Color(0xFFD97706);
     return const Color(0xFF16A34A);
   }

@@ -215,10 +215,18 @@ class _SuppliersTabState extends State<SuppliersTab> {
             !b.date.isBefore(range.start) && b.date.isBefore(range.end))
         .toList();
 
-    // Cashier: only see their shop's suppliers (+ shared suppliers with empty shopId)
-    final visibleSuppliers = p.isCashier && p.staffShop.isNotEmpty
-        ? suppliers.where((s) => s.shopId.isEmpty || s.shopId == p.staffShop).toList()
-        : suppliers;
+    // Filter suppliers by shop context:
+    // - Cashier: only their assigned shop + shared (empty shopId)
+    // - Owner with a shop selected: that shop + shared
+    // - Owner with all shops: show all
+    final List<Supplier> visibleSuppliers;
+    if (p.isCashier && p.staffShop.isNotEmpty) {
+      visibleSuppliers = suppliers.where((s) => s.shopId.isEmpty || s.shopId == p.staffShop).toList();
+    } else if (!p.isCashier && p.selectedShop.isNotEmpty) {
+      visibleSuppliers = suppliers.where((s) => s.shopId.isEmpty || s.shopId == p.selectedShop).toList();
+    } else {
+      visibleSuppliers = suppliers;
+    }
 
     if (visibleSuppliers.isEmpty) {
       return _EmptyState(l: l);
