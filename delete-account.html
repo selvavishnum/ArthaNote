@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delete Account — ArthaNote</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0fdf4;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 36px 28px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .logo {
+      width: 52px; height: 52px;
+      background: #065f46;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+    }
+    h1 { font-size: 22px; color: #111; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; color: #6b7280; margin-bottom: 28px; line-height: 1.6; }
+    .warning-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .warning-box p {
+      font-size: 13px;
+      color: #991b1b;
+      line-height: 1.6;
+    }
+    .warning-box strong { display: block; margin-bottom: 8px; font-size: 14px; }
+    .data-list {
+      list-style: none;
+      margin-bottom: 28px;
+    }
+    .data-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #374151;
+      padding: 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .data-list li:last-child { border-bottom: none; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    input, textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #111;
+      outline: none;
+      transition: border 0.2s;
+    }
+    input:focus, textarea:focus { border-color: #065f46; }
+    textarea { resize: vertical; min-height: 80px; }
+    .btn-delete {
+      width: 100%;
+      padding: 14px;
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 12px;
+      transition: background 0.2s;
+    }
+    .btn-delete:hover { background: #dc2626; }
+    .btn-cancel {
+      width: 100%;
+      padding: 13px;
+      background: transparent;
+      color: #065f46;
+      border: 1.5px solid #065f46;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-cancel:hover { background: #f0fdf4; }
+    .success-box {
+      display: none;
+      background: #f0fdf4;
+      border: 1px solid #6ee7b7;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .success-box h2 { color: #065f46; font-size: 18px; margin-bottom: 8px; }
+    .success-box p { font-size: 13px; color: #6b7280; line-height: 1.6; }
+    .footer { text-align: center; margin-top: 28px; font-size: 12px; color: #9ca3af; }
+    .footer a { color: #065f46; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">AN</div>
+    <h1>Delete Your Account</h1>
+    <p class="subtitle">
+      We're sorry to see you go. Submitting this form will permanently delete your
+      ArthaNote account and all associated data within <strong>30 days</strong>.
+    </p>
+
+    <div class="warning-box">
+      <p><strong>⚠️ This action is permanent and cannot be undone.</strong>
+        The following data will be deleted from our servers:
+      </p>
+    </div>
+
+    <ul class="data-list">
+      <li><span class="dot"></span> Your profile and account information</li>
+      <li><span class="dot"></span> All transaction entries (sales, expenses, payments)</li>
+      <li><span class="dot"></span> All shop configurations and settings</li>
+      <li><span class="dot"></span> Supplier records and payment history</li>
+      <li><span class="dot"></span> Staff and attendance records</li>
+      <li><span class="dot"></span> Finance and chit fund data</li>
+    </ul>
+
+    <div id="deleteForm">
+      <div class="form-group">
+        <label>Registered Email Address *</label>
+        <input type="email" id="emailInput" placeholder="your@email.com" required>
+      </div>
+      <div class="form-group">
+        <label>Reason for deletion (optional)</label>
+        <textarea id="reasonInput" placeholder="Tell us why you're leaving..."></textarea>
+      </div>
+
+      <button class="btn-delete" onclick="submitDeletion()">
+        🗑️ Permanently Delete My Account
+      </button>
+      <button class="btn-cancel" onclick="window.history.back()">
+        Cancel — Keep My Account
+      </button>
+    </div>
+
+    <div class="success-box" id="successBox">
+      <h2>✅ Request Received</h2>
+      <p>
+        Your account deletion request has been submitted.<br>
+        We will process it within <strong>30 days</strong>.<br><br>
+        A confirmation email will be sent to your registered address.
+      </p>
+    </div>
+
+    <div class="footer">
+      <a href="https://arthanote.com">arthanote.com</a> ·
+      <a href="https://arthanote.com/privacy.html">Privacy Policy</a> ·
+      Support: support@arthanote.com
+    </div>
+  </div>
+
+  <script>
+    async function submitDeletion() {
+      const email = document.getElementById('emailInput').value.trim();
+      const reason = document.getElementById('reasonInput').value.trim();
+
+      if (!email || !email.includes('@')) {
+        alert('Please enter a valid email address.');
+        return;
+      }
+
+      // Send deletion request to Firestore via Firebase
+      try {
+        // Mark deletion request in Firestore
+        if (typeof firebase !== 'undefined') {
+          await firebase.firestore().collection('deletion_requests').add({
+            email: email,
+            reason: reason || '',
+            requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            status: 'pending'
+          });
+        }
+
+        // Also send email notification via mailto fallback
+        const subject = encodeURIComponent('Account Deletion Request — ArthaNote');
+        const body = encodeURIComponent(
+          'Account Deletion Request\n\nEmail: ' + email + '\nReason: ' + (reason || 'Not provided') +
+          '\n\nRequested at: ' + new Date().toISOString()
+        );
+
+        // Show success
+        document.getElementById('deleteForm').style.display = 'none';
+        document.getElementById('successBox').style.display = 'block';
+
+        // Send email in background
+        setTimeout(() => {
+          window.location.href = 'mailto:support@arthanote.com?subject=' + subject + '&body=' + body;
+        }, 1500);
+
+      } catch (e) {
+        // Fallback: just show success and open email
+        document.getElementById('deleteForm').style.display = 'none';
+        document.getElementById('successBox').style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -495,6 +495,40 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 16),
           ],
 
+          // ── Delete Account ────────────────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: kCardShadow,
+            ),
+            child: ListTile(
+              leading: Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.delete_forever_rounded,
+                    color: Color(0xFFDC2626), size: 20),
+              ),
+              title: const Text('Delete Account',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: Color(0xFFDC2626))),
+              subtitle: const Text('Permanently remove your data'),
+              trailing: const Icon(Icons.open_in_new, color: kMuted, size: 18),
+              onTap: () => launchUrl(
+                Uri.parse(
+                    'https://selvavishnum.github.io/Kannakupilai/delete-account.html'),
+                mode: LaunchMode.externalApplication,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
           // ── Sign Out button ────────────────────────────────────────────
           OutlinedButton.icon(
             onPressed: () => _confirmSignOut(context, p),
