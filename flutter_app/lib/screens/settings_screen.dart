@@ -451,14 +451,6 @@ class SettingsScreen extends StatelessWidget {
                   mode: LaunchMode.externalApplication,
                 ),
               ),
-              const _ItemDivider(),
-              _SettingsItem(
-                icon: Icons.bug_report_outlined,
-                iconColor: const Color(0xFF6B7280),
-                title: 'Send Diagnostics',
-                subtitle: 'Share crash logs with admin',
-                onTap: () => _sendDiagnostics(context),
-              ),
             ]),
           ),
 
@@ -611,29 +603,6 @@ class SettingsScreen extends StatelessWidget {
     return const Color(0xFF16A34A);
   }
 
-  Future<void> _sendDiagnostics(BuildContext context) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final logs  = prefs.getStringList('kp_crash_log') ?? [];
-      final p     = context.read<AppProvider>();
-      final info  = [
-        'ArthaNote Diagnostics — ${DateTime.now()}',
-        'User: ${p.profile['email'] ?? 'unknown'}',
-        'Business: ${p.businessId}',
-        '',
-        if (logs.isEmpty) 'No crash logs recorded.'
-        else ...logs,
-      ].join('\n');
-
-      await Share.share(info, subject: 'ArthaNote Diagnostics');
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: kRed),
-        );
-      }
-    }
-  }
 
   Future<void> _confirmSignOut(BuildContext context, AppProvider p) async {
     final l = p.lang;
