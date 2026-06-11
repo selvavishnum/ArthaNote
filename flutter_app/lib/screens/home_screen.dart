@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -34,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
   final _db     = DbService();
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
+  DateTime? _lastBackPress;
 
   @override
   void initState() {
@@ -220,28 +222,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final bodies     = _bodies(isAdmin, isCashier);
     final safeTab    = _tab.clamp(0, bodies.length - 1);
 
-    return Scaffold(
-      backgroundColor: kBg,
-      // No AppBar — we render a custom header inside the body column
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildCustomHeader(context, p),
-          _buildShopChipsRow(context, p),
-          Expanded(
-            child: IndexedStack(
-              index: safeTab,
-              children: bodies,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final now = DateTime.now();
+        final isSecondPress = _lastBackPress != null &&
+            now.difference(_lastBackPress!) <= const Duration(seconds: 2);
+        if (isSecondPress) {
+          SystemNavigator.pop();
+        } else {
+          _lastBackPress = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, isCashier, showFinance),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: kPrimary,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.bolt_rounded),
-        onPressed: () => _showAiFab(context, isAdmin),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: kBg,
+        // No AppBar — we render a custom header inside the body column
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCustomHeader(context, p),
+            _buildShopChipsRow(context, p),
+            Expanded(
+              child: IndexedStack(
+                index: safeTab,
+                children: bodies,
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, isCashier, showFinance),
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: kPrimary,
+          foregroundColor: Colors.white,
+          child: const Icon(Icons.bolt_rounded),
+          onPressed: () => _showAiFab(context, isAdmin),
+        ),
       ),
     );
   }
