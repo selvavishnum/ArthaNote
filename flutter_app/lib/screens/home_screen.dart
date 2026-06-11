@@ -224,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
+      onPopInvoked: (didPop) {
         if (didPop) return;
         final now = DateTime.now();
         final isSecondPress = _lastBackPress != null &&
