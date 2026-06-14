@@ -149,7 +149,7 @@ const fmt_time=ts=>{if(!ts)return'—';const d=ts?.toDate?ts.toDate():new Date(t
 // then shares via Web Share API (native Android/iOS share sheet) or downloads.
 async function shareAttendCard(){
   // Hide buttons so they don't appear in the screenshot
-  const hide=document.querySelectorAll('.wa-share-btn,.back-btn');
+  const hide=document.querySelectorAll('.wa-share-btn,.wa-text-btn,.back-btn');
   hide.forEach(el=>{el.dataset.pv=el.style.visibility;el.style.visibility='hidden';});
 
   try{
@@ -528,12 +528,9 @@ async function go(type){
         <div class="s-row">⏰ <b style="color:${config.color}">${nowTime}</b></div>
         <div class="s-row" style="border-top:1px solid #6ee7b7;margin-top:8px;padding-top:8px;font-size:12px;color:#6b7280">${config.next}</div>
       </div>
-      <button class="wa-share-btn" onclick="shareOnWhatsApp()">
+      <button class="wa-share-btn" onclick="shareAttendCard()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="white" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.555 4.115 1.527 5.847L.057 23.882l6.198-1.624A11.93 11.93 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.8 9.8 0 01-5.003-1.366l-.357-.212-3.706.972.988-3.604-.233-.371A9.772 9.772 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182S21.818 6.578 21.818 12 17.422 21.818 12 21.818z"/></svg>
-        WhatsApp-ல Share பண்ணு
-      </button>
-      <button class="wa-text-btn" onclick="shareAttendCard()">
-        📸 Screenshot Share பண்ணு
+        📸 WhatsApp-ல Share பண்ணு
       </button>
       <button class="back-btn" onclick="location.reload()">⬅ Back (mark another)</button>
     </div>`;
