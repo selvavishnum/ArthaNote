@@ -18,6 +18,7 @@ class QrScanScreen extends StatefulWidget {
 class _QrScanScreenState extends State<QrScanScreen> {
   late final MobileScannerController _controller;
   bool _detected = false;
+  bool _torchOn  = false;
 
   @override
   void initState() {
@@ -94,20 +95,20 @@ class _QrScanScreenState extends State<QrScanScreen> {
                     ),
                   ),
                 ),
-                ValueListenableBuilder<TorchState>(
-                  valueListenable: _controller.torchState,
-                  builder: (_, state, __) => IconButton(
-                    icon: Icon(
-                      state == TorchState.on
-                          ? Icons.flash_on_rounded
-                          : Icons.flash_off_rounded,
-                      color: state == TorchState.on
-                          ? const Color(0xFFFBBF24)
-                          : Colors.white54,
-                      size: 24,
-                    ),
-                    onPressed: () => _controller.toggleTorch(),
+                IconButton(
+                  icon: Icon(
+                    _torchOn
+                        ? Icons.flash_on_rounded
+                        : Icons.flash_off_rounded,
+                    color: _torchOn
+                        ? const Color(0xFFFBBF24)
+                        : Colors.white54,
+                    size: 24,
                   ),
+                  onPressed: () {
+                    _controller.toggleTorch();
+                    setState(() => _torchOn = !_torchOn);
+                  },
                 ),
               ],
             ),
