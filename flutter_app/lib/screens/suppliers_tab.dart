@@ -1014,7 +1014,7 @@ class _SupplierCardState extends State<_SupplierCard> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => setState(() => _expanded = !_expanded),
+        onTap: () => _showAddBillHere(context),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -1139,26 +1139,30 @@ class _SupplierCardState extends State<_SupplierCard> {
                     _VertDiv(),
                     _StatCol(
                         label: 'BALANCE',
-                        value: rupee(sup.balance),
-                        color: color),
+                        value: rupee(totalBills - totalPaid),
+                        color: (totalBills - totalPaid) > 0 ? kRed : kSecondary),
                   ]),
                 ),
               ),
 
               // Expand toggle hint
               const SizedBox(height: 6),
-              Row(children: [
-                const Spacer(),
-                Text(
-                  _expanded
-                      ? '▲ Hide history'
-                      : '▼ Show history (${bills.length})',
-                  style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500),
-                ),
-              ]),
+              GestureDetector(
+                onTap: () => setState(() => _expanded = !_expanded),
+                behavior: HitTestBehavior.opaque,
+                child: Row(children: [
+                  const Spacer(),
+                  Text(
+                    _expanded
+                        ? '▲ Hide history'
+                        : '▼ Show history (${bills.length})',
+                    style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ]),
+              ),
 
               // Inline bill history (expanded)
               if (_expanded) ...[
