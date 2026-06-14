@@ -30,10 +30,13 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Status bar style
+  // Edge-to-edge: transparent bars, let Android 15 handle insets natively
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
   ));
 
   // Catch Flutter framework errors
