@@ -22,6 +22,7 @@ import 'reports_tab.dart';
 import 'finance_tab.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
+import 'qr_scan_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
 
@@ -409,7 +410,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              // QR attendance scanner icon
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const QrScanScreen()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.qr_code_scanner_rounded, color: kPrimary, size: 22),
+                ),
+              ),
+              const SizedBox(width: 6),
               // Settings: cashier panel in staff mode; full settings for own mode / owner / admin
               if (p.isStaffRole && !p.isOwnMode)
                 GestureDetector(
