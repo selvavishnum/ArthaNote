@@ -413,29 +413,40 @@ class AppProvider extends ChangeNotifier {
 
   // ── Manual business ID (staff fallback) ──────────────────────────────────
   // Called when staff enters their employer's business ID manually.
-  // Looks up the owner-granted staff doc to get the assigned shop, then
-  // updates staff/{uid} in Firestore and re-initialises the provider.
+  // Requires a matching owner-granted staff doc (auto-ID doc created by
+  // grantStaffAccess / the Add Staff dialog) with that email + businessId —
+  // otherwise this would let anyone link their account to any business ID
+  // they happen to type in. Throws if no grant is found.
   Future<void> setManualBusinessId(String bid) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null || bid.trim().isEmpty) return;
     final email = _auth.currentUser?.email ?? '';
 
-    // Try to find the owner-granted doc (auto-ID doc created by grantStaffAccess)
-    // which holds the assigned shop. Look for any doc with matching email
-    // and businessId == bid that has a shop field set.
+    // Find the owner-granted doc (auto-ID doc created by grantStaffAccess)
+    // which holds the assigned shop. A grant doc never carries a 'uid' field
+    // (only real self-profiles do), so this also can't match another
+    // person's own profile doc.
     String shopId = '';
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('staff')
-          .where('email', isEqualTo: email.toLowerCase())
-          .where('businessId', isEqualTo: bid.trim())
-          .limit(3)
-          .get();
-      for (final doc in snap.docs) {
-        final s = (doc.data()['shop'] as String?)?.trim() ?? '';
-        if (s.isNotEmpty) { shopId = s; break; }
-      }
-    } catch (_) {}
+    bool granted = false;
+    final snap = await FirebaseFirestore.instance
+        .collection('staff')
+        .where('email', isEqualTo: email.toLowerCase())
+        .where('businessId', isEqualTo: bid.trim())
+        .limit(3)
+        .get();
+    for (final doc in snap.docs) {
+      final d = doc.data();
+      if (d.containsKey('uid')) continue;
+      granted = true;
+      final s = (d['shop'] as String?)?.trim() ?? '';
+      if (s.isNotEmpty) { shopId = s; break; }
+    }
+
+    if (!granted) {
+      throw Exception(
+          'No staff access has been granted to $email for this business ID. '
+          'Ask the shop owner to add you as staff first.');
+    }
 
     await _auth.saveProfile(uid, {
       'uid':        uid,
