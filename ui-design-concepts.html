@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArthaNote — 10 Minimalist B/W UI Concepts</title>
+<style>
+  :root{
+    --b:#000; --w:#fff; --g1:#f4f4f4; --g2:#e3e3e3; --g3:#bdbdbd; --g4:#888; --g5:#444;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#ececec; font-family:-apple-system,Helvetica,Arial,sans-serif; color:#000;}
+
+  /* ── Page shell ───────────────────────────────────────────────────── */
+  .page-header{
+    max-width:1200px; margin:0 auto; padding:48px 24px 16px;
+    text-align:center;
+  }
+  .page-header h1{font-size:28px; font-weight:800; letter-spacing:-0.5px;}
+  .page-header p{margin-top:8px; color:#555; font-size:14px; line-height:1.6;}
+  .page-header .tag{
+    display:inline-block; margin-top:14px; padding:5px 12px; border:1px solid #000;
+    border-radius:20px; font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+  }
+
+  .gallery{
+    max-width:1200px; margin:0 auto; padding:24px; display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:28px;
+  }
+  .concept{background:#fff; border-radius:18px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,0.08);
+    display:flex; flex-direction:column; align-items:center; transition:transform .15s;}
+  .concept.selected{outline:3px solid #000; transform:translateY(-2px);}
+  .concept h3{font-size:14px; font-weight:800; margin-bottom:2px;}
+  .concept .num{color:#999; font-weight:600; margin-right:4px;}
+  .concept .tagline{font-size:11.5px; color:#777; text-align:center; margin-bottom:14px; min-height:30px;}
+
+  /* ── Phone mock frame ─────────────────────────────────────────────── */
+  .phone{
+    width:260px; height:520px; border-radius:28px; overflow:hidden; position:relative;
+    border:8px solid #111; background:#fff; display:flex; flex-direction:column;
+    font-size:12px;
+  }
+  .status-bar{display:flex; justify-content:space-between; padding:6px 14px 2px; font-size:10px; font-weight:700;}
+  .app-header{display:flex; justify-content:space-between; align-items:center; padding:8px 14px;}
+  .brand{font-weight:800; font-size:14px;}
+  .shop-select{font-size:10px; color:#666;}
+  .stats{display:flex; padding:8px 12px; gap:6px;}
+  .stat{flex:1; padding:10px 6px; text-align:center;}
+  .stat .label{display:block; font-size:8.5px; letter-spacing:0.5px; text-transform:uppercase; color:#777;}
+  .stat .value{display:block; font-weight:800; font-size:13px; margin-top:3px;}
+  .shop-list{padding:6px 14px; flex:1; display:flex; flex-direction:column; gap:6px;}
+  .shop-row{display:flex; justify-content:space-between; align-items:center; padding:9px 10px; font-size:11px;}
+  .bottom-nav{display:flex; justify-content:space-between; padding:10px 10px; font-size:8px; font-weight:700; text-transform:uppercase;}
+  .bottom-nav span{flex:1; text-align:center;}
+  .select-btn{
+    margin-top:14px; width:100%; max-width:260px; padding:10px; border-radius:10px; border:2px solid #000;
+    background:#fff; font-weight:700; font-size:12px; cursor:pointer; letter-spacing:0.3px;
+  }
+  .select-btn:hover{background:#000; color:#fff;}
+  .concept.selected .select-btn{background:#000; color:#fff;}
+  .concept.selected .select-btn::after{content:" ✓ Selected";}
+
+  /* ── 1. Swiss Grid ────────────────────────────────────────────────── */
+  [data-concept="1"]{font-family:Helvetica,Arial,sans-serif;}
+  [data-concept="1"] .status-bar{border-bottom:1px solid #000;}
+  [data-concept="1"] .app-header{border-bottom:1px solid #000;}
+  [data-concept="1"] .brand{text-transform:uppercase; letter-spacing:1px;}
+  [data-concept="1"] .stats{border-bottom:1px solid #000; padding:0; gap:0;}
+  [data-concept="1"] .stat{border-right:1px solid #000;}
+  [data-concept="1"] .stat:last-child{border-right:none;}
+  [data-concept="1"] .stat .value{font-size:14px;}
+  [data-concept="1"] .shop-row{border-bottom:1px solid #ddd;}
+  [data-concept="1"] .bottom-nav{border-top:1px solid #000;}
+
+  /* ── 2. Brutalist ─────────────────────────────────────────────────── */
+  [data-concept="2"]{font-family:Arial Black,Arial,sans-serif;}
+  [data-concept="2"] .app-header{border-bottom:3px solid #000;}
+  [data-concept="2"] .brand{font-weight:900; text-transform:uppercase;}
+  [data-concept="2"] .stats{padding:10px;}
+  [data-concept="2"] .stat{border:3px solid #000; box-shadow:3px 3px 0 #000; margin-right:4px;}
+  [data-concept="2"] .stat:last-child{margin-right:0;}
+  [data-concept="2"] .stat .value{font-weight:900;}
+  [data-concept="2"] .shop-row{border:2px solid #000; box-shadow:2px 2px 0 #000; margin:0 0 8px;}
+  [data-concept="2"] .bottom-nav{border-top:3px solid #000; background:#000; color:#fff;}
+
+  /* ── 3. Editorial Serif ───────────────────────────────────────────── */
+  [data-concept="3"]{font-family:Georgia,'Times New Roman',serif;}
+  [data-concept="3"] .brand{font-style:italic; font-size:15px;}
+  [data-concept="3"] .stats{padding:14px 16px 4px; gap:0; flex-direction:column;}
+  [data-concept="3"] .stat{text-align:left; border-bottom:1px solid #ccc; padding:8px 0;}
+  [data-concept="3"] .stat .label{font-style:italic; font-size:9px;}
+  [data-concept="3"] .stat .value{font-size:20px; font-weight:400;}
+  [data-concept="3"] .shop-row{border-bottom:1px solid #eee; font-style:italic;}
+  [data-concept="3"] .bottom-nav{border-top:1px solid #000; font-style:italic; text-transform:none;}
+
+  /* ── 4. Outline Cards ─────────────────────────────────────────────── */
+  [data-concept="4"]{font-family:-apple-system,sans-serif;}
+  [data-concept="4"] .stats{gap:8px;}
+  [data-concept="4"] .stat{border:1px solid #ccc; border-radius:14px;}
+  [data-concept="4"] .shop-row{border:1px solid #ccc; border-radius:12px; margin-bottom:2px;}
+  [data-concept="4"] .bottom-nav{border-top:1px solid #ccc;}
+  [data-concept="4"] .app-header{border-bottom:1px solid #eee;}
+
+  /* ── 5. Bento Grid ────────────────────────────────────────────────── */
+  [data-concept="5"] .stats{display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px 12px;}
+  [data-concept="5"] .stat{border-radius:12px; background:#f1f1f1; text-align:left; padding:10px;}
+  [data-concept="5"] .stat:first-child{grid-column:1 / span 2; background:#000;}
+  [data-concept="5"] .stat:first-child .label,
+  [data-concept="5"] .stat:first-child .value{color:#fff;}
+  [data-concept="5"] .stat:first-child .value{font-size:18px;}
+  [data-concept="5"] .shop-row{background:#f1f1f1; border-radius:12px;}
+  [data-concept="5"] .bottom-nav{background:#f1f1f1; border-radius:16px; margin:8px; padding:8px;}
+
+  /* ── 6. Ledger Paper ──────────────────────────────────────────────── */
+  [data-concept="6"]{font-family:'Courier New',monospace;}
+  [data-concept="6"] .app-header{border-bottom:1px dashed #000;}
+  [data-concept="6"] .stats{border-bottom:1px dashed #000; padding-bottom:10px;}
+  [data-concept="6"] .stat{border-right:1px dashed #999;}
+  [data-concept="6"] .stat:last-child{border-right:none;}
+  [data-concept="6"] .shop-row{border-bottom:1px dashed #999; font-size:10px;}
+  [data-concept="6"] .bottom-nav{border-top:1px dashed #000;}
+
+  /* ── 7. Dark Inverse ──────────────────────────────────────────────── */
+  [data-concept="7"]{background:#000; color:#fff;}
+  [data-concept="7"] .status-bar, [data-concept="7"] .app-header{border-bottom:1px solid #333;}
+  [data-concept="7"] .stat .label{color:#888;}
+  [data-concept="7"] .stat .value{color:#fff;}
+  [data-concept="7"] .shop-row{background:#1a1a1a; border-radius:10px; color:#fff;}
+  [data-concept="7"] .bottom-nav{border-top:1px solid #333; color:#ddd;}
+
+  /* ── 8. Soft Neumorphic Grayscale ─────────────────────────────────── */
+  [data-concept="8"]{background:#ececec;}
+  [data-concept="8"] .stat{background:#ececec; border-radius:16px;
+    box-shadow:4px 4px 8px #cfcfcf, -4px -4px 8px #ffffff;}
+  [data-concept="8"] .shop-row{background:#ececec; border-radius:14px;
+    box-shadow:3px 3px 6px #cfcfcf, -3px -3px 6px #ffffff;}
+  [data-concept="8"] .bottom-nav{background:#ececec; box-shadow:0 -3px 6px #cfcfcf inset;}
+  [data-concept="8"] .app-header{background:#ececec;}
+
+  /* ── 9. Sidebar Nav ───────────────────────────────────────────────── */
+  [data-concept="9"]{flex-direction:row;}
+  [data-concept="9"] .status-bar{display:none;}
+  [data-concept="9"] .nav-rail{width:40px; background:#000; display:flex; flex-direction:column;
+    align-items:center; padding:14px 0; gap:18px;}
+  [data-concept="9"] .nav-rail span{width:18px; height:18px; border:1.5px solid #fff; border-radius:5px;}
+  [data-concept="9"] .nav-rail span.active{background:#fff;}
+  [data-concept="9"] .main-col{flex:1; display:flex; flex-direction:column;}
+  [data-concept="9"] .bottom-nav{display:none;}
+  [data-concept="9"] .stat{border-bottom:2px solid #000;}
+
+  /* ── 10. Dot Grid Poster ──────────────────────────────────────────── */
+  [data-concept="10"]{
+    background-image:radial-gradient(#ccc 1px, transparent 1px);
+    background-size:10px 10px;
+  }
+  [data-concept="10"] .app-header, [data-concept="10"] .shop-list, [data-concept="10"] .bottom-nav{background:#fff;}
+  [data-concept="10"] .stats{flex-direction:column; padding:14px;}
+  [data-concept="10"] .stat{background:#fff; border:2px solid #000; text-align:left; padding:14px;}
+  [data-concept="10"] .stat .value{font-size:26px;}
+  [data-concept="10"] .bottom-nav{border-top:2px solid #000;}
+
+  footer.bar{
+    position:sticky; bottom:0; background:#000; color:#fff; padding:16px 24px;
+    display:flex; justify-content:center; align-items:center; gap:16px; flex-wrap:wrap;
+    font-size:13px; font-weight:600; z-index:5;
+  }
+  footer.bar .pick{font-weight:800;}
+  @media (max-width:600px){.gallery{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>ArthaNote — UI Redesign Concepts</h1>
+  <p>10 ultra-minimalist black &amp; white design directions for the Dashboard screen.<br>
+     Tap "Select This Design" on the one you like — I'll rebuild the Flutter app's screens to match it.</p>
+  <span class="tag">Monochrome · No colour, only black / white / grey</span>
+</div>
+
+<main class="gallery" id="gallery">
+
+  <!-- Reusable phone markup repeated for each concept -->
+  <!-- 1 -->
+  <article class="concept" data-id="1">
+    <h3><span class="num">01</span>Swiss Grid</h3>
+    <p class="tagline">Hairline rules, Helvetica, strict columns — international typographic style.</p>
+    <div class="phone" data-concept="1">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+        <div class="stat"><span class="label">Net</span><span class="value">₹32,390</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 2 -->
+  <article class="concept" data-id="2">
+    <h3><span class="num">02</span>Brutalist</h3>
+    <p class="tagline">Thick borders, hard offset shadows, bold uppercase — confident and loud.</p>
+    <div class="phone" data-concept="2">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+        <div class="stat"><span class="label">Net</span><span class="value">₹32,390</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 3 -->
+  <article class="concept" data-id="3">
+    <h3><span class="num">03</span>Editorial Serif</h3>
+    <p class="tagline">Magazine-style serif numerals, italic labels, generous whitespace.</p>
+    <div class="phone" data-concept="3">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+        <div class="stat"><span class="label">Net</span><span class="value">₹32,390</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 4 -->
+  <article class="concept" data-id="4">
+    <h3><span class="num">04</span>Outline Cards</h3>
+    <p class="tagline">Thin grey outlines, soft rounded corners, light and airy.</p>
+    <div class="phone" data-concept="4">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+        <div class="stat"><span class="label">Net</span><span class="value">₹32,390</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 5 -->
+  <article class="concept" data-id="5">
+    <h3><span class="num">05</span>Bento Grid</h3>
+    <p class="tagline">Asymmetric tiles, one bold black hero tile, modern app-store style.</p>
+    <div class="phone" data-concept="5">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Net Today</span><span class="value">₹32,390</span></div>
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 6 -->
+  <article class="concept" data-id="6">
+    <h3><span class="num">06</span>Ledger Paper</h3>
+    <p class="tagline">Monospace receipt look with dashed rules — feels like a real accounts book.</p>
+    <div class="phone" data-concept="6">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+        <div class="stat"><span class="label">Net</span><span class="value">₹32,390</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 7 -->
+  <article class="concept" data-id="7">
+    <h3><span class="num">07</span>Dark Inverse</h3>
+    <p class="tagline">Pure black canvas, white hairlines and type — high-contrast night mode.</p>
+    <div class="phone" data-concept="7">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+        <div class="stat"><span class="label">Net</span><span class="value">₹32,390</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 8 -->
+  <article class="concept" data-id="8">
+    <h3><span class="num">08</span>Soft Neumorphic</h3>
+    <p class="tagline">Grey-on-grey soft shadows — gentle depth without any colour.</p>
+    <div class="phone" data-concept="8">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+        <div class="stat"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+        <div class="stat"><span class="label">Net</span><span class="value">₹32,390</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 9 -->
+  <article class="concept" data-id="9">
+    <h3><span class="num">09</span>Sidebar Rail</h3>
+    <p class="tagline">Vertical icon rail instead of bottom nav — desktop-leaning, app-shell feel.</p>
+    <div class="phone" data-concept="9" style="flex-direction:row;">
+      <div class="nav-rail">
+        <span class="active"></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="main-col">
+        <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All ▾</div></div>
+        <div class="stats" style="flex-direction:column;">
+          <div class="stat" style="text-align:left;"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+          <div class="stat" style="text-align:left;"><span class="label">Expense</span><span class="value">₹12,840</span></div>
+          <div class="stat" style="text-align:left; border-bottom:none;"><span class="label">Net</span><span class="value">₹32,390</span></div>
+        </div>
+        <div class="shop-list">
+          <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+          <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+          <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+        </div>
+      </div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+  <!-- 10 -->
+  <article class="concept" data-id="10">
+    <h3><span class="num">10</span>Dot Grid Poster</h3>
+    <p class="tagline">Faint dotted backdrop, bold boxed numerals — poster-like statement stats.</p>
+    <div class="phone" data-concept="10">
+      <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+      <div class="app-header"><div class="brand">ArthaNote</div><div class="shop-select">All Shops ▾</div></div>
+      <div class="stats">
+        <div class="stat"><span class="label">Net Today</span><span class="value">₹32,390</span></div>
+        <div class="stat"><span class="label">Sales</span><span class="value">₹45,230</span></div>
+      </div>
+      <div class="shop-list">
+        <div class="shop-row"><span>Tulsi Vegetable Market</span><span>₹18,200</span></div>
+        <div class="shop-row"><span>Cafe Shop</span><span>₹9,450</span></div>
+        <div class="shop-row"><span>Tulsi Bridal</span><span>₹17,580</span></div>
+      </div>
+      <div class="bottom-nav"><span>Dash</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Supp.</span><span>Reports</span></div>
+    </div>
+    <button class="select-btn">Select This Design</button>
+  </article>
+
+</main>
+
+<footer class="bar" id="bar">No design selected yet — tap a card above.</footer>
+
+<script>
+  const NAMES = {
+    1:'Swiss Grid', 2:'Brutalist', 3:'Editorial Serif', 4:'Outline Cards', 5:'Bento Grid',
+    6:'Ledger Paper', 7:'Dark Inverse', 8:'Soft Neumorphic', 9:'Sidebar Rail', 10:'Dot Grid Poster'
+  };
+  const bar = document.getElementById('bar');
+  const saved = localStorage.getItem('arthanote_ui_concept_choice');
+
+  function select(id){
+    document.querySelectorAll('.concept').forEach(c => c.classList.toggle('selected', c.dataset.id === String(id)));
+    localStorage.setItem('arthanote_ui_concept_choice', id);
+    bar.innerHTML = 'Selected: <span class="pick">#' + id + ' — ' + NAMES[id] + '</span> &nbsp;·&nbsp; Tell me to build this design and I\'ll redo the app screens to match.';
+  }
+
+  document.querySelectorAll('.concept').forEach(card => {
+    card.querySelector('.select-btn').addEventListener('click', () => select(card.dataset.id));
+  });
+
+  if (saved && NAMES[saved]) select(saved);
+</script>
+
+</body>
+</html>
