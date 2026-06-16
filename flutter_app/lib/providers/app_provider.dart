@@ -114,25 +114,13 @@ class AppProvider extends ChangeNotifier {
     _lang = prefs.getString('lang') ?? 'en';
 
     try {
-      Map<String, dynamic>? profileData = await _auth.getProfile(uid);
-      final email = _auth.currentUser?.email ?? '';
-
-      // Always try email lookup — handles UID mismatch when the same email
-      // signs in via different auth methods (e.g. email/password on web vs
-      // Google on Android creates a different Firebase UID).
-      // Pass skipUid so the lookup prefers the ORIGINAL account's doc
-      // (businessId ≠ current uid) over any newly-created duplicate.
-      if (email.isNotEmpty) {
-        final emailProfile = await _auth.getProfileByEmail(email, skipUid: uid);
-        if (emailProfile != null) {
-          final emailBid = (emailProfile['businessId'] as String?)?.trim() ?? '';
-          // Use the email-found profile only if it points to a DIFFERENT businessId
-          // (the original account), not the current UID.
-          if (emailBid.isNotEmpty && emailBid != uid) {
-            profileData = emailProfile;
-          }
-        }
-      }
+      // Resolve strictly by uid — staff/{uid} is this device's own account.
+      // (Cross-account linking is handled only via the explicit "Connect to
+      // Employer" flow in setManualBusinessId, which requires the staff
+      // member to paste a businessId they were given — never an automatic
+      // email match, which could silently pull in an unrelated account's
+      // business data if any other staff doc happens to share the email.)
+      final profileData = await _auth.getProfile(uid);
 
       if (profileData != null) {
         _profile    = profileData;
