@@ -57,7 +57,16 @@ void _showConnectDialog(BuildContext context, AppProvider p) {
             final bid = ctrl.text.trim();
             if (bid.isEmpty) return;
             Navigator.pop(ctx);
-            await p.setManualBusinessId(bid);
+            try {
+              await p.setManualBusinessId(bid);
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(e.toString().replaceFirst('Exception: ', '')),
+                  backgroundColor: Colors.red,
+                ));
+              }
+            }
           },
           style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
           child: const Text('Connect',
@@ -3857,7 +3866,7 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Share this ID with staff. If auto-connect fails, staff goes to Settings → Connect to Employer and pastes this ID.',
+                'Add staff below first, then share this ID with them. They go to Settings → Connect to Employer and paste it in.',
                 style: TextStyle(fontSize: 10, color: Color(0xFF065F46), height: 1.5),
               ),
             ]),

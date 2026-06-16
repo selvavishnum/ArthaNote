@@ -85,10 +85,17 @@ class AuthService {
         .collection('staff')
         .where('email', isEqualTo: email)
         .where('businessId', isEqualTo: businessId)
-        .limit(1)
+        .limit(3)
         .get();
-    if (snap.docs.isNotEmpty) {
-      await _db.collection('staff').doc(snap.docs.first.id).update({
+    // Only ever touch a grant doc here, never a staff member's own self
+    // profile doc (which also carries a 'uid' field) — those two shapes can
+    // both match this email+businessId query.
+    QueryDocumentSnapshot<Map<String, dynamic>>? grantDoc;
+    for (final d in snap.docs) {
+      if (!d.data().containsKey('uid')) { grantDoc = d; break; }
+    }
+    if (grantDoc != null) {
+      await _db.collection('staff').doc(grantDoc.id).update({
         'shop': shopId, 'role': role, 'updatedAt': FieldValue.serverTimestamp(),
       });
     } else {
