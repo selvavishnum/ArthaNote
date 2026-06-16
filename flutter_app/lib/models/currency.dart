@@ -121,7 +121,7 @@ Currency detectSystemCurrencyFromLocale() {
 Future<Currency> detectSystemCurrency() async {
   try {
     final tz = await FlutterTimezone.getLocalTimezone();
-    final country = kTimezoneCountry[tz.identifier];
+    final country = kTimezoneCountry[tz];
     if (country != null) return currencyByCode(kCountryCurrency[country] ?? 'INR');
   } catch (_) {
     // Plugin unavailable (e.g. in tests) — fall through to locale.
