@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:intl/intl.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 /// A currency the app can display amounts in. Switching currency only
 /// changes the symbol/grouping shown — it never converts stored amounts,
@@ -73,13 +74,57 @@ const Map<String, String> kCountryCurrency = {
   'LK': 'LKR', 'NP': 'NPR', 'BD': 'BDT', 'ZA': 'ZAR',
 };
 
+/// Device IANA timezone → country code. The device's timezone is normally
+/// set by the OS itself (network/GPS), not a personal preference — unlike
+/// locale, which many people leave on "English (UK/US)" regardless of where
+/// they actually live. This is the primary signal for the "System" default;
+/// locale country is only a fallback when the timezone is unmapped.
+const Map<String, String> kTimezoneCountry = {
+  'Asia/Kolkata': 'IN', 'Asia/Calcutta': 'IN',
+  'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US',
+  'America/Los_Angeles': 'US', 'America/Anchorage': 'US', 'America/Phoenix': 'US',
+  'Pacific/Honolulu': 'US',
+  'Europe/London': 'GB',
+  'Europe/Berlin': 'DE', 'Europe/Paris': 'FR', 'Europe/Rome': 'IT',
+  'Europe/Madrid': 'ES', 'Europe/Amsterdam': 'NL', 'Europe/Dublin': 'IE',
+  'Europe/Lisbon': 'PT', 'Europe/Brussels': 'BE', 'Europe/Vienna': 'AT',
+  'Europe/Helsinki': 'FI', 'Europe/Athens': 'GR',
+  'Asia/Dubai': 'AE', 'Asia/Riyadh': 'SA', 'Asia/Qatar': 'QA',
+  'Asia/Kuwait': 'KW', 'Asia/Muscat': 'OM', 'Asia/Bahrain': 'BH',
+  'Asia/Singapore': 'SG', 'Asia/Kuala_Lumpur': 'MY',
+  'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU', 'Australia/Brisbane': 'AU',
+  'Australia/Perth': 'AU', 'Australia/Adelaide': 'AU', 'Australia/Darwin': 'AU',
+  'Australia/Hobart': 'AU',
+  'America/Toronto': 'CA', 'America/Vancouver': 'CA', 'America/Edmonton': 'CA',
+  'America/Winnipeg': 'CA', 'America/Halifax': 'CA', 'America/St_Johns': 'CA',
+  'Asia/Tokyo': 'JP', 'Asia/Shanghai': 'CN',
+  'Asia/Colombo': 'LK', 'Asia/Kathmandu': 'NP', 'Asia/Dhaka': 'BD',
+  'Africa/Johannesburg': 'ZA',
+};
+
 Currency currencyByCode(String code) =>
     kCurrencies.firstWhere((c) => c.code == code, orElse: () => kCurrencies.first);
 
-/// Auto-detects a currency from the device's region. Falls back to INR —
-/// ArthaNote's home market — when the region is unset or not in our list.
-Currency detectSystemCurrency() {
+/// Synchronous, locale-only detection — used as a fallback by
+/// [detectSystemCurrency] and as the instant value before that resolves.
+Currency detectSystemCurrencyFromLocale() {
   final countryCode = ui.PlatformDispatcher.instance.locale.countryCode ?? 'IN';
   final code = kCountryCurrency[countryCode] ?? 'INR';
   return currencyByCode(code);
+}
+
+/// Auto-detects a currency from the device's actual region. Prefers the
+/// device timezone (set by the OS, reliably tied to physical location) over
+/// the locale's country code (a personal language preference that can be
+/// "English (UK)" while living in India, falsely suggesting GBP).
+/// Falls back to locale, then INR — ArthaNote's home market.
+Future<Currency> detectSystemCurrency() async {
+  try {
+    final tz = await FlutterTimezone.getLocalTimezone();
+    final country = kTimezoneCountry[tz.identifier];
+    if (country != null) return currencyByCode(kCountryCurrency[country] ?? 'INR');
+  } catch (_) {
+    // Plugin unavailable (e.g. in tests) — fall through to locale.
+  }
+  return detectSystemCurrencyFromLocale();
 }

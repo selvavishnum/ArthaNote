@@ -17,6 +17,9 @@ class AppProvider extends ChangeNotifier {
   String             _langMode     = 'system';
   // 'system' | ISO 4217 code — "system" follows the device's region.
   String             _currencyMode = 'system';
+  // Resolved value of "system" mode — locale-based instantly, refined to the
+  // more accurate timezone-based detection once init()/setCurrency() resolve.
+  Currency           _systemCurrency = detectSystemCurrencyFromLocale();
   String             _businessId   = '';
   String             _selectedShop = '';
   Map<String, Shop>  _shops        = {};
@@ -54,11 +57,15 @@ class AppProvider extends ChangeNotifier {
 
   // Effective currency — resolved from the device region when mode is 'system'.
   Currency get currency {
-    final c = _currencyMode == 'system' ? detectSystemCurrency() : currencyByCode(_currencyMode);
+    final c = _currencyMode == 'system' ? _systemCurrency : currencyByCode(_currencyMode);
     Currency.active = c;
     return c;
   }
   String get currencyMode => _currencyMode;
+
+  // What "System" currently resolves to — shown in the Settings picker even
+  // when the user has manually overridden it to a fixed currency.
+  Currency get systemCurrency => _systemCurrency;
 
   String             get businessId   => _businessId;
   String             get selectedShop => _selectedShop;
@@ -137,6 +144,7 @@ class AppProvider extends ChangeNotifier {
     // returning user's language. Brand-new installs default to 'system'.
     _langMode     = prefs.getString('lang_mode') ?? prefs.getString('lang') ?? 'system';
     _currencyMode = prefs.getString('currency_mode') ?? 'system';
+    _systemCurrency = await detectSystemCurrency();
     currency; // sync Currency.active immediately, before any widget reads it
 
     try {
@@ -202,6 +210,7 @@ class AppProvider extends ChangeNotifier {
   // code: 'system' | ISO 4217 code (e.g. 'USD')
   void setCurrency(String code) async {
     _currencyMode = code;
+    if (code == 'system') _systemCurrency = await detectSystemCurrency();
     currency; // sync Currency.active immediately
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
