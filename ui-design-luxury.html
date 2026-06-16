@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArthaNote — 10 Premium / Luxury UI Concepts</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Marcellus&family=Jost:wght@300;400;500;600&family=Bodoni+Moda:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#0c0c0e; font-family:'Jost',sans-serif; color:#e8e8e8;}
+
+  /* ── Page shell ───────────────────────────────────────────────────── */
+  .page-header{max-width:1240px; margin:0 auto; padding:56px 24px 12px; text-align:center;}
+  .page-header .eyebrow{font-size:11px; letter-spacing:4px; text-transform:uppercase; color:#c5a572; font-weight:500;}
+  .page-header h1{font-family:'Playfair Display',serif; font-size:34px; font-weight:700; letter-spacing:-0.5px; margin-top:10px; color:#fff;}
+  .page-header p{margin-top:12px; color:#9a9a9a; font-size:14px; line-height:1.7; font-weight:300;}
+  .rule{width:60px; height:1px; background:linear-gradient(90deg,transparent,#c5a572,transparent); margin:20px auto 0;}
+
+  .gallery{max-width:1240px; margin:0 auto; padding:32px 24px; display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:32px;}
+  .concept{background:#141416; border:1px solid #232327; border-radius:20px; padding:22px;
+    display:flex; flex-direction:column; align-items:center; transition:.2s;}
+  .concept.selected{border-color:#c5a572; box-shadow:0 0 0 1px #c5a572, 0 12px 40px rgba(197,165,114,0.12);}
+  .concept .c-label{font-size:10px; letter-spacing:3px; text-transform:uppercase; color:#c5a572; font-weight:500;}
+  .concept h3{font-family:'Playfair Display',serif; font-size:19px; font-weight:600; margin:4px 0 2px; color:#fff;}
+  .concept .tagline{font-size:12px; color:#888; text-align:center; margin-bottom:18px; min-height:34px; line-height:1.5; font-weight:300;}
+
+  /* ── Phone frame ──────────────────────────────────────────────────── */
+  .phone{width:268px; height:540px; border-radius:32px; overflow:hidden; position:relative;
+    border:1px solid #2a2a2e; display:flex; flex-direction:column; font-size:12px;}
+  .sb{display:flex; justify-content:space-between; padding:10px 18px 4px; font-size:10px; opacity:.85;}
+  .hd{display:flex; justify-content:space-between; align-items:center; padding:10px 18px;}
+  .brand{font-size:16px;}
+  .sub{font-size:9px; letter-spacing:1px; text-transform:uppercase; opacity:.6;}
+  .hero{padding:14px 18px 8px;}
+  .hero .lbl{font-size:9px; letter-spacing:2px; text-transform:uppercase; opacity:.55;}
+  .hero .big{font-size:34px; margin-top:4px; line-height:1;}
+  .hero .delta{font-size:11px; margin-top:6px; opacity:.7;}
+  .row2{display:flex; gap:10px; padding:10px 18px;}
+  .mini{flex:1; padding:12px; border-radius:12px;}
+  .mini .l{font-size:8.5px; letter-spacing:1.5px; text-transform:uppercase; opacity:.5;}
+  .mini .v{font-size:15px; margin-top:5px;}
+  .list{flex:1; padding:6px 18px; display:flex; flex-direction:column; gap:8px;}
+  .item{display:flex; justify-content:space-between; align-items:center; padding:11px 4px; font-size:12px;}
+  .item .nm{display:flex; flex-direction:column;}
+  .item .nm small{font-size:9px; opacity:.5; margin-top:2px;}
+  .nav{display:flex; justify-content:space-around; padding:12px 8px 14px; font-size:8px; letter-spacing:0.5px; text-transform:uppercase;}
+  .nav span{opacity:.5;} .nav span.on{opacity:1;}
+  .divider{height:1px; margin:0 18px; opacity:.5;}
+
+  .select-btn{margin-top:18px; width:100%; max-width:268px; padding:12px; border-radius:30px;
+    border:1px solid #c5a572; background:transparent; color:#c5a572; font-family:'Jost',sans-serif;
+    font-weight:500; font-size:11px; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:.2s;}
+  .select-btn:hover{background:#c5a572; color:#0c0c0e;}
+  .concept.selected .select-btn{background:#c5a572; color:#0c0c0e;}
+  .concept.selected .select-btn::after{content:' ✓';}
+
+  /* ═══ 1. OBSIDIAN & GOLD ═══════════════════════════════════════════ */
+  .p1{background:radial-gradient(120% 80% at 50% 0%, #1c1c1f 0%, #0a0a0b 100%); color:#ece6d8; font-family:'Cormorant Garamond',serif;}
+  .p1 .brand{font-family:'Playfair Display',serif; color:#d4b876;}
+  .p1 .hero .big{font-family:'Playfair Display',serif; color:#fff;}
+  .p1 .mini{border:1px solid #2e2a22; background:rgba(212,184,118,0.04);}
+  .p1 .v,.p1 .item{color:#ece6d8;} .p1 .item .nm b{color:#d4b876;}
+  .p1 .divider,.p1 .item{border-bottom:1px solid rgba(212,184,118,0.12);}
+  .p1 .nav{border-top:1px solid rgba(212,184,118,0.15);} .p1 .nav span.on{color:#d4b876;}
+
+  /* ═══ 2. EMERALD ROYALE (brand green + gold) ═══════════════════════ */
+  .p2{background:linear-gradient(165deg,#08362a 0%,#04201a 100%); color:#e9f2ec; font-family:'Cormorant Garamond',serif;}
+  .p2 .brand{font-family:'Playfair Display',serif; color:#cbab68;}
+  .p2 .hero .big{font-family:'Playfair Display',serif; color:#fff;}
+  .p2 .mini{border:1px solid rgba(203,171,104,0.25); background:rgba(255,255,255,0.03);}
+  .p2 .mini .v{color:#cbab68;}
+  .p2 .item{border-bottom:1px solid rgba(203,171,104,0.14);}
+  .p2 .nav{border-top:1px solid rgba(203,171,104,0.2);} .p2 .nav span.on{color:#cbab68;}
+
+  /* ═══ 3. PRIVATE BANK (navy + thin gold) ══════════════════════════ */
+  .p3{background:#0e1726; color:#dfe6f0; font-family:'Jost',sans-serif;}
+  .p3 .brand{font-family:'Marcellus',serif; letter-spacing:1px; color:#fff;}
+  .p3 .hero .big{font-family:'Marcellus',serif; color:#c8a96a; font-weight:400;}
+  .p3 .mini{border:1px solid #1d2b40;}
+  .p3 .mini .v{color:#fff;}
+  .p3 .item{border-bottom:1px solid #1a2740;}
+  .p3 .divider{background:#c8a96a; opacity:.4;}
+  .p3 .nav{border-top:1px solid #1d2b40;} .p3 .nav span.on{color:#c8a96a;}
+
+  /* ═══ 4. CHAMPAGNE CREAM (light luxury) ═══════════════════════════ */
+  .p4{background:#f4efe7; color:#3a352c; font-family:'Cormorant Garamond',serif;}
+  .p4 .sub{color:#9a8f78;}
+  .p4 .brand{font-family:'Bodoni Moda',serif; color:#2c2820;}
+  .p4 .hero .lbl{color:#a8987a;}
+  .p4 .hero .big{font-family:'Bodoni Moda',serif; color:#1f1c16;}
+  .p4 .mini{background:#fff; border:1px solid #e4dccc;}
+  .p4 .mini .v{color:#8a6f3d;}
+  .p4 .item{border-bottom:1px solid #e6ddcc; color:#3a352c;}
+  .p4 .nav{border-top:1px solid #e0d6c2; color:#7a6f58;} .p4 .nav span.on{color:#8a6f3d;}
+
+  /* ═══ 5. PLATINUM (silver greys) ══════════════════════════════════ */
+  .p5{background:linear-gradient(160deg,#fafafa,#ececee); color:#2a2a2e; font-family:'Jost',sans-serif;}
+  .p5 .brand{font-family:'Marcellus',serif; letter-spacing:2px;}
+  .p5 .sub{color:#999;}
+  .p5 .hero .big{font-family:'Marcellus',serif; font-weight:400; color:#1a1a1d;}
+  .p5 .mini{background:#fff; border:1px solid #e2e2e6; box-shadow:0 1px 2px rgba(0,0,0,.04);}
+  .p5 .mini .v{color:#3a3a40;}
+  .p5 .item{border-bottom:1px solid #e6e6ea;}
+  .p5 .nav{border-top:1px solid #e2e2e6; color:#888;} .p5 .nav span.on{color:#1a1a1d;}
+
+  /* ═══ 6. MIDNIGHT GLASS (glassmorphism) ═══════════════════════════ */
+  .p6{background:radial-gradient(100% 60% at 30% 0%,#2a2150 0%,#0c0a18 70%); color:#eae6f5; font-family:'Jost',sans-serif;}
+  .p6 .brand{font-family:'Playfair Display',serif; color:#e3c98a;}
+  .p6 .hero .big{font-family:'Playfair Display',serif; color:#fff;}
+  .p6 .mini{background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); backdrop-filter:blur(8px);}
+  .p6 .mini .v{color:#e3c98a;}
+  .p6 .list .item{background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:11px 12px;}
+  .p6 .nav{border-top:1px solid rgba(255,255,255,0.1);} .p6 .nav span.on{color:#e3c98a;}
+
+  /* ═══ 7. ART DECO ═════════════════════════════════════════════════ */
+  .p7{background:#11130f; color:#ece4cf; font-family:'Cormorant Garamond',serif;
+    background-image:linear-gradient(135deg, rgba(193,160,90,0.05) 25%, transparent 25%, transparent 50%, rgba(193,160,90,0.05) 50%, rgba(193,160,90,0.05) 75%, transparent 75%);
+    background-size:24px 24px;}
+  .p7 .brand{font-family:'Bodoni Moda',serif; letter-spacing:1px; color:#caa75e;}
+  .p7 .hero{text-align:center; border:1px solid #4a3f25; margin:12px 18px 8px; padding:16px; border-radius:4px;}
+  .p7 .hero .big{font-family:'Bodoni Moda',serif; color:#fff;}
+  .p7 .mini{border:1px solid #4a3f25; text-align:center;}
+  .p7 .mini .v{color:#caa75e;}
+  .p7 .item{border-bottom:1px solid rgba(202,167,94,0.18);}
+  .p7 .nav{border-top:1px solid #4a3f25;} .p7 .nav span.on{color:#caa75e;}
+
+  /* ═══ 8. MONOGRAM HERITAGE (fashion house) ═══════════════════════ */
+  .p8{background:#1a1714; color:#e8e0d4; font-family:'Cormorant Garamond',serif;}
+  .p8 .hd{flex-direction:column; align-items:center; gap:2px; padding-top:16px;}
+  .p8 .mono{font-family:'Bodoni Moda',serif; font-size:30px; letter-spacing:2px; color:#bfa46f; border:1px solid #bfa46f; width:54px; height:54px; display:flex; align-items:center; justify-content:center; border-radius:50%;}
+  .p8 .brand{font-family:'Bodoni Moda',serif; letter-spacing:5px; font-size:12px; text-transform:uppercase; margin-top:6px;}
+  .p8 .hero{text-align:center;}
+  .p8 .hero .big{font-family:'Bodoni Moda',serif; color:#fff;}
+  .p8 .mini{border:1px solid #3a332a; text-align:center;}
+  .p8 .mini .v{color:#bfa46f;}
+  .p8 .item{border-bottom:1px solid #2f2920;}
+  .p8 .nav{border-top:1px solid #3a332a;} .p8 .nav span.on{color:#bfa46f;}
+
+  /* ═══ 9. ONYX VELVET (deep purple + rose gold) ═══════════════════ */
+  .p9{background:linear-gradient(170deg,#241726 0%,#0e0810 100%); color:#efe4ec; font-family:'Jost',sans-serif;}
+  .p9 .brand{font-family:'Playfair Display',serif; color:#e6b8a2;}
+  .p9 .hero .big{font-family:'Playfair Display',serif; color:#fff;}
+  .p9 .mini{background:rgba(230,184,162,0.06); border:1px solid rgba(230,184,162,0.2);}
+  .p9 .mini .v{color:#e6b8a2;}
+  .p9 .item{border-bottom:1px solid rgba(230,184,162,0.13);}
+  .p9 .nav{border-top:1px solid rgba(230,184,162,0.16);} .p9 .nav span.on{color:#e6b8a2;}
+
+  /* ═══ 10. MARBLE & BRASS ═════════════════════════════════════════ */
+  .p10{color:#2c2a26; font-family:'Cormorant Garamond',serif;
+    background:linear-gradient(135deg,#f6f4f0 0%,#eceae4 40%,#f2efe8 60%,#e8e5de 100%);}
+  .p10 .sub{color:#9a9488;}
+  .p10 .brand{font-family:'Bodoni Moda',serif; color:#211f1b;}
+  .p10 .hero .lbl{color:#a89c80;}
+  .p10 .hero .big{font-family:'Bodoni Moda',serif; color:#171511;}
+  .p10 .mini{background:rgba(255,255,255,0.6); border:1px solid #d8d2c4;}
+  .p10 .mini .v{color:#9a7b3e;}
+  .p10 .item{border-bottom:1px solid #ddd6c8;}
+  .p10 .nav{border-top:1px solid #d8d2c4; color:#7e7866;} .p10 .nav span.on{color:#9a7b3e;}
+
+  footer.bar{position:sticky; bottom:0; background:#0a0a0b; border-top:1px solid #c5a572;
+    padding:18px 24px; text-align:center; font-size:13px; color:#cfcfcf; z-index:5; font-weight:300;}
+  footer.bar .pick{color:#d4b876; font-family:'Playfair Display',serif; font-weight:600;}
+  @media (max-width:640px){.gallery{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="eyebrow">ArthaNote · Private Collection</span>
+  <h1>Premium UI Concepts</h1>
+  <p>Ten luxury design directions crafted to feel exclusive, refined and worth paying for —<br>
+     jewel tones, metallic accents and couture typography. Tap "Select" on the one that feels right.</p>
+  <div class="rule"></div>
+</div>
+
+<main class="gallery" id="gallery"></main>
+<footer class="bar" id="bar">No design selected yet — tap a concept above.</footer>
+
+<script>
+  const DESIGNS = [
+    {id:1,  cls:'p1',  name:'Obsidian & Gold',     tag:'Black glass with warm gold leaf. Timeless private-wealth feel.', hero:'gold'},
+    {id:2,  cls:'p2',  name:'Emerald Royale',      tag:'Your brand green elevated with gold — regal and grounded.',      hero:'gold'},
+    {id:3,  cls:'p3',  name:'Private Bank',        tag:'Deep navy, fine gold hairlines. Quiet, serious money.',          hero:'gold'},
+    {id:4,  cls:'p4',  name:'Champagne Cream',     tag:'Ivory canvas, bronze type. Light, soft, expensive.',            hero:'bronze'},
+    {id:5,  cls:'p5',  name:'Platinum',            tag:'Silver-grey monochrome. Understated, Apple-grade restraint.',    hero:'plat'},
+    {id:6,  cls:'p6',  name:'Midnight Glass',      tag:'Frosted glass panels over violet dusk. Modern and rare.',        hero:'gold'},
+    {id:7,  cls:'p7',  name:'Art Deco',            tag:'Geometric gold motif, Gatsby grandeur. Statement luxury.',       hero:'gold'},
+    {id:8,  cls:'p8',  name:'Monogram Heritage',   tag:'Fashion-house monogram crest. Couture identity.',                hero:'mono'},
+    {id:9,  cls:'p9',  name:'Onyx Velvet',         tag:'Plum-black velvet with rose-gold. Sensual, boutique.',           hero:'rose'},
+    {id:10, cls:'p10', name:'Marble & Brass',      tag:'Polished marble with brass detail. Solid, palatial.',            hero:'brass'},
+  ];
+
+  const SHOPS = [
+    {n:'Tulsi Vegetable Market', s:'Trichy · 142 entries', v:'₹18,200'},
+    {n:'Cafe Shop',              s:'Daily · 86 entries',   v:'₹9,450'},
+    {n:'Tulsi Bridal',           s:'Jewellery · 34 entries', v:'₹17,580'},
+  ];
+
+  function phone(d){
+    const monoHead = d.hero==='mono'
+      ? `<div class="hd"><div class="mono">A</div><div class="brand">ArthaNote</div></div>`
+      : `<div class="hd"><div class="brand">ArthaNote</div><div class="sub">All Shops ▾</div></div>`;
+    const shops = SHOPS.map(s=>`
+      <div class="item"><div class="nm"><b>${s.n}</b><small>${s.s}</small></div><span>${s.v}</span></div>`).join('');
+    return `
+    <div class="phone ${d.cls}">
+      <div class="sb"><span>9:41</span><span>● ● ●</span></div>
+      ${monoHead}
+      <div class="hero">
+        <div class="lbl">Net Balance · Today</div>
+        <div class="big">₹32,390</div>
+        <div class="delta">▲ 12.4%  vs yesterday</div>
+      </div>
+      <div class="row2">
+        <div class="mini"><div class="l">Sales</div><div class="v">₹45,230</div></div>
+        <div class="mini"><div class="l">Expense</div><div class="v">₹12,840</div></div>
+      </div>
+      <div class="list">${shops}</div>
+      <div class="nav">
+        <span class="on">Home</span><span>Scan</span><span>Entry</span><span>Ledger</span><span>Suppliers</span><span>Reports</span>
+      </div>
+    </div>`;
+  }
+
+  const gallery = document.getElementById('gallery');
+  gallery.innerHTML = DESIGNS.map(d=>`
+    <article class="concept" data-id="${d.id}">
+      <div class="c-label">Concept ${String(d.id).padStart(2,'0')}</div>
+      <h3>${d.name}</h3>
+      <p class="tagline">${d.tag}</p>
+      ${phone(d)}
+      <button class="select-btn">Select</button>
+    </article>`).join('');
+
+  const NAMES = Object.fromEntries(DESIGNS.map(d=>[d.id,d.name]));
+  const bar = document.getElementById('bar');
+
+  function select(id){
+    document.querySelectorAll('.concept').forEach(c=>c.classList.toggle('selected', c.dataset.id===String(id)));
+    localStorage.setItem('arthanote_luxury_choice', id);
+    bar.innerHTML = 'Selected: <span class="pick">Concept '+String(id).padStart(2,'0')+' — '+NAMES[id]+'</span> &nbsp;·&nbsp; Tell me to build it and I\'ll restyle the whole app to match.';
+  }
+  document.querySelectorAll('.concept').forEach(card=>{
+    card.querySelector('.select-btn').addEventListener('click', ()=>select(card.dataset.id));
+  });
+  const saved = localStorage.getItem('arthanote_luxury_choice');
+  if(saved && NAMES[saved]) select(saved);
+</script>
+
+</body>
+</html>

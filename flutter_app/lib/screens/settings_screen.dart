@@ -447,7 +447,7 @@ class SettingsScreen extends StatelessWidget {
                 title: 'Rate App',
                 subtitle: 'Rate us on Google Play Store',
                 onTap: () => launchUrl(
-                  Uri.parse('https://play.google.com/store/apps/details?id=com.tulsigroups.arthanote'),
+                  Uri.parse('https://play.google.com/store/apps/details?id=com.arthanote.app'),
                   mode: LaunchMode.externalApplication,
                 ),
               ),

@@ -259,9 +259,11 @@ class _DashboardTabState extends State<DashboardTab> {
     final txns    = _filter(all, p);
     final sales   = txns.where((x) => x.type == 'sale')
         .fold(0.0, (s, x) => s + x.amount);
-    final expense = txns.where((x) => x.type == 'expense' || x.type == 'payment')
+    final expense = txns.where((x) => x.type == 'expense')
         .fold(0.0, (s, x) => s + x.amount);
-    final net = sales - expense;
+    final payment = txns.where((x) => x.type == 'payment')
+        .fold(0.0, (s, x) => s + x.amount);
+    final net = sales - expense - payment;
 
     // Last 7 days overdraft check
     final now7 = DateTime.now();
@@ -269,7 +271,8 @@ class _DashboardTabState extends State<DashboardTab> {
     final last7Txns = all.where((tx) => !tx.date.isBefore(sevenDaysAgo)).toList();
     final last7Sales = last7Txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
     final last7Exp   = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
-    final last7Net   = last7Sales - last7Exp;
+    final last7Pay   = last7Txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
+    final last7Net   = last7Sales - last7Exp - last7Pay;
     final showOverdraft = last7Net < 0;
 
     // Most sold
@@ -454,6 +457,14 @@ class _DashboardTabState extends State<DashboardTab> {
                         valueColor: kRed,
                         icon: p.isPersonal ? '💸' : '📉')),
               ]),
+              if (!p.isPersonal && payment > 0) ...[
+                const SizedBox(height: 10),
+                _StatBox(
+                    label: 'PAYMENTS',
+                    value: rupee(payment),
+                    valueColor: kAmber,
+                    icon: '💳'),
+              ],
               const SizedBox(height: 10),
               Row(children: [
                 Expanded(
@@ -536,6 +547,7 @@ class _DashboardTabState extends State<DashboardTab> {
                     entryCount: shopTxns.length,
                     sales: shopSales,
                     expense: shopExp,
+                    payment: shopPay,
                     net: shopSales - shopExp - shopPay,
                     l: l,
                     healthBadge: healthData['badge'] as String,
@@ -720,6 +732,7 @@ class _ShopSummaryCard extends StatelessWidget {
   final int      entryCount;
   final double   sales;
   final double   expense;
+  final double   payment;
   final double   net;
   final String   l;
   final String   healthBadge;
@@ -734,6 +747,7 @@ class _ShopSummaryCard extends StatelessWidget {
     required this.entryCount,
     required this.sales,
     required this.expense,
+    required this.payment,
     required this.net,
     required this.l,
     required this.healthBadge,
@@ -857,6 +871,13 @@ class _ShopSummaryCard extends StatelessWidget {
                     value: rupee(expense),
                     color: kRed),
                 const SizedBox(width: 16),
+                if (payment > 0) ...[
+                  _MiniStat(
+                      label: 'Payment',
+                      value: rupee(payment),
+                      color: kAmber),
+                  const SizedBox(width: 16),
+                ],
                 _MiniStat(
                     label: t('net', l),
                     value: rupee(net),

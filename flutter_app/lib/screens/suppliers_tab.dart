@@ -241,11 +241,12 @@ class _SuppliersTabState extends State<SuppliersTab> {
             .where((b) => b.supplierId == sup.id)
             .toList();
         return _SupplierCard(
-          supplier: sup,
-          bills:    supBills,
-          db:       _db,
-          p:        p,
-          l:        l,
+          supplier:  sup,
+          bills:     supBills,
+          isAllTime: _period == _Period.all,
+          db:        _db,
+          p:         p,
+          l:         l,
         );
       },
     );
@@ -845,6 +846,7 @@ class _EditBillSheetState extends State<_EditBillSheet> {
 class _SupplierCard extends StatefulWidget {
   final Supplier           supplier;
   final List<SupplierBill> bills;
+  final bool               isAllTime;  // true when the "All" period filter is active (bills = full history)
   final DbService          db;
   final AppProvider        p;
   final String             l;
@@ -852,6 +854,7 @@ class _SupplierCard extends StatefulWidget {
   const _SupplierCard({
     required this.supplier,
     required this.bills,
+    required this.isAllTime,
     required this.db,
     required this.p,
     required this.l,
@@ -1010,6 +1013,17 @@ class _SupplierCardState extends State<_SupplierCard> {
         .where((b) => b.type == 'payment')
         .fold(0.0, (s, b) => s + b.amount);
 
+    // sup.balance is the running due, atomically kept in sync with every
+    // bill/payment (opening balance + all-time bills − all-time payments).
+    // The period-filtered totals above don't include the opening balance,
+    // so when showing full history, fold it back in to keep BILLS/BALANCE
+    // consistent with the correct due amount above.
+    final openingBalance = widget.isAllTime
+        ? sup.balance - totalBills + totalPaid
+        : 0.0;
+    final displayBills   = totalBills + openingBalance;
+    final displayBalance = widget.isAllTime ? sup.balance : (totalBills - totalPaid);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: InkWell(
@@ -1129,7 +1143,7 @@ class _SupplierCardState extends State<_SupplierCard> {
                   child: Row(children: [
                     _StatCol(
                         label: 'BILLS',
-                        value: rupee(totalBills),
+                        value: rupee(displayBills),
                         color: kRed),
                     _VertDiv(),
                     _StatCol(
@@ -1139,8 +1153,8 @@ class _SupplierCardState extends State<_SupplierCard> {
                     _VertDiv(),
                     _StatCol(
                         label: 'BALANCE',
-                        value: rupee(totalBills - totalPaid),
-                        color: (totalBills - totalPaid) > 0 ? kRed : kSecondary),
+                        value: rupee(displayBalance),
+                        color: displayBalance > 0 ? kRed : kSecondary),
                   ]),
                 ),
               ),

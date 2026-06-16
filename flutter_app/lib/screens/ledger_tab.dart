@@ -301,6 +301,8 @@ class _LedgerTabState extends State<LedgerTab> {
         .fold(0.0, (s, x) => s + x.amount);
     final totalExpense = txns.where((x) => x.type == 'expense')
         .fold(0.0, (s, x) => s + x.amount);
+    final totalPayment = txns.where((x) => x.type == 'payment')
+        .fold(0.0, (s, x) => s + x.amount);
 
     // Group by date
     final groups = <DateTime, List<Txn>>{};
@@ -312,7 +314,7 @@ class _LedgerTabState extends State<LedgerTab> {
       ..sort((a, b) => b.compareTo(a)); // newest first
 
     return Column(children: [
-      _buildHeader(txns, txns.length, totalSales, totalExpense, l),
+      _buildHeader(txns, txns.length, totalSales, totalExpense, totalPayment, l),
       // Duplicate warning banner
       if (_duplicateWarnings.isNotEmpty && !_dupBannerDismissed)
         Container(
@@ -375,7 +377,7 @@ class _LedgerTabState extends State<LedgerTab> {
 
   // ── Header ────────────────────────────────────────────────────────────────
   Widget _buildHeader(
-      List<Txn> txns, int count, double sales, double expense, String l) {
+      List<Txn> txns, int count, double sales, double expense, double payment, String l) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
@@ -416,6 +418,12 @@ class _LedgerTabState extends State<LedgerTab> {
                         style: const TextStyle(
                             color: kRed, fontWeight: FontWeight.w700),
                       ),
+                      if (payment > 0)
+                        TextSpan(
+                          text: '  ⇄${rupee(payment)}',
+                          style: const TextStyle(
+                              color: kAmber, fontWeight: FontWeight.w700),
+                        ),
                     ],
                   ),
                 ),
@@ -606,7 +614,9 @@ class _LedgerTabState extends State<LedgerTab> {
             .fold(0.0, (s, x) => s + x.amount);
         final dayExpense = items.where((x) => x.type == 'expense')
             .fold(0.0, (s, x) => s + x.amount);
-        final dayNet = daySales - dayExpense;
+        final dayPayment = items.where((x) => x.type == 'payment')
+            .fold(0.0, (s, x) => s + x.amount);
+        final dayNet = daySales - dayExpense - dayPayment;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,6 +691,14 @@ class _LedgerTabState extends State<LedgerTab> {
                                 color: kRed.withOpacity(0.8),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600)),
+                        if (dayPayment > 0) ...[
+                          const SizedBox(width: 6),
+                          Text('⇄${rupee(dayPayment)}',
+                              style: TextStyle(
+                                  color: kAmber.withOpacity(0.9),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600)),
+                        ],
                       ]),
                     ]),
                     const SizedBox(width: 8),

@@ -114,25 +114,13 @@ class AppProvider extends ChangeNotifier {
     _lang = prefs.getString('lang') ?? 'en';
 
     try {
-      Map<String, dynamic>? profileData = await _auth.getProfile(uid);
-      final email = _auth.currentUser?.email ?? '';
-
-      // Always try email lookup — handles UID mismatch when the same email
-      // signs in via different auth methods (e.g. email/password on web vs
-      // Google on Android creates a different Firebase UID).
-      // Pass skipUid so the lookup prefers the ORIGINAL account's doc
-      // (businessId ≠ current uid) over any newly-created duplicate.
-      if (email.isNotEmpty) {
-        final emailProfile = await _auth.getProfileByEmail(email, skipUid: uid);
-        if (emailProfile != null) {
-          final emailBid = (emailProfile['businessId'] as String?)?.trim() ?? '';
-          // Use the email-found profile only if it points to a DIFFERENT businessId
-          // (the original account), not the current UID.
-          if (emailBid.isNotEmpty && emailBid != uid) {
-            profileData = emailProfile;
-          }
-        }
-      }
+      // Resolve strictly by uid — staff/{uid} is this device's own account.
+      // (Cross-account linking is handled only via the explicit "Connect to
+      // Employer" flow in setManualBusinessId, which requires the staff
+      // member to paste a businessId they were given — never an automatic
+      // email match, which could silently pull in an unrelated account's
+      // business data if any other staff doc happens to share the email.)
+      final profileData = await _auth.getProfile(uid);
 
       if (profileData != null) {
         _profile    = profileData;
@@ -153,6 +141,7 @@ class AppProvider extends ChangeNotifier {
             return MapEntry(k, {
               'sales':   List<String>.from(vMap['sales']   as List? ?? []),
               'expense': List<String>.from(vMap['expense'] as List? ?? []),
+              'payment': List<String>.from(vMap['payment'] as List? ?? []),
             });
           });
         }
@@ -234,8 +223,35 @@ class AppProvider extends ChangeNotifier {
     return ['Purchase', 'Salary', 'Rent/EB', 'Other'];
   }
 
+  List<String> paymentCats(String shopId) {
+    final custom = _cats[shopId]?['payment'];
+    if (custom != null && custom.isNotEmpty) return List.from(custom);
+    return const ['Supplier', 'Loan', 'Staff', 'Utility'];
+  }
+
   void updateShopCats(String shopId, List<String> sales, List<String> expense) {
-    _cats = Map.from(_cats)..[shopId] = {'sales': sales, 'expense': expense};
+    final shopCats = Map<String, List<String>>.from(_cats[shopId] ?? {});
+    shopCats['sales']   = sales;
+    shopCats['expense'] = expense;
+    _cats = Map.from(_cats)..[shopId] = shopCats;
+    notifyListeners();
+    _persistCats();
+  }
+
+  /// Permanently adds a quick-select category for [shopId]/[type] (sale,
+  /// expense or payment) — e.g. when the user types a "+ Custom" entry
+  /// description, it's saved here so it appears as a chip next time.
+  void addCustomCategory(String shopId, String type, String category) {
+    if (category.trim().isEmpty) return;
+    final key = type == 'sale' ? 'sales' : (type == 'expense' ? 'expense' : 'payment');
+    final current = List<String>.from(
+      key == 'sales' ? salesCats(shopId) : (key == 'expense' ? expenseCats(shopId) : paymentCats(shopId)),
+    );
+    if (current.contains(category)) return;
+    current.add(category);
+    final shopCats = Map<String, List<String>>.from(_cats[shopId] ?? {});
+    shopCats[key] = current;
+    _cats = Map.from(_cats)..[shopId] = shopCats;
     notifyListeners();
     _persistCats();
   }
@@ -258,6 +274,7 @@ class AppProvider extends ChangeNotifier {
     final catsMap = _cats.map((k, v) => MapEntry(k, {
       'sales':   v['sales']   ?? [],
       'expense': v['expense'] ?? [],
+      'payment': v['payment'] ?? [],
     }));
     await _auth.saveConfig(_businessId, {'cats': catsMap});
   }
@@ -483,6 +500,7 @@ class AppProvider extends ChangeNotifier {
             return MapEntry(k, {
               'sales':   List<String>.from(vMap['sales']   as List? ?? []),
               'expense': List<String>.from(vMap['expense'] as List? ?? []),
+              'payment': List<String>.from(vMap['payment'] as List? ?? []),
             });
           });
         }

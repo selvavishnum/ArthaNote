@@ -226,6 +226,13 @@ class _AttendanceMarkSheetState extends State<_AttendanceMarkSheet> {
           .where('businessId', isEqualTo: widget.bid)
           .get();
       final names = snap.docs
+          // Empty 'shop' means the staff member has "All Shops" access
+          // (see Settings → Staff Members); otherwise only show staff
+          // assigned to the shop whose QR was scanned.
+          .where((d) {
+            final shop = (d.data()['shop'] as String?) ?? '';
+            return shop.isEmpty || shop == widget.shopId;
+          })
           .map((d) => (d.data()['name'] as String?) ?? '')
           .where((n) => n.isNotEmpty)
           .toSet()
