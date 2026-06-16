@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../l10n.dart';
+import '../models/currency.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
@@ -798,7 +799,7 @@ class _ParsedEntriesSheetState extends State<_ParsedEntriesSheet> {
             const Spacer(),
             // Amount preview
             Text(
-              '$amtSign₹${e.amtCtrl.text.isNotEmpty ? e.amtCtrl.text : '0'}',
+              '$amtSign${Currency.active.symbol}${e.amtCtrl.text.isNotEmpty ? e.amtCtrl.text : '0'}',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: color),
             ),
             const SizedBox(width: 4),
@@ -839,8 +840,8 @@ class _ParsedEntriesSheetState extends State<_ParsedEntriesSheet> {
             const SizedBox(height: 10),
 
             // Amount
-            const Text('AMOUNT (₹)',
-                style: TextStyle(color: kMuted, fontSize: 9,
+            Text('AMOUNT (${Currency.active.symbol})',
+                style: const TextStyle(color: kMuted, fontSize: 9,
                     fontWeight: FontWeight.w700, letterSpacing: 0.6)),
             const SizedBox(height: 4),
             TextFormField(
@@ -850,7 +851,7 @@ class _ParsedEntriesSheetState extends State<_ParsedEntriesSheet> {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
               decoration: InputDecoration(
                 isDense: true,
-                prefixText: '₹ ',
+                prefixText: '${Currency.active.symbol} ',
                 prefixStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: color),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

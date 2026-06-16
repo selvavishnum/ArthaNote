@@ -305,9 +305,9 @@ class _SuppliersTabState extends State<SuppliersTab> {
               controller: balCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Opening Balance ₹ (amount you owe)',
-                prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+              decoration: InputDecoration(
+                labelText: 'Opening Balance ${p.currency.symbol} (amount you owe)',
+                prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
               ),
             ),
             // Shop selector (owner only — cashier auto-assigned)
@@ -534,9 +534,9 @@ class _AddBillSheetState extends State<_AddBillSheet> {
                   const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w800, color: kPrimary),
-              decoration: const InputDecoration(
-                labelText: 'Amount ₹',
-                prefixIcon: Icon(Icons.payments_outlined),
+              decoration: InputDecoration(
+                labelText: 'Amount ${widget.p.currency.symbol}',
+                prefixIcon: const Icon(Icons.payments_outlined),
               ),
             ),
             const SizedBox(height: 12),
@@ -676,6 +676,7 @@ class _EditBillSheetState extends State<_EditBillSheet> {
   @override
   Widget build(BuildContext context) {
     final typeColor = _type == 'bill' ? kRed : kSecondary;
+    final currencySymbol = context.watch<AppProvider>().currency.symbol;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -754,9 +755,9 @@ class _EditBillSheetState extends State<_EditBillSheet> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: TextStyle(
               fontSize: 20, fontWeight: FontWeight.w800, color: typeColor),
-          decoration: const InputDecoration(
-              labelText: 'Amount ₹',
-              prefixIcon: Icon(Icons.payments_outlined)),
+          decoration: InputDecoration(
+              labelText: 'Amount $currencySymbol',
+              prefixIcon: const Icon(Icons.payments_outlined)),
         ),
         const SizedBox(height: 12),
 

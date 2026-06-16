@@ -1,0 +1,85 @@
+import 'dart:ui' as ui;
+import 'package:intl/intl.dart';
+
+/// A currency the app can display amounts in. Switching currency only
+/// changes the symbol/grouping shown — it never converts stored amounts,
+/// since each business always trades in a single, fixed currency.
+class Currency {
+  final String code;   // ISO 4217, e.g. 'INR'
+  final String symbol;
+  final String label;
+  final String locale;       // grouping locale for NumberFormat
+  final bool   useLakhCrore; // India-style L/K compact notation vs K/M elsewhere
+
+  const Currency(this.code, this.symbol, this.label, this.locale, {this.useLakhCrore = false});
+
+  // The currency currently in effect, kept in sync by AppProvider whenever
+  // it loads or changes. Lets free functions (e.g. `rupee()`) that have no
+  // BuildContext/AppProvider access still render in the right currency.
+  static Currency active = kCurrencies.first;
+
+  String format(double v) {
+    final f = NumberFormat(useLakhCrore ? '#,##,##0.##' : '#,##0.##', locale);
+    return '$symbol${f.format(v)}';
+  }
+
+  /// Abbreviated form for cards/dashboards, e.g. ₹1.5L / $1.5M.
+  String compact(double v) {
+    final av = v.abs();
+    if (useLakhCrore) {
+      if (av >= 100000) return '$symbol${(v / 100000).toStringAsFixed(1)}L';
+      if (av >= 1000)   return '$symbol${(v / 1000).toStringAsFixed(1)}K';
+    } else {
+      if (av >= 1000000) return '$symbol${(v / 1000000).toStringAsFixed(1)}M';
+      if (av >= 1000)     return '$symbol${(v / 1000).toStringAsFixed(1)}K';
+    }
+    return '$symbol${v.toStringAsFixed(0)}';
+  }
+}
+
+/// Curated list — common world currencies plus the ones most relevant to
+/// Tamil Nadu retailers and the Tamil diaspora (Gulf, Singapore, Malaysia).
+const List<Currency> kCurrencies = [
+  Currency('INR', '₹', 'Indian Rupee',        'en_IN', useLakhCrore: true),
+  Currency('USD', '\$', 'US Dollar',          'en_US'),
+  Currency('GBP', '£',  'British Pound',      'en_US'),
+  Currency('EUR', '€',  'Euro',               'en_US'),
+  Currency('AED', 'AED', 'UAE Dirham',        'en_US'),
+  Currency('SAR', 'SAR', 'Saudi Riyal',       'en_US'),
+  Currency('QAR', 'QAR', 'Qatari Riyal',      'en_US'),
+  Currency('KWD', 'KWD', 'Kuwaiti Dinar',     'en_US'),
+  Currency('OMR', 'OMR', 'Omani Rial',        'en_US'),
+  Currency('BHD', 'BHD', 'Bahraini Dinar',    'en_US'),
+  Currency('SGD', 'S\$', 'Singapore Dollar',  'en_US'),
+  Currency('MYR', 'RM', 'Malaysian Ringgit',  'en_US'),
+  Currency('AUD', 'A\$', 'Australian Dollar', 'en_US'),
+  Currency('CAD', 'C\$', 'Canadian Dollar',   'en_US'),
+  Currency('JPY', '¥',  'Japanese Yen',       'en_US'),
+  Currency('CNY', '¥',  'Chinese Yuan',       'en_US'),
+  Currency('LKR', 'Rs', 'Sri Lankan Rupee',   'en_US'),
+  Currency('NPR', 'Rs', 'Nepalese Rupee',     'en_US'),
+  Currency('BDT', '৳',  'Bangladeshi Taka',   'en_US'),
+  Currency('ZAR', 'R',  'South African Rand', 'en_US'),
+];
+
+/// Device country code → currency code, for the "System" default.
+const Map<String, String> kCountryCurrency = {
+  'IN': 'INR',
+  'US': 'USD', 'GB': 'GBP',
+  'DE': 'EUR', 'FR': 'EUR', 'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR',
+  'IE': 'EUR', 'PT': 'EUR', 'BE': 'EUR', 'AT': 'EUR', 'FI': 'EUR', 'GR': 'EUR',
+  'AE': 'AED', 'SA': 'SAR', 'QA': 'QAR', 'KW': 'KWD', 'OM': 'OMR', 'BH': 'BHD',
+  'SG': 'SGD', 'MY': 'MYR', 'AU': 'AUD', 'CA': 'CAD', 'JP': 'JPY', 'CN': 'CNY',
+  'LK': 'LKR', 'NP': 'NPR', 'BD': 'BDT', 'ZA': 'ZAR',
+};
+
+Currency currencyByCode(String code) =>
+    kCurrencies.firstWhere((c) => c.code == code, orElse: () => kCurrencies.first);
+
+/// Auto-detects a currency from the device's region. Falls back to INR —
+/// ArthaNote's home market — when the region is unset or not in our list.
+Currency detectSystemCurrency() {
+  final countryCode = ui.PlatformDispatcher.instance.locale.countryCode ?? 'IN';
+  final code = kCountryCurrency[countryCode] ?? 'INR';
+  return currencyByCode(code);
+}

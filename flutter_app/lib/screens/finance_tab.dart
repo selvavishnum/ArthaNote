@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../theme.dart';
+import '../models/currency.dart';
 import '../providers/app_provider.dart';
 import '../models/fc_member.dart';
 import '../models/fc_payment.dart';
@@ -10,12 +11,7 @@ import '../services/fc_service.dart';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-String _fmtAmt(double v) {
-  if (v >= 1e6) return '₹${(v / 1e6).toStringAsFixed(1)}L';
-  if (v >= 1e3) return '₹${(v / 1e3).toStringAsFixed(1)}K';
-  final formatted = NumberFormat('#,##,##0.##', 'en_IN').format(v);
-  return '₹$formatted';
-}
+String _fmtAmt(double v) => Currency.active.compact(v);
 
 String _nowPeriod(String frequency) => periodKey(DateTime.now(), frequency);
 String _nowYYYYMM() => DateFormat('yyyy-MM').format(DateTime.now());
@@ -426,7 +422,7 @@ class _MemberCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '₹${(member.loanAmount / 1000).toStringAsFixed(0)}K loan',
+                          '${Currency.active.symbol}${(member.loanAmount / 1000).toStringAsFixed(0)}K loan',
                           style: const TextStyle(color: kAmber, fontSize: 9, fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -1041,7 +1037,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
   @override
   Widget build(BuildContext context) {
     final freqLabels = {'daily': 'Daily', 'weekly': 'Weekly', 'monthly': 'Monthly'};
-    final amtLabel = 'Amount ₹ / ${freqLabels[_frequency] ?? ''}';
+    final amtLabel = 'Amount ${Currency.active.symbol} / ${freqLabels[_frequency] ?? ''}';
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -1113,9 +1109,9 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
           TextFormField(
             controller: _loanAmtCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Loan Amount Given ₹ (optional)',
-              prefixIcon: Icon(Icons.account_balance_outlined),
+            decoration: InputDecoration(
+              labelText: 'Loan Amount Given ${Currency.active.symbol} (optional)',
+              prefixIcon: const Icon(Icons.account_balance_outlined),
               hintText: 'e.g. 10000',
             ),
           ),
@@ -1413,9 +1409,9 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
               fontSize: 20,
               fontWeight: FontWeight.w800,
               color: kPrimary),
-          decoration: const InputDecoration(
-            labelText: 'Amount ₹',
-            prefixIcon: Icon(Icons.payments_outlined),
+          decoration: InputDecoration(
+            labelText: 'Amount ${Currency.active.symbol}',
+            prefixIcon: const Icon(Icons.payments_outlined),
           ),
         ),
         const SizedBox(height: 14),
@@ -1592,7 +1588,7 @@ class _AddChitSheetState extends State<_AddChitSheet> {
           controller: _amtCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: 'Amount ₹/member/${_frequency}',
+            labelText: 'Amount ${Currency.active.symbol}/member/${_frequency}',
             prefixIcon: const Icon(Icons.payments_outlined),
           ),
         ),
@@ -1753,9 +1749,9 @@ class _RecordPrizeSheetState extends State<_RecordPrizeSheet> {
           controller: _amtCtrl,
           keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Prize Amount ₹',
-            prefixIcon: Icon(Icons.payments_outlined),
+          decoration: InputDecoration(
+            labelText: 'Prize Amount ${Currency.active.symbol}',
+            prefixIcon: const Icon(Icons.payments_outlined),
           ),
         ),
         const SizedBox(height: 12),

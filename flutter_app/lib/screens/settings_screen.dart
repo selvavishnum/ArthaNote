@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../theme.dart';
 import '../l10n.dart';
+import '../models/currency.dart';
 import '../models/shop.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
@@ -73,6 +74,54 @@ void _showConnectDialog(BuildContext context, AppProvider p) {
               style: TextStyle(color: Colors.white)),
         ),
       ],
+    ),
+  );
+}
+
+void _showCurrencyPicker(BuildContext context, AppProvider p) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    builder: (ctx) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          const _SheetHandle(),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text('Currency',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.auto_awesome, color: kPrimary),
+                  title: const Text('System (auto-detect from device)'),
+                  subtitle: Text('Currently: ${detectSystemCurrency().symbol} ${detectSystemCurrency().code}'),
+                  trailing: p.currencyMode == 'system' ? const Icon(Icons.check, color: kPrimary) : null,
+                  onTap: () { p.setCurrency('system'); Navigator.pop(ctx); },
+                ),
+                const Divider(height: 1),
+                for (final c in kCurrencies)
+                  ListTile(
+                    leading: SizedBox(width: 28, child: Text(c.symbol, style: const TextStyle(fontSize: 16))),
+                    title: Text('${c.code} — ${c.label}'),
+                    trailing: p.currencyMode == c.code ? const Icon(Icons.check, color: kPrimary) : null,
+                    onTap: () { p.setCurrency(c.code); Navigator.pop(ctx); },
+                  ),
+              ],
+            ),
+          ),
+        ]),
+      ),
     ),
   );
 }
@@ -401,16 +450,21 @@ class SettingsScreen extends StatelessWidget {
                     Text(t('language', l),
                         style: const TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 14, color: kText)),
-                    Text(l == 'en' ? 'English' : 'தமிழ்',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                    Text(
+                      p.langMode == 'system'
+                          ? 'System (${l == 'ta' ? 'தமிழ்' : 'English'})'
+                          : (l == 'en' ? 'English' : 'தமிழ்'),
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    ),
                   ]),
                 ]),
                 SegmentedButton<String>(
                   segments: const [
+                    ButtonSegment(value: 'system', label: Text('Auto')),
                     ButtonSegment(value: 'en', label: Text('EN')),
                     ButtonSegment(value: 'ta', label: Text('தமிழ்')),
                   ],
-                  selected: {l},
+                  selected: {p.langMode},
                   onSelectionChanged: (s) => p.setLang(s.first),
                   style: ButtonStyle(
                     backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -424,6 +478,43 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Currency picker ──────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: kCardShadow,
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _showCurrencyPicker(context, p),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(children: [
+                    const Icon(Icons.currency_exchange, color: kPrimary, size: 22),
+                    const SizedBox(width: 12),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Currency',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 14, color: kText)),
+                      Text(
+                        p.currencyMode == 'system'
+                            ? 'System (${p.currency.symbol} ${p.currency.code})'
+                            : '${p.currency.symbol} ${p.currency.code} — ${p.currency.label}',
+                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                      ),
+                    ]),
+                  ]),
+                  const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              ),
             ),
           ),
 
@@ -1645,7 +1736,7 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                prefixText: '₹ ',
+                prefixText: '${widget.p.currency.symbol} ',
                 hintText: '0',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
@@ -1679,7 +1770,7 @@ class _CategoriesSheetState extends State<_CategoriesSheet> {
               ));
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('$category ₹${amt.toStringAsFixed(0)} saved ✅'),
+                  content: Text('$category ${widget.p.currency.symbol}${amt.toStringAsFixed(0)} saved ✅'),
                   backgroundColor: kSecondary,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

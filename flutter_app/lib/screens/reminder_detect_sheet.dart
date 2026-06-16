@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../models/currency.dart';
 import '../models/payment_reminder.dart';
 import '../services/reminder_service.dart';
 
@@ -112,8 +113,8 @@ class _ReminderDetectSheetState extends State<ReminderDetectSheet> {
           controller: _amount,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            labelText: 'Amount (₹)',
-            prefixText: '₹ ',
+            labelText: 'Amount (${Currency.active.symbol})',
+            prefixText: '${Currency.active.symbol} ',
             filled: true, fillColor: const Color(0xFFF9FAFB),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
