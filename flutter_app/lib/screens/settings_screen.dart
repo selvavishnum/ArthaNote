@@ -105,7 +105,7 @@ void _showCurrencyPicker(BuildContext context, AppProvider p) {
                 ListTile(
                   leading: const Icon(Icons.auto_awesome, color: kPrimary),
                   title: const Text('System (auto-detect from device)'),
-                  subtitle: Text('Currently: ${detectSystemCurrency().symbol} ${detectSystemCurrency().code}'),
+                  subtitle: Text('Currently: ${p.systemCurrency.symbol} ${p.systemCurrency.code}'),
                   trailing: p.currencyMode == 'system' ? const Icon(Icons.check, color: kPrimary) : null,
                   onTap: () { p.setCurrency('system'); Navigator.pop(ctx); },
                 ),
