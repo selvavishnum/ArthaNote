@@ -141,6 +141,7 @@ class AppProvider extends ChangeNotifier {
             return MapEntry(k, {
               'sales':   List<String>.from(vMap['sales']   as List? ?? []),
               'expense': List<String>.from(vMap['expense'] as List? ?? []),
+              'payment': List<String>.from(vMap['payment'] as List? ?? []),
             });
           });
         }
@@ -222,8 +223,35 @@ class AppProvider extends ChangeNotifier {
     return ['Purchase', 'Salary', 'Rent/EB', 'Other'];
   }
 
+  List<String> paymentCats(String shopId) {
+    final custom = _cats[shopId]?['payment'];
+    if (custom != null && custom.isNotEmpty) return List.from(custom);
+    return const ['Supplier', 'Loan', 'Staff', 'Utility'];
+  }
+
   void updateShopCats(String shopId, List<String> sales, List<String> expense) {
-    _cats = Map.from(_cats)..[shopId] = {'sales': sales, 'expense': expense};
+    final shopCats = Map<String, List<String>>.from(_cats[shopId] ?? {});
+    shopCats['sales']   = sales;
+    shopCats['expense'] = expense;
+    _cats = Map.from(_cats)..[shopId] = shopCats;
+    notifyListeners();
+    _persistCats();
+  }
+
+  /// Permanently adds a quick-select category for [shopId]/[type] (sale,
+  /// expense or payment) — e.g. when the user types a "+ Custom" entry
+  /// description, it's saved here so it appears as a chip next time.
+  void addCustomCategory(String shopId, String type, String category) {
+    if (category.trim().isEmpty) return;
+    final key = type == 'sale' ? 'sales' : (type == 'expense' ? 'expense' : 'payment');
+    final current = List<String>.from(
+      key == 'sales' ? salesCats(shopId) : (key == 'expense' ? expenseCats(shopId) : paymentCats(shopId)),
+    );
+    if (current.contains(category)) return;
+    current.add(category);
+    final shopCats = Map<String, List<String>>.from(_cats[shopId] ?? {});
+    shopCats[key] = current;
+    _cats = Map.from(_cats)..[shopId] = shopCats;
     notifyListeners();
     _persistCats();
   }
@@ -246,6 +274,7 @@ class AppProvider extends ChangeNotifier {
     final catsMap = _cats.map((k, v) => MapEntry(k, {
       'sales':   v['sales']   ?? [],
       'expense': v['expense'] ?? [],
+      'payment': v['payment'] ?? [],
     }));
     await _auth.saveConfig(_businessId, {'cats': catsMap});
   }
@@ -471,6 +500,7 @@ class AppProvider extends ChangeNotifier {
             return MapEntry(k, {
               'sales':   List<String>.from(vMap['sales']   as List? ?? []),
               'expense': List<String>.from(vMap['expense'] as List? ?? []),
+              'payment': List<String>.from(vMap['payment'] as List? ?? []),
             });
           });
         }

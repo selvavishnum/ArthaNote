@@ -94,8 +94,6 @@ class _EntryTabState extends State<EntryTab> {
     {'type': 'payment', 'label': 'Payment',         'icon': '💳', 'color': kAmber},
   ];
 
-  static const _paymentCategories = ['Supplier', 'Loan', 'Staff', 'Utility'];
-
   bool _isPersonalShop(AppProvider p) =>
       (p.shops[_shopId]?.type ?? '') == 'personal';
 
@@ -103,7 +101,7 @@ class _EntryTabState extends State<EntryTab> {
     if (_isPersonalShop(p))  return [];
     if (_type == 'sale')     return p.salesCats(_shopId);
     if (_type == 'expense')  return p.expenseCats(_shopId);
-    return _paymentCategories;
+    return p.paymentCats(_shopId);
   }
 
   Map<String, dynamic> get _selectedTypeConfig =>
@@ -616,6 +614,7 @@ class _EntryTabState extends State<EntryTab> {
                     );
                     if (result != null && result.isNotEmpty) {
                       setState(() => _desc.text = result);
+                      p.addCustomCategory(_shopId, _type, result);
                     }
                   },
                   child: Container(
