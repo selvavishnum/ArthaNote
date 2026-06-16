@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/currency.dart';
 import '../models/shop.dart';
 import '../models/txn.dart';
 import '../services/auth_service.dart';
@@ -11,7 +13,10 @@ class AppProvider extends ChangeNotifier {
   final _auth  = AuthService();
   final _dbSvc = DbService();
 
-  String             _lang         = 'en';
+  // 'system' | 'en' | 'ta' — "system" follows the device's language setting.
+  String             _langMode     = 'system';
+  // 'system' | ISO 4217 code — "system" follows the device's region.
+  String             _currencyMode = 'system';
   String             _businessId   = '';
   String             _selectedShop = '';
   Map<String, Shop>  _shops        = {};
@@ -38,7 +43,23 @@ class AppProvider extends ChangeNotifier {
   List<Txn>          _employerTxns       = [];
 
   // ── Getters ───────────────────────────────────────────────────────────────
-  String             get lang         => _lang;
+  // Effective language — resolved from the device locale when mode is 'system'.
+  String get lang {
+    if (_langMode == 'system') {
+      return ui.PlatformDispatcher.instance.locale.languageCode == 'ta' ? 'ta' : 'en';
+    }
+    return _langMode;
+  }
+  String get langMode => _langMode;
+
+  // Effective currency — resolved from the device region when mode is 'system'.
+  Currency get currency {
+    final c = _currencyMode == 'system' ? detectSystemCurrency() : currencyByCode(_currencyMode);
+    Currency.active = c;
+    return c;
+  }
+  String get currencyMode => _currencyMode;
+
   String             get businessId   => _businessId;
   String             get selectedShop => _selectedShop;
   Map<String, Shop>  get shops        => Map.unmodifiable(_shops);
@@ -111,7 +132,12 @@ class AppProvider extends ChangeNotifier {
   // ── init ──────────────────────────────────────────────────────────────────
   Future<void> init(String uid) async {
     final prefs = await SharedPreferences.getInstance();
-    _lang = prefs.getString('lang') ?? 'en';
+    // Preserve a pre-existing explicit language choice (no 'lang_mode' yet,
+    // but a legacy 'lang' value) so this feature doesn't silently change a
+    // returning user's language. Brand-new installs default to 'system'.
+    _langMode     = prefs.getString('lang_mode') ?? prefs.getString('lang') ?? 'system';
+    _currencyMode = prefs.getString('currency_mode') ?? 'system';
+    currency; // sync Currency.active immediately, before any widget reads it
 
     try {
       // Resolve strictly by uid — staff/{uid} is this device's own account.
@@ -164,11 +190,22 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ── Language ──────────────────────────────────────────────────────────────
+  // l: 'system' | 'en' | 'ta'
   void setLang(String l) async {
-    _lang = l;
+    _langMode = l;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('lang', l);
+    await prefs.setString('lang_mode', l);
+  }
+
+  // ── Currency ──────────────────────────────────────────────────────────────
+  // code: 'system' | ISO 4217 code (e.g. 'USD')
+  void setCurrency(String code) async {
+    _currencyMode = code;
+    currency; // sync Currency.active immediately
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('currency_mode', code);
   }
 
   // ── Shop selection ────────────────────────────────────────────────────────

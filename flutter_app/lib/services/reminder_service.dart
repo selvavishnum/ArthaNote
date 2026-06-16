@@ -5,6 +5,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
+import '../models/currency.dart';
 import '../models/payment_reminder.dart';
 
 // ── Keyword detection patterns ─────────────────────────────────────────────
@@ -222,7 +223,7 @@ class ReminderService {
       final title   = dayOffset == 0
           ? '${reminderTypeLabel(r.type)} due today!'
           : '${reminderTypeLabel(r.type)} due in $dayOffset days';
-      final body = '₹${r.amount.toStringAsFixed(0)} — ${r.name}';
+      final body = '${Currency.active.symbol}${r.amount.toStringAsFixed(0)} — ${r.name}';
 
       await _notif.zonedSchedule(
         notifId,
@@ -270,7 +271,7 @@ class ReminderService {
     final text = Uri.encodeComponent(
       '🔔 Payment Reminder\n\n'
       '${reminderTypeLabel(r.type)}: ${r.name}\n'
-      'Amount: ₹${r.amount.toStringAsFixed(0)}\n'
+      'Amount: ${Currency.active.symbol}${r.amount.toStringAsFixed(0)}\n'
       'Due: $due\n\n'
       '— Sent from ArthaNote',
     );

@@ -11,6 +11,7 @@ import '../l10n.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
 import '../services/db_service.dart';
+import '../models/currency.dart';
 import '../models/txn.dart';
 import '../models/shop.dart';
 import 'dashboard_tab.dart';
@@ -593,12 +594,6 @@ class _QuickReportSheet extends StatelessWidget {
   final Map<String, Shop> shops;
   const _QuickReportSheet({required this.businessId, required this.shops});
 
-  static String _fmt(double v) {
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000)   return '₹${(v / 1000).toStringAsFixed(1)}K';
-    return '₹${v.toStringAsFixed(0)}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -665,11 +660,11 @@ class _QuickReportSheet extends StatelessWidget {
                   children: [
                     // Period summary grid
                     Row(children: [
-                      _PeriodCard('Today', todaySales, todayExp, todayNet, const Color(0xFF065F46), const Color(0xFFF0FDF4)),
+                      _PeriodCard('Today', todaySales, todayExp, todayNet, const Color(0xFF065F46), const Color(0xFFF0FDF4), p.currency),
                       const SizedBox(width: 8),
-                      _PeriodCard('This Week', weekSales, weekExp, weekNet, const Color(0xFF1D4ED8), const Color(0xFFEFF6FF)),
+                      _PeriodCard('This Week', weekSales, weekExp, weekNet, const Color(0xFF1D4ED8), const Color(0xFFEFF6FF), p.currency),
                       const SizedBox(width: 8),
-                      _PeriodCard('Month', monthSales, monthExp, monthNet, const Color(0xFF7C3AED), const Color(0xFFFDF4FF)),
+                      _PeriodCard('Month', monthSales, monthExp, monthNet, const Color(0xFF7C3AED), const Color(0xFFFDF4FF), p.currency),
                     ]),
                     const SizedBox(height: 16),
                     // Today by shop
@@ -697,9 +692,9 @@ class _QuickReportSheet extends StatelessWidget {
                           Expanded(child: Text(name,
                               style: const TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13))),
                           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                            Text(_fmt(ss),
+                            Text(p.currency.compact(ss),
                                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kText)),
-                            Text('Net ${sn >= 0 ? '+' : ''}${_fmt(sn)}',
+                            Text('Net ${sn >= 0 ? '+' : ''}${p.currency.compact(sn)}',
                                 style: TextStyle(fontSize: 10,
                                     color: sn >= 0 ? kPrimary : kRed,
                                     fontWeight: FontWeight.w600)),
@@ -728,13 +723,8 @@ class _PeriodCard extends StatelessWidget {
   final String label;
   final double sales, exp, net;
   final Color accentColor, bgColor;
-  const _PeriodCard(this.label, this.sales, this.exp, this.net, this.accentColor, this.bgColor);
-
-  static String _fmt(double v) {
-    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000)   return '₹${(v / 1000).toStringAsFixed(1)}K';
-    return '₹${v.toStringAsFixed(0)}';
-  }
+  final Currency currency;
+  const _PeriodCard(this.label, this.sales, this.exp, this.net, this.accentColor, this.bgColor, this.currency);
 
   @override
   Widget build(BuildContext context) => Expanded(
@@ -749,10 +739,10 @@ class _PeriodCard extends StatelessWidget {
         Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
             color: accentColor, letterSpacing: 0.3)),
         const SizedBox(height: 4),
-        Text(_fmt(sales), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accentColor)),
-        Text('Exp: ${_fmt(exp)}', style: const TextStyle(fontSize: 9, color: kMuted)),
+        Text(currency.compact(sales), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: accentColor)),
+        Text('Exp: ${currency.compact(exp)}', style: const TextStyle(fontSize: 9, color: kMuted)),
         const SizedBox(height: 2),
-        Text('Net ${net >= 0 ? '+' : ''}${_fmt(net)}',
+        Text('Net ${net >= 0 ? '+' : ''}${currency.compact(net)}',
             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
                 color: net >= 0 ? const Color(0xFF059669) : kRed)),
       ]),

@@ -7,6 +7,7 @@ import '../l10n.dart';
 import '../models/txn.dart';
 import '../models/shop.dart';
 import '../models/supplier.dart';
+import '../models/currency.dart';
 import '../models/payment_reminder.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
@@ -15,11 +16,12 @@ import 'shop_detail_screen.dart';
 import 'reminders_screen.dart';
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
-final _inrFmt   = NumberFormat('#,##,##0', 'en_IN');
-// Module-level singletons — avoids allocating a new DateFormat on every
+// Module-level singleton — avoids allocating a new DateFormat on every
 // list iteration (was creating thousands of objects per render pass).
 final _dayFmt   = DateFormat('yyyy-MM-dd');
-String rupee(double v) => '₹${_inrFmt.format(v.abs())}';
+// Renders in the currently active currency (Currency.active, kept in sync by
+// AppProvider) — lets call sites without BuildContext format amounts too.
+String rupee(double v) => Currency.active.format(v.abs());
 
 class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
@@ -1326,9 +1328,9 @@ class _AiAlertSection extends StatelessWidget {
             autofocus: true,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Amount ₹',
-              prefixText: '₹ ',
+            decoration: InputDecoration(
+              labelText: 'Amount ${Currency.active.symbol}',
+              prefixText: '${Currency.active.symbol} ',
             ),
           ),
           const SizedBox(height: 20),
@@ -1417,7 +1419,7 @@ class _UpcomingPaymentsCardState extends State<_UpcomingPaymentsCard> {
             const Text('Upcoming Payments', style: TextStyle(
                 fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
             const Spacer(),
-            Text('₹${total.toStringAsFixed(0)} total',
+            Text('${Currency.active.symbol}${total.toStringAsFixed(0)} total',
                 style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
             const Icon(Icons.chevron_right, size: 16, color: Color(0xFF9CA3AF)),
           ]),
@@ -1434,7 +1436,7 @@ class _UpcomingPaymentsCardState extends State<_UpcomingPaymentsCard> {
                 Text(reminderTypeLabel(r.type).split(' ').first, style: const TextStyle(fontSize: 18)),
                 const SizedBox(width: 8),
                 Expanded(child: Text(r.name, style: const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
-                Text('₹${r.amount.toStringAsFixed(0)}',
+                Text('${Currency.active.symbol}${r.amount.toStringAsFixed(0)}',
                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
                 const SizedBox(width: 8),
                 Container(

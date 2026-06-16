@@ -174,7 +174,7 @@ class _EntryScreenState extends State<EntryScreen> {
                 fontWeight: FontWeight.w800,
                 color: color),
             decoration: InputDecoration(
-              prefixText: '₹ ',
+              prefixText: '${p.currency.symbol} ',
               prefixStyle: TextStyle(
                   fontSize: 32, fontWeight: FontWeight.w800, color: color),
               hintText: '0',

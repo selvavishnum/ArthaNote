@@ -490,7 +490,7 @@ class _EntryTabState extends State<EntryTab> {
 
           // AMOUNT
           _LabelField(
-            label: 'AMOUNT (${t("amount", l).split(" ").last})',
+            label: 'AMOUNT (${p.currency.symbol})',
             child: TextFormField(
               controller: _amount,
               keyboardType:
@@ -502,7 +502,7 @@ class _EntryTabState extends State<EntryTab> {
               ),
               decoration: InputDecoration(
                 hintText: '0',
-                prefixText: '₹ ',
+                prefixText: '${p.currency.symbol} ',
                 prefixStyle: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,

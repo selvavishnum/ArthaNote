@@ -229,7 +229,7 @@ class _LedgerTabState extends State<LedgerTab> {
       '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
 
   // Single O(n²) pass returning both warnings and IDs — avoids scanning twice.
-  static ({List<String> warnings, Set<String> ids}) _findDuplicates(List<Txn> all) {
+  static ({List<String> warnings, Set<String> ids}) _findDuplicates(List<Txn> all, String currencySymbol) {
     final warnings = <String>[];
     final ids      = <String>{};
     for (int i = 0; i < all.length; i++) {
@@ -244,7 +244,7 @@ class _LedgerTabState extends State<LedgerTab> {
             _dayKey(a.date) == _dayKey(b.date)) {
           ids.add(a.id);
           ids.add(b.id);
-          final warn = '⚠️ Duplicate on ${_dayKey(a.date)}: "${a.desc}" ₹${a.amount.toStringAsFixed(0)}';
+          final warn = '⚠️ Duplicate on ${_dayKey(a.date)}: "${a.desc}" $currencySymbol${a.amount.toStringAsFixed(0)}';
           if (!warnings.contains(warn)) warnings.add(warn);
         }
       }
@@ -284,7 +284,7 @@ class _LedgerTabState extends State<LedgerTab> {
       _lastDupDigest = digest;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final result = _findDuplicates(all);
+        final result = _findDuplicates(all, p.currency.symbol);
         if (result.warnings.toString() != _duplicateWarnings.toString() ||
             result.ids.length != _duplicateIds.length) {
           setState(() {
@@ -1017,6 +1017,7 @@ class _EditTxnSheetState extends State<_EditTxnSheet> {
   @override
   Widget build(BuildContext context) {
     final inset = MediaQuery.of(context).viewInsets.bottom;
+    final currencySymbol = context.watch<AppProvider>().currency.symbol;
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
@@ -1094,7 +1095,7 @@ class _EditTxnSheetState extends State<_EditTxnSheet> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           decoration: InputDecoration(
-            prefixText: '₹ ',
+            prefixText: '$currencySymbol ',
             prefixStyle: const TextStyle(
                 fontSize: 22, fontWeight: FontWeight.w800, color: kPrimary),
             labelText: 'Amount',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/currency.dart';
 import '../models/payment_reminder.dart';
 import '../services/reminder_service.dart';
 
@@ -101,7 +102,7 @@ class _ReminderCard extends StatelessWidget {
             ])),
             // Right: amount + urgency
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('₹${r.amount.toStringAsFixed(0)}',
+              Text('${Currency.active.symbol}${r.amount.toStringAsFixed(0)}',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
               const SizedBox(height: 2),
               Container(
