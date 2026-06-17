@@ -103,12 +103,22 @@ flutter {
     source "../.."
 }
 
+// Force MLKit barcode-scanning 17.3.0+ which ships 16KB-aligned .so prebuilts.
+// mobile_scanner's transitive dependency pulls an older version; this overrides it.
+configurations.all {
+    resolutionStrategy {
+        force 'com.google.mlkit:barcode-scanning:17.3.0'
+    }
+}
+
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
-    implementation platform("com.google.firebase:firebase-bom:33.0.0")
+    implementation platform("com.google.firebase:firebase-bom:33.7.0")
     implementation "com.google.firebase:firebase-analytics"
-    implementation "com.google.android.gms:play-services-auth:21.0.0"
+    implementation "com.google.android.gms:play-services-auth:21.3.0"
     implementation "androidx.multidex:multidex:2.0.1"
     // Required for enableEdgeToEdge() — Android 15 edge-to-edge support
     implementation "androidx.activity:activity-ktx:1.9.3"
+    // Explicit 16KB-aligned MLKit prebuilts (fixes libbarhopper_v3.so, libimage_processing_util_jni.so)
+    implementation 'com.google.mlkit:barcode-scanning:17.3.0'
 }
