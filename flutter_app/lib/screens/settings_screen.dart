@@ -452,8 +452,8 @@ class SettingsScreen extends StatelessWidget {
                             fontWeight: FontWeight.w600, fontSize: 14, color: kText)),
                     Text(
                       p.langMode == 'system'
-                          ? 'System (${l == 'ta' ? 'தமிழ்' : 'English'})'
-                          : (l == 'en' ? 'English' : 'தமிழ்'),
+                          ? 'System (${l == 'ta' ? 'தமிழ்' : (l == 'hi' ? 'हिंदी' : 'English')})'
+                          : (l == 'ta' ? 'தமிழ்' : (l == 'hi' ? 'हिंदी' : 'English')),
                       style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                     ),
                   ]),
@@ -462,6 +462,7 @@ class SettingsScreen extends StatelessWidget {
                   segments: const [
                     ButtonSegment(value: 'system', label: Text('Auto')),
                     ButtonSegment(value: 'en', label: Text('EN')),
+                    ButtonSegment(value: 'hi', label: Text('हिं')),
                     ButtonSegment(value: 'ta', label: Text('தமிழ்')),
                   ],
                   selected: {p.langMode},

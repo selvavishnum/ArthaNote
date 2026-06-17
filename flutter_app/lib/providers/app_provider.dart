@@ -49,7 +49,11 @@ class AppProvider extends ChangeNotifier {
   // Effective language — resolved from the device locale when mode is 'system'.
   String get lang {
     if (_langMode == 'system') {
-      return ui.PlatformDispatcher.instance.locale.languageCode == 'ta' ? 'ta' : 'en';
+      switch (ui.PlatformDispatcher.instance.locale.languageCode) {
+        case 'ta': return 'ta';
+        case 'hi': return 'hi';
+        default:   return 'en';
+      }
     }
     return _langMode;
   }
