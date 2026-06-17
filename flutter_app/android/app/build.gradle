@@ -72,6 +72,12 @@ android {
         versionCode appVersionCode
         versionName appVersionName
         multiDexEnabled true
+        // Strip x86/x86_64 from ALL native libs (including plugin prebuilts).
+        // Real Android phones are ARM-only; x86_64 is emulator-only.
+        // This prevents non-16KB-aligned x86_64 prebuilts from entering the AAB.
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
         externalNativeBuild {
             cmake {
                 abiFilters "armeabi-v7a", "arm64-v8a"
