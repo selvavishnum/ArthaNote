@@ -33,7 +33,7 @@ dependencies:
   flutter_local_notifications: ^17.2.0
   timezone: ^0.9.4
   flutter_timezone: ^4.1.1
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^6.0.0
 
 dev_dependencies:
   flutter_test:
