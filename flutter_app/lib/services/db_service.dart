@@ -8,6 +8,8 @@ import 'package:uuid/uuid.dart';
 import '../models/txn.dart';
 import '../models/supplier.dart';
 import '../models/supplier_bill.dart';
+import '../models/customer.dart';
+import '../models/customer_txn.dart';
 
 class DbService {
   final _db = FirebaseFirestore.instance;
@@ -333,6 +335,94 @@ class DbService {
       },
     );
     batch.update(_db.collection('suppliers').doc(oldBill.supplierId), {
+      'balance':   FieldValue.increment(adjust),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+
+  // ── Customers (credit / உதிரி ledger) ───────────────────────────────────────
+  // Mirror of the supplier ledger, but the sign of `balance` is flipped to the
+  // shop's favour: balance > 0 means the CUSTOMER owes the shop money.
+  //   'credit'  entry → customer balance increases (+amount)
+  //   'payment' entry → customer balance decreases (-amount)
+
+  /// Signed effect of a single txn on the customer's balance.
+  static double _customerDelta(String type, double amount) =>
+      type == 'credit' ? amount : -amount;
+
+  Stream<List<Customer>> customerStream(String businessId) {
+    return _db
+        .collection('customers')
+        .where('businessId', isEqualTo: businessId)
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => Customer.fromFirestore(doc))
+          .toList();
+      list.sort((a, b) => a.name.compareTo(b.name));
+      return list;
+    });
+  }
+
+  Future<void> addCustomer(Customer customer) =>
+      _db.collection('customers').add(customer.toFirestore());
+
+  Future<void> updateCustomerInfo(String id, String name, String phone) =>
+      _db.collection('customers').doc(id).update({
+        'name':      name,
+        'phone':     phone,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+  Future<void> deleteCustomer(String id) =>
+      _db.collection('customers').doc(id).delete();
+
+  Stream<List<CustomerTxn>> allCustomerTxnStream(String businessId) {
+    return _db
+        .collection('customer_txns')
+        .where('businessId', isEqualTo: businessId)
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map((d) => CustomerTxn.fromFirestore(d)).toList();
+      list.sort((a, b) => b.date.compareTo(a.date));
+      return list;
+    });
+  }
+
+  Future<void> addCustomerTxn(CustomerTxn txn) async {
+    final batch = _db.batch();
+    batch.set(_db.collection('customer_txns').doc(), txn.toFirestore());
+    batch.update(_db.collection('customers').doc(txn.customerId), {
+      'balance':   FieldValue.increment(_customerDelta(txn.type, txn.amount)),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+
+  Future<void> deleteCustomerTxn(CustomerTxn txn) async {
+    final batch = _db.batch();
+    batch.delete(_db.collection('customer_txns').doc(txn.id));
+    // Reverse the original effect on the balance.
+    batch.update(_db.collection('customers').doc(txn.customerId), {
+      'balance':   FieldValue.increment(-_customerDelta(txn.type, txn.amount)),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+
+  /// Update a credit/payment entry and atomically re-adjust the customer balance.
+  Future<void> updateCustomerTxn(CustomerTxn oldTxn, CustomerTxn newTxn) async {
+    final adjust = _customerDelta(newTxn.type, newTxn.amount) -
+        _customerDelta(oldTxn.type, oldTxn.amount);
+    final batch = _db.batch();
+    batch.update(_db.collection('customer_txns').doc(oldTxn.id), {
+      'type':   newTxn.type,
+      'amount': newTxn.amount,
+      'desc':   newTxn.desc,
+      'date':   Timestamp.fromDate(newTxn.date),
+    });
+    batch.update(_db.collection('customers').doc(oldTxn.customerId), {
       'balance':   FieldValue.increment(adjust),
       'updatedAt': FieldValue.serverTimestamp(),
     });

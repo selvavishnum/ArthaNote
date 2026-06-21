@@ -19,6 +19,7 @@ import 'scan_tab.dart';
 import 'entry_tab.dart';
 import 'ledger_tab.dart';
 import 'suppliers_tab.dart';
+import 'customers_screen.dart';
 import 'reports_tab.dart';
 import 'finance_tab.dart';
 import 'login_screen.dart';
@@ -122,6 +123,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onTap: () {
                 Navigator.pop(ctx);
                 setState(() => _tab = entryIdx);
+              },
+            ),
+            _FabChip(
+              label: '👥 ${t('customers', p.lang)}',
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CustomersScreen()),
+                );
               },
             ),
             if (!isCashier)
