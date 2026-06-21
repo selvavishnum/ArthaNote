@@ -24,7 +24,6 @@ import '../services/db_service.dart';
 import 'login_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
-import 'admin_ads_screen.dart';
 
 void _showConnectDialog(BuildContext context, AppProvider p) {
   final ctrl = TextEditingController();
@@ -397,17 +396,6 @@ class SettingsScreen extends StatelessWidget {
                     isScrollControlled: true,
                     useSafeArea: true,
                     builder: (_) => const _OcrApiKeysSheet(),
-                  ),
-                ),
-                const _ItemDivider(),
-                _SettingsItem(
-                  icon: Icons.campaign_outlined,
-                  iconColor: const Color(0xFF059669),
-                  title: '📢 Premium Ads',
-                  subtitle: 'Manage ads shown on Reports tab',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const AdminAdsScreen()),
                   ),
                   isLast: true,
                 ),
