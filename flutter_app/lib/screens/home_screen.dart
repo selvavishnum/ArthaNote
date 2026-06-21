@@ -27,6 +27,7 @@ import 'settings_screen.dart';
 import 'qr_scan_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
+import '../widgets/ad_overlay.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +40,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _db     = DbService();
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
   DateTime? _lastBackPress;
+  // Set to true when the app goes to background; cleared after an ad is shown.
+  bool _cameFromBackground = false;
 
   @override
   void initState() {
@@ -70,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       LockService().updateLastActive();
+      _cameFromBackground = true;
     } else if (state == AppLifecycleState.resumed) {
       _checkLock();
     }
@@ -83,6 +87,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         MaterialPageRoute(builder: (_) => const LockScreen()),
       );
     }
+  }
+
+  /// Show a premium ad if the user returned from background and is now on
+  /// the Reports tab. Admin is always exempt.
+  Future<void> _maybeShowAd(int tappedIndex, int reportsIndex, bool isAdmin) async {
+    if (isAdmin) return;
+    if (tappedIndex != reportsIndex) return;
+    if (!_cameFromBackground) return;
+    _cameFromBackground = false; // consume the flag regardless of ad fetch outcome
+    final ad = await _db.getRandomActiveAd();
+    if (ad == null || !mounted) return;
+    await AdOverlay.show(context, ad);
   }
 
   List<Widget> _bodies(bool isAdmin, bool isCashier) => [
@@ -544,6 +560,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (showFinance) _item(NavIconType.finance, 'Finance', idx),
     ];
 
+    final reportsIdx = isCashier ? -1 : (isAdmin ? 5 : 4);
+
     return BottomNavigationBar(
       currentIndex: cur,
       onTap: (i) {
@@ -555,6 +573,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
         setState(() => _tab = i);
+        _maybeShowAd(i, reportsIdx, isAdmin);
       },
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,

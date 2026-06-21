@@ -10,6 +10,7 @@ import '../models/supplier.dart';
 import '../models/supplier_bill.dart';
 import '../models/customer.dart';
 import '../models/customer_txn.dart';
+import '../models/ad_banner.dart';
 
 class DbService {
   final _db = FirebaseFirestore.instance;
@@ -428,4 +429,34 @@ class DbService {
     });
     await batch.commit();
   }
+
+  // ── Premium Ads ───────────────────────────────────────────────────────────
+
+  /// Stream of all active ads — used by admin dashboard to manage them.
+  Stream<List<AdBanner>> activeAdsStream() => _db
+      .collection('ads')
+      .where('active', isEqualTo: true)
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map(AdBanner.fromFirestore).toList());
+
+  /// Returns one random active ad, or null if none exist.
+  Future<AdBanner?> getRandomActiveAd() async {
+    final snap = await _db
+        .collection('ads')
+        .where('active', isEqualTo: true)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    snap.docs.shuffle();
+    return AdBanner.fromFirestore(snap.docs.first);
+  }
+
+  Future<void> saveAd(AdBanner ad) =>
+      _db.collection('ads').add(ad.toFirestore());
+
+  Future<void> updateAd(String id, Map<String, dynamic> data) =>
+      _db.collection('ads').doc(id).update(data);
+
+  Future<void> deleteAd(String id) =>
+      _db.collection('ads').doc(id).delete();
 }
