@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>ArthaNote — Shop Ledger</title>
+<meta name="description" content="ArthaNote — the premium digital ledger for shop owners worldwide. Sales, suppliers, staff & reports.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0a0a0a;--paper:#fff;
+  --emerald:#0f7a52;--emerald-deep:#065f46;--emerald-lit:#16a169;
+  --gold:#c9a227;--gold-lit:#e3c558;
+  --line:rgba(255,255,255,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Plus Jakarta Sans',sans-serif;background:var(--ink);color:#fff;
+  -webkit-font-smoothing:antialiased;position:relative;
+}
+.serif{font-family:'Fraunces',serif}
+
+/* ambient bg */
+.bg{position:fixed;inset:0;z-index:0;overflow:hidden}
+.bg .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.4;transition:1.2s ease}
+.bg .o1{width:520px;height:520px;background:radial-gradient(circle,rgba(22,161,105,.55),transparent 70%);top:-160px;right:-120px}
+.bg .o2{width:440px;height:440px;background:radial-gradient(circle,rgba(201,162,39,.4),transparent 70%);bottom:-160px;left:-120px}
+.bg .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 70% 60% at 50% 45%,#000,transparent)}
+
+/* top bar */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:18px 24px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+.logo .mark{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 28%,var(--emerald-lit),var(--emerald) 55%,var(--emerald-deep));display:grid;place-items:center;font-family:'Fraunces',serif;font-weight:600;font-size:13px;letter-spacing:.04em;box-shadow:0 6px 18px -5px rgba(6,95,70,.7),inset 0 2px 4px rgba(255,255,255,.25)}
+.logo .wm{display:flex;flex-direction:column;line-height:1}
+.logo .wm small{font-size:8px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-lit);margin-top:3px}
+.skip{font-size:13px;font-weight:600;color:rgba(255,255,255,.55);padding:8px 14px;border-radius:100px;border:1px solid var(--line);transition:.3s;cursor:pointer;background:none;font-family:inherit}
+.skip:hover{color:#fff;border-color:rgba(255,255,255,.3)}
+
+/* slider */
+.slider{position:absolute;inset:0;z-index:10;display:flex;transition:transform .65s cubic-bezier(.16,1,.3,1);height:100%;touch-action:pan-y}
+.slide{min-width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:90px 24px 130px;position:relative;text-align:center}
+.slide-inner{max-width:520px;width:100%;display:flex;flex-direction:column;align-items:center}
+
+/* slide copy */
+.s-kicker{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-lit);margin-bottom:16px;opacity:0;transform:translateY(20px)}
+.s-title{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(30px,7vw,44px);line-height:1.08;letter-spacing:-.02em;margin-bottom:16px;opacity:0;transform:translateY(20px)}
+.s-title em{font-style:italic;color:var(--emerald-lit)}
+.s-title .gold{color:var(--gold-lit);font-style:italic}
+.s-sub{font-size:16px;color:rgba(255,255,255,.6);max-width:400px;margin-bottom:30px;opacity:0;transform:translateY(20px)}
+.slide.active .s-kicker{animation:rise .7s .15s forwards}
+.slide.active .s-title{animation:rise .7s .25s forwards}
+.slide.active .s-sub{animation:rise .7s .35s forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+
+/* phone mock */
+.phone-wrap{perspective:1400px;margin-bottom:30px;opacity:0;transform:translateY(30px) scale(.95)}
+.slide.active .phone-wrap{animation:phoneIn .9s .1s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes phoneIn{to{opacity:1;transform:none}}
+.phone{
+  position:relative;width:230px;height:466px;border-radius:38px;
+  background:linear-gradient(160deg,#222,#000);padding:10px;
+  box-shadow:0 50px 100px -36px rgba(6,95,70,.6),0 0 0 2px rgba(255,255,255,.05) inset,-22px 30px 60px -40px rgba(0,0,0,.7);
+  transform:rotateY(-12deg) rotateX(6deg);transform-style:preserve-3d;animation:tilt 9s ease-in-out infinite;
+}
+@keyframes tilt{0%,100%{transform:rotateY(-13deg) rotateX(6deg)}50%{transform:rotateY(-5deg) rotateX(2deg)}}
+.phone::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:78px;height:20px;background:#000;border-radius:0 0 14px 14px;z-index:5}
+.phone::after{content:"";position:absolute;inset:0;border-radius:38px;background:linear-gradient(125deg,rgba(255,255,255,.14),transparent 40%);pointer-events:none;z-index:6}
+.screen{width:100%;height:100%;border-radius:30px;overflow:hidden;position:relative;background:#0d3b2c;text-align:left}
+
+/* app screen content variants */
+.app{position:absolute;inset:0;color:#fff;display:flex;flex-direction:column}
+.app-h{padding:40px 18px 14px;background:linear-gradient(180deg,var(--emerald-deep),#0a3527)}
+.app-h .hi{font-size:11px;opacity:.7}
+.app-h .nm{font-family:'Fraunces',serif;font-size:19px;font-weight:600}
+.app-b{flex:1;background:#f4f6f5;color:var(--ink);padding:14px;overflow:hidden}
+.kpi{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 8px 20px -14px rgba(0,0,0,.3)}
+.kpi .l{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#888}
+.kpi .v{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.kpi .v.g{color:var(--emerald)}
+.kpi .v .gold{color:var(--gold)}
+.kpi .d{font-size:9px;color:#aaa;margin-top:2px}
+.li{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #eaeaea}
+.li:last-child{border:0}
+.li .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:14px;flex-shrink:0;background:rgba(6,95,70,.1)}
+.li .ic.y{background:rgba(201,162,39,.15)}
+.li .tx{flex:1}
+.li .tx .n{font-size:11px;font-weight:600}
+.li .tx .s{font-size:9px;color:#aaa}
+.li .am{font-size:11px;font-weight:700}
+.li .am.p{color:var(--emerald)}
+.li .am.n{color:#c0392b}
+.bars{display:flex;align-items:flex-end;gap:7px;height:90px;padding:10px 4px 0}
+.bars .b{flex:1;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--emerald-lit),var(--emerald))}
+.bars .b.gold{background:linear-gradient(180deg,var(--gold-lit),var(--gold))}
+.qr{width:120px;height:120px;margin:14px auto;border-radius:14px;background:
+  repeating-linear-gradient(0deg,#0a3527 0 8px,#fff 8px 16px),
+  repeating-linear-gradient(90deg,rgba(255,255,255,.5) 0 8px,transparent 8px 16px);
+  background-blend-mode:difference;border:6px solid #fff;box-shadow:0 8px 20px -12px rgba(0,0,0,.4)}
+.pill{display:inline-block;font-size:9px;font-weight:700;padding:3px 9px;border-radius:100px;background:rgba(6,95,70,.12);color:var(--emerald);margin-bottom:8px}
+
+/* float chips on phone */
+.fchip{position:absolute;z-index:8;padding:8px 12px;border-radius:12px;background:#fff;color:var(--ink);box-shadow:0 16px 36px -14px rgba(0,0,0,.4);font-size:11px;font-weight:700;display:flex;gap:7px;align-items:center;opacity:0}
+.slide.active .fchip{animation:chip .8s .5s cubic-bezier(.16,1,.3,1) forwards}
+.fchip.c1{top:60px;left:-26px;animation-delay:.55s}
+.fchip.c2{bottom:90px;right:-22px;animation-delay:.7s}
+@keyframes chip{from{opacity:0;transform:scale(.7) translateY(10px)}to{opacity:1;transform:none}}
+
+/* big welcome mark */
+.welcome-mark{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 35% 28%,var(--emerald-lit),var(--emerald) 55%,var(--emerald-deep));display:grid;place-items:center;font-family:'Fraunces',serif;font-weight:600;font-size:46px;color:#fff;letter-spacing:.04em;box-shadow:0 30px 70px -20px rgba(6,95,70,.8),inset 0 4px 8px rgba(255,255,255,.3);margin-bottom:30px;opacity:0;transform:scale(.7)}
+.slide.active .welcome-mark{animation:pop .9s .1s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes pop{to{opacity:1;transform:none}}
+
+/* final CTA */
+.cta-col{display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px;opacity:0;transform:translateY(20px)}
+.slide.active .cta-col{animation:rise .7s .45s forwards}
+.btn-store{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 24px;border-radius:16px;background:linear-gradient(160deg,#fff,#ededed);color:var(--ink);font-weight:700;position:relative;overflow:hidden;box-shadow:0 16px 40px -14px rgba(0,0,0,.5);animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 16px 40px -14px rgba(0,0,0,.5),0 0 0 0 rgba(22,161,105,0)}50%{box-shadow:0 16px 44px -12px rgba(0,0,0,.5),0 0 30px 2px rgba(22,161,105,.45)}}
+.btn-store::before{content:"";position:absolute;top:0;left:-120%;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);transform:skewX(-18deg);animation:shine 3.4s ease-in-out infinite}
+@keyframes shine{0%{left:-120%}55%,100%{left:170%}}
+.btn-store svg{width:24px;height:24px}
+.btn-store .t1{font-size:9px;opacity:.6;display:block;text-transform:uppercase;letter-spacing:.05em;text-align:left}
+.btn-store .t2{font-size:16px;line-height:1}
+.btn-login{display:flex;align-items:center;justify-content:center;gap:8px;padding:15px 24px;border-radius:16px;border:1px solid var(--line);color:#fff;font-weight:600;font-size:15px;transition:.3s}
+.btn-login:hover{border-color:var(--gold-lit);color:var(--gold-lit)}
+a{text-decoration:none;color:inherit}
+
+/* bottom controls */
+.controls{position:fixed;bottom:0;left:0;right:0;z-index:30;padding:24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.dots{display:flex;gap:9px}
+.dot{width:8px;height:8px;border-radius:100px;background:rgba(255,255,255,.25);transition:.4s;cursor:pointer}
+.dot.on{width:26px;background:var(--gold-lit)}
+.next{display:flex;align-items:center;gap:9px;padding:14px 24px;border-radius:100px;background:var(--emerald);color:#fff;font-weight:700;font-size:15px;border:none;cursor:pointer;font-family:inherit;transition:.3s;box-shadow:0 14px 30px -12px rgba(6,95,70,.7)}
+.next:hover{background:var(--emerald-lit);transform:translateY(-2px)}
+.next svg{width:16px;height:16px}
+.back{background:none;border:none;color:rgba(255,255,255,.4);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;padding:14px 6px;transition:.3s;opacity:0;pointer-events:none}
+.back.show{opacity:1;pointer-events:auto}
+.back:hover{color:#fff}
+
+.swipe-hint{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:25;font-size:12px;color:rgba(255,255,255,.4);display:flex;align-items:center;gap:8px;animation:hint 2.4s ease-in-out infinite;pointer-events:none}
+@keyframes hint{0%,100%{transform:translateX(-50%)}50%{transform:translate(calc(-50% + 8px))}}
+.swipe-hint.hide{display:none}
+
+@media(max-width:560px){
+  .slide{padding:84px 20px 120px}
+  .phone{width:212px;height:430px}
+  .fchip.c1{left:-14px}.fchip.c2{right:-12px}
+  .next span{display:none}.next{padding:14px;border-radius:50%}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}.s-kicker,.s-title,.s-sub,.phone-wrap,.welcome-mark,.cta-col,.fchip{opacity:1!important;transform:none!important}}
+</style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="orb o1" id="orb1"></div>
+  <div class="orb o2" id="orb2"></div>
+  <div class="grid"></div>
+</div>
+
+<div class="topbar">
+  <a href="#" class="logo"><span class="mark">AN</span><span class="wm">ArthaNote<small>Shop Ledger</small></span></a>
+  <button class="skip" onclick="go(SLIDES-1)">Skip</button>
+</div>
+
+<div class="slider" id="slider">
+
+  <!-- 1 — WELCOME -->
+  <section class="slide active">
+    <div class="slide-inner">
+      <div class="welcome-mark">AN</div>
+      <div class="s-title serif">Your shop’s ledger,<br><span class="gold">finally worthy of it.</span></div>
+      <div class="s-sub">The calm, beautiful way to run your shop’s accounts — sales, suppliers, staff & reports, all in one place.</div>
+    </div>
+  </section>
+
+  <!-- 2 — DAILY LEDGER -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="phone-wrap">
+        <div class="fchip c1">📈 +₹12,450</div>
+        <div class="fchip c2">✓ Auto-balanced</div>
+        <div class="phone"><div class="screen"><div class="app">
+          <div class="app-h"><div class="hi">Good evening,</div><div class="nm">Your Store</div></div>
+          <div class="app-b">
+            <div class="kpi"><div class="l">Today’s Sales</div><div class="v g">₹<span class="gold">48,920</span></div><div class="d">↑ 18% vs yesterday</div></div>
+            <div class="li"><div class="ic">🛒</div><div class="tx"><div class="n">Counter sale</div><div class="s">Cash · 6:24 PM</div></div><div class="am p">+₹1,200</div></div>
+            <div class="li"><div class="ic y">🚚</div><div class="tx"><div class="n">Supplier — Raja</div><div class="s">UPI · 5:10 PM</div></div><div class="am n">−₹8,500</div></div>
+            <div class="li"><div class="ic">📦</div><div class="tx"><div class="n">Online order</div><div class="s">Card · 4:45 PM</div></div><div class="am p">+₹640</div></div>
+          </div>
+        </div></div></div>
+      </div>
+      <div class="s-kicker">Daily Ledger</div>
+      <div class="s-title serif">Record any sale <em>in two taps.</em></div>
+      <div class="s-sub">Sales, expenses and payments — entered in seconds, balanced automatically, and saved even when you’re offline.</div>
+    </div>
+  </section>
+
+  <!-- 3 — SUPPLIERS -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="phone-wrap">
+        <div class="fchip c1">🧾 12 bills</div>
+        <div class="fchip c2">₹0 disputes</div>
+        <div class="phone"><div class="screen"><div class="app">
+          <div class="app-h"><div class="hi">Supplier Khata</div><div class="nm">Raja Traders</div></div>
+          <div class="app-b">
+            <div class="kpi"><div class="l">Outstanding balance</div><div class="v">₹<span style="color:#c0392b">8,500</span></div><div class="d">Due in 3 days</div></div>
+            <div class="li"><div class="ic y">📥</div><div class="tx"><div class="n">Bill #2291</div><div class="s">Jun 20</div></div><div class="am n">−₹8,500</div></div>
+            <div class="li"><div class="ic">💸</div><div class="tx"><div class="n">Paid — UPI</div><div class="s">Jun 14</div></div><div class="am p">+₹6,000</div></div>
+            <div class="li"><div class="ic y">📥</div><div class="tx"><div class="n">Bill #2104</div><div class="s">Jun 02</div></div><div class="am n">−₹6,000</div></div>
+          </div>
+        </div></div></div>
+      </div>
+      <div class="s-kicker">Supplier Khata</div>
+      <div class="s-title serif">Every payment, <em>timestamped.</em></div>
+      <div class="s-sub">A running balance you can trust — no more arguments about who paid what, or when.</div>
+    </div>
+  </section>
+
+  <!-- 4 — STAFF & QR ATTENDANCE -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="phone-wrap">
+        <div class="fchip c1">👤 No app needed</div>
+        <div class="fchip c2">⏱ 9:02 AM</div>
+        <div class="phone"><div class="screen"><div class="app">
+          <div class="app-h"><div class="hi">Staff Attendance</div><div class="nm">Scan to check in</div></div>
+          <div class="app-b" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <span class="pill">SCAN QR</span>
+            <div class="qr"></div>
+            <div class="li" style="width:100%"><div class="ic">✅</div><div class="tx"><div class="n">Suriya</div><div class="s">Present · 9:02 AM</div></div><div class="am p">In</div></div>
+            <div class="li" style="width:100%"><div class="ic">✅</div><div class="tx"><div class="n">Mani</div><div class="s">Present · 9:14 AM</div></div><div class="am p">In</div></div>
+          </div>
+        </div></div></div>
+      </div>
+      <div class="s-kicker">Staff & QR Attendance</div>
+      <div class="s-title serif">Staff check in with <em>one scan.</em></div>
+      <div class="s-sub">Put up a QR code — your team marks attendance instantly. No app and no login needed for them.</div>
+    </div>
+  </section>
+
+  <!-- 5 — REPORTS -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="phone-wrap">
+        <div class="fchip c1">📊 15 sections</div>
+        <div class="fchip c2">⬇ CSV export</div>
+        <div class="phone"><div class="screen"><div class="app">
+          <div class="app-h"><div class="hi">MIS Reports</div><div class="nm">This week</div></div>
+          <div class="app-b">
+            <div class="kpi"><div class="l">Net profit</div><div class="v g">₹<span class="gold">1,24,300</span></div><div class="d">↑ 12% this week</div></div>
+            <div class="bars"><div class="b" style="height:45%"></div><div class="b" style="height:70%"></div><div class="b" style="height:55%"></div><div class="b gold" style="height:95%"></div><div class="b" style="height:62%"></div><div class="b" style="height:80%"></div><div class="b" style="height:50%"></div></div>
+            <div class="li"><div class="ic">🧮</div><div class="tx"><div class="n">GST summary</div><div class="s">Auto-calculated</div></div><div class="am">→</div></div>
+          </div>
+        </div></div></div>
+      </div>
+      <div class="s-kicker">MIS Reports</div>
+      <div class="s-title serif">The report <em>you can show</em> with pride.</div>
+      <div class="s-sub">15 sections — sales, profit, GST, supplier dues — a complete picture, exported to CSV in one tap.</div>
+    </div>
+  </section>
+
+  <!-- 6 — FINAL CTA -->
+  <section class="slide">
+    <div class="slide-inner">
+      <div class="welcome-mark">AN</div>
+      <div class="s-title serif">Close the notebook.<br><em>Open ArthaNote.</em></div>
+      <div class="s-sub">Free to start, yours to keep. Join shop owners who finally trust their numbers.</div>
+      <div class="cta-col">
+        <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.arthanote.app" target="_blank" rel="noopener">
+          <svg viewBox="0 0 512 512" fill="currentColor"><path d="M325.3 234.3 104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg>
+          <span><span class="t1">Download on</span><span class="t2">Google Play</span></span>
+        </a>
+        <a class="btn-login" href="index.html">I already have an account — Login →</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="swipe-hint" id="hint">Swipe or tap Next →</div>
+
+<div class="controls">
+  <button class="back" id="back" onclick="go(cur-1)">← Back</button>
+  <div class="dots" id="dots"></div>
+  <button class="next" id="next" onclick="next()"><span>Next</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+</div>
+
+<script>
+const slider=document.getElementById('slider');
+const slides=[...document.querySelectorAll('.slide')];
+const SLIDES=slides.length;
+const dotsWrap=document.getElementById('dots');
+const back=document.getElementById('back');
+const nextBtn=document.getElementById('next');
+const hint=document.getElementById('hint');
+const orb1=document.getElementById('orb1'),orb2=document.getElementById('orb2');
+let cur=0;
+
+// build dots
+slides.forEach((_,i)=>{const d=document.createElement('div');d.className='dot'+(i===0?' on':'');d.onclick=()=>go(i);dotsWrap.appendChild(d);});
+const dots=[...dotsWrap.children];
+
+function render(){
+  slider.style.transform=`translateX(${-cur*100}%)`;
+  slides.forEach((s,i)=>s.classList.toggle('active',i===cur));
+  dots.forEach((d,i)=>d.classList.toggle('on',i===cur));
+  back.classList.toggle('show',cur>0);
+  nextBtn.querySelector('span').textContent = cur===SLIDES-1 ? 'Done' : 'Next';
+  hint.classList.toggle('hide',cur>0);
+  // shift ambient orbs per slide for a living background
+  orb1.style.transform=`translate(${-cur*40}px,${cur*20}px)`;
+  orb2.style.transform=`translate(${cur*40}px,${-cur*20}px)`;
+}
+function go(i){cur=Math.max(0,Math.min(SLIDES-1,i));render();}
+function next(){cur<SLIDES-1?go(cur+1):location.href='index.html';}
+
+// keyboard
+addEventListener('keydown',e=>{if(e.key==='ArrowRight')next();if(e.key==='ArrowLeft')go(cur-1);});
+
+// swipe (touch + pointer drag)
+let x0=null;
+const start=x=>x0=x;
+const end=x=>{if(x0===null)return;const dx=x-x0;if(Math.abs(dx)>50){dx<0?next():go(cur-1);}x0=null;};
+slider.addEventListener('touchstart',e=>start(e.touches[0].clientX),{passive:true});
+slider.addEventListener('touchend',e=>end(e.changedTouches[0].clientX),{passive:true});
+slider.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')start(e.clientX);});
+slider.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')end(e.clientX);});
+
+render();
+</script>
+</body>
+</html>
