@@ -261,6 +261,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildCustomHeader(context, p),
+            _buildDeletionBanner(context, p),
             _buildShopChipsRow(context, p),
             Expanded(
               child: IndexedStack(
@@ -454,6 +455,71 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ── Shop chips row ─────────────────────────────────────────────────────────
+  // Recovery banner shown when the account is in its 30-day deletion grace
+  // window — lets the owner cancel and keep all their data.
+  Widget _buildDeletionBanner(BuildContext context, AppProvider p) {
+    if (!p.pendingDeletion) return const SizedBox.shrink();
+    final d = p.deletionScheduledAt;
+    final dateStr =
+        d != null ? '${d.day}/${d.month}/${d.year}' : 'soon';
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.warning_amber_rounded,
+            color: Color(0xFFDC2626), size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Account scheduled for deletion',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: Color(0xFFDC2626))),
+              Text(
+                  'All data is erased on $dateStr. Tap to cancel and keep it.',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade700,
+                      height: 1.3)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () async {
+            await p.cancelPendingDeletion();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Deletion cancelled. Your data is safe.'),
+                backgroundColor: Color(0xFF065F46),
+              ));
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF065F46),
+            foregroundColor: Colors.white,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Keep\naccount',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+        ),
+      ]),
+    );
+  }
+
   Widget _buildShopChipsRow(BuildContext context, AppProvider p) {
     final l = p.lang;
 

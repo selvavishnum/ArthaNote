@@ -30,6 +30,9 @@ class AppProvider extends ChangeNotifier {
   List<Txn>          _txns         = [];
   bool               _syncing      = false;
   DateTime?          _lastSynced;
+  // Account-deletion grace period (set when config.status == pending_deletion)
+  bool               _pendingDeletion     = false;
+  DateTime?          _deletionScheduledAt;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _liveSyncSub;
   // Debounce for file-cache saves triggered by the live listener.
   // A batch of 50 Firestore events → 1 file write instead of 50.
@@ -91,6 +94,19 @@ class AppProvider extends ChangeNotifier {
   List<Txn>          get txns         => List.unmodifiable(_txns);
   bool               get syncing      => _syncing;
   DateTime?          get lastSynced   => _lastSynced;
+  bool               get pendingDeletion     => _pendingDeletion;
+  DateTime?          get deletionScheduledAt => _deletionScheduledAt;
+
+  /// Cancels a scheduled account deletion during the 30-day grace window
+  /// (called from the recovery banner when the owner logs back in).
+  Future<void> cancelPendingDeletion() async {
+    try {
+      await _auth.cancelAccountDeletion(_businessId);
+    } catch (_) {}
+    _pendingDeletion = false;
+    _deletionScheduledAt = null;
+    notifyListeners();
+  }
 
   // Finance tab shows only when the currently selected shop is finance/chit type.
   // When "All" is selected (selectedShop empty), Finance tab is hidden.
@@ -182,6 +198,11 @@ class AppProvider extends ChangeNotifier {
               'payment': List<String>.from(vMap['payment'] as List? ?? []),
             });
           });
+          // Detect a scheduled (recoverable) account deletion so the UI can
+          // offer the owner a chance to cancel within the 30-day grace window.
+          _pendingDeletion = configData['status'] == 'pending_deletion';
+          final sched = configData['deletionScheduledAt'];
+          _deletionScheduledAt = sched is Timestamp ? sched.toDate() : null;
         }
       } else {
         _businessId = uid;

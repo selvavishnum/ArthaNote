@@ -2990,7 +2990,10 @@ class _BackupSheetState extends State<_BackupSheet> {
 
   Future<void> _showDeleteConfirm() async {
     final confirmCtrl = TextEditingController();
+    final pwdCtrl = TextEditingController();
     bool deleting = false;
+    final AuthService _auth = AuthService();
+    final bool isGoogle = _auth.isGoogleUser;
     final businessName = widget.p.shops.values.firstOrNull?.name
         ?? widget.p.businessId;
 
@@ -3033,9 +3036,11 @@ class _BackupSheetState extends State<_BackupSheet> {
                             color: Color(0xFFDC2626))),
                     const SizedBox(height: 6),
                     Text(
-                      'This will permanently delete ALL your data: '
-                      'transactions, shops, suppliers, staff records, '
-                      'and your login. This cannot be undone.',
+                      'This schedules permanent deletion of ALL your data — '
+                      'transactions, shops, suppliers, staff records and your '
+                      'login. For your safety we keep it for 30 days: log in '
+                      'again within 30 days to cancel and recover everything. '
+                      'After 30 days it is erased and cannot be recovered.',
                       style: TextStyle(
                           color: Colors.grey.shade700, fontSize: 12, height: 1.4),
                     ),
@@ -3076,20 +3081,83 @@ class _BackupSheetState extends State<_BackupSheet> {
               onChanged: (_) => setSt(() {}),
             ),
             const SizedBox(height: 16),
+            // ── Identity re-verification (possession factor) ──────────────
+            Text(
+              isGoogle
+                  ? 'Verify it\'s you to continue:'
+                  : 'Enter your password to confirm it\'s you:',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: Colors.grey.shade800),
+            ),
+            const SizedBox(height: 8),
+            if (!isGoogle)
+              TextField(
+                controller: pwdCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: 'Account password',
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Color(0xFFDC2626), width: 2),
+                  ),
+                ),
+                onChanged: (_) => setSt(() {}),
+              )
+            else
+              Text(
+                'You\'ll be asked to sign in with Google again before deletion.',
+                style: TextStyle(
+                    fontSize: 12, color: Colors.grey.shade600, height: 1.4),
+              ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
                 onPressed: (deleting ||
-                        confirmCtrl.text.trim() != businessName)
+                        confirmCtrl.text.trim() != businessName ||
+                        (!isGoogle && pwdCtrl.text.isEmpty))
                     ? null
                     : () async {
                         setSt(() => deleting = true);
                         try {
-                          final AuthService auth = AuthService();
-                          await auth.deleteAccount(widget.p.businessId);
+                          // 1) Re-verify identity (password or Google re-login)
+                          await _auth.reauthenticate(
+                              password: isGoogle ? null : pwdCtrl.text);
+                          // 2) Schedule recoverable (30-day) deletion + sign out
+                          await _auth
+                              .requestAccountDeletion(widget.p.businessId);
                           widget.p.reset();
-                          if (ctx.mounted) Navigator.of(ctx).popUntil((r) => r.isFirst);
+                          if (ctx.mounted) {
+                            Navigator.of(ctx).popUntil((r) => r.isFirst);
+                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                              content: Text(
+                                  'Account scheduled for deletion. Log in within '
+                                  '30 days to cancel and recover your data.'),
+                              backgroundColor: Color(0xFF065F46),
+                              duration: Duration(seconds: 6),
+                            ));
+                          }
+                        } on FirebaseAuthException catch (e) {
+                          setSt(() => deleting = false);
+                          final msg = (e.code == 'wrong-password' ||
+                                  e.code == 'invalid-credential')
+                              ? 'Incorrect password. Account not deleted.'
+                              : (e.code == 'cancelled'
+                                  ? 'Verification cancelled. Account not deleted.'
+                                  : (e.message ?? 'Verification failed.'));
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                              content: Text(msg),
+                              backgroundColor: kRed,
+                            ));
+                          }
                         } catch (e) {
                           setSt(() => deleting = false);
                           if (ctx.mounted) {

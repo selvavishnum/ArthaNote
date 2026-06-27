@@ -150,6 +150,91 @@ class AuthService {
     await _auth.currentUser?.delete();
   }
 
+  // ── Account deletion security ──────────────────────────────────────────────
+
+  /// True if the signed-in user authenticates with Google (vs email/password).
+  /// Used to decide which re-verification UI to show before deletion.
+  bool get isGoogleUser =>
+      _auth.currentUser?.providerData
+          .any((p) => p.providerId == 'google.com') ??
+      false;
+
+  /// Re-verifies the current user's identity immediately before a sensitive
+  /// action (account deletion). This is the possession/knowledge factor that
+  /// stops anyone who merely knows the (publicly visible) business name from
+  /// deleting the account — they now also need the password or the Google
+  /// account. It additionally clears Firebase's `requires-recent-login`
+  /// restriction so the subsequent delete cannot fail.
+  ///
+  /// Throws a [FirebaseAuthException] on wrong password, cancellation, etc.
+  Future<void> reauthenticate({String? password}) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+          code: 'no-current-user', message: 'You are not signed in.');
+    }
+
+    if (isGoogleUser) {
+      // Re-run Google sign-in to obtain a fresh credential, then re-auth.
+      final account = await GoogleSignIn().signIn();
+      if (account == null) {
+        throw FirebaseAuthException(
+            code: 'cancelled', message: 'Verification was cancelled.');
+      }
+      final googleAuth = await account.authentication;
+      final cred = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await user.reauthenticateWithCredential(cred);
+    } else {
+      if (password == null || password.isEmpty) {
+        throw FirebaseAuthException(
+            code: 'missing-password',
+            message: 'Please enter your password to continue.');
+      }
+      final email = user.email;
+      if (email == null) {
+        throw FirebaseAuthException(
+            code: 'no-email', message: 'No email is linked to this account.');
+      }
+      final cred =
+          EmailAuthProvider.credential(email: email, password: password);
+      await user.reauthenticateWithCredential(cred);
+    }
+  }
+
+  /// Soft-deletes the account: flags it for permanent deletion after a 30-day
+  /// grace period, then signs the user out. The underlying data is RETAINED
+  /// during the grace window, so an accidental or malicious deletion can still
+  /// be reversed by logging back in (see [cancelAccountDeletion]) — this is the
+  /// safety net against the irreversible "type the name and it's gone" problem.
+  ///
+  /// Call [reauthenticate] first. The actual data purge after the grace period
+  /// is performed by [deleteAccount] (run lazily on next sign-in past the
+  /// scheduled date, by the admin panel, or by a scheduled Cloud Function).
+  Future<void> requestAccountDeletion(String businessId) async {
+    final purgeAfter = DateTime.now().add(const Duration(days: 30));
+    await _db.collection('config').doc(businessId).set({
+      'status': 'pending_deletion',
+      'deletionRequestedAt': FieldValue.serverTimestamp(),
+      'deletionScheduledAt': Timestamp.fromDate(purgeAfter),
+      'deletionRequestedByUid': _auth.currentUser?.uid,
+    }, SetOptions(merge: true));
+    await signOut();
+  }
+
+  /// Cancels a pending deletion — called when the owner logs back in during the
+  /// 30-day grace window and chooses to keep their account.
+  Future<void> cancelAccountDeletion(String businessId) async {
+    await _db.collection('config').doc(businessId).update({
+      'status': FieldValue.delete(),
+      'deletionRequestedAt': FieldValue.delete(),
+      'deletionScheduledAt': FieldValue.delete(),
+      'deletionRequestedByUid': FieldValue.delete(),
+    });
+  }
+
   Stream<List<Map<String, dynamic>>> staffAccessStream(String businessId) {
     return _db
         .collection('staff')
