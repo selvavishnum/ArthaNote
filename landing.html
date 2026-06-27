@@ -312,6 +312,94 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
 .reveal.in{opacity:1;transform:none}
 .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}.reveal.d4{transition-delay:.32s}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}.reveal{opacity:1;transform:none}}
+
+/* ============ RESPONSIVE — TABLET / MOBILE ============ */
+
+/* Large tablets & small laptops (landscape iPad ~1024) */
+@media(max-width:1024px){
+  .wrap{padding:0 24px}
+  .hero{gap:30px;padding:115px 24px 50px}
+  .phone{width:262px;height:546px}
+  .bento{gap:16px}
+  .card{padding:26px}
+}
+
+/* Tablet portrait (iPad ~768–920) */
+@media(max-width:920px){
+  nav{padding:16px 24px}
+  .hero{padding-top:120px;gap:36px}
+  .hero h1{margin-bottom:20px}
+  .hero p.lead{font-size:17px}
+  .story,.features,.how{padding:90px 0}
+  .final{padding:100px 0}
+  .sec-head{margin-bottom:48px}
+  .stats{padding:70px 0}
+  /* tablet keeps a 2-col bento but lets the hero card breathe */
+  .card.feature-hero{min-height:300px}
+  .phone{width:280px;height:582px}
+  .phone-stage{animation:none}
+}
+
+/* Small tablets / large phones (640–760) */
+@media(max-width:760px){
+  nav{padding:14px 20px}
+  .logo{font-size:18px}
+  .nav-cta{padding:9px 16px;font-size:12px}
+  .hero{padding:104px 20px 40px}
+  .hero h1{font-size:clamp(40px,11vw,56px)}
+  .marquee-track span{font-size:18px;gap:36px}
+  .story-quote{font-size:17px}
+  .float-chip{font-size:11px;padding:9px 13px}
+  .fc-1{left:-20px}.fc-2{right:-16px}
+}
+
+/* Phones (≤560) */
+@media(max-width:560px){
+  .wrap{padding:0 18px}
+  .hero{padding:96px 18px 36px}
+  .eyebrow{font-size:11px;padding:6px 12px;margin-bottom:18px}
+  .hero h1{font-size:clamp(34px,9.5vw,46px);margin-bottom:18px}
+  .hero p.lead{font-size:15.5px}
+  .hero p.tam-line{font-size:14px;margin-bottom:26px}
+  .hero-cta{flex-direction:column;align-items:stretch;gap:12px;width:100%}
+  .btn-store{justify-content:center}
+  .btn-login{justify-content:center}
+  .trust{flex-direction:column;align-items:flex-start;gap:8px;margin-top:24px}
+  .hero-visual{margin-top:20px}
+  .phone{width:248px;height:516px;border-radius:38px}
+  .float-chip{display:none}
+  .story{padding:70px 0}
+  .story-left h2{font-size:clamp(26px,7vw,34px)}
+  .story-quote{font-size:16px;padding-left:18px}
+  .step{padding:18px 14px;gap:14px}
+  .step .num{font-size:24px;width:38px}
+  .features,.how{padding:70px 0}
+  .sec-head{margin-bottom:38px}
+  .sec-head p{font-size:15px}
+  .card{padding:24px;border-radius:20px}
+  .card.feature-hero h3{font-size:24px}
+  .card.feature-hero .big-stat{font-size:42px}
+  .stats{padding:56px 0}
+  .stats-grid{gap:34px 18px}
+  .rail-step .badge{width:66px;height:66px;font-size:26px}
+  .final{padding:84px 0}
+  .final p{font-size:16px}
+  .foot-grid{flex-direction:column;gap:32px}
+  .foot-cols{gap:36px}
+  .foot-bottom{flex-direction:column;gap:8px}
+}
+
+/* Very small phones (≤360) */
+@media(max-width:360px){
+  .hero h1{font-size:32px}
+  .phone{width:228px;height:474px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+}
+
+/* Landscape phones — avoid 100vh trap */
+@media(max-height:560px) and (orientation:landscape){
+  .hero{min-height:auto;padding-top:96px;padding-bottom:40px}
+}
 </style>
 </head>
 <body>
