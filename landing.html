@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0a0a0a">
-<title>ArthaNote — The Ledger Your Shop Deserves</title>
-<meta name="description" content="ArthaNote — premium digital ledger for Tamil Nadu shop owners. Track sales, expenses, suppliers, staff attendance. Free to start.">
+<title>ArthaNote — Shop Ledger for Every Business</title>
+<meta name="description" content="ArthaNote — the premium digital ledger for shop owners worldwide. Track sales, expenses, suppliers and staff. Free to start.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet">
@@ -15,8 +15,9 @@
   --ink-soft:#1a1a1a;
   --paper:#ffffff;
   --paper-warm:#faf8f3;
-  --emerald:#065f46;
-  --emerald-lit:#0d8a64;
+  --emerald:#0f7a52;
+  --emerald-deep:#065f46;
+  --emerald-lit:#16a169;
   --gold:#c9a227;
   --gold-lit:#e3c558;
   --line:rgba(10,10,10,.08);
@@ -35,23 +36,29 @@ body{
 .wrap{max-width:1200px;margin:0 auto;padding:0 28px}
 a{text-decoration:none;color:inherit}
 
+/* ============ BRAND LOGO MARK (AN) ============ */
+.logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:20px;letter-spacing:-.02em}
+.logo .mark{
+  width:38px;height:38px;border-radius:50%;
+  background:radial-gradient(circle at 35% 28%,var(--emerald-lit),var(--emerald) 55%,var(--emerald-deep));
+  display:grid;place-items:center;color:#fff;
+  font-family:'Fraunces',serif;font-weight:600;font-size:15px;letter-spacing:.04em;
+  box-shadow:0 6px 18px -5px rgba(6,95,70,.7),inset 0 2px 4px rgba(255,255,255,.25);
+  position:relative;flex-shrink:0;
+}
+.logo .mark::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 -4px 8px rgba(0,0,0,.18)}
+.logo .wm{display:flex;flex-direction:column;line-height:1}
+.logo .wm small{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-top:3px}
+
 /* ============ NAV ============ */
 nav{
   position:fixed;top:0;left:0;right:0;z-index:100;
   display:flex;align-items:center;justify-content:space-between;
-  padding:18px 32px;
+  padding:16px 32px;
   background:rgba(255,255,255,.72);backdrop-filter:blur(18px);
   border-bottom:1px solid transparent;transition:.4s;
 }
 nav.scrolled{border-bottom:1px solid var(--line);box-shadow:0 8px 30px -20px rgba(0,0,0,.25)}
-.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:-.02em}
-.logo .mark{
-  width:34px;height:34px;border-radius:10px;
-  background:linear-gradient(135deg,var(--emerald),var(--ink));
-  display:grid;place-items:center;color:#fff;font-family:'Fraunces',serif;font-size:18px;
-  box-shadow:0 6px 18px -6px rgba(6,95,70,.6);
-}
-.logo .mark b{position:relative;top:-1px}
 .nav-links{display:flex;align-items:center;gap:30px;font-size:14px;font-weight:500}
 .nav-links a{color:#444;transition:.25s}
 .nav-links a:hover{color:var(--emerald)}
@@ -98,22 +105,31 @@ nav.scrolled{border-bottom:1px solid var(--line);box-shadow:0 8px 30px -20px rgb
   background:linear-gradient(120deg,var(--gold),var(--gold-lit));
   -webkit-background-clip:text;background-clip:text;color:transparent;font-style:italic;
 }
-.hero p.lead{font-size:18px;color:#555;max-width:480px;margin-bottom:14px}
-.hero p.tam-line{font-size:15px;color:var(--emerald);font-weight:600;margin-bottom:34px}
+.hero p.lead{font-size:18px;color:#555;max-width:480px;margin-bottom:34px}
 .hero-cta{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+
+/* ===== ATTRACTIVE 3D DOWNLOAD BUTTON ===== */
 .btn-store{
-  display:flex;align-items:center;gap:12px;
-  padding:15px 26px;border-radius:14px;
-  background:var(--ink);color:#fff;transition:.35s;position:relative;overflow:hidden;
-  box-shadow:0 16px 40px -16px rgba(0,0,0,.6);
+  display:flex;align-items:center;gap:13px;
+  padding:16px 28px;border-radius:16px;
+  background:linear-gradient(160deg,#1c1c1c,#000);color:#fff;
+  transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s;
+  position:relative;overflow:hidden;transform-style:preserve-3d;
+  box-shadow:0 14px 30px -12px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.06) inset;
+  animation:btnGlow 3.2s ease-in-out infinite;
 }
-.btn-store:hover{transform:translateY(-3px);background:var(--emerald);box-shadow:var(--shadow)}
-.btn-store svg{width:26px;height:26px}
-.btn-store .t1{font-size:10px;opacity:.75;display:block;letter-spacing:.05em;text-transform:uppercase}
-.btn-store .t2{font-size:16px;font-weight:700;letter-spacing:-.01em}
+@keyframes btnGlow{0%,100%{box-shadow:0 14px 30px -12px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.06) inset,0 0 0 0 rgba(22,161,105,0)}50%{box-shadow:0 18px 40px -12px rgba(6,95,70,.55),0 0 0 1px rgba(255,255,255,.1) inset,0 0 28px 2px rgba(22,161,105,.35)}}
+.btn-store::before{content:"";position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-18deg);animation:shine 3.4s ease-in-out infinite}
+@keyframes shine{0%{left:-120%}55%,100%{left:160%}}
+.btn-store:hover{transform:translateY(-4px) scale(1.03);background:linear-gradient(160deg,var(--emerald),var(--emerald-deep))}
+.btn-store:active{transform:translateY(-1px) scale(.99)}
+.btn-store svg{width:27px;height:27px;position:relative;z-index:1}
+.btn-store .txt{position:relative;z-index:1}
+.btn-store .t1{font-size:10px;opacity:.78;display:block;letter-spacing:.05em;text-transform:uppercase}
+.btn-store .t2{font-size:17px;font-weight:700;letter-spacing:-.01em}
 .btn-login{
   display:inline-flex;align-items:center;gap:8px;
-  padding:15px 24px;border-radius:14px;font-weight:600;font-size:15px;
+  padding:16px 24px;border-radius:16px;font-weight:600;font-size:15px;
   border:1px solid var(--line);background:#fff;transition:.3s;
 }
 .btn-login:hover{border-color:var(--emerald);color:var(--emerald);transform:translateY(-3px)}
@@ -122,19 +138,20 @@ nav.scrolled{border-bottom:1px solid var(--line);box-shadow:0 8px 30px -20px rgb
 .trust b{color:var(--ink)}
 
 /* ============ PHONE 3D ============ */
-.hero-visual{display:flex;justify-content:center;perspective:1600px}
-.phone-stage{transform-style:preserve-3d;animation:tilt 8s ease-in-out infinite}
-@keyframes tilt{0%,100%{transform:rotateY(-18deg) rotateX(6deg)}50%{transform:rotateY(-10deg) rotateX(2deg)}}
+.hero-visual{display:flex;justify-content:center;perspective:1700px}
+.phone-stage{transform-style:preserve-3d;animation:tilt 8s ease-in-out infinite;will-change:transform}
+@keyframes tilt{0%,100%{transform:rotateY(-20deg) rotateX(7deg)}50%{transform:rotateY(-10deg) rotateX(2deg)}}
 .phone{
   position:relative;width:288px;height:600px;border-radius:44px;
-  background:linear-gradient(160deg,#1a1a1a,#000);
-  padding:12px;box-shadow:0 60px 120px -40px rgba(6,95,70,.5),0 0 0 2px rgba(255,255,255,.04) inset;
+  background:linear-gradient(160deg,#222,#000);
+  padding:12px;box-shadow:0 60px 120px -40px rgba(6,95,70,.55),0 0 0 2px rgba(255,255,255,.05) inset,-30px 40px 80px -50px rgba(0,0,0,.6);
   transform-style:preserve-3d;
 }
-.phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:#000;border-radius:0 0 16px 16px;z-index:5}
+.phone::before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%) translateZ(2px);width:90px;height:24px;background:#000;border-radius:0 0 16px 16px;z-index:5}
+.phone::after{content:"";position:absolute;inset:0;border-radius:44px;background:linear-gradient(125deg,rgba(255,255,255,.14),transparent 40%);pointer-events:none;z-index:6}
 .screen{
   width:100%;height:100%;border-radius:34px;overflow:hidden;
-  background:linear-gradient(180deg,#065f46,#043b2c);position:relative;color:#fff;
+  background:linear-gradient(180deg,var(--emerald-deep),#043b2c);position:relative;color:#fff;
 }
 .scr-top{padding:46px 22px 22px}
 .scr-hi{font-size:13px;opacity:.7}
@@ -165,12 +182,13 @@ nav.scrolled{border-bottom:1px solid var(--line);box-shadow:0 8px 30px -20px rgb
 .float-chip{
   position:absolute;padding:11px 16px;border-radius:14px;background:#fff;
   box-shadow:0 20px 50px -16px rgba(0,0,0,.3);display:flex;align-items:center;gap:10px;
-  font-size:12px;font-weight:600;transform:translateZ(60px);
+  font-size:12px;font-weight:600;transform:translateZ(70px);
 }
 .float-chip .e{font-size:18px}
-.fc-1{top:80px;left:-46px;animation:bob 5s ease-in-out infinite}
-.fc-2{bottom:120px;right:-40px;animation:bob 5s ease-in-out infinite -2.5s}
-@keyframes bob{0%,100%{transform:translateZ(60px) translateY(0)}50%{transform:translateZ(60px) translateY(-14px)}}
+.fc-1{top:70px;left:-48px;animation:bob 5s ease-in-out infinite}
+.fc-2{bottom:150px;right:-42px;animation:bob 5s ease-in-out infinite -2.5s}
+.fc-3{bottom:60px;left:-30px;animation:bob 6s ease-in-out infinite -1.2s}
+@keyframes bob{0%,100%{transform:translateZ(70px) translateY(0)}50%{transform:translateZ(70px) translateY(-15px)}}
 @media(max-width:920px){
   .hero{grid-template-columns:1fr;text-align:center;padding-top:110px}
   .hero p.lead{margin-left:auto;margin-right:auto}
@@ -280,7 +298,7 @@ section{position:relative}
 @media(max-width:760px){.rail{grid-template-columns:1fr;gap:44px}.rail::before{display:none}}
 
 /* ============ FINAL CTA ============ */
-.final{padding:130px 0;position:relative;overflow:hidden;background:var(--ink);color:#fff;text-align:center}
+.final{padding:130px 0;position:relative;overflow:hidden;background:var(--ink);color:#fff;text-align:center;perspective:1200px}
 .final .orb{position:absolute;border-radius:50%;filter:blur(90px)}
 .final .o1{width:500px;height:500px;background:radial-gradient(circle,rgba(6,95,70,.5),transparent 70%);top:-150px;left:-100px}
 .final .o2{width:420px;height:420px;background:radial-gradient(circle,rgba(201,162,39,.3),transparent 70%);bottom:-150px;right:-80px}
@@ -289,8 +307,9 @@ section{position:relative}
 .final h2 em{font-style:italic;color:var(--gold-lit)}
 .final p{color:rgba(255,255,255,.6);font-size:18px;max-width:520px;margin:0 auto 40px}
 .final .hero-cta{justify-content:center}
-.final .btn-store{background:#fff;color:var(--ink)}
-.final .btn-store:hover{background:var(--gold);color:var(--ink)}
+.final .btn-store{background:linear-gradient(160deg,#fff,#eee);color:var(--ink)}
+.final .btn-store .t1{opacity:.6}
+.final .btn-store:hover{background:linear-gradient(160deg,var(--gold-lit),var(--gold));color:var(--ink)}
 .final .btn-login{background:transparent;color:#fff;border-color:var(--line-dark)}
 .final .btn-login:hover{border-color:var(--gold-lit);color:var(--gold-lit)}
 .final .micro{margin-top:28px;font-size:13px;color:rgba(255,255,255,.4)}
@@ -314,8 +333,6 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}.reveal{opacity:1;transform:none}}
 
 /* ============ RESPONSIVE — TABLET / MOBILE ============ */
-
-/* Large tablets & small laptops (landscape iPad ~1024) */
 @media(max-width:1024px){
   .wrap{padding:0 24px}
   .hero{gap:30px;padding:115px 24px 50px}
@@ -323,8 +340,6 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
   .bento{gap:16px}
   .card{padding:26px}
 }
-
-/* Tablet portrait (iPad ~768–920) */
 @media(max-width:920px){
   nav{padding:16px 24px}
   .hero{padding-top:120px;gap:36px}
@@ -334,13 +349,10 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
   .final{padding:100px 0}
   .sec-head{margin-bottom:48px}
   .stats{padding:70px 0}
-  /* tablet keeps a 2-col bento but lets the hero card breathe */
   .card.feature-hero{min-height:300px}
   .phone{width:280px;height:582px}
   .phone-stage{animation:none}
 }
-
-/* Small tablets / large phones (640–760) */
 @media(max-width:760px){
   nav{padding:14px 20px}
   .logo{font-size:18px}
@@ -350,17 +362,14 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
   .marquee-track span{font-size:18px;gap:36px}
   .story-quote{font-size:17px}
   .float-chip{font-size:11px;padding:9px 13px}
-  .fc-1{left:-20px}.fc-2{right:-16px}
+  .fc-1{left:-20px}.fc-2{right:-16px}.fc-3{left:-12px}
 }
-
-/* Phones (≤560) */
 @media(max-width:560px){
   .wrap{padding:0 18px}
   .hero{padding:96px 18px 36px}
   .eyebrow{font-size:11px;padding:6px 12px;margin-bottom:18px}
   .hero h1{font-size:clamp(34px,9.5vw,46px);margin-bottom:18px}
-  .hero p.lead{font-size:15.5px}
-  .hero p.tam-line{font-size:14px;margin-bottom:26px}
+  .hero p.lead{font-size:15.5px;margin-bottom:26px}
   .hero-cta{flex-direction:column;align-items:stretch;gap:12px;width:100%}
   .btn-store{justify-content:center}
   .btn-login{justify-content:center}
@@ -388,15 +397,11 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
   .foot-cols{gap:36px}
   .foot-bottom{flex-direction:column;gap:8px}
 }
-
-/* Very small phones (≤360) */
 @media(max-width:360px){
   .hero h1{font-size:32px}
   .phone{width:228px;height:474px}
   .stats-grid{grid-template-columns:1fr 1fr}
 }
-
-/* Landscape phones — avoid 100vh trap */
 @media(max-height:560px) and (orientation:landscape){
   .hero{min-height:auto;padding-top:96px;padding-bottom:40px}
 }
@@ -406,7 +411,7 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
 
 <!-- NAV -->
 <nav id="nav">
-  <a href="#" class="logo"><span class="mark"><b>அ</b></span> ArthaNote</a>
+  <a href="#" class="logo"><span class="mark">AN</span><span class="wm">ArthaNote<small>Shop Ledger</small></span></a>
   <div class="nav-links">
     <a href="#features">Features</a>
     <a href="#how">How it works</a>
@@ -424,14 +429,13 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
   </div>
 
   <div class="hero-copy">
-    <span class="eyebrow reveal in"><span class="dot"></span> Built for Tamil Nadu shop owners</span>
-    <h1 class="reveal in d1">Your shop’s<br><em>khata</em>, finally<br><span class="gold">worthy of it.</span></h1>
+    <span class="eyebrow reveal in"><span class="dot"></span> The shop ledger, for businesses everywhere</span>
+    <h1 class="reveal in d1">Your shop’s<br><em>ledger</em>, finally<br><span class="gold">worthy of it.</span></h1>
     <p class="lead reveal in d2">ArthaNote turns the worn notebook under your counter into a calm, beautiful digital ledger — sales, expenses, suppliers and staff, all in one place.</p>
-    <p class="tam-line tam reveal in d2">உங்க கடையோட கணக்கு, இனி கையில் — அமைதியா, அழகா.</p>
     <div class="hero-cta reveal in d3">
       <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.arthanote.app" target="_blank" rel="noopener">
         <svg viewBox="0 0 512 512" fill="currentColor"><path d="M325.3 234.3 104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg>
-        <span><span class="t1">Get it on</span><span class="t2">Google Play</span></span>
+        <span class="txt"><span class="t1">Get it on</span><span class="t2">Google Play</span></span>
       </a>
       <a class="btn-login" href="index.html">Login to your account →</a>
     </div>
@@ -445,11 +449,12 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
     <div class="phone-stage">
       <div class="float-chip fc-1"><span class="e">📈</span> Today +₹12,450</div>
       <div class="float-chip fc-2"><span class="e">🧾</span> Supplier paid</div>
+      <div class="float-chip fc-3"><span class="e">✓</span> Auto-balanced</div>
       <div class="phone">
         <div class="screen">
           <div class="scr-top">
             <div class="scr-hi">Good evening,</div>
-            <div class="scr-name">Tulsi Stores</div>
+            <div class="scr-name">Your Store</div>
             <div class="scr-card">
               <div class="lbl">Today’s Sales</div>
               <div class="amt">₹<span>48,920</span></div>
@@ -457,10 +462,10 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
             </div>
           </div>
           <div class="scr-sheet">
-            <div class="row"><div class="ic g">🥬</div><div class="info"><div class="n">Vegetable sale</div><div class="d">Cash · 6:24 PM</div></div><div class="val pos">+₹1,200</div></div>
+            <div class="row"><div class="ic g">🛒</div><div class="info"><div class="n">Counter sale</div><div class="d">Cash · 6:24 PM</div></div><div class="val pos">+₹1,200</div></div>
             <div class="row"><div class="ic y">🚚</div><div class="info"><div class="n">Supplier — Raja</div><div class="d">UPI · 5:10 PM</div></div><div class="val neg">−₹8,500</div></div>
             <div class="row"><div class="ic g">👤</div><div class="info"><div class="n">Suriya — Present</div><div class="d">Attendance · 9:02 AM</div></div><div class="val">✓</div></div>
-            <div class="row"><div class="ic y">☕</div><div class="info"><div class="n">Tea shop sale</div><div class="d">Cash · 4:45 PM</div></div><div class="val pos">+₹640</div></div>
+            <div class="row"><div class="ic y">📦</div><div class="info"><div class="n">Online order</div><div class="d">Card · 4:45 PM</div></div><div class="val pos">+₹640</div></div>
           </div>
         </div>
       </div>
@@ -471,8 +476,8 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
 <!-- MARQUEE -->
 <div class="marquee">
   <div class="marquee-track">
-    <span>Daily Ledger</span><span>Supplier Khata</span><span>Staff Attendance</span><span>OCR Scan</span><span>MIS Reports</span><span>Multi-Shop</span><span>Chit Fund</span>
-    <span>Daily Ledger</span><span>Supplier Khata</span><span>Staff Attendance</span><span>OCR Scan</span><span>MIS Reports</span><span>Multi-Shop</span><span>Chit Fund</span>
+    <span>Daily Ledger</span><span>Supplier Khata</span><span>Staff Attendance</span><span>MIS Reports</span><span>Multi-Shop</span><span>Chit Fund</span><span>CSV Export</span>
+    <span>Daily Ledger</span><span>Supplier Khata</span><span>Staff Attendance</span><span>MIS Reports</span><span>Multi-Shop</span><span>Chit Fund</span><span>CSV Export</span>
   </div>
 </div>
 
@@ -486,8 +491,8 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
         <p class="reveal d2">Torn pages. Faded ink. A calculation you redo three times because you’re not sure. The fear of a number gone missing the night before you pay a supplier.</p>
         <p class="reveal d2">ArthaNote is the quiet partner that remembers everything — so the only thing left for you to do is run your shop, and go home on time.</p>
         <div class="story-quote serif reveal d3">
-          “30 வருஷம் notebook-ல எழுதினேன். முதல்முறையா, கணக்கு என்னை தேடி வரல — நான் கணக்கை நம்புறேன்.”
-          <span class="who">— Murugan, Kirana store · Coimbatore</span>
+          “For thirty years I kept my books by hand. For the first time, the numbers come to me — and I actually trust them.”
+          <span class="who">— A shop owner, using ArthaNote</span>
         </div>
       </div>
       <div class="story-steps">
@@ -505,7 +510,7 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
     <div class="sec-head">
       <div class="kicker reveal">Everything your counter needs</div>
       <h2 class="reveal d1">One app. <em>Every part</em><br>of your business.</h2>
-      <p class="reveal d2">Designed for the way a real shop runs — fast entry, offline-ready, bilingual, and quietly powerful.</p>
+      <p class="reveal d2">Designed for the way a real shop runs — fast entry, offline-ready, multilingual, and quietly powerful.</p>
     </div>
     <div class="bento">
       <div class="card feature-hero reveal">
@@ -516,13 +521,12 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
         </div>
         <div class="big-stat">2 taps<small>to record any transaction</small></div>
       </div>
-      <div class="card reveal d1"><div class="ficon">📸</div><h3>OCR Scan</h3><p>Snap your handwritten ledger page — ArthaNote reads and digitises it instantly.</p><span class="tam-tag tam">புகைப்படம் → கணக்கு</span></div>
-      <div class="card dark reveal d2"><div class="ficon">🚚</div><h3>Supplier Khata</h3><p>Track every supplier bill and payment with a running balance you can trust.</p><span class="tam-tag tam">சப்ளையர் கணக்கு</span></div>
-      <div class="card reveal d1"><div class="ficon">🧑‍🤝‍🧑</div><h3>Staff & QR Attendance</h3><p>Staff scan a QR to mark attendance. No app, no login needed for them.</p><span class="tam-tag tam">ஊழியர் வருகை</span></div>
-      <div class="card span2 reveal d2"><div class="ficon">📊</div><h3>MIS Reports — 15 sections</h3><p>Daily, weekly, GST, profit, supplier dues — a complete picture of your shop, exportable to CSV in one tap.</p><span class="tam-tag tam">முழு அறிக்கை · CSV export</span></div>
-      <div class="card reveal d3"><div class="ficon">🏪</div><h3>Multi-Shop</h3><p>Run all your shops from one dashboard, or filter to just one.</p></div>
-      <div class="card reveal d1"><div class="ficon">💰</div><h3>Finance & Chit Fund</h3><p>Members, monthly collection, defaulter alerts and chit prizes — built in.</p><span class="tam-tag tam">சீட்டு & நிதி</span></div>
-      <div class="card dark reveal d2"><div class="ficon">🌐</div><h3>Tamil & English</h3><p>Switch language anytime. Every screen, fully bilingual.</p><span class="tam-tag tam">தமிழ் / English</span></div>
+      <div class="card dark reveal d1"><div class="ficon">🚚</div><h3>Supplier Khata</h3><p>Track every supplier bill and payment with a running balance you can trust.</p></div>
+      <div class="card reveal d2"><div class="ficon">🧑‍🤝‍🧑</div><h3>Staff & QR Attendance</h3><p>Staff scan a QR to mark attendance. No app, no login needed for them.</p></div>
+      <div class="card span2 reveal d1"><div class="ficon">📊</div><h3>MIS Reports — 15 sections</h3><p>Daily, weekly, GST, profit, supplier dues — a complete picture of your shop, exportable to CSV in one tap.</p></div>
+      <div class="card reveal d2"><div class="ficon">🏪</div><h3>Multi-Shop</h3><p>Run all your shops from one dashboard, or filter to just one.</p></div>
+      <div class="card reveal d1"><div class="ficon">💰</div><h3>Finance & Chit Fund</h3><p>Members, monthly collection, defaulter alerts and chit prizes — built in.</p></div>
+      <div class="card dark reveal d2"><div class="ficon">🌐</div><h3>Multilingual</h3><p>Switch language anytime. Fully bilingual — Tamil & English, with more on the way.</p></div>
       <div class="card reveal d3"><div class="ficon">🔒</div><h3>Private & Encrypted</h3><p>Your data, encrypted in transit and at rest. Only you can see it.</p></div>
     </div>
   </div>
@@ -534,7 +538,7 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
     <div class="stats-grid">
       <div class="stat reveal"><div class="n e">12</div><div class="l">Business types supported</div></div>
       <div class="stat reveal d1"><div class="n g">15</div><div class="l">MIS report sections</div></div>
-      <div class="stat reveal d2"><div class="n e">2</div><div class="l">Languages · Tamil & English</div></div>
+      <div class="stat reveal d2"><div class="n e">∞</div><div class="l">Shops on one dashboard</div></div>
       <div class="stat reveal d3"><div class="n g">₹0</div><div class="l">To get started</div></div>
     </div>
   </div>
@@ -549,7 +553,7 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
     </div>
     <div class="rail">
       <div class="rail-step reveal d1"><div class="badge">↓</div><h4>Download & open</h4><p>Install free from Google Play. No card, no commitment — start the moment it opens.</p></div>
-      <div class="rail-step reveal d2"><div class="badge">⚙</div><h4>Set up your shop</h4><p>Pick your business type, name your shop, choose Tamil or English. Done in 60 seconds.</p></div>
+      <div class="rail-step reveal d2"><div class="badge">⚙</div><h4>Set up your shop</h4><p>Pick your business type, name your shop, choose your language. Done in 60 seconds.</p></div>
       <div class="rail-step reveal d3"><div class="badge">✓</div><h4>Start recording</h4><p>Add your first sale and watch the worry leave. Everything backed up, automatically.</p></div>
     </div>
   </div>
@@ -561,15 +565,15 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
   <div class="orb o2"></div>
   <div class="wrap">
     <h2 class="reveal">Close the notebook.<br><em>Open ArthaNote.</em></h2>
-    <p class="reveal d1">Join the shop owners across Tamil Nadu who finally trust their numbers. Free to start, yours to keep.</p>
+    <p class="reveal d1">Join the shop owners who finally trust their numbers. Free to start, yours to keep.</p>
     <div class="hero-cta reveal d2">
       <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.arthanote.app" target="_blank" rel="noopener">
         <svg viewBox="0 0 512 512" fill="currentColor"><path d="M325.3 234.3 104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/></svg>
-        <span><span class="t1">Download on</span><span class="t2">Google Play</span></span>
+        <span class="txt"><span class="t1">Download on</span><span class="t2">Google Play</span></span>
       </a>
       <a class="btn-login" href="index.html">Login to your account →</a>
     </div>
-    <p class="micro reveal d3 tam">உங்க கடைக்காக · Made with care in Tamil Nadu</p>
+    <p class="micro reveal d3">Made with care for shop owners everywhere.</p>
   </div>
 </section>
 
@@ -578,7 +582,7 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
   <div class="wrap">
     <div class="foot-grid">
       <div class="foot-brand">
-        <a href="#" class="logo"><span class="mark"><b>அ</b></span> ArthaNote</a>
+        <a href="#" class="logo"><span class="mark">AN</span><span class="wm">ArthaNote<small>Shop Ledger</small></span></a>
         <p>The premium digital ledger for small shops. Sales, suppliers, staff and reports — calm, clear, and always with you.</p>
       </div>
       <div class="foot-cols">
@@ -604,7 +608,7 @@ footer{background:#050505;color:rgba(255,255,255,.5);padding:60px 0 40px}
       </div>
     </div>
     <div class="foot-bottom">
-      <span>© 2026 ArthaNote · Tulsi Groups · Tamil Nadu, India</span>
+      <span>© 2026 ArthaNote · Tulsi Groups</span>
       <span>tulsiprivateltd@gmail.com</span>
     </div>
   </div>
@@ -630,12 +634,12 @@ document.querySelectorAll('.card').forEach(c=>{
   });
 });
 
-// subtle phone parallax on mouse (desktop only)
+// 3D phone parallax on mouse (desktop only)
 if(matchMedia('(min-width:921px)').matches){
   const stage=document.querySelector('.phone-stage');
   addEventListener('pointermove',e=>{
     const x=(e.clientX/innerWidth-.5),y=(e.clientY/innerHeight-.5);
-    stage.style.transform=`rotateY(${-14+x*10}deg) rotateX(${4-y*8}deg)`;
+    stage.style.transform=`rotateY(${-15+x*12}deg) rotateX(${5-y*9}deg)`;
   });
 }
 </script>
