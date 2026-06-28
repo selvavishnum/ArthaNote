@@ -11,6 +11,8 @@ class Txn {
   final String   desc;
   final String   contact;
   final String   enteredBy; // email of the person who saved this entry
+  final DateTime? createdAt; // when the entry was actually recorded (for the
+                             // per-row timestamp); null for legacy entries
 
   const Txn({
     required this.id,
@@ -23,6 +25,7 @@ class Txn {
     required this.desc,
     this.contact    = '',
     this.enteredBy  = '',
+    this.createdAt,
   });
 
   factory Txn.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -38,6 +41,9 @@ class Txn {
       desc:       d['desc']       as String? ?? '',
       contact:    d['contact']    as String? ?? '',
       enteredBy:  d['enteredBy']  as String? ?? '',
+      createdAt:  d['createdAt'] is Timestamp
+          ? (d['createdAt'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -67,7 +73,11 @@ class Txn {
     'desc':       desc,
     'contact':    contact,
     'enteredBy':  enteredBy,
-    'createdAt':  FieldValue.serverTimestamp(),
+    // Preserve the real entry time when we have it; fall back to the server
+    // clock for entries created without one.
+    'createdAt':  createdAt != null
+        ? Timestamp.fromDate(createdAt!)
+        : FieldValue.serverTimestamp(),
   };
 
   Map<String, dynamic> toJson() => {
@@ -81,6 +91,7 @@ class Txn {
     'desc':       desc,
     'contact':    contact,
     'enteredBy':  enteredBy,
+    'createdAt':  createdAt?.toIso8601String(),
   };
 
   factory Txn.fromJson(Map<String, dynamic> m) => Txn(
@@ -94,6 +105,9 @@ class Txn {
     desc:       m['desc']       as String? ?? '',
     contact:    m['contact']    as String? ?? '',
     enteredBy:  m['enteredBy']  as String? ?? '',
+    createdAt:  (m['createdAt'] as String?) != null
+        ? DateTime.tryParse(m['createdAt'] as String)
+        : null,
   );
 
   Txn copyWith({
@@ -107,6 +121,7 @@ class Txn {
     String?   desc,
     String?   contact,
     String?   enteredBy,
+    DateTime? createdAt,
   }) => Txn(
     id:         id         ?? this.id,
     businessId: businessId ?? this.businessId,
@@ -118,5 +133,6 @@ class Txn {
     desc:       desc       ?? this.desc,
     contact:    contact    ?? this.contact,
     enteredBy:  enteredBy  ?? this.enteredBy,
+    createdAt:  createdAt  ?? this.createdAt,
   );
 }

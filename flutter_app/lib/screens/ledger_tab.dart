@@ -901,11 +901,24 @@ class _LedgerTile extends StatelessWidget {
                     else
                       _capitalise(txn.type),
                     if (txn.contact.isNotEmpty) txn.contact,
-                    if (txn.date.hour != 0 || txn.date.minute != 0)
-                      DateFormat('hh:mm a').format(txn.date),
                   ].join(' · '),
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                   overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                // Tiny date + time stamp on every entry. Uses the real entry
+                // time when available; legacy entries (no time) show date only.
+                Text(
+                  (txn.createdAt != null ||
+                          txn.date.hour != 0 ||
+                          txn.date.minute != 0)
+                      ? DateFormat('d MMM yyyy · h:mm a')
+                          .format(txn.createdAt ?? txn.date)
+                      : DateFormat('d MMM yyyy').format(txn.date),
+                  style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w500),
                 ),
               ]),
             ),
