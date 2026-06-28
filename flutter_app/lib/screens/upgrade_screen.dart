@@ -1,6 +1,65 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
+/// Full-screen "this is a Pro feature" placeholder shown in place of a gated
+/// screen's content when the user is on the free tier (trial ended). Tapping
+/// Upgrade opens the [UpgradeScreen] paywall.
+class ProLockView extends StatelessWidget {
+  final String feature;
+  final String blurb;
+  const ProLockView({super.key, required this.feature, required this.blurb});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: kGradient,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: const Icon(Icons.lock_rounded, color: Colors.white, size: 36),
+            ),
+            const SizedBox(height: 18),
+            Text('$feature is a Pro feature',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800, color: kText)),
+            const SizedBox(height: 8),
+            Text(blurb,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: kMuted, height: 1.4)),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const UpgradeScreen())),
+                icon: const Icon(Icons.workspace_premium_rounded),
+                label: const Text('Upgrade to Pro',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// ArthaNote Pro upgrade / paywall screen.
 ///
 /// Presents the three subscription tiers (monthly / yearly / lifetime) and the

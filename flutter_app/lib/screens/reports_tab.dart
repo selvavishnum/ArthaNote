@@ -8,6 +8,7 @@ import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../models/shop.dart';
 import 'dashboard_tab.dart' show rupee;
+import 'upgrade_screen.dart';
 
 // ── Enums & constants ─────────────────────────────────────────────────────────
 
@@ -255,6 +256,15 @@ class _ReportsTabState extends State<ReportsTab> {
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
     final all = p.txns;
+
+    // Pro gate — Reports are unlocked during the trial and for Pro users.
+    if (!p.canUseReports) {
+      return const ProLockView(
+        feature: 'Reports',
+        blurb: 'Get 15 sections of MIS reports — sales, profit, GST, '
+            'supplier dues and CSV export — with ArthaNote Pro.',
+      );
+    }
 
     if (p.syncing && all.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: kPrimary));
