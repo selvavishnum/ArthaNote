@@ -314,7 +314,9 @@ class _LedgerTabState extends State<LedgerTab> {
       ..sort((a, b) => b.compareTo(a)); // newest first
 
     return Column(children: [
-      _buildHeader(txns, txns.length, totalSales, totalExpense, totalPayment, l),
+      // Note: the Cash Book summary header now scrolls away with the list
+      // (passed into _buildList) so more ledger entries are visible. Search
+      // and the period/type filters stay pinned because they're interactive.
       // Duplicate warning banner
       if (_duplicateWarnings.isNotEmpty && !_dupBannerDismissed)
         Container(
@@ -370,7 +372,9 @@ class _LedgerTabState extends State<LedgerTab> {
                 child: CircularProgressIndicator(color: kPrimary))
             : txns.isEmpty
                 ? _buildEmpty(l)
-                : _buildList(days, groups, l, p.shops, _duplicateIds),
+                : _buildList(days, groups, l, p.shops, _duplicateIds,
+                    header: _buildHeader(txns, txns.length, totalSales,
+                        totalExpense, totalPayment, l)),
       ),
     ]);
   }
@@ -600,11 +604,16 @@ class _LedgerTabState extends State<LedgerTab> {
   // ── Expandable grouped list ───────────────────────────────────────────────
   Widget _buildList(
       List<DateTime> days, Map<DateTime, List<Txn>> groups, String l,
-      Map<String, Shop> shops, Set<String> duplicateIds) {
+      Map<String, Shop> shops, Set<String> duplicateIds,
+      {required Widget header}) {
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 100),
-      itemCount: days.length,
-      itemBuilder: (_, i) {
+      // +1 leading item: the Cash Book summary header, which now scrolls
+      // away with the list instead of staying pinned at the top.
+      itemCount: days.length + 1,
+      itemBuilder: (_, idx) {
+        if (idx == 0) return header;
+        final i     = idx - 1;
         final day   = days[i];
         final key   = DateFormat('yyyy-MM-dd').format(day);
         final items = groups[day]!;
