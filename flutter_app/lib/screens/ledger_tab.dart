@@ -313,84 +313,101 @@ class _LedgerTabState extends State<LedgerTab> {
     final days = groups.keys.toList()
       ..sort((a, b) => b.compareTo(a)); // newest first
 
-    return Column(children: [
-      // Note: the Cash Book summary header now scrolls away with the list
-      // (passed into _buildList) so more ledger entries are visible. Search
-      // and the period/type filters stay pinned because they're interactive.
-      // AI Duplicate-Entry alert — Pro/trial only, styled distinctly in
-      // golden yellow so it stands apart from the amber warning banners.
-      if (p.canUseDuplicateAlert &&
-          _duplicateWarnings.isNotEmpty &&
-          !_dupBannerDismissed)
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFEF9C3), Color(0xFFFDE68A)],
+    // Everything above the entries — duplicate alert, search bar, period &
+    // type filters, and the Cash Book summary — is built as a list of leading
+    // widgets so the WHOLE header scrolls away with the entries, giving the
+    // ledger maximum room (nothing stays pinned).
+    final Widget? dupBanner = (p.canUseDuplicateAlert &&
+            _duplicateWarnings.isNotEmpty &&
+            !_dupBannerDismissed)
+        ? Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFEF9C3), Color(0xFFFDE68A)],
+              ),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
             ),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
-          ),
-          child: Row(children: [
-            const Text('🟡', style: TextStyle(fontSize: 16)),
-            const SizedBox(width: 8),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Possible duplicate entries',
-                    style: TextStyle(
-                        color: Color(0xFF92600A),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 2),
-                ..._duplicateWarnings.map((w) => Text(w,
-                    style: const TextStyle(
-                        color: Color(0xFF92600A), fontSize: 11))),
-              ],
-            )),
-            GestureDetector(
-              onTap: () => setState(() => _dupBannerDismissed = true),
-              child: const Icon(Icons.close, size: 16, color: Color(0xFF92600A)),
-            ),
-          ]),
-        ),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-        child: TextFormField(
-          controller: _search,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: t('search_hint', l),
-            prefixIcon:
-                const Icon(Icons.search_outlined, color: kPrimary),
-            suffixIcon: _search.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      _search.clear();
-                      setState(() {});
-                    })
-                : null,
-            contentPadding: const EdgeInsets.symmetric(vertical: 10),
-            filled: true,
-            fillColor: Colors.white,
-          ),
+            child: Row(children: [
+              const Text('🟡', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Possible duplicate entries',
+                      style: TextStyle(
+                          color: Color(0xFF92600A),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  ..._duplicateWarnings.map((w) => Text(w,
+                      style: const TextStyle(
+                          color: Color(0xFF92600A), fontSize: 11))),
+                ],
+              )),
+              GestureDetector(
+                onTap: () => setState(() => _dupBannerDismissed = true),
+                child:
+                    const Icon(Icons.close, size: 16, color: Color(0xFF92600A)),
+              ),
+            ]),
+          )
+        : null;
+
+    final Widget searchField = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: TextFormField(
+        controller: _search,
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          hintText: t('search_hint', l),
+          prefixIcon: const Icon(Icons.search_outlined, color: kPrimary),
+          suffixIcon: _search.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    _search.clear();
+                    setState(() {});
+                  })
+              : null,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          filled: true,
+          fillColor: Colors.white,
         ),
       ),
+    );
+
+    final leading = <Widget>[
+      if (dupBanner != null) dupBanner,
+      searchField,
       _buildPeriodRow(l),
       _buildTypeRow(),
-      Expanded(
-        child: p.syncing && all.isEmpty
-            ? const Center(
-                child: CircularProgressIndicator(color: kPrimary))
-            : txns.isEmpty
-                ? _buildEmpty(l)
-                : _buildList(days, groups, l, p.shops, _duplicateIds,
-                    header: _buildHeader(txns, txns.length, totalSales,
-                        totalExpense, totalPayment, l)),
-      ),
-    ]);
+      if (txns.isNotEmpty)
+        _buildHeader(txns, txns.length, totalSales, totalExpense,
+            totalPayment, l),
+    ];
+
+    if (p.syncing && all.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.only(bottom: 100),
+        children: [
+          ...leading,
+          const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: CircularProgressIndicator(color: kPrimary)),
+          ),
+        ],
+      );
+    }
+    if (txns.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.only(bottom: 100),
+        children: [...leading, _buildEmpty(l)],
+      );
+    }
+    return _buildList(days, groups, l, p.shops, _duplicateIds, leading: leading);
   }
 
   // ── Header ────────────────────────────────────────────────────────────────
@@ -619,15 +636,15 @@ class _LedgerTabState extends State<LedgerTab> {
   Widget _buildList(
       List<DateTime> days, Map<DateTime, List<Txn>> groups, String l,
       Map<String, Shop> shops, Set<String> duplicateIds,
-      {required Widget header}) {
+      {required List<Widget> leading}) {
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 100),
-      // +1 leading item: the Cash Book summary header, which now scrolls
-      // away with the list instead of staying pinned at the top.
-      itemCount: days.length + 1,
+      // The leading widgets (search, filters, Cash Book summary) scroll away
+      // with the entries — nothing stays pinned, so the ledger gets full room.
+      itemCount: days.length + leading.length,
       itemBuilder: (_, idx) {
-        if (idx == 0) return header;
-        final i     = idx - 1;
+        if (idx < leading.length) return leading[idx];
+        final i     = idx - leading.length;
         final day   = days[i];
         final key   = DateFormat('yyyy-MM-dd').format(day);
         final items = groups[day]!;
