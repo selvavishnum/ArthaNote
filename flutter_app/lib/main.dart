@@ -55,6 +55,8 @@ void main() async {
   // Init reminder notifications
   await ReminderService().init();
   await ReminderService().requestPermission();
+  // Daily nudge to record entries (replaces the dashboard "no entries" banner)
+  await ReminderService().scheduleDailyEntryReminder();
 
   // Enable Firestore offline persistence with unlimited cache
   // This makes all reads instant on re-open — no network round-trip needed
