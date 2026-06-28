@@ -953,6 +953,7 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
   Future<void> _removeShop(String id) async {
     final shop = widget.p.shops[id];
     if (shop == null) return;
+    final entryCount = widget.p.shopEntryCount(id);
     final confirmCtrl = TextEditingController();
     bool canDelete = false;
 
@@ -965,6 +966,32 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: Color(0xFFDC2626), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      entryCount > 0
+                          ? 'This permanently deletes "${shop.name}" AND all '
+                              '$entryCount of its ${entryCount == 1 ? "entry" : "entries"}. '
+                              'This cannot be undone.'
+                          : 'This permanently deletes "${shop.name}". '
+                              'This cannot be undone.',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF991B1B), height: 1.4),
+                    ),
+                  ),
+                ]),
+              ),
               Text('Type "${shop.name}" to confirm removal.',
                   style: const TextStyle(fontSize: 13)),
               const SizedBox(height: 12),
@@ -1012,7 +1039,15 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
         _ctrls[id]?.dispose();
         _ctrls.remove(id);
       });
-      widget.p.removeShop(id);
+      final removed = await widget.p.deleteShopWithEntries(id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(removed > 0
+              ? 'Shop deleted with $removed ${removed == 1 ? "entry" : "entries"}.'
+              : 'Shop deleted.'),
+          backgroundColor: kPrimary,
+        ));
+      }
     }
   }
 

@@ -237,6 +237,35 @@ class DbService {
     await saveTxnsToCache(businessId, existing);
   }
 
+  /// Permanently deletes EVERY transaction belonging to [shopId] in this
+  /// business — used when an owner deletes a shop so no orphaned entries are
+  /// left behind. Firestore deletes are batched (≤400/commit) to stay within
+  /// limits, then the local file cache is rewritten. Returns count deleted.
+  Future<int> deleteShopTxns(String businessId, String shopId) async {
+    int deleted = 0;
+    while (true) {
+      final snap = await _db
+          .collection('transactions')
+          .where('businessId', isEqualTo: businessId)
+          .where('shop', isEqualTo: shopId)
+          .limit(400)
+          .get();
+      if (snap.docs.isEmpty) break;
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      deleted += snap.docs.length;
+      if (snap.docs.length < 400) break;
+    }
+    // Rewrite the local cache without that shop's entries.
+    final existing = await loadAllTxns(businessId);
+    existing.removeWhere((t) => t.shop == shopId);
+    await saveTxnsToCache(businessId, existing);
+    return deleted;
+  }
+
   Future<void> updateTxn(Txn txn) async {
     final data = txn.toFirestore()
       ..remove('createdAt')

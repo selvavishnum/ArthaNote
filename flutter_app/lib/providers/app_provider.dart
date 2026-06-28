@@ -368,6 +368,31 @@ class AppProvider extends ChangeNotifier {
     _persistCats();
   }
 
+  /// Raw (retention-unfiltered) count of entries for a shop — used by the
+  /// shop-delete confirmation to warn how many entries will be lost.
+  int shopEntryCount(String id) =>
+      _txns.where((t) => t.shop == id).length;
+
+  /// Deletes a shop AND all its transactions permanently (no orphaned entries
+  /// left behind). Updates local cache + memory immediately, then removes the
+  /// docs server-side (which also catches any entries not in the local cache).
+  /// Returns the number of entries removed from memory.
+  Future<int> deleteShopWithEntries(String id) async {
+    final bid     = _businessId;
+    final before  = _txns.length;
+    _txns = _txns.where((t) => t.shop != id).toList();
+    final removed = before - _txns.length;
+    _shops = Map.from(_shops)..remove(id);
+    _cats  = Map.from(_cats)..remove(id);
+    if (_selectedShop == id) _selectedShop = '';
+    notifyListeners();
+    _persistShops();
+    _persistCats();
+    // Server delete + cache file rewrite.
+    await _dbSvc.deleteShopTxns(bid, id);
+    return removed;
+  }
+
   List<String> salesCats(String shopId) {
     final custom = _cats[shopId]?['sales'];
     if (custom != null && custom.isNotEmpty) return List.from(custom);
