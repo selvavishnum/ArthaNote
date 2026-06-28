@@ -147,6 +147,55 @@ class AppProvider extends ChangeNotifier {
     return role == 'cashier' && !isAdmin;
   }
 
+  // ── Monetization / Entitlements ────────────────────────────────────────────
+  // Single source of truth for Pro access and free-tier limits. Every paywalled
+  // feature MUST read these getters — never check profile['pro'] directly — so
+  // billing only has to flip one place.
+  //
+  // Pro is active when profile['pro'] == true AND the plan hasn't expired.
+  // Lifetime plans store planType == 'lifetime' with no proExpiry.
+  static const int _unlimited = 1 << 30;
+
+  bool get isPro {
+    if (isAdmin) return true; // owner/admin always has full access
+    if (_profile['pro'] != true) return false;
+    final exp = _profile['proExpiry'];
+    if (exp is Timestamp) return exp.toDate().isAfter(DateTime.now());
+    return true; // lifetime / no-expiry pro
+  }
+
+  /// 'admin' | 'lifetime' | 'yearly' | 'monthly' | 'pro' | 'free'
+  String get planType {
+    if (isAdmin) return 'admin';
+    final pt = (_profile['planType'] as String?)?.trim();
+    if (pt != null && pt.isNotEmpty) return pt;
+    return isPro ? 'pro' : 'free';
+  }
+
+  DateTime? get proExpiry {
+    final exp = _profile['proExpiry'];
+    return exp is Timestamp ? exp.toDate() : null;
+  }
+
+  // Free-tier limits (Pro / admin = unlimited)
+  int get maxShops           => isPro ? _unlimited : 1;  // + 1 personal shop
+  int get maxStaff           => isPro ? _unlimited : 10;
+  int get dataRetentionYears => isPro ? _unlimited : 2;
+
+  // Feature gates — true means the user may use the feature
+  bool get canUseReports        => isPro;
+  bool get canUseFinanceModule  => isPro;
+  bool get canUseAiAlerts       => isPro;
+  bool get canUseDuplicateAlert => isPro;
+  bool get canUseReminders      => isPro;
+
+  /// Business shops currently set up (excludes the implicit personal shop).
+  int get businessShopCount =>
+      _shops.values.where((s) => s.type.toLowerCase() != 'personal').length;
+
+  /// Whether the user may add another (business) shop under their plan.
+  bool get canAddShop => isPro || businessShopCount < maxShops;
+
   bool get isPersonal {
     if (_selectedShop.isNotEmpty) {
       return _shops[_selectedShop]?.type == 'personal';
