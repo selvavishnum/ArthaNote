@@ -259,13 +259,6 @@ class _DashboardTabState extends State<DashboardTab> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateStreak(all));
 
     final txns    = _filter(all, p);
-    final sales   = txns.where((x) => x.type == 'sale')
-        .fold(0.0, (s, x) => s + x.amount);
-    final expense = txns.where((x) => x.type == 'expense')
-        .fold(0.0, (s, x) => s + x.amount);
-    final payment = txns.where((x) => x.type == 'payment')
-        .fold(0.0, (s, x) => s + x.amount);
-    final net = sales - expense - payment;
 
     // Last 7 days overdraft check
     final now7 = DateTime.now();
@@ -276,21 +269,6 @@ class _DashboardTabState extends State<DashboardTab> {
     final last7Pay   = last7Txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
     final last7Net   = last7Sales - last7Exp - last7Pay;
     final showOverdraft = last7Net < 0;
-
-    // Most sold
-    String mostSold = '';
-    final saleTxns = txns.where((x) => x.type == 'sale').toList();
-    if (saleTxns.isNotEmpty) {
-      final freq = <String, int>{};
-      for (final tx in saleTxns) {
-        if (tx.desc.isNotEmpty) freq[tx.desc] = (freq[tx.desc] ?? 0) + 1;
-      }
-      if (freq.isNotEmpty) {
-        mostSold = freq.entries
-            .reduce((a, b) => a.value >= b.value ? a : b)
-            .key;
-      }
-    }
 
     // Today entries for AI alert
     final now         = DateTime.now();
@@ -443,54 +421,9 @@ class _DashboardTabState extends State<DashboardTab> {
                 _UpcomingPaymentsCard(onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const RemindersScreen()))),
 
-              // 4-box stat grid
-              Row(children: [
-                Expanded(
-                    child: _StatBox(
-                        label: p.isPersonal ? 'TO RECEIVE' : 'SALES',
-                        value: rupee(sales),
-                        valueColor: kSecondary,
-                        icon: '💰')),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _StatBox(
-                        label: p.isPersonal ? 'TO PAY' : 'EXPENSES',
-                        value: rupee(expense),
-                        valueColor: kRed,
-                        icon: p.isPersonal ? '💸' : '📉')),
-              ]),
-              if (!p.isPersonal && payment > 0) ...[
-                const SizedBox(height: 10),
-                _StatBox(
-                    label: 'PAYMENTS',
-                    value: rupee(payment),
-                    valueColor: kAmber,
-                    icon: '💳'),
-              ],
-              const SizedBox(height: 10),
-              Row(children: [
-                Expanded(
-                    child: _StatBox(
-                        label: p.isPersonal
-                            ? 'BALANCE'
-                            : t('net_profit', l).toUpperCase(),
-                        value: net >= 0
-                            ? '+ ${rupee(net)}'
-                            : '− ${rupee(net)}',
-                        valueColor: net >= 0 ? kSecondary : kRed,
-                        icon: net >= 0 ? '📈' : '📊')),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: _StatBox(
-                        label: t('most_sold', l).toUpperCase(),
-                        value: mostSold.isEmpty ? 'NONE' : mostSold,
-                        valueColor:
-                            mostSold.isEmpty ? kAmber : kText,
-                        icon: '⭐',
-                        valueSmall: mostSold.isNotEmpty)),
-              ]),
-
-              const SizedBox(height: 12),
+              // 4-box stat grid removed to simplify the dashboard for new
+              // users — the same Sales / Expense / Net figures are shown per
+              // shop in the Shop Summary card below.
 
               // ── Overdraft Warning ─────────────────────────────────────────
               if (showOverdraft)
@@ -578,15 +511,12 @@ class _DashboardTabState extends State<DashboardTab> {
 
               const SizedBox(height: 16),
 
-              // ── Daily Reconciliation ─────────────────────────────────────
-              _DailyReconcileSection(
-                  txns: all, businessId: p.businessId),
+              // Daily Reconciliation section removed to simplify the dashboard.
 
-              const SizedBox(height: 16),
-
-              // ── AI Missing Entry Alert ────────────────────────────────────
+              // ── AI Missing Entry Alert (Pro / trial only) ─────────────────
               _AiAlertSection(
-                show:          showAiAlert || missingItems.isNotEmpty,
+                show: p.canUseAiAlerts &&
+                    (showAiAlert || missingItems.isNotEmpty),
                 todayCount:    todayCount,
                 missingItems:  missingItems,
                 onDismiss:     () => setState(() => _dismissedDate = todayKey),
@@ -676,55 +606,6 @@ class _SectionHeader extends StatelessWidget {
                 style: const TextStyle(
                     color: kMuted, fontSize: 9, fontWeight: FontWeight.w600)),
         ],
-      );
-}
-
-// ── Stat box ──────────────────────────────────────────────────────────────────
-class _StatBox extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color  valueColor;
-  final String icon;
-  final bool   valueSmall;
-
-  const _StatBox({
-    required this.label,
-    required this.value,
-    required this.valueColor,
-    required this.icon,
-    this.valueSmall = false,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: kCardShadow,
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Text(icon, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5)),
-          ]),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: valueColor,
-              fontSize: valueSmall ? 13 : 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ]),
       );
 }
 
@@ -1035,112 +916,6 @@ class _SupplierAlertsSection extends StatelessWidget {
       },
     );
   }
-}
-
-// ── Daily Reconciliation Section ──────────────────────────────────────────────
-class _DailyReconcileSection extends StatelessWidget {
-  final List<Txn> txns;
-  final String    businessId;
-  const _DailyReconcileSection(
-      {required this.txns, required this.businessId});
-
-  @override
-  Widget build(BuildContext context) {
-    final now        = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final today      = txns.where((tx) => !tx.date.isBefore(todayStart)).toList();
-    final sales      = today
-        .where((x) => x.type == 'sale')
-        .fold(0.0, (s, x) => s + x.amount);
-    final expense    = today
-        .where((x) => x.type == 'expense')
-        .fold(0.0, (s, x) => s + x.amount);
-    final net        = sales - expense;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionHeader(icon: '📊', title: 'DAILY RECONCILIATION'),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: kCardShadow,
-          ),
-          child: today.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No entries yet',
-                        style:
-                            TextStyle(color: kMuted, fontSize: 13)),
-                  ),
-                )
-              : Column(children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Today ${DateFormat("dd MMM").format(now)}',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13),
-                      ),
-                      Text(
-                        '${today.length} entries',
-                        style: const TextStyle(
-                            color: kMuted, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(
-                        child: _ReconcileItem(
-                            label: 'Sales',
-                            value: rupee(sales),
-                            color: kSecondary)),
-                    Expanded(
-                        child: _ReconcileItem(
-                            label: 'Expenses',
-                            value: rupee(expense),
-                            color: kRed)),
-                    Expanded(
-                        child: _ReconcileItem(
-                            label: 'Net',
-                            value: rupee(net),
-                            color: net >= 0 ? kSecondary : kRed)),
-                  ]),
-                ]),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReconcileItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color  color;
-  const _ReconcileItem(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Column(children: [
-        Text(label,
-            style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 11,
-                fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text(value,
-            style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w800)),
-      ]);
 }
 
 // ── AI Missing Entry Alert Section ───────────────────────────────────────────

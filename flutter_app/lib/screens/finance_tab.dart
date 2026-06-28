@@ -8,6 +8,7 @@ import '../models/fc_member.dart';
 import '../models/fc_payment.dart';
 import '../models/fc_chit.dart';
 import '../services/fc_service.dart';
+import 'upgrade_screen.dart';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,24 @@ class _FinanceTabState extends State<FinanceTab>
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
+
+    // Pro gate — Finance & Chit module is unlocked during trial and for Pro.
+    if (!p.canUseFinanceModule) {
+      return Scaffold(
+        backgroundColor: kBg,
+        appBar: AppBar(
+          backgroundColor: kPrimary,
+          foregroundColor: Colors.white,
+          title: const Text('Finance & Chit Fund',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+        ),
+        body: const ProLockView(
+          feature: 'Finance & Chit Fund',
+          blurb: 'Manage members, monthly collections, defaulter alerts and '
+              'chit prizes with ArthaNote Pro.',
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: kBg,

@@ -314,28 +314,44 @@ class _LedgerTabState extends State<LedgerTab> {
       ..sort((a, b) => b.compareTo(a)); // newest first
 
     return Column(children: [
-      _buildHeader(txns, txns.length, totalSales, totalExpense, totalPayment, l),
-      // Duplicate warning banner
-      if (_duplicateWarnings.isNotEmpty && !_dupBannerDismissed)
+      // Note: the Cash Book summary header now scrolls away with the list
+      // (passed into _buildList) so more ledger entries are visible. Search
+      // and the period/type filters stay pinned because they're interactive.
+      // AI Duplicate-Entry alert — Pro/trial only, styled distinctly in
+      // golden yellow so it stands apart from the amber warning banners.
+      if (p.canUseDuplicateAlert &&
+          _duplicateWarnings.isNotEmpty &&
+          !_dupBannerDismissed)
         Container(
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF3C7),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFEF9C3), Color(0xFFFDE68A)],
+            ),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFFBBF24)),
+            border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
           ),
           child: Row(children: [
-            const Text('⚠️', style: TextStyle(fontSize: 16)),
+            const Text('🟡', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 8),
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _duplicateWarnings.map((w) => Text(w,
-                  style: TextStyle(color: Colors.amber.shade900, fontSize: 11))).toList(),
+              children: [
+                const Text('Possible duplicate entries',
+                    style: TextStyle(
+                        color: Color(0xFF92600A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                ..._duplicateWarnings.map((w) => Text(w,
+                    style: const TextStyle(
+                        color: Color(0xFF92600A), fontSize: 11))),
+              ],
             )),
             GestureDetector(
               onTap: () => setState(() => _dupBannerDismissed = true),
-              child: const Icon(Icons.close, size: 16, color: kMuted),
+              child: const Icon(Icons.close, size: 16, color: Color(0xFF92600A)),
             ),
           ]),
         ),
@@ -370,7 +386,9 @@ class _LedgerTabState extends State<LedgerTab> {
                 child: CircularProgressIndicator(color: kPrimary))
             : txns.isEmpty
                 ? _buildEmpty(l)
-                : _buildList(days, groups, l, p.shops, _duplicateIds),
+                : _buildList(days, groups, l, p.shops, _duplicateIds,
+                    header: _buildHeader(txns, txns.length, totalSales,
+                        totalExpense, totalPayment, l)),
       ),
     ]);
   }
@@ -600,11 +618,16 @@ class _LedgerTabState extends State<LedgerTab> {
   // ── Expandable grouped list ───────────────────────────────────────────────
   Widget _buildList(
       List<DateTime> days, Map<DateTime, List<Txn>> groups, String l,
-      Map<String, Shop> shops, Set<String> duplicateIds) {
+      Map<String, Shop> shops, Set<String> duplicateIds,
+      {required Widget header}) {
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 100),
-      itemCount: days.length,
-      itemBuilder: (_, i) {
+      // +1 leading item: the Cash Book summary header, which now scrolls
+      // away with the list instead of staying pinned at the top.
+      itemCount: days.length + 1,
+      itemBuilder: (_, idx) {
+        if (idx == 0) return header;
+        final i     = idx - 1;
         final day   = days[i];
         final key   = DateFormat('yyyy-MM-dd').format(day);
         final items = groups[day]!;

@@ -30,6 +30,9 @@ class AppProvider extends ChangeNotifier {
   List<Txn>          _txns         = [];
   bool               _syncing      = false;
   DateTime?          _lastSynced;
+  // Account-deletion grace period (set when config.status == pending_deletion)
+  bool               _pendingDeletion     = false;
+  DateTime?          _deletionScheduledAt;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _liveSyncSub;
   // Debounce for file-cache saves triggered by the live listener.
   // A batch of 50 Firestore events → 1 file write instead of 50.
@@ -88,9 +91,30 @@ class AppProvider extends ChangeNotifier {
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
   String             get bizType      => _bizType;
-  List<Txn>          get txns         => List.unmodifiable(_txns);
+  // Free tier (after trial) can access only the last [dataRetentionYears] of
+  // history; full-access users see everything. Short-circuit for full access —
+  // the "unlimited" retention value would overflow a Duration otherwise.
+  List<Txn> get txns {
+    if (hasFullAccess) return List.unmodifiable(_txns);
+    final cutoff =
+        DateTime.now().subtract(Duration(days: 365 * dataRetentionYears));
+    return List.unmodifiable(_txns.where((t) => !t.date.isBefore(cutoff)));
+  }
   bool               get syncing      => _syncing;
   DateTime?          get lastSynced   => _lastSynced;
+  bool               get pendingDeletion     => _pendingDeletion;
+  DateTime?          get deletionScheduledAt => _deletionScheduledAt;
+
+  /// Cancels a scheduled account deletion during the 30-day grace window
+  /// (called from the recovery banner when the owner logs back in).
+  Future<void> cancelPendingDeletion() async {
+    try {
+      await _auth.cancelAccountDeletion(_businessId);
+    } catch (_) {}
+    _pendingDeletion = false;
+    _deletionScheduledAt = null;
+    notifyListeners();
+  }
 
   // Finance tab shows only when the currently selected shop is finance/chit type.
   // When "All" is selected (selectedShop empty), Finance tab is hidden.
@@ -130,6 +154,94 @@ class AppProvider extends ChangeNotifier {
     final role = (_profile['role'] as String?)?.toLowerCase() ?? '';
     return role == 'cashier' && !isAdmin;
   }
+
+  // ── Monetization / Entitlements ────────────────────────────────────────────
+  // Single source of truth for Pro access and free-tier limits. Every paywalled
+  // feature MUST read [hasFullAccess] / the gate getters — never profile['pro']
+  // directly — so billing only has to flip one place.
+  //
+  // Access model:
+  //   • New users get a FREE 3-month trial (full Pro access) from signup.
+  //   • Paid Pro is active when profile['pro'] == true and not expired.
+  //   • Lifetime plans store planType == 'lifetime' with no proExpiry.
+  //   • After the trial ends and with no paid plan → free-tier limits apply.
+  static const int _unlimited = 1 << 30;
+  static const int trialDays  = 90; // ~3 months full-access trial
+
+  bool get isPro {
+    if (isAdmin) return true; // owner/admin always has full access
+    if (_profile['pro'] != true) return false;
+    final exp = _profile['proExpiry'];
+    if (exp is Timestamp) return exp.toDate().isAfter(DateTime.now());
+    return true; // lifetime / no-expiry pro
+  }
+
+  /// When the trial clock started: an explicit profile['trialStartedAt'] if set,
+  /// otherwise the Firebase account creation time (no migration needed).
+  DateTime? get _trialStart {
+    final ts = _profile['trialStartedAt'];
+    if (ts is Timestamp) return ts.toDate();
+    return _auth.currentUser?.metadata.creationTime;
+  }
+
+  DateTime? get trialEndsAt =>
+      _trialStart?.add(const Duration(days: trialDays));
+
+  /// Whether the user is inside their free full-access trial window.
+  bool get isInTrial {
+    if (isPro) return false; // paid users don't need the trial
+    final end = trialEndsAt;
+    return end != null && DateTime.now().isBefore(end);
+  }
+
+  /// Whole days remaining in the trial (0 once expired).
+  int get trialDaysLeft {
+    final end = trialEndsAt;
+    if (end == null) return 0;
+    final left = end.difference(DateTime.now()).inDays;
+    return left > 0 ? left : 0;
+  }
+
+  /// True when the trial has run out and there is no paid plan — this is when
+  /// the Pro recommendation / paywall should be surfaced.
+  bool get trialExpired => !isPro && !isInTrial && _trialStart != null;
+
+  /// THE access switch every paywalled feature reads: paid Pro OR active trial.
+  bool get hasFullAccess => isPro || isInTrial;
+
+  /// 'admin' | 'lifetime' | 'yearly' | 'monthly' | 'pro' | 'trial' | 'free'
+  String get planType {
+    if (isAdmin) return 'admin';
+    final pt = (_profile['planType'] as String?)?.trim();
+    if (pt != null && pt.isNotEmpty && isPro) return pt;
+    if (isPro) return 'pro';
+    if (isInTrial) return 'trial';
+    return 'free';
+  }
+
+  DateTime? get proExpiry {
+    final exp = _profile['proExpiry'];
+    return exp is Timestamp ? exp.toDate() : null;
+  }
+
+  // Free-tier limits (full access = unlimited)
+  int get maxShops           => hasFullAccess ? _unlimited : 1;  // + 1 personal
+  int get maxStaff           => hasFullAccess ? _unlimited : 10;
+  int get dataRetentionYears => hasFullAccess ? _unlimited : 2;
+
+  // Feature gates — true means the user may use the feature
+  bool get canUseReports        => hasFullAccess;
+  bool get canUseFinanceModule  => hasFullAccess;
+  bool get canUseAiAlerts       => hasFullAccess;
+  bool get canUseDuplicateAlert => hasFullAccess;
+  bool get canUseReminders      => hasFullAccess;
+
+  /// Business shops currently set up (excludes the implicit personal shop).
+  int get businessShopCount =>
+      _shops.values.where((s) => s.type.toLowerCase() != 'personal').length;
+
+  /// Whether the user may add another (business) shop under their plan.
+  bool get canAddShop => hasFullAccess || businessShopCount < maxShops;
 
   bool get isPersonal {
     if (_selectedShop.isNotEmpty) {
@@ -182,6 +294,11 @@ class AppProvider extends ChangeNotifier {
               'payment': List<String>.from(vMap['payment'] as List? ?? []),
             });
           });
+          // Detect a scheduled (recoverable) account deletion so the UI can
+          // offer the owner a chance to cancel within the 30-day grace window.
+          _pendingDeletion = configData['status'] == 'pending_deletion';
+          final sched = configData['deletionScheduledAt'];
+          _deletionScheduledAt = sched is Timestamp ? sched.toDate() : null;
         }
       } else {
         _businessId = uid;

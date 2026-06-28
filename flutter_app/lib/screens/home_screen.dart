@@ -24,6 +24,7 @@ import 'reports_tab.dart';
 import 'finance_tab.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
+import 'upgrade_screen.dart';
 import 'qr_scan_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
@@ -261,6 +262,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildCustomHeader(context, p),
+            _buildDeletionBanner(context, p),
+            _buildProBanner(context, p),
             _buildShopChipsRow(context, p),
             Expanded(
               child: IndexedStack(
@@ -454,6 +457,141 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ── Shop chips row ─────────────────────────────────────────────────────────
+  // Pro / trial recommendation banner.
+  //  • Hidden for paid Pro, admin and staff.
+  //  • During the trial's final stretch (<= 14 days) → soft reminder.
+  //  • After the trial ends (or free user) → prominent upgrade prompt.
+  Widget _buildProBanner(BuildContext context, AppProvider p) {
+    if (p.isAdmin || p.isPro || (p.isStaffRole && !p.isOwnMode)) {
+      return const SizedBox.shrink();
+    }
+    final expired = !p.isInTrial; // trial over (or none) → free with limits
+    final daysLeft = p.trialDaysLeft;
+    // While comfortably inside the trial, don't nag.
+    if (!expired && daysLeft > 14) return const SizedBox.shrink();
+
+    final title = expired
+        ? 'Your free trial has ended'
+        : 'Trial ends in $daysLeft ${daysLeft == 1 ? 'day' : 'days'}';
+    final sub = expired
+        ? 'Upgrade to Pro to unlock unlimited shops, reports & more.'
+        : 'Upgrade now to keep all features without interruption.';
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const UpgradeScreen())),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: kGradient,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: kCardShadow,
+        ),
+        child: Row(children: [
+          const Icon(Icons.workspace_premium_rounded,
+              color: Colors.white, size: 26),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13)),
+                const SizedBox(height: 2),
+                Text(sub,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 11, height: 1.3)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text('Upgrade',
+                style: TextStyle(
+                    color: kPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12)),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  // Recovery banner shown when the account is in its 30-day deletion grace
+  // window — lets the owner cancel and keep all their data.
+  Widget _buildDeletionBanner(BuildContext context, AppProvider p) {
+    if (!p.pendingDeletion) return const SizedBox.shrink();
+    final d = p.deletionScheduledAt;
+    final dateStr =
+        d != null ? '${d.day}/${d.month}/${d.year}' : 'soon';
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.warning_amber_rounded,
+            color: Color(0xFFDC2626), size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Account scheduled for deletion',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: Color(0xFFDC2626))),
+              Text(
+                  'All data is erased on $dateStr. Tap to cancel and keep it.',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade700,
+                      height: 1.3)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () async {
+            await p.cancelPendingDeletion();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Deletion cancelled. Your data is safe.'),
+                backgroundColor: Color(0xFF065F46),
+              ));
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF065F46),
+            foregroundColor: Colors.white,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Keep\naccount',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+        ),
+      ]),
+    );
+  }
+
   Widget _buildShopChipsRow(BuildContext context, AppProvider p) {
     final l = p.lang;
 
@@ -570,21 +708,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _badgeLabel(AppProvider p) {
     if (p.isAdmin) return 'Admin';
     if (p.isStaffRole && !p.isOwnMode) return 'Staff';
-    if (p.profile['pro'] == true) return 'Pro';
+    if (p.isPro) return 'Pro';
+    if (p.isInTrial) return 'Trial';
     return 'Free';
   }
 
   Color _badgeBg(AppProvider p) {
     if (p.isAdmin) return const Color(0xFFF3E8FF);
     if (p.isStaffRole && !p.isOwnMode) return const Color(0xFFDBEAFE);
-    if (p.profile['pro'] == true) return const Color(0xFFFEF3C7);
+    if (p.isPro) return const Color(0xFFFEF3C7);
+    if (p.isInTrial) return const Color(0xFFE0E7FF);
     return const Color(0xFFDCFCE7);
   }
 
   Color _badgeFg(AppProvider p) {
     if (p.isAdmin) return const Color(0xFF7C3AED);
     if (p.isStaffRole && !p.isOwnMode) return const Color(0xFF1D4ED8);
-    if (p.profile['pro'] == true) return const Color(0xFFD97706);
+    if (p.isPro) return const Color(0xFFD97706);
+    if (p.isInTrial) return const Color(0xFF4F46E5);
     return const Color(0xFF16A34A);
   }
 
