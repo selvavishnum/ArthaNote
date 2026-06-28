@@ -149,12 +149,16 @@ class AppProvider extends ChangeNotifier {
 
   // ── Monetization / Entitlements ────────────────────────────────────────────
   // Single source of truth for Pro access and free-tier limits. Every paywalled
-  // feature MUST read these getters — never check profile['pro'] directly — so
-  // billing only has to flip one place.
+  // feature MUST read [hasFullAccess] / the gate getters — never profile['pro']
+  // directly — so billing only has to flip one place.
   //
-  // Pro is active when profile['pro'] == true AND the plan hasn't expired.
-  // Lifetime plans store planType == 'lifetime' with no proExpiry.
+  // Access model:
+  //   • New users get a FREE 3-month trial (full Pro access) from signup.
+  //   • Paid Pro is active when profile['pro'] == true and not expired.
+  //   • Lifetime plans store planType == 'lifetime' with no proExpiry.
+  //   • After the trial ends and with no paid plan → free-tier limits apply.
   static const int _unlimited = 1 << 30;
+  static const int trialDays  = 90; // ~3 months full-access trial
 
   bool get isPro {
     if (isAdmin) return true; // owner/admin always has full access
@@ -164,12 +168,47 @@ class AppProvider extends ChangeNotifier {
     return true; // lifetime / no-expiry pro
   }
 
-  /// 'admin' | 'lifetime' | 'yearly' | 'monthly' | 'pro' | 'free'
+  /// When the trial clock started: an explicit profile['trialStartedAt'] if set,
+  /// otherwise the Firebase account creation time (no migration needed).
+  DateTime? get _trialStart {
+    final ts = _profile['trialStartedAt'];
+    if (ts is Timestamp) return ts.toDate();
+    return _auth.currentUser?.metadata.creationTime;
+  }
+
+  DateTime? get trialEndsAt =>
+      _trialStart?.add(const Duration(days: trialDays));
+
+  /// Whether the user is inside their free full-access trial window.
+  bool get isInTrial {
+    if (isPro) return false; // paid users don't need the trial
+    final end = trialEndsAt;
+    return end != null && DateTime.now().isBefore(end);
+  }
+
+  /// Whole days remaining in the trial (0 once expired).
+  int get trialDaysLeft {
+    final end = trialEndsAt;
+    if (end == null) return 0;
+    final left = end.difference(DateTime.now()).inDays;
+    return left > 0 ? left : 0;
+  }
+
+  /// True when the trial has run out and there is no paid plan — this is when
+  /// the Pro recommendation / paywall should be surfaced.
+  bool get trialExpired => !isPro && !isInTrial && _trialStart != null;
+
+  /// THE access switch every paywalled feature reads: paid Pro OR active trial.
+  bool get hasFullAccess => isPro || isInTrial;
+
+  /// 'admin' | 'lifetime' | 'yearly' | 'monthly' | 'pro' | 'trial' | 'free'
   String get planType {
     if (isAdmin) return 'admin';
     final pt = (_profile['planType'] as String?)?.trim();
-    if (pt != null && pt.isNotEmpty) return pt;
-    return isPro ? 'pro' : 'free';
+    if (pt != null && pt.isNotEmpty && isPro) return pt;
+    if (isPro) return 'pro';
+    if (isInTrial) return 'trial';
+    return 'free';
   }
 
   DateTime? get proExpiry {
@@ -177,24 +216,24 @@ class AppProvider extends ChangeNotifier {
     return exp is Timestamp ? exp.toDate() : null;
   }
 
-  // Free-tier limits (Pro / admin = unlimited)
-  int get maxShops           => isPro ? _unlimited : 1;  // + 1 personal shop
-  int get maxStaff           => isPro ? _unlimited : 10;
-  int get dataRetentionYears => isPro ? _unlimited : 2;
+  // Free-tier limits (full access = unlimited)
+  int get maxShops           => hasFullAccess ? _unlimited : 1;  // + 1 personal
+  int get maxStaff           => hasFullAccess ? _unlimited : 10;
+  int get dataRetentionYears => hasFullAccess ? _unlimited : 2;
 
   // Feature gates — true means the user may use the feature
-  bool get canUseReports        => isPro;
-  bool get canUseFinanceModule  => isPro;
-  bool get canUseAiAlerts       => isPro;
-  bool get canUseDuplicateAlert => isPro;
-  bool get canUseReminders      => isPro;
+  bool get canUseReports        => hasFullAccess;
+  bool get canUseFinanceModule  => hasFullAccess;
+  bool get canUseAiAlerts       => hasFullAccess;
+  bool get canUseDuplicateAlert => hasFullAccess;
+  bool get canUseReminders      => hasFullAccess;
 
   /// Business shops currently set up (excludes the implicit personal shop).
   int get businessShopCount =>
       _shops.values.where((s) => s.type.toLowerCase() != 'personal').length;
 
   /// Whether the user may add another (business) shop under their plan.
-  bool get canAddShop => isPro || businessShopCount < maxShops;
+  bool get canAddShop => hasFullAccess || businessShopCount < maxShops;
 
   bool get isPersonal {
     if (_selectedShop.isNotEmpty) {
