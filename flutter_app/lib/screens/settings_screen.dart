@@ -20,6 +20,7 @@ import '../models/shop.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
+import 'upgrade_screen.dart';
 import '../services/db_service.dart';
 import 'login_screen.dart';
 import '../services/lock_service.dart';
@@ -916,6 +917,12 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
   }
 
   void _addShop() {
+    // Pro gate — free tier (after the trial) is limited to 1 business shop.
+    if (!widget.p.canAddShop) {
+      Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const UpgradeScreen()));
+      return;
+    }
     final name = _newNameCtrl.text.trim();
     if (name.isEmpty) return;
     final icon = _newIconCtrl.text.trim().isEmpty ? '🏪' : _newIconCtrl.text.trim();
@@ -1188,6 +1195,7 @@ class _StaffSheet extends StatefulWidget {
 
 class _StaffSheetState extends State<_StaffSheet> {
   static const _roles = ['cashier', 'manager', 'worker'];
+  int _staffCount = 0; // tracked from the staff stream for the Pro limit gate
 
   void _showStaffForm(BuildContext ctx, String? docId, Map<String, dynamic>? existing) {
     final nameCtrl  = TextEditingController(text: (existing?['name']  as String?) ?? '');
@@ -1384,7 +1392,16 @@ class _StaffSheetState extends State<_StaffSheet> {
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
           ),
           ElevatedButton.icon(
-            onPressed: () => _showStaffForm(context, null, null),
+            onPressed: () {
+              // Pro gate — free tier (after trial) is capped at 10 staff.
+              final p = context.read<AppProvider>();
+              if (_staffCount >= p.maxStaff) {
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const UpgradeScreen()));
+                return;
+              }
+              _showStaffForm(context, null, null);
+            },
             icon: const Icon(Icons.add, size: 16),
             label: const Text('+ Add Staff'),
             style: ElevatedButton.styleFrom(
@@ -1410,6 +1427,7 @@ class _StaffSheetState extends State<_StaffSheet> {
               );
             }
             final docs = snap.data?.docs ?? [];
+            _staffCount = docs.length; // keep the gate's count in sync
             if (docs.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(24),

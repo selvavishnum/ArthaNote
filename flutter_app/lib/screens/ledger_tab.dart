@@ -317,27 +317,41 @@ class _LedgerTabState extends State<LedgerTab> {
       // Note: the Cash Book summary header now scrolls away with the list
       // (passed into _buildList) so more ledger entries are visible. Search
       // and the period/type filters stay pinned because they're interactive.
-      // Duplicate warning banner
-      if (_duplicateWarnings.isNotEmpty && !_dupBannerDismissed)
+      // AI Duplicate-Entry alert — Pro/trial only, styled distinctly in
+      // golden yellow so it stands apart from the amber warning banners.
+      if (p.canUseDuplicateAlert &&
+          _duplicateWarnings.isNotEmpty &&
+          !_dupBannerDismissed)
         Container(
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF3C7),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFEF9C3), Color(0xFFFDE68A)],
+            ),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFFBBF24)),
+            border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
           ),
           child: Row(children: [
-            const Text('⚠️', style: TextStyle(fontSize: 16)),
+            const Text('🟡', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 8),
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _duplicateWarnings.map((w) => Text(w,
-                  style: TextStyle(color: Colors.amber.shade900, fontSize: 11))).toList(),
+              children: [
+                const Text('Possible duplicate entries',
+                    style: TextStyle(
+                        color: Color(0xFF92600A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                ..._duplicateWarnings.map((w) => Text(w,
+                    style: const TextStyle(
+                        color: Color(0xFF92600A), fontSize: 11))),
+              ],
             )),
             GestureDetector(
               onTap: () => setState(() => _dupBannerDismissed = true),
-              child: const Icon(Icons.close, size: 16, color: kMuted),
+              child: const Icon(Icons.close, size: 16, color: Color(0xFF92600A)),
             ),
           ]),
         ),

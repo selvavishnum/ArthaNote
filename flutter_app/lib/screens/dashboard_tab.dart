@@ -513,9 +513,10 @@ class _DashboardTabState extends State<DashboardTab> {
 
               // Daily Reconciliation section removed to simplify the dashboard.
 
-              // ── AI Missing Entry Alert ────────────────────────────────────
+              // ── AI Missing Entry Alert (Pro / trial only) ─────────────────
               _AiAlertSection(
-                show:          showAiAlert || missingItems.isNotEmpty,
+                show: p.canUseAiAlerts &&
+                    (showAiAlert || missingItems.isNotEmpty),
                 todayCount:    todayCount,
                 missingItems:  missingItems,
                 onDismiss:     () => setState(() => _dismissedDate = todayKey),

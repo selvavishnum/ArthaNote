@@ -91,7 +91,15 @@ class AppProvider extends ChangeNotifier {
   bool               get loaded       => _loaded;
   Map<String, Map<String, List<String>>> get cats => Map.unmodifiable(_cats);
   String             get bizType      => _bizType;
-  List<Txn>          get txns         => List.unmodifiable(_txns);
+  // Free tier (after trial) can access only the last [dataRetentionYears] of
+  // history; full-access users see everything. Short-circuit for full access —
+  // the "unlimited" retention value would overflow a Duration otherwise.
+  List<Txn> get txns {
+    if (hasFullAccess) return List.unmodifiable(_txns);
+    final cutoff =
+        DateTime.now().subtract(Duration(days: 365 * dataRetentionYears));
+    return List.unmodifiable(_txns.where((t) => !t.date.isBefore(cutoff)));
+  }
   bool               get syncing      => _syncing;
   DateTime?          get lastSynced   => _lastSynced;
   bool               get pendingDeletion     => _pendingDeletion;
