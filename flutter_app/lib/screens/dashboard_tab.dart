@@ -8,12 +8,9 @@ import '../models/txn.dart';
 import '../models/shop.dart';
 import '../models/supplier.dart';
 import '../models/currency.dart';
-import '../models/payment_reminder.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
-import '../services/reminder_service.dart';
 import 'shop_detail_screen.dart';
-import 'reminders_screen.dart';
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 // Module-level singleton — avoids allocating a new DateFormat on every
@@ -31,8 +28,8 @@ class DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<DashboardTab> {
   final _db            = DbService();
-  int  _period         = 0; // 0=today 1=yesterday 2=week 3=month
-  bool _alertDismissed = false;
+  int  _period         = 0; // 0=today 1=yesterday 2=week 3=month 4=custom
+  DateTime? _customDate;     // chosen day when _period == 4
   String? _dismissedDate;
   int _streakCount     = 0;
   // Track the last txn count we ran streak update on — avoids re-running
@@ -229,9 +226,49 @@ class _DashboardTabState extends State<DashboardTab> {
             start: today.subtract(const Duration(days: 7)), end: now);
       case 3:
         return DateTimeRange(start: DateTime(now.year, now.month, 1), end: now);
+      case 4:
+        final d = _customDate ?? today;
+        final start = DateTime(d.year, d.month, d.day);
+        return DateTimeRange(
+            start: start, end: start.add(const Duration(days: 1)));
       default:
         return DateTimeRange(start: today, end: now);
     }
+  }
+
+  Future<void> _pickCustomDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _customDate ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: now,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(primary: kPrimary),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _customDate = picked;
+        _period = 4;
+      });
+    }
+  }
+
+  /// The single reference day the AI Missing-Entry alert checks against —
+  /// follows the selected period (today / yesterday / custom day; week & month
+  /// fall back to today).
+  DateTime _refDate() {
+    final now   = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (_period == 4 && _customDate != null) {
+      return DateTime(_customDate!.year, _customDate!.month, _customDate!.day);
+    }
+    if (_period == 1) return today.subtract(const Duration(days: 1));
+    return today;
   }
 
   List<Txn> _filter(List<Txn> all, AppProvider p) {
@@ -260,27 +297,17 @@ class _DashboardTabState extends State<DashboardTab> {
 
     final txns    = _filter(all, p);
 
-    // Last 7 days overdraft check
-    final now7 = DateTime.now();
-    final sevenDaysAgo = DateTime(now7.year, now7.month, now7.day).subtract(const Duration(days: 7));
-    final last7Txns = all.where((tx) => !tx.date.isBefore(sevenDaysAgo)).toList();
-    final last7Sales = last7Txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
-    final last7Exp   = last7Txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
-    final last7Pay   = last7Txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
-    final last7Net   = last7Sales - last7Exp - last7Pay;
-    final showOverdraft = last7Net < 0;
-
-    // Today entries for AI alert
-    final now         = DateTime.now();
-    final todayStart  = DateTime(now.year, now.month, now.day);
-    final todayCount  = all.where((tx) => !tx.date.isBefore(todayStart)).length;
-    final todayKey    = _dayFmt.format(now);
-    final isEvening   = now.hour >= 18;
-    final showAiAlert = isEvening && todayCount == 0 &&
-        (_dismissedDate != todayKey);
-
-    // AI: find patterns (entries that usually appear — last 14 days freq)
-    final missingItems = _detectMissingPatterns(all);
+    // AI Missing-Entry alert — computed for the selected reference day. The
+    // "no entries", "review expenses" and "upcoming payments" banners were
+    // removed from the dashboard to declutter it; upcoming payments already
+    // surface as scheduled notifications via ReminderService.
+    final refDate    = _refDate();
+    final missingItems = _detectMissingPatterns(all, refDate);
+    final isRefToday = _period != 4 ||
+        (_customDate != null && _dayFmt.format(_customDate!) == _dayFmt.format(DateTime.now()));
+    final aiDateLabel = isRefToday
+        ? 'today'
+        : (_period == 1 ? 'yesterday' : 'on ${_dayFmt.format(refDate)}');
 
     return RefreshIndicator(
           color: kPrimary,
@@ -348,102 +375,61 @@ class _DashboardTabState extends State<DashboardTab> {
 
               const SizedBox(height: 8),
 
-              // Period chips
+              // Period chips (+ a Custom-date chip at the end)
               SizedBox(
                 height: 40,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsets.zero,
-                  itemCount: periods.length,
-                  itemBuilder: (_, i) => GestureDetector(
-                    onTap: () => setState(() => _period = i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: _period == i ? kPrimary : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _period == i
-                              ? kPrimary
-                              : const Color(0xFFE5E7EB),
+                  itemCount: periods.length + 1,
+                  itemBuilder: (_, i) {
+                    final isCustom = i == periods.length;
+                    final selected = isCustom ? _period == 4 : _period == i;
+                    final label = isCustom
+                        ? (_period == 4 && _customDate != null
+                            ? '📅 ${_dayFmt.format(_customDate!)}'
+                            : '📅 Custom')
+                        : periods[i];
+                    return GestureDetector(
+                      onTap: () =>
+                          isCustom ? _pickCustomDate() : setState(() => _period = i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: selected ? kPrimary : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color:
+                                selected ? kPrimary : const Color(0xFFE5E7EB),
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          periods[i],
-                          style: TextStyle(
-                            color: _period == i
-                                ? Colors.white
-                                : Colors.grey.shade700,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                        child: Center(
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // No-entries warning
-              if (txns.isEmpty)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFBBF24)),
-                  ),
-                  child: Row(children: [
-                    const Text('⚠️', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'No entries — scan ledger or add manually',
-                        style: TextStyle(
-                          color: Colors.amber.shade800,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ]),
-                ),
-
-              // Upcoming payments card (personal mode only)
-              if (p.isPersonal)
-                _UpcomingPaymentsCard(onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const RemindersScreen()))),
-
-              // 4-box stat grid removed to simplify the dashboard for new
-              // users — the same Sales / Expense / Net figures are shown per
-              // shop in the Shop Summary card below.
-
-              // ── Overdraft Warning ─────────────────────────────────────────
-              if (showOverdraft)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706)),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(
-                      '⚠️ Net loss last 7 days: ${rupee(last7Net.abs())}. Review expenses.',
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF92400E)),
-                    )),
-                  ]),
-                ),
+              // The "no entries", "upcoming payments" and "net-loss / review
+              // expenses" alerts have moved off the dashboard — they are now
+              // delivered as app notifications (see ReminderService) to keep
+              // the dashboard clean. The 4-box stat grid was also removed; the
+              // same Sales / Expense / Net figures appear per shop below.
 
               const SizedBox(height: 4),
 
@@ -516,10 +502,12 @@ class _DashboardTabState extends State<DashboardTab> {
               // ── AI Missing Entry Alert (Pro / trial only) ─────────────────
               _AiAlertSection(
                 show: p.canUseAiAlerts &&
-                    (showAiAlert || missingItems.isNotEmpty),
-                todayCount:    todayCount,
+                    missingItems.isNotEmpty &&
+                    _dismissedDate != _dayFmt.format(refDate),
+                dateLabel:     aiDateLabel,
                 missingItems:  missingItems,
-                onDismiss:     () => setState(() => _dismissedDate = todayKey),
+                onDismiss: () => setState(
+                    () => _dismissedDate = _dayFmt.format(refDate)),
                 businessId:    p.businessId,
                 shops:         p.visibleShops,
                 db:            _db,
@@ -529,17 +517,19 @@ class _DashboardTabState extends State<DashboardTab> {
         );
   }
 
-  // Detect frequently occurring descriptions that are missing today
-  List<Map<String, dynamic>> _detectMissingPatterns(List<Txn> all) {
-    final now        = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final since      = todayStart.subtract(const Duration(days: 14));
+  /// Entries the user usually records that are missing on [refDate]. The
+  /// pattern is learned from the 14 days BEFORE refDate, so the alert follows
+  /// whichever day is selected in the dashboard (today / yesterday / custom).
+  List<Map<String, dynamic>> _detectMissingPatterns(List<Txn> all, DateTime refDate) {
+    final dayStart = DateTime(refDate.year, refDate.month, refDate.day);
+    final dayEnd   = dayStart.add(const Duration(days: 1));
+    final since    = dayStart.subtract(const Duration(days: 14));
 
-    // Get past 14 days txns (excluding today)
+    // Past 14 days of txns before the reference day
     final past = all.where((tx) =>
-        !tx.date.isBefore(since) && tx.date.isBefore(todayStart)).toList();
+        !tx.date.isBefore(since) && tx.date.isBefore(dayStart)).toList();
 
-    // Frequency map: desc+type+shop → count of days appeared
+    // Frequency map: desc+type+shop → set of days it appeared
     final dayFreq = <String, Set<String>>{};
     final meta    = <String, Map<String, dynamic>>{};
     for (final tx in past) {
@@ -555,17 +545,17 @@ class _DashboardTabState extends State<DashboardTab> {
       };
     }
 
-    // Get today's descs
-    final todayDescs = all
-        .where((tx) => !tx.date.isBefore(todayStart))
+    // Descriptions already recorded on the reference day
+    final dayDescs = all
+        .where((tx) => !tx.date.isBefore(dayStart) && tx.date.isBefore(dayEnd))
         .map((tx) => tx.desc)
         .toSet();
 
-    // Find items appearing 3+ days in last 14 that are missing today
+    // Items appearing 3+ days in the window but missing on the reference day
     final missing = <Map<String, dynamic>>[];
     for (final entry in dayFreq.entries) {
       if (entry.value.length >= 3 &&
-          !todayDescs.contains(meta[entry.key]!['desc'])) {
+          !dayDescs.contains(meta[entry.key]!['desc'])) {
         missing.add({
           ...meta[entry.key]!,
           'days': entry.value.length,
@@ -921,7 +911,7 @@ class _SupplierAlertsSection extends StatelessWidget {
 // ── AI Missing Entry Alert Section ───────────────────────────────────────────
 class _AiAlertSection extends StatelessWidget {
   final bool                       show;
-  final int                        todayCount;
+  final String                     dateLabel;
   final List<Map<String, dynamic>> missingItems;
   final VoidCallback               onDismiss;
   final String                     businessId;
@@ -930,7 +920,7 @@ class _AiAlertSection extends StatelessWidget {
 
   const _AiAlertSection({
     required this.show,
-    required this.todayCount,
+    required this.dateLabel,
     required this.missingItems,
     required this.onDismiss,
     required this.businessId,
@@ -972,7 +962,7 @@ class _AiAlertSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${missingItems.length} entries you usually add are missing today.',
+                            '${missingItems.length} entries you usually add are missing $dateLabel.',
                             style: TextStyle(
                               color: Colors.amber.shade900,
                               fontWeight: FontWeight.w700,
@@ -1145,86 +1135,5 @@ class _AiAlertSection extends StatelessWidget {
         ));
       }
     } catch (_) {}
-  }
-}
-
-// ── Upcoming Payments Card (personal mode) ────────────────────────────────────
-
-class _UpcomingPaymentsCard extends StatefulWidget {
-  final VoidCallback onTap;
-  const _UpcomingPaymentsCard({required this.onTap});
-  @override
-  State<_UpcomingPaymentsCard> createState() => _UpcomingPaymentsCardState();
-}
-
-class _UpcomingPaymentsCardState extends State<_UpcomingPaymentsCard> {
-  final _svc = ReminderService();
-  List<PaymentReminder> _reminders = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final list = await _svc.getActive();
-    final upcoming = list.where((r) => !r.isPaidThisMonth).take(3).toList();
-    if (mounted) setState(() => _reminders = upcoming);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_reminders.isEmpty) return const SizedBox.shrink();
-    final total = _reminders.fold<double>(0, (sum, r) => sum + r.amount);
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 16, offset: const Offset(0, 4))],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Text('📋', style: TextStyle(fontSize: 16)),
-            const SizedBox(width: 8),
-            const Text('Upcoming Payments', style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-            const Spacer(),
-            Text('${Currency.active.symbol}${total.toStringAsFixed(0)} total',
-                style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-            const Icon(Icons.chevron_right, size: 16, color: Color(0xFF9CA3AF)),
-          ]),
-          const SizedBox(height: 12),
-          ..._reminders.map((r) {
-            final days  = r.daysUntilDue;
-            final color = days == 0
-                ? const Color(0xFFEF4444)
-                : days <= 3 ? const Color(0xFFF97316) : const Color(0xFF6B7280);
-            final label = days == 0 ? 'Today' : days == 1 ? 'Tomorrow' : '${days}d';
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(children: [
-                Text(reminderTypeLabel(r.type).split(' ').first, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Expanded(child: Text(r.name, style: const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
-                Text('${Currency.active.symbol}${r.amount.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                  child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
-                ),
-              ]),
-            );
-          }),
-        ]),
-      ),
-    );
   }
 }

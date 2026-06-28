@@ -33,6 +33,7 @@ class _EntryTabState extends State<EntryTab> {
   final _bill    = TextEditingController();
   final _note    = TextEditingController();
   final _contact = TextEditingController();
+  final _amountFocus = FocusNode(); // re-focused after save for fast entry
 
   String        _type       = 'sale';
   DateTime      _date       = DateTime.now();
@@ -98,7 +99,8 @@ class _EntryTabState extends State<EntryTab> {
       (p.shops[_shopId]?.type ?? '') == 'personal';
 
   List<String> _getCategories(AppProvider p) {
-    if (_isPersonalShop(p))  return [];
+    // Personal mode now also offers quick-select chips + Custom (same source
+    // categories as business mode — Cash/GPay/Card/… plus any custom ones).
     if (_type == 'sale')     return p.salesCats(_shopId);
     if (_type == 'expense')  return p.expenseCats(_shopId);
     return p.paymentCats(_shopId);
@@ -145,6 +147,7 @@ class _EntryTabState extends State<EntryTab> {
         desc:       description,
         contact:    _isPersonalShop(p) ? _contact.text.trim() : '',
         enteredBy:  FirebaseAuth.instance.currentUser?.email ?? '',
+        createdAt:  DateTime.now(), // real entry time for the per-row stamp
       );
       // Update UI immediately before the Firestore write so addLocalTxn populates
       // _txns before _startLiveSync snapshot fires — prevents the duplicate where
@@ -155,6 +158,8 @@ class _EntryTabState extends State<EntryTab> {
       // Teach the AI about this entry before resetting
       _ai.learn(description, savedType, savedDesc);
       _reset(p);
+      // Return the cursor to Amount so the next entry can be typed immediately.
+      if (mounted) _amountFocus.requestFocus();
 
       // AI reminder detection for expense entries (all shop types)
       if (txn.type == 'expense') {
@@ -493,6 +498,7 @@ class _EntryTabState extends State<EntryTab> {
             label: 'AMOUNT (${p.currency.symbol})',
             child: TextFormField(
               controller: _amount,
+              focusNode: _amountFocus,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               style: TextStyle(
@@ -565,8 +571,9 @@ class _EntryTabState extends State<EntryTab> {
 
           const SizedBox(height: 14),
 
-          // Quick categories (hidden in personal mode)
-          if (!isPersonalMode) ...[
+          // Quick categories + Custom — shown in both business and personal
+          // (I Received / I Paid) modes.
+          ...[
             const Text(
               'QUICK SELECT',
               style: TextStyle(
@@ -781,6 +788,7 @@ class _EntryTabState extends State<EntryTab> {
     _bill.dispose();
     _note.dispose();
     _contact.dispose();
+    _amountFocus.dispose();
     super.dispose();
   }
 }

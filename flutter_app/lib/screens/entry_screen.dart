@@ -75,6 +75,7 @@ class _EntryScreenState extends State<EntryScreen> {
         type:       _type,
         amount:     amt,
         desc:       _desc.text.trim(),
+        createdAt:  DateTime.now(),
       ));
       if (mounted) {
         _showSnack('Entry saved successfully');

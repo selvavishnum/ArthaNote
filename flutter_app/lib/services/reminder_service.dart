@@ -251,6 +251,35 @@ class ReminderService {
     }
   }
 
+  /// Daily nudge to record the day's entries — replaces the old "no entries"
+  /// dashboard banner with an app notification. Fires every day at 8 PM and
+  /// repeats (DateTimeComponents.time). Uses a fixed id so re-scheduling on each
+  /// launch just overwrites the existing one.
+  Future<void> scheduleDailyEntryReminder() async {
+    if (!_notifReady) return;
+    final now = DateTime.now();
+    var target = DateTime(now.year, now.month, now.day, 20, 0);
+    if (target.isBefore(now)) target = target.add(const Duration(days: 1));
+    await _notif.zonedSchedule(
+      900001,
+      'Add today\'s entries 📒',
+      'Keep your ledger up to date — record today\'s sales & expenses.',
+      tz.TZDateTime.from(target, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'daily_entry', 'Daily Entry Reminder',
+          channelDescription: 'Daily nudge to record the day\'s ledger entries',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexact,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
   Future<void> _cancelNotification(String reminderId) async {
     await _notif.cancel(_notifId(reminderId, 0));
     await _notif.cancel(_notifId(reminderId, 3));
