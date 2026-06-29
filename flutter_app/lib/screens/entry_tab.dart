@@ -17,6 +17,7 @@ import '../services/reminder_service.dart';
 import 'dashboard_tab.dart' show rupee;
 import 'reminder_detect_sheet.dart';
 import 'reminders_screen.dart';
+import 'upgrade_screen.dart';
 
 class EntryTab extends StatefulWidget {
   const EntryTab({super.key});
@@ -590,6 +591,13 @@ class _EntryTabState extends State<EntryTab> {
               children: [
                 GestureDetector(
                   onTap: () async {
+                    // "+ Custom" is a Pro/trial feature. Free tier (after the
+                    // trial) is sent to the paywall instead.
+                    if (!p.canUseCustomEntry) {
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const UpgradeScreen()));
+                      return;
+                    }
                     final ctrl = TextEditingController();
                     final result = await showDialog<String>(
                       context: context,
@@ -632,9 +640,9 @@ class _EntryTabState extends State<EntryTab> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: const Color(0xFFD1D5DB)),
                     ),
-                    child: const Text(
-                      '+ Custom',
-                      style: TextStyle(
+                    child: Text(
+                      p.canUseCustomEntry ? '+ Custom' : '🔒 Custom',
+                      style: const TextStyle(
                         color: kMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
