@@ -358,6 +358,63 @@ class AppProvider extends ChangeNotifier {
     await prefs.setBool(guestModeFlag, true);
   }
 
+  /// Migrates a guest's on-device data into a real account when they log in.
+  /// Uploads guest shops/cats/bizType to the account's Firestore config (merged
+  /// with any existing data) and re-saves each guest transaction under the new
+  /// businessId, then clears the guest session. Safe no-op if not a guest.
+  /// Call this BEFORE init(uid) in the login flow.
+  Future<void> migrateGuestToAccount(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(guestModeFlag) != true) return; // not a guest session
+
+    // 1. Load guest config + txns from on-device storage.
+    await _loadConfigLocal();
+    final guestShops = Map<String, Shop>.from(_shops);
+    final guestCats  = Map<String, Map<String, List<String>>>.from(_cats);
+    final guestBiz   = _bizType;
+    final guestTxns  = await _dbSvc.loadAllTxns(guestBusinessId);
+
+    // 2. Resolve the target businessId (the account's own id).
+    String targetBid = uid;
+    try {
+      final profile = await _auth.getProfile(uid);
+      final pBid = (profile?['businessId'] as String?)?.trim();
+      if (pBid != null && pBid.isNotEmpty) targetBid = pBid;
+    } catch (_) {}
+
+    // 3. Upload guest config (merged with any existing account config).
+    if (guestShops.isNotEmpty || guestBiz.isNotEmpty) {
+      try {
+        await _auth.saveConfig(targetBid, {
+          if (guestShops.isNotEmpty)
+            'shops': guestShops.map((k, v) => MapEntry(k, v.toMap())),
+          if (guestCats.isNotEmpty)
+            'cats': guestCats.map((k, v) => MapEntry(k, {
+                  'sales':   v['sales']   ?? [],
+                  'expense': v['expense'] ?? [],
+                  'payment': v['payment'] ?? [],
+                })),
+          if (guestBiz.isNotEmpty) 'bizType': guestBiz,
+          'onboarded': true,
+        });
+      } catch (_) {}
+    }
+
+    // 4. Re-save each guest transaction under the account's businessId
+    //    (writes to Firestore + the account's local cache).
+    for (final t in guestTxns) {
+      try {
+        await _dbSvc.addTxn(t.copyWith(businessId: targetBid));
+      } catch (_) {}
+    }
+
+    // 5. Tear down the guest session.
+    await prefs.remove(guestModeFlag);
+    await prefs.remove(_guestConfigKey);
+    await _dbSvc.saveTxnsToCache(guestBusinessId, []);
+    _isGuest = false;
+  }
+
   static const _guestConfigKey = 'kp_guest_config';
 
   Future<void> _saveConfigLocal() async {

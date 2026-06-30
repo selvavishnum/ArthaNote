@@ -264,6 +264,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _buildCustomHeader(context, p),
             _buildDeletionBanner(context, p),
             _buildProBanner(context, p),
+            _buildGuestBackupBanner(context, p),
             _buildShopChipsRow(context, p),
             Expanded(
               child: IndexedStack(
@@ -457,12 +458,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ── Shop chips row ─────────────────────────────────────────────────────────
+  // Guest backup banner — shown only in guest mode. Data lives on-device
+  // until the user logs in, so this nudges them to log in and back it up.
+  Widget _buildGuestBackupBanner(BuildContext context, AppProvider p) {
+    if (!p.isGuest) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const LoginScreen())),
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF3C7),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFCD34D)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.cloud_off_rounded, color: Color(0xFFD97706), size: 22),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Your data is only on this phone',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: Color(0xFF92400E))),
+                SizedBox(height: 2),
+                Text('Log in to back it up & sync across devices.',
+                    style: TextStyle(
+                        fontSize: 11, color: Color(0xFF92400E), height: 1.3)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: kPrimary,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text('Log in',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12)),
+          ),
+        ]),
+      ),
+    );
+  }
+
   // Pro / trial recommendation banner.
   //  • Hidden for paid Pro, admin and staff.
   //  • During the trial's final stretch (<= 14 days) → soft reminder.
   //  • After the trial ends (or free user) → prominent upgrade prompt.
   Widget _buildProBanner(BuildContext context, AppProvider p) {
-    if (p.isAdmin || p.isPro || (p.isStaffRole && !p.isOwnMode)) {
+    // Guests see the "back up your data" banner instead of the Pro prompt.
+    if (p.isAdmin || p.isPro || p.isGuest || (p.isStaffRole && !p.isOwnMode)) {
       return const SizedBox.shrink();
     }
     final expired = !p.isInTrial; // trial over (or none) → free with limits

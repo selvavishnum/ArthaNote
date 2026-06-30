@@ -70,6 +70,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _navigateAfterLogin(String uid) async {
     final provider = context.read<AppProvider>();
+    // If this device was used as a guest, move that local data into the
+    // account (and end the guest session) before loading the account.
+    await provider.migrateGuestToAccount(uid);
     await provider.init(uid);
     if (!mounted) return;
     if (provider.isOnboarded) {
