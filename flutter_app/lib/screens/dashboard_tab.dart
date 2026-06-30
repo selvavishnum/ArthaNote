@@ -505,6 +505,7 @@ class _DashboardTabState extends State<DashboardTab> {
                     missingItems.isNotEmpty &&
                     _dismissedDate != _dayFmt.format(refDate),
                 dateLabel:     aiDateLabel,
+                targetDate:    refDate,
                 missingItems:  missingItems,
                 onDismiss: () => setState(
                     () => _dismissedDate = _dayFmt.format(refDate)),
@@ -912,6 +913,7 @@ class _SupplierAlertsSection extends StatelessWidget {
 class _AiAlertSection extends StatelessWidget {
   final bool                       show;
   final String                     dateLabel;
+  final DateTime                   targetDate; // the day a "+ Add" entry lands on
   final List<Map<String, dynamic>> missingItems;
   final VoidCallback               onDismiss;
   final String                     businessId;
@@ -921,6 +923,7 @@ class _AiAlertSection extends StatelessWidget {
   const _AiAlertSection({
     required this.show,
     required this.dateLabel,
+    required this.targetDate,
     required this.missingItems,
     required this.onDismiss,
     required this.businessId,
@@ -1120,10 +1123,11 @@ class _AiAlertSection extends StatelessWidget {
         businessId: businessId,
         shop:       shop,
         shopName:   shopName,
-        date:       DateTime.now(),
+        date:       targetDate, // add on the selected day, not today
         type:       type,
         amount:     result,
         desc:       desc,
+        createdAt:  DateTime.now(),
       );
       await db.addTxn(txn);
       if (context.mounted) {

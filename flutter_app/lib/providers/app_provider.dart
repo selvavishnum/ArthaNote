@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -25,6 +26,11 @@ class AppProvider extends ChangeNotifier {
   Map<String, Shop>  _shops        = {};
   Map<String, dynamic> _profile    = {};
   bool               _loaded       = false;
+  // Guest mode: app used without login. Data lives only on this device until
+  // the user logs in (migration handled in a later step). Fixed local id keeps
+  // the cache/config files separate from any future logged-in account.
+  bool               _isGuest      = false;
+  static const String guestBusinessId = 'guest_local';
   Map<String, Map<String, List<String>>> _cats = {};
   String             _bizType      = '';
   List<Txn>          _txns         = [];
@@ -146,6 +152,7 @@ class AppProvider extends ChangeNotifier {
   }
   bool get isAdmin     => ((_profile['email'] as String?) ?? '') == 'selvavishnu.m@gmail.com';
   bool get isOwnMode   => _ownMode;
+  bool get isGuest     => _isGuest;
 
   /// True when the user's Firestore role is cashier — regardless of own mode.
   /// Use this to decide UI chrome that belongs to the staff identity (e.g. the
@@ -235,6 +242,7 @@ class AppProvider extends ChangeNotifier {
   bool get canUseAiAlerts       => hasFullAccess;
   bool get canUseDuplicateAlert => hasFullAccess;
   bool get canUseReminders      => hasFullAccess;
+  bool get canUseCustomEntry    => hasFullAccess; // the "+ Custom" quick button
 
   /// Business shops currently set up (excludes the implicit personal shop).
   int get businessShopCount =>
@@ -316,6 +324,143 @@ class AppProvider extends ChangeNotifier {
 
     // Non-blocking — loads txns in background (fast file read + optional daily sync)
     _loadTxns();
+  }
+
+  // ── Guest init (no login) ───────────────────────────────────────────────────
+  /// Initialises the app for a guest (not logged in). Everything is local:
+  /// config (shops/cats/bizType) is read from SharedPreferences and txns from
+  /// the on-device cache — no Firestore. Guest = free tier (isInTrial/isPro are
+  /// false because there is no auth user), so the free limits apply from start.
+  Future<void> initGuest() async {
+    final prefs = await SharedPreferences.getInstance();
+    _langMode     = prefs.getString('lang_mode') ?? prefs.getString('lang') ?? 'system';
+    _currencyMode = prefs.getString('currency_mode') ?? 'system';
+    _systemCurrency = await detectSystemCurrency();
+    currency;
+
+    _isGuest    = true;
+    _ownMode    = false;
+    _profile    = {};
+    _businessId = guestBusinessId;
+    await _loadConfigLocal();
+
+    _loaded = true;
+    notifyListeners();
+    _loadTxns(); // guest branch skips Firestore sync (see _loadTxns)
+  }
+
+  static const guestModeFlag = 'kp_guest_mode';
+
+  /// Marks this device as a guest session (persisted) so the splash screen
+  /// routes straight to the app on subsequent launches.
+  Future<void> enableGuestMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(guestModeFlag, true);
+  }
+
+  /// Migrates a guest's on-device data into a real account when they log in.
+  /// Uploads guest shops/cats/bizType to the account's Firestore config (merged
+  /// with any existing data) and re-saves each guest transaction under the new
+  /// businessId, then clears the guest session. Safe no-op if not a guest.
+  /// Call this BEFORE init(uid) in the login flow.
+  Future<void> migrateGuestToAccount(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(guestModeFlag) != true) return; // not a guest session
+
+    // 1. Load guest config + txns from on-device storage.
+    await _loadConfigLocal();
+    final guestShops = Map<String, Shop>.from(_shops);
+    final guestCats  = Map<String, Map<String, List<String>>>.from(_cats);
+    final guestBiz   = _bizType;
+    final guestTxns  = await _dbSvc.loadAllTxns(guestBusinessId);
+
+    // 2. Resolve the target businessId (the account's own id).
+    String targetBid = uid;
+    try {
+      final profile = await _auth.getProfile(uid);
+      final pBid = (profile?['businessId'] as String?)?.trim();
+      if (pBid != null && pBid.isNotEmpty) targetBid = pBid;
+    } catch (_) {}
+
+    // 3. Upload guest config (merged with any existing account config).
+    if (guestShops.isNotEmpty || guestBiz.isNotEmpty) {
+      try {
+        await _auth.saveConfig(targetBid, {
+          if (guestShops.isNotEmpty)
+            'shops': guestShops.map((k, v) => MapEntry(k, v.toMap())),
+          if (guestCats.isNotEmpty)
+            'cats': guestCats.map((k, v) => MapEntry(k, {
+                  'sales':   v['sales']   ?? [],
+                  'expense': v['expense'] ?? [],
+                  'payment': v['payment'] ?? [],
+                })),
+          if (guestBiz.isNotEmpty) 'bizType': guestBiz,
+          'onboarded': true,
+        });
+      } catch (_) {}
+    }
+
+    // 4. Re-save each guest transaction under the account's businessId
+    //    (writes to Firestore + the account's local cache).
+    for (final t in guestTxns) {
+      try {
+        await _dbSvc.addTxn(t.copyWith(businessId: targetBid));
+      } catch (_) {}
+    }
+
+    // 5. Tear down the guest session.
+    await prefs.remove(guestModeFlag);
+    await prefs.remove(_guestConfigKey);
+    await _dbSvc.saveTxnsToCache(guestBusinessId, []);
+    _isGuest = false;
+  }
+
+  static const _guestConfigKey = 'kp_guest_config';
+
+  Future<void> _saveConfigLocal() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = {
+      'shops':   _shops.map((k, v) => MapEntry(k, v.toMap())),
+      'cats':    _cats,
+      'bizType': _bizType,
+    };
+    await prefs.setString(_guestConfigKey, jsonEncode(data));
+  }
+
+  Future<void> _loadConfigLocal() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_guestConfigKey);
+    if (raw == null) { _shops = {}; _cats = {}; _bizType = ''; return; }
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final rawShops = data['shops'] as Map<String, dynamic>? ?? {};
+      _shops = rawShops.map(
+        (k, v) => MapEntry(k, Shop.fromMap(k, v as Map<String, dynamic>)),
+      );
+      final rawCats = data['cats'] as Map<String, dynamic>? ?? {};
+      _cats = rawCats.map((k, v) {
+        final vMap = v as Map<String, dynamic>? ?? {};
+        return MapEntry(k, {
+          'sales':   List<String>.from(vMap['sales']   as List? ?? []),
+          'expense': List<String>.from(vMap['expense'] as List? ?? []),
+          'payment': List<String>.from(vMap['payment'] as List? ?? []),
+        });
+      });
+      _bizType = (data['bizType'] as String?) ?? '';
+    } catch (_) {
+      _shops = {}; _cats = {}; _bizType = '';
+    }
+  }
+
+  /// Sets the business type during onboarding and persists it (guest = local).
+  Future<void> setBizType(String type) async {
+    _bizType = type;
+    notifyListeners();
+    if (_isGuest) {
+      await _saveConfigLocal();
+    } else {
+      await _auth.saveConfig(_businessId, {'bizType': type, 'onboarded': true});
+    }
   }
 
   // ── Language ──────────────────────────────────────────────────────────────
@@ -455,6 +600,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> _persistShops() async {
     if (_businessId.isEmpty) return;
+    if (_isGuest) { await _saveConfigLocal(); return; } // local-only for guests
     final shopsMap = _shops.map((k, v) => MapEntry(k, v.toMap()));
     // Use saveShops (update) so deleted shop keys are actually removed.
     // saveConfig with merge:true only adds/updates — it never removes map keys.
@@ -463,6 +609,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> _persistCats() async {
     if (_businessId.isEmpty) return;
+    if (_isGuest) { await _saveConfigLocal(); return; } // local-only for guests
     final catsMap = _cats.map((k, v) => MapEntry(k, {
       'sales':   v['sales']   ?? [],
       'expense': v['expense'] ?? [],
@@ -480,6 +627,9 @@ class AppProvider extends ChangeNotifier {
     final cached = await _dbSvc.loadAllTxns(_businessId);
     _txns = cached;
     notifyListeners();
+
+    // Guests have no Firestore — local cache is the whole story.
+    if (_isGuest) return;
 
     // 2. Sync from Firebase if needed (once per day)
     if (await _dbSvc.needsSync(_businessId)) {

@@ -17,6 +17,7 @@ import '../services/reminder_service.dart';
 import 'dashboard_tab.dart' show rupee;
 import 'reminder_detect_sheet.dart';
 import 'reminders_screen.dart';
+import 'upgrade_screen.dart';
 
 class EntryTab extends StatefulWidget {
   const EntryTab({super.key});
@@ -153,7 +154,12 @@ class _EntryTabState extends State<EntryTab> {
       // _txns before _startLiveSync snapshot fires — prevents the duplicate where
       // the listener sees the doc before addLocalTxn and adds it a second time.
       if (mounted) context.read<AppProvider>().addLocalTxn(txn);
-      await _db.addTxn(txn);
+      // Guests have no auth → save to the on-device cache only (no Firestore).
+      if (p.isGuest) {
+        await _db.addTxnLocal(txn);
+      } else {
+        await _db.addTxn(txn);
+      }
       _snack('Entry saved');
       // Teach the AI about this entry before resetting
       _ai.learn(description, savedType, savedDesc);
@@ -590,6 +596,13 @@ class _EntryTabState extends State<EntryTab> {
               children: [
                 GestureDetector(
                   onTap: () async {
+                    // "+ Custom" is a Pro/trial feature. Free tier (after the
+                    // trial) is sent to the paywall instead.
+                    if (!p.canUseCustomEntry) {
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const UpgradeScreen()));
+                      return;
+                    }
                     final ctrl = TextEditingController();
                     final result = await showDialog<String>(
                       context: context,
@@ -632,9 +645,9 @@ class _EntryTabState extends State<EntryTab> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: const Color(0xFFD1D5DB)),
                     ),
-                    child: const Text(
-                      '+ Custom',
-                      style: TextStyle(
+                    child: Text(
+                      p.canUseCustomEntry ? '+ Custom' : '🔒 Custom',
+                      style: const TextStyle(
                         color: kMuted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,

@@ -70,6 +70,9 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _navigateAfterLogin(String uid) async {
     final provider = context.read<AppProvider>();
+    // If this device was used as a guest, move that local data into the
+    // account (and end the guest session) before loading the account.
+    await provider.migrateGuestToAccount(uid);
     await provider.init(uid);
     if (!mounted) return;
     if (provider.isOnboarded) {
@@ -81,6 +84,20 @@ class _LoginScreenState extends State<LoginScreen>
         MaterialPageRoute(builder: (_) => const OnboardingScreen()),
       );
     }
+  }
+
+  Future<void> _continueAsGuest() async {
+    final provider = context.read<AppProvider>();
+    await provider.enableGuestMode();
+    await provider.initGuest();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => provider.isOnboarded
+            ? const HomeScreen()
+            : const OnboardingScreen(),
+      ),
+    );
   }
 
   Future<void> _forgotPassword() async {
@@ -367,7 +384,21 @@ class _LoginScreenState extends State<LoginScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+                // Use the app without an account (guest mode). Data stays on the
+                // device until the user logs in to back it up.
+                TextButton(
+                  onPressed: _loading ? null : _continueAsGuest,
+                  child: Text(
+                    'Skip — continue without login →',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),

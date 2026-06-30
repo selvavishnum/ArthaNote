@@ -230,6 +230,25 @@ class DbService {
     await _cacheLock;
   }
 
+  /// Saves a transaction to the LOCAL file cache only — no Firestore write.
+  /// Used in guest mode (no auth) so entries persist on-device and never hit
+  /// the network; they are migrated to Firestore when the user logs in.
+  Future<void> addTxnLocal(Txn txn) async {
+    final id     = txn.id.isNotEmpty ? txn.id : const Uuid().v4();
+    final withId = txn.copyWith(id: id);
+    _cacheLock = (_cacheLock ?? Future.value()).then((_) async {
+      final existing = await loadAllTxns(txn.businessId);
+      final idx = existing.indexWhere((t) => t.id == withId.id);
+      if (idx != -1) {
+        existing[idx] = withId;
+      } else {
+        existing.insert(0, withId);
+      }
+      await saveTxnsToCache(txn.businessId, existing);
+    });
+    await _cacheLock;
+  }
+
   Future<void> deleteTxn(String id, String businessId) async {
     await _db.collection('transactions').doc(id).delete();
     final existing = await loadAllTxns(businessId);

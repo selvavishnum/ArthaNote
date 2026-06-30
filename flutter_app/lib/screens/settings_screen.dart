@@ -162,6 +162,44 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         children: [
 
+          // ── Guest: Login / Sign up to back up (guest mode only) ─────────
+          if (p.isGuest)
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const LoginScreen())),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFCD34D)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.cloud_upload_outlined,
+                      color: Color(0xFFD97706), size: 24),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Log in to back up your data',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: Color(0xFF92400E))),
+                        SizedBox(height: 2),
+                        Text('You\'re using ArthaNote without an account.',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xFF92400E))),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Color(0xFFD97706)),
+                ]),
+              ),
+            ),
+
           // ── Privacy & Security banner ──────────────────────────────────
           Container(
             margin: const EdgeInsets.fromLTRB(0, 0, 0, 8),
