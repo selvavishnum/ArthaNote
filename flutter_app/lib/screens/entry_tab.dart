@@ -154,7 +154,12 @@ class _EntryTabState extends State<EntryTab> {
       // _txns before _startLiveSync snapshot fires — prevents the duplicate where
       // the listener sees the doc before addLocalTxn and adds it a second time.
       if (mounted) context.read<AppProvider>().addLocalTxn(txn);
-      await _db.addTxn(txn);
+      // Guests have no auth → save to the on-device cache only (no Firestore).
+      if (p.isGuest) {
+        await _db.addTxnLocal(txn);
+      } else {
+        await _db.addTxn(txn);
+      }
       _snack('Entry saved');
       // Teach the AI about this entry before resetting
       _ai.learn(description, savedType, savedDesc);

@@ -29,7 +29,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _saving = true);
     try {
       final provider = context.read<AppProvider>();
-      final uid      = _auth.currentUser!.uid;
       final shopId   = const Uuid().v4().substring(0, 8);
       final shop     = Shop(
         id:   shopId,
@@ -40,12 +39,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       provider.addShop(shopId, shop);
 
-      await _auth.saveConfig(provider.businessId, {
-        'shops':    {shopId: shop.toMap()},
-        'bizType':  _selectedType,
-        'onboarded': true,
-      });
-      await _auth.saveProfile(uid, {'onboarded': true});
+      if (provider.isGuest) {
+        // Guest: persist config on-device only (no Firestore / no auth user).
+        await provider.setBizType(_selectedType);
+      } else {
+        final uid = _auth.currentUser!.uid;
+        await _auth.saveConfig(provider.businessId, {
+          'shops':    {shopId: shop.toMap()},
+          'bizType':  _selectedType,
+          'onboarded': true,
+        });
+        await _auth.saveProfile(uid, {'onboarded': true});
+      }
 
       if (mounted) {
         Navigator.of(context).pushReplacement(

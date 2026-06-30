@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../providers/app_provider.dart';
 import 'login_screen.dart';
@@ -35,12 +36,23 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     final user = FirebaseAuth.instance.currentUser;
+    final provider = context.read<AppProvider>();
+
     if (user == null) {
-      _goto(const LoginScreen());
+      // Not logged in: resume a guest session if one was started, else login.
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(AppProvider.guestModeFlag) == true) {
+        await provider.initGuest();
+        if (!mounted) return;
+        _goto(provider.isOnboarded
+            ? const HomeScreen()
+            : const OnboardingScreen());
+      } else {
+        _goto(const LoginScreen());
+      }
       return;
     }
 
-    final provider = context.read<AppProvider>();
     await provider.init(user.uid);
     if (!mounted) return;
 

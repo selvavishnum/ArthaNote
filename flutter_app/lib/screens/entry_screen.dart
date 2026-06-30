@@ -66,7 +66,7 @@ class _EntryScreenState extends State<EntryScreen> {
         : p.shops[_shopId];
 
     try {
-      await _db.addTxn(Txn(
+      final txn = Txn(
         id:         const Uuid().v4(),
         businessId: p.businessId,
         shop:       shop?.id   ?? '',
@@ -76,7 +76,12 @@ class _EntryScreenState extends State<EntryScreen> {
         amount:     amt,
         desc:       _desc.text.trim(),
         createdAt:  DateTime.now(),
-      ));
+      );
+      if (p.isGuest) {
+        await _db.addTxnLocal(txn);
+      } else {
+        await _db.addTxn(txn);
+      }
       if (mounted) {
         _showSnack('Entry saved successfully');
         Navigator.of(context).pop();
