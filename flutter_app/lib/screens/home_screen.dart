@@ -242,6 +242,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isAdmin    = p.isAdmin;
     final isCashier  = p.isCashier;
     final showFinance = _showFinanceTab(p);
+    final showConstruction = p.isSelectedShopConstruction;
     final bodies     = _bodies(isAdmin, isCashier);
     final safeTab    = _tab.clamp(0, bodies.length - 1);
 
@@ -284,7 +285,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
-        bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, isCashier, showFinance),
+        bottomNavigationBar:
+            _buildBottomNav(p.lang, isAdmin, isCashier, showFinance, showConstruction),
         floatingActionButton: FloatingActionButton(
           backgroundColor: kPrimary,
           foregroundColor: Colors.white,
@@ -719,12 +721,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l, bool isAdmin, bool isCashier, bool showFinance) {
-    // Cashier: Dashboard(0), Entry(1), Ledger(2) [, Finance(3 if applicable)]
-    // Normal:  Dashboard(0), [Scan(1 if admin)], Entry, Ledger, Suppliers, Reports [, Finance]
+  Widget _buildBottomNav(String l, bool isAdmin, bool isCashier,
+      bool showFinance, bool showConstruction) {
+    // A shop is at most one of finance/chit OR construction, so only one
+    // extra "module" tab ever appears at the end of the bar.
+    final showModule = showFinance || showConstruction;
+    // Cashier: Dashboard(0), Entry(1), Ledger(2) [, Module(3 if applicable)]
+    // Normal:  Dashboard(0), [Scan(1 if admin)], Entry, Ledger, Suppliers, Reports [, Module]
     final maxIdx = isCashier
-        ? (showFinance ? 4 : 3)
-        : showFinance
+        ? (showModule ? 4 : 3)
+        : showModule
             ? (isAdmin ? 6 : 5)
             : (isAdmin ? 5 : 4);
     final cur = _tab.clamp(0, maxIdx);
@@ -745,16 +751,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _item(NavIconType.suppliers, t('suppliers', l), idx++),
       if (!isCashier) _item(NavIconType.reports, t('reports', l), idx++),
       if (showFinance) _item(NavIconType.finance, 'Finance', idx),
+      if (showConstruction)
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.construction_outlined),
+          activeIcon: Icon(Icons.construction),
+          label: 'Construction',
+        ),
     ];
 
     return BottomNavigationBar(
       currentIndex: cur,
       onTap: (i) {
-        final financeIdx = isCashier ? 4 : (isAdmin ? 6 : 5);
-        if (showFinance && i == financeIdx) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const FinanceTab()),
-          );
+        final moduleIdx = isCashier ? 4 : (isAdmin ? 6 : 5);
+        if (showModule && i == moduleIdx) {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) =>
+                showFinance ? const FinanceTab() : const ConstructionScreen(),
+          ));
           return;
         }
         setState(() => _tab = i);

@@ -130,6 +130,13 @@ class AppProvider extends ChangeNotifier {
     return t == 'finance' || t == 'chit';
   }
 
+  /// True when the currently selected shop is a construction site — the bottom
+  /// nav then shows a "Construction" tab that opens the projects module.
+  bool get isSelectedShopConstruction {
+    if (_selectedShop.isEmpty) return false;
+    return (_shops[_selectedShop]?.type.toLowerCase() ?? '') == 'construction';
+  }
+
   // Onboarded if: explicit flag set, OR shops exist and the profile belongs to
   // this user's own business (businessId == profile uid). The second condition
   // covers website accounts that never set the 'onboarded' flag. We do NOT
