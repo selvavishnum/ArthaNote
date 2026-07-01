@@ -243,6 +243,7 @@ class AppProvider extends ChangeNotifier {
   bool get canUseDuplicateAlert => hasFullAccess;
   bool get canUseReminders      => hasFullAccess;
   bool get canUseCustomEntry    => hasFullAccess; // the "+ Custom" quick button
+  bool get canUseConstruction   => hasFullAccess; // construction projects module
 
   /// Business shops currently set up (excludes the implicit personal shop).
   int get businessShopCount =>
