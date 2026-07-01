@@ -5089,7 +5089,7 @@ function renderDash(){
     const stxs=af.filter(x=>x.shop===k);
     const ss=sum(stxs,'sales'),se2=sum(stxs,'expense'),sn=ss-se2;
     const netStr=sn<0?'−₹'+fmt(Math.abs(sn)):'₹'+fmt(sn);
-    return `<div class="lx-shop" onclick="openSd('${k}')">
+    return `<div class="lx-shop" onclick="openShop('${k}')">
       <div class="lx-shop-name">${esc(SHOPS[k]?.name||k)}</div>
       <div class="lx-shop-nums">
         <span>Sales <b>₹${fmt(ss)}</b></span>
@@ -5149,6 +5149,24 @@ function renderDash(){
 // ════════════════════════════════════════
 // SHOP DETAIL 360°
 // ════════════════════════════════════════
+// Dashboard shop tap dispatcher — module shops open their own module inside;
+// everything else opens the 360° report.
+function openShop(k){
+  const type=SHOPS[k]?.type;
+  if(type==='construction'){
+    const nc=document.getElementById('nav-construction');
+    if(nc){ nc.style.display='flex'; goPane('construction',nc); } else goPane('construction');
+    openConstruction();
+    return;
+  }
+  if(type==='finance'||type==='chit'){
+    const nf=document.getElementById('nav-finance');
+    if(nf){ nf.style.display='flex'; goPane('finance',nf); } else goPane('finance');
+    loadFinanceData();
+    return;
+  }
+  openSd(k);
+}
 function openSd(k){
   _sdShop=k; _sdP='today';
   document.getElementById('sd-title').textContent=(SHOPS[k]?.icon||'🏪')+' '+(SHOPS[k]?.name||k);
