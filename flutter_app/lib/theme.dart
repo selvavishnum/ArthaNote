@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 
-// ── Color palette ────────────────────────────────────────────────────────────
-const kPrimary   = Color(0xFF065F46);   // deep forest green
-const kSecondary = Color(0xFF059669);   // emerald
-const kAccent    = Color(0xFFD97706);   // amber gold (for CTAs)
-const kRed       = Color(0xFFDC2626);
+// ── Color palette (Serif Ledger — gold accent) ───────────────────────────────
+// kPrimary is the app-wide CHROME accent (buttons, tabs, nav, FAB, headers).
+// Serif Ledger uses gold. kSecondary (emerald) + kRed stay for money semantics.
+const kPrimary   = Color(0xFFA16207);   // gold (was deep forest green)
+const kSecondary = Color(0xFF059669);   // emerald — POSITIVE money only
+const kAccent    = Color(0xFFA16207);   // gold — CTAs (unified with primary)
+const kRed       = Color(0xFFDC2626);   // NEGATIVE money
 const kAmber     = Color(0xFFF59E0B);
 const kBg        = Color(0xFFF3F4F6);
 const kCard      = Colors.white;
 const kText      = Color(0xFF111827);
 const kMuted     = Color(0xFF6B7280);
+const kSerif     = 'serif';             // Noto Serif on Android — premium headings
 
 // ── Shared decorations ───────────────────────────────────────────────────────
 const kGradient = LinearGradient(
-  colors: [kPrimary, kSecondary],
+  colors: [Color(0xFFB8860B), Color(0xFF8A5A09)], // goldenrod → deep gold
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
@@ -72,10 +75,10 @@ ThemeData appTheme() {
       centerTitle: true,
       titleTextStyle: TextStyle(
         color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        fontFamily: 'Roboto',
-        letterSpacing: 0.3,
+        fontSize: 19,
+        fontWeight: FontWeight.w800,
+        fontFamily: kSerif,
+        letterSpacing: 0.2,
       ),
       iconTheme: IconThemeData(color: Colors.white),
       actionsIconTheme: IconThemeData(color: Colors.white),
@@ -231,10 +234,11 @@ ThemeData appTheme() {
 
     // ── Typography ───────────────────────────────────────────────────────────
     textTheme: const TextTheme(
-      displayLarge:   TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kText, letterSpacing: -0.5),
-      displayMedium:  TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: kText),
-      headlineLarge:  TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kText),
-      headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kText),
+      // Headings use the serif face for the Serif Ledger feel; body stays sans.
+      displayLarge:   TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: kText, letterSpacing: -0.5, fontFamily: kSerif),
+      displayMedium:  TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: kText, fontFamily: kSerif),
+      headlineLarge:  TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kText, fontFamily: kSerif),
+      headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kText, fontFamily: kSerif),
       titleLarge:     TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kText),
       titleMedium:    TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: kText),
       bodyLarge:      TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: kText),
