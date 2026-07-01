@@ -2,9 +2,9 @@ name: arthanote
 description: ArthaNote — Shop Ledger for Tamil Nadu retailers
 publish_to: 'none'
 version: 1.3.10+40
-# Release build: v1.3.10+40 — Serif Ledger dashboard redesign, promo-code
-# redemption, web construction module, guest mode, monetization gates,
-# 3-month trial, AI date-aware alerts, shop-delete fix and entry timestamps.
+# Release build: v1.3.10+40 — app-wide Serif Ledger theme (gold accent + serif),
+# dashboard redesign, promo-code redemption, web construction module, guest mode,
+# monetization gates, 3-month trial, AI date-aware alerts, shop-delete fix.
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
