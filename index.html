@@ -1454,6 +1454,7 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
       <button onclick="goPane('dash')" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">&larr; Back</button>
       <div style="flex:1"><div style="font-weight:800;font-size:17px" id="sd-title">Shop</div><div style="font-size:11px;color:var(--muted)">360&deg; Analysis Report</div></div>
     </div>
+    <div id="sd-module-btn" style="display:none"></div>
     <div class="dtabs">
       <div class="dtab on" onclick="setSdP('today',this)">Today</div>
       <div class="dtab" onclick="setSdP('yesterday',this)">Yesterday</div>
@@ -5162,27 +5163,33 @@ function renderDash(){
 // ════════════════════════════════════════
 // SHOP DETAIL 360°
 // ════════════════════════════════════════
-// Dashboard shop tap dispatcher — module shops open their own module inside;
-// everything else opens the 360° report.
+// Jump helpers to the module panes (also un-hide their nav tab).
+function gotoConstruction(){ const nc=document.getElementById('nav-construction'); if(nc){ nc.style.display='flex'; goPane('construction',nc); } else goPane('construction'); openConstruction(); }
+function gotoFinance(){ const nf=document.getElementById('nav-finance'); if(nf){ nf.style.display='flex'; goPane('finance',nf); } else goPane('finance'); loadFinanceData(); }
+
+// Dashboard shop tap dispatcher. Finance/Chit open their module directly;
+// Construction opens the 360° report, which carries an "Open Construction
+// Ledger" button (per request — the ledger lives on the analysis page).
 function openShop(k){
   const type=SHOPS[k]?.type;
-  if(type==='construction'){
-    const nc=document.getElementById('nav-construction');
-    if(nc){ nc.style.display='flex'; goPane('construction',nc); } else goPane('construction');
-    openConstruction();
-    return;
-  }
-  if(type==='finance'||type==='chit'){
-    const nf=document.getElementById('nav-finance');
-    if(nf){ nf.style.display='flex'; goPane('finance',nf); } else goPane('finance');
-    loadFinanceData();
-    return;
-  }
+  if(type==='finance'||type==='chit'){ gotoFinance(); return; }
   openSd(k);
 }
 function openSd(k){
   _sdShop=k; _sdP='today';
   document.getElementById('sd-title').textContent=(SHOPS[k]?.icon||'🏪')+' '+(SHOPS[k]?.name||k);
+  // Module access button on the 360° page (construction / finance shops)
+  const mb=document.getElementById('sd-module-btn');
+  if(mb){
+    const ty=SHOPS[k]?.type;
+    if(ty==='construction'){
+      mb.style.display='block';
+      mb.innerHTML=`<button onclick="gotoConstruction()" style="width:100%;background:var(--gold);color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px">🏗️ Open Construction Ledger →</button>`;
+    } else if(ty==='finance'||ty==='chit'){
+      mb.style.display='block';
+      mb.innerHTML=`<button onclick="gotoFinance()" style="width:100%;background:var(--gold);color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px">💰 Open Finance Module →</button>`;
+    } else { mb.style.display='none'; mb.innerHTML=''; }
+  }
   document.querySelectorAll('#pane-shop-detail .dtab').forEach((b,i)=>b.classList.toggle('on',i===0));
   document.getElementById('sd-cat-card').style.display=ME.role==='owner'?'block':'none';
   buildSdCE(k); renderSd(); goPane('shop-detail');
