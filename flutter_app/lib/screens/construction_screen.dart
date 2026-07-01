@@ -5,6 +5,7 @@ import '../theme.dart';
 import '../providers/app_provider.dart';
 import '../models/construction_project.dart';
 import '../models/construction_entry.dart';
+import '../models/construction_materials.dart';
 import '../services/construction_service.dart';
 import 'dashboard_tab.dart' show rupee;
 import 'upgrade_screen.dart';
@@ -546,6 +547,7 @@ void _addEntrySheet(
   final items = <Map<String, TextEditingController>>[
     {
       'item': TextEditingController(),
+      'hsn': TextEditingController(),
       'qty': TextEditingController(text: '1'),
       'unit': TextEditingController(),
       'rate': TextEditingController(),
@@ -629,6 +631,23 @@ void _addEntrySheet(
                         child: _plainField(it['item']!, 'Item (e.g. Cement)',
                             onChanged: (_) => setSt(() {})),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.menu_book_outlined,
+                            size: 20, color: kPrimary),
+                        tooltip: 'Pick from catalog',
+                        onPressed: () async {
+                          final m = await _pickMaterial(ctx);
+                          if (m == null) return;
+                          final recent = await svc.recentRates();
+                          it['item']!.text = m.name;
+                          it['hsn']!.text  = m.hsn;
+                          it['unit']!.text = m.unit;
+                          it['rate']!.text =
+                              (recent[m.name.toLowerCase()] ?? m.rate)
+                                  .toStringAsFixed(0);
+                          setSt(() {});
+                        },
+                      ),
                       if (items.length > 1)
                         IconButton(
                           icon: const Icon(Icons.delete_outline,
@@ -636,6 +655,16 @@ void _addEntrySheet(
                           onPressed: () => setSt(() => items.removeAt(idx)),
                         ),
                     ]),
+                    if (it['hsn']!.text.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 2, bottom: 4),
+                          child: Text('HSN ${it['hsn']!.text}',
+                              style: const TextStyle(
+                                  fontSize: 10, color: kMuted)),
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     Row(children: [
                       Expanded(
@@ -664,6 +693,7 @@ void _addEntrySheet(
               TextButton.icon(
                 onPressed: () => setSt(() => items.add({
                       'item': TextEditingController(),
+                      'hsn': TextEditingController(),
                       'qty': TextEditingController(text: '1'),
                       'unit': TextEditingController(),
                       'rate': TextEditingController(),
@@ -800,6 +830,7 @@ void _addEntrySheet(
                                     it['item']!.text.trim().isNotEmpty)
                                 .map((it) => ConstructionLineItem(
                                       item: it['item']!.text.trim(),
+                                      hsn: it['hsn']!.text.trim(),
                                       qty: double.tryParse(
                                               it['qty']!.text.trim()) ??
                                           0,
@@ -810,6 +841,12 @@ void _addEntrySheet(
                                     ))
                                 .toList()
                             : <ConstructionLineItem>[];
+                        // Learn the builder's prices for next-time prefill.
+                        for (final li in lineItems) {
+                          if (li.rate > 0) {
+                            svc.saveRecentRate(li.item, li.rate);
+                          }
+                        }
                         try {
                           await svc.addEntry(ConstructionEntry(
                             id: '',
@@ -984,3 +1021,72 @@ Widget _toggle(String label, bool on, Color color, VoidCallback onTap) =>
                 fontSize: 14)),
       ),
     );
+
+/// Searchable material catalog picker (name + HSN + indicative rate).
+Future<ConstructionMaterial?> _pickMaterial(BuildContext context) {
+  return showModalBottomSheet<ConstructionMaterial>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (ctx) {
+      final searchCtrl = TextEditingController();
+      return StatefulBuilder(
+        builder: (ctx, setSt) {
+          final q = searchCtrl.text.trim().toLowerCase();
+          final list = q.isEmpty
+              ? kConstructionMaterials
+              : kConstructionMaterials
+                  .where((m) =>
+                      m.name.toLowerCase().contains(q) || m.hsn.contains(q))
+                  .toList();
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+                16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Row(children: [
+                const Text('Select material',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const Spacer(),
+                IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close)),
+              ]),
+              const SizedBox(height: 8),
+              _plainField(searchCtrl, 'Search material or HSN…',
+                  onChanged: (_) => setSt(() {})),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: list.length,
+                  itemBuilder: (_, i) {
+                    final m = list[i];
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(m.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: Text('HSN ${m.hsn} · per ${m.unit}',
+                          style: const TextStyle(
+                              fontSize: 11, color: kMuted)),
+                      trailing: Text('₹${m.rate.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, color: kPrimary)),
+                      onTap: () => Navigator.pop(ctx, m),
+                    );
+                  },
+                ),
+              ),
+            ]),
+          );
+        },
+      );
+    },
+  );
+}

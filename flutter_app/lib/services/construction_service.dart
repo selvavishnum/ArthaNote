@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/construction_project.dart';
 import '../models/construction_entry.dart';
@@ -66,6 +68,35 @@ class ConstructionService {
 
   Future<void> deleteEntry(String id) =>
       _db.collection('construction_entries').doc(id).delete();
+
+  // ── Recent material rates (learned from the builder's own entries) ─────────
+  static const _ratesKey = 'kp_construction_rates';
+
+  /// Remembers the last rate used for a material so the next Material entry
+  /// pre-fills the builder's own price instead of the catalog default.
+  Future<void> saveRecentRate(String material, double rate) async {
+    if (material.trim().isEmpty || rate <= 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final map = _readRates(prefs);
+    map[material.trim().toLowerCase()] = rate;
+    await prefs.setString(_ratesKey, jsonEncode(map));
+  }
+
+  Future<Map<String, double>> recentRates() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _readRates(prefs);
+  }
+
+  Map<String, double> _readRates(SharedPreferences prefs) {
+    try {
+      final raw = prefs.getString(_ratesKey);
+      if (raw == null) return {};
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      return m.map((k, v) => MapEntry(k, (v as num).toDouble()));
+    } catch (_) {
+      return {};
+    }
+  }
 }
 
 /// Rolled-up figures for a project's Summary tab.
