@@ -952,6 +952,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
         <div class="ob-type" onclick="pickBizType(this,'hotel')"><div class="ot-icon">🍽️</div><div class="ot-name">Hotel/Food</div></div>
         <div class="ob-type" onclick="pickBizType(this,'finance')"><div class="ot-icon">💰</div><div class="ot-name">Finance</div></div>
         <div class="ob-type" onclick="pickBizType(this,'chit')"><div class="ot-icon">🎰</div><div class="ot-name">Chit Fund</div></div>
+        <div class="ob-type" onclick="pickBizType(this,'construction')"><div class="ot-icon">🏗️</div><div class="ot-name">Construction</div></div>
         <div class="ob-type" onclick="pickBizType(this,'other')"><div class="ot-icon">🏪</div><div class="ot-name">Other</div></div>
       </div>
       <div id="ob-type-hint" style="display:none;margin:8px 0;padding:10px 12px;border-radius:10px;font-size:11px;text-align:center"></div>
@@ -1373,6 +1374,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <div id="fc-content" style="margin-top:10px"></div>
   </div>
 
+  <!-- ── CONSTRUCTION ── -->
+  <div class="pane" id="pane-construction">
+    <div id="con-content"></div>
+  </div>
+
   <!-- ── SHOP DETAIL 360° ── -->
   <div class="pane" id="pane-shop-detail">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
@@ -1405,6 +1411,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <button class="nbt on" onclick="goPane('dash',this)"><span class="ni">&#128202;</span><span class="nl" id="nl-dash">Dashboard</span></button>
     <button class="nbt" id="nav-scan" onclick="goPane('scan',this)"><span class="ni">&#128247;</span><span class="nl" id="nl-scan">Scan</span></button>
     <button class="nbt" id="nav-finance" style="display:none" onclick="goPane('finance',this);loadFinanceData()"><span class="ni">&#128176;</span><span class="nl" id="nl-finance">Finance</span></button>
+    <button class="nbt" id="nav-construction" style="display:none" onclick="goPane('construction',this);openConstruction()"><span class="ni">&#127959;&#65039;</span><span class="nl" id="nl-construction">Site</span></button>
     <button class="nbt" onclick="goPane('entry',this)"><span class="ni">&#9999;&#65039;</span><span class="nl" id="nl-entry">Entry</span></button>
     <button class="nbt" onclick="goPane('ledger',this)"><span class="ni">&#128203;</span><span class="nl" id="nl-ledger">Ledger</span></button>
     <button class="nbt" id="nav-sup" onclick="goPane('sup',this)"><span class="ni">&#127991;&#65039;</span><span class="nl" id="nl-sup">Suppliers</span></button>
@@ -1963,6 +1970,10 @@ let _bizType=localStorage.getItem('slv_biztype')||'other';
 let FC_MEMBERS=[],FC_PAYMENTS=[],FC_CHITS=[];
 let _fcTab='overview',_fcMonth=new Date().toISOString().slice(0,7);
 let _nsType='other';
+
+// CONSTRUCTION MODULE STATE
+let CON_PROJECTS=[],CON_ENTRIES=[];
+let _conProject=null,_conTab='summary',_conEntryType='material',_conItems=[];
 
 // ════════════════════════════════════════
 // QR ATTENDANCE SYSTEM
@@ -2596,7 +2607,7 @@ function pickGstRate(el,rate){
 }
 
 // BUSINESS TYPE → ICON MAP
-const BIZ_ICONS={personal:'👤',vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',medical:'💊',hotel:'🍽️',finance:'💰',chit:'🎰',other:'🏪'};
+const BIZ_ICONS={personal:'👤',vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',medical:'💊',hotel:'🍽️',finance:'💰',chit:'🎰',construction:'🏗️',other:'🏪'};
 // BUSINESS TYPE → DEFAULT CATEGORIES
 const BIZ_CATS={
   personal:{sales:['Cash Received','Loan Given','Gold Given','Chit Received','Other'],expense:['EMI','Rent','CC Payment','Gold Loan Int','Chit Payment','Other']},
@@ -2611,6 +2622,7 @@ const BIZ_CATS={
   hotel:{sales:['Cash','GPay','Card','Parcel','Delivery','Other'],expense:['Raw Material','Staff Salary','Gas','Rent/EB','Other']},
   finance:{sales:['EMI Collected','Interest Income','Other'],expense:['Loan Given','Capital Out','Expense']},
   chit:{sales:['Monthly Collection','Other'],expense:['Chit Prize','Expense','Other']},
+  construction:{sales:['Client Payment','Advance','Running Bill','Other'],expense:['Material','Labour','Contractor','Machinery','Transport','Other']},
   other:{sales:['Cash','GPay','Card','Other'],expense:['Purchase','Salary','Rent/EB','Other']}
 };
 
@@ -2628,6 +2640,7 @@ const BTYPE_CONFIG={
   hotel:{dashTitle:'🍽️ Hotel / Food',salesLabel:'Orders / Revenue',supTab:false},
   finance:{dashTitle:'💰 Finance / Lending',salesLabel:'EMI Collected',supTab:false},
   chit:{dashTitle:'🎰 Chit Fund',salesLabel:'Monthly Collection',supTab:false},
+  construction:{dashTitle:'🏗️ Construction',salesLabel:'Client Payment',supTab:false},
   other:{dashTitle:'🏪 Business',salesLabel:'Sales / Income',supTab:true}
 };
 
@@ -4143,6 +4156,11 @@ async function addNewShop(){
     const nf=document.getElementById('nav-finance');
     if(nf) goPane('finance',nf);
   }
+  if(type==='construction'){
+    const nc=document.getElementById('nav-construction');
+    if(nc) goPane('construction',nc);
+    openConstruction();
+  }
 }
 
 // ════════════════════════════════════════
@@ -4286,7 +4304,7 @@ function openAddShopModal(){
     ['vegetables','🥬','Vegetable'],['grocery','🛒','Grocery'],['tea','☕','Tea'],
     ['bakery','🍞','Bakery'],['textile','👕','Textile'],['hardware','🔧','Hardware'],
     ['jewellery','💍','Jewellery'],['medical','💊','Medical'],
-    ['hotel','🍽️','Hotel'],['finance','💰','Finance'],['chit','🎰','Chit Fund'],['other','🏪','Other']
+    ['hotel','🍽️','Hotel'],['finance','💰','Finance'],['chit','🎰','Chit Fund'],['construction','🏗️','Construction'],['other','🏪','Other']
   ];
   const grid=document.getElementById('ns-type-grid');
   if(grid) grid.innerHTML=types.map(([t,ic,l])=>
@@ -4521,6 +4539,383 @@ function recordChitPrize(chitId){
     toast('🎰 Prize recorded for '+winner+'!');
     renderFinance();
   }).catch(()=>toast('Error saving prize','error'));
+}
+
+// ════════════════════════════════════════
+// CONSTRUCTION MODULE (Pro)
+// ════════════════════════════════════════
+const CON_MATERIALS=[
+  {name:'Cement OPC 43',hsn:'2523',unit:'bag',rate:400},
+  {name:'Cement OPC 53',hsn:'2523',unit:'bag',rate:420},
+  {name:'Cement PPC',hsn:'2523',unit:'bag',rate:390},
+  {name:'TMT Steel 8mm',hsn:'7214',unit:'kg',rate:65},
+  {name:'TMT Steel 10mm',hsn:'7214',unit:'kg',rate:63},
+  {name:'TMT Steel 12mm',hsn:'7214',unit:'kg',rate:62},
+  {name:'TMT Steel 16mm',hsn:'7214',unit:'kg',rate:61},
+  {name:'M-Sand',hsn:'2505',unit:'unit',rate:2500},
+  {name:'River Sand',hsn:'2505',unit:'unit',rate:4500},
+  {name:'P-Sand (Plaster)',hsn:'2505',unit:'unit',rate:2200},
+  {name:'Blue Metal 20mm',hsn:'2517',unit:'unit',rate:2800},
+  {name:'Blue Metal 12mm',hsn:'2517',unit:'unit',rate:3000},
+  {name:'Red Bricks',hsn:'6904',unit:'nos',rate:8},
+  {name:'Fly Ash Bricks',hsn:'6815',unit:'nos',rate:6},
+  {name:'AAC Block',hsn:'6810',unit:'nos',rate:45},
+  {name:'Concrete Solid Block',hsn:'6810',unit:'nos',rate:35},
+  {name:'RMC M20',hsn:'3824',unit:'unit',rate:5500},
+  {name:'RMC M25',hsn:'3824',unit:'unit',rate:5800},
+  {name:'Water Proofing',hsn:'3824',unit:'ltr',rate:180},
+  {name:'White Cement',hsn:'2523',unit:'kg',rate:35},
+  {name:'Wall Putty',hsn:'3214',unit:'bag',rate:600},
+  {name:'Primer',hsn:'3208',unit:'ltr',rate:150},
+  {name:'Emulsion Paint',hsn:'3209',unit:'ltr',rate:250},
+  {name:'Enamel Paint',hsn:'3208',unit:'ltr',rate:220},
+  {name:'Floor Tiles',hsn:'6907',unit:'sqft',rate:55},
+  {name:'Wall Tiles',hsn:'6907',unit:'sqft',rate:45},
+  {name:'Granite',hsn:'6802',unit:'sqft',rate:120},
+  {name:'PVC Pipe',hsn:'3917',unit:'nos',rate:250},
+  {name:'CPVC Pipe',hsn:'3917',unit:'nos',rate:320},
+  {name:'Electrical Wire',hsn:'8544',unit:'unit',rate:2200},
+];
+const CON_PTYPES=['Residential','Commercial','Villa','Apartment','Renovation','Interior','Compound Wall','Other'];
+const CON_STATUS=['Ongoing','On Hold','Completed'];
+
+async function openConstruction(){
+  if(!isProUser()){ renderConLock(); return; }
+  _conProject=null;
+  await loadConstructionData();
+}
+function renderConLock(){
+  const c=document.getElementById('con-content'); if(!c)return;
+  c.innerHTML=`<div style="text-align:center;padding:44px 20px">
+    <div style="font-size:52px;margin-bottom:10px">🏗️</div>
+    <div style="font-size:20px;font-weight:800;color:#065f46;margin-bottom:6px">Construction — Pro Feature</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5">Project ledger, 30+ material catalog with HSN, contractor bills, GST & budget tracking — all in Pro.</div>
+    <button class="btn G" onclick="openPaywall('Construction module is a Pro feature.')">⭐ Upgrade to Pro</button>
+  </div>`;
+}
+async function loadConstructionData(){
+  if(!ME){ renderConstruction(); return; }
+  const bid=ME.businessId||ME.uid;
+  try{
+    const[ps,es]=await Promise.all([
+      DB.collection('construction_projects').where('businessId','==',bid).get(),
+      DB.collection('construction_entries').where('businessId','==',bid).get()
+    ]);
+    CON_PROJECTS=ps.docs.map(d=>({id:d.id,...d.data()}));
+    CON_ENTRIES=es.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){console.warn('CON load err:',e);}
+  renderConstruction();
+}
+function renderConstruction(){
+  if(!isProUser()){ renderConLock(); return; }
+  if(_conProject){ const still=CON_PROJECTS.find(p=>p.id===_conProject.id); if(!still){_conProject=null;} }
+  if(_conProject) renderConProjectDetail();
+  else renderConProjectList();
+}
+function conSummary(pid){
+  const es=CON_ENTRIES.filter(e=>e.projectId===pid);
+  let income=0,expense=0,pendIn=0,pendOut=0; const byType={};
+  es.forEach(e=>{
+    const total=(e.amount||0)+(e.gstAmount||0);
+    if(e.type==='client'){ income+=total; if(!e.paidNow) pendIn+=total; }
+    else{ expense+=total; if(!e.paidNow) pendOut+=total; byType[e.type]=(byType[e.type]||0)+total; }
+  });
+  return{income,expense,pendIn,pendOut,net:income-expense,byType,count:es.length};
+}
+function renderConProjectList(){
+  const c=document.getElementById('con-content'); if(!c)return;
+  const cards=CON_PROJECTS.length
+    ? CON_PROJECTS.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(p=>{
+        const s=conSummary(p.id);
+        const stColor=p.status==='Completed'?'var(--green)':p.status==='On Hold'?'#d97706':'#2563eb';
+        return `<div class="card" style="margin-bottom:10px;cursor:pointer" onclick="openConProject('${p.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+            <div><div style="font-weight:800;font-size:15px">${esc(p.name)}</div>
+              <div style="font-size:11px;color:var(--muted)">${esc(p.projectType||'')}${p.location?' · '+esc(p.location):''}</div></div>
+            <span style="font-size:10px;font-weight:700;color:${stColor};background:var(--soft);padding:3px 8px;border-radius:10px">${esc(p.status||'Ongoing')}</span>
+          </div>
+          <div style="display:flex;gap:14px;font-size:12px">
+            <div>In <b style="color:var(--green)">₹${fmt(s.income)}</b></div>
+            <div>Out <b style="color:var(--red)">₹${fmt(s.expense)}</b></div>
+            <div>Net <b style="color:${s.net>=0?'var(--green)':'var(--red)'}">₹${fmt(s.net)}</b></div>
+          </div>
+          ${s.pendOut>0?`<div style="font-size:11px;color:#d97706;margin-top:4px">⏳ To pay ₹${fmt(s.pendOut)}</div>`:''}
+        </div>`;
+      }).join('')
+    : '<div class="empty">No projects yet. Create your first site below.</div>';
+  c.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="flex:1"><div style="font-weight:800;font-size:18px">🏗️ Construction</div><div style="font-size:11px;color:var(--muted)">${CON_PROJECTS.length} project${CON_PROJECTS.length===1?'':'s'}</div></div>
+      <button class="btn G sm" style="margin-top:0" onclick="newConProject()">+ Project</button>
+    </div>
+    ${cards}`;
+}
+function openConProject(id){ _conProject=CON_PROJECTS.find(p=>p.id===id)||null; _conTab='summary'; renderConstruction(); }
+function backToConList(){ _conProject=null; renderConstruction(); }
+function renderConProjectDetail(){
+  const c=document.getElementById('con-content'); if(!c||!_conProject)return;
+  const p=_conProject;
+  c.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <button onclick="backToConList()" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">← Projects</button>
+      <div style="flex:1"><div style="font-weight:800;font-size:16px">${esc(p.name)}</div><div style="font-size:11px;color:var(--muted)">${esc(p.projectType||'')} · ${esc(p.status||'')}</div></div>
+      <button onclick="delConProject('${p.id}')" style="background:var(--rl);color:var(--red);border:none;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:13px">🗑️</button>
+    </div>
+    <div class="dtabs">
+      <div class="dtab ${_conTab==='summary'?'on':''}" onclick="setConTab('summary',this)">📊 Summary</div>
+      <div class="dtab ${_conTab==='ledger'?'on':''}" onclick="setConTab('ledger',this)">📋 Ledger</div>
+      <div class="dtab ${_conTab==='bills'?'on':''}" onclick="setConTab('bills',this)">🧾 Bills</div>
+    </div>
+    <div id="con-tab-content" style="margin-top:10px"></div>
+    <button class="btn G" onclick="openConEntry()" style="margin-top:14px">＋ Add Entry</button>`;
+  renderConTab();
+}
+function setConTab(t,el){ _conTab=t; document.querySelectorAll('#con-content .dtab').forEach(b=>b.classList.remove('on')); if(el)el.classList.add('on'); renderConTab(); }
+function renderConTab(){
+  const c=document.getElementById('con-tab-content'); if(!c)return;
+  if(_conTab==='summary') c.innerHTML=renderConSummaryTab();
+  else if(_conTab==='ledger') c.innerHTML=renderConLedgerTab();
+  else c.innerHTML=renderConBillsTab();
+}
+function renderConSummaryTab(){
+  const p=_conProject; const s=conSummary(p.id);
+  const typeLabels={material:'🧱 Material',labour:'👷 Labour',contractor:'🤝 Contractor'};
+  const bt=Object.entries(s.byType);
+  const btHtml=bt.length?bt.map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>${typeLabels[k]||k}</span><b>₹${fmt(v)}</b></div>`).join(''):'<div class="empty">No expenses yet</div>';
+  const budgetLine=p.budget>0?`<div class="card"><div class="chd">🎯 Budget</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span>Budget</span><b>₹${fmt(p.budget)}</b></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span>Spent</span><b style="color:var(--red)">₹${fmt(s.expense)}</b></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span>Remaining</span><b style="color:${p.budget-s.expense>=0?'var(--green)':'var(--red)'}">₹${fmt(p.budget-s.expense)}</b></div></div>`:'';
+  return `<div class="sgrid">
+    <div class="stile"><div class="slbl">Received</div><div class="sval cg">₹${fmt(s.income)}</div></div>
+    <div class="stile"><div class="slbl">Spent</div><div class="sval cr">₹${fmt(s.expense)}</div></div>
+    <div class="stile"><div class="slbl">Net</div><div class="sval ${s.net>=0?'cg':'cr'}">₹${fmt(s.net)}</div></div>
+    <div class="stile"><div class="slbl">Entries</div><div class="sval">${s.count}</div></div>
+  </div>
+  <div class="sgrid">
+    <div class="stile"><div class="slbl">To Collect</div><div class="sval cy">₹${fmt(s.pendIn)}</div></div>
+    <div class="stile"><div class="slbl">To Pay</div><div class="sval cy">₹${fmt(s.pendOut)}</div></div>
+  </div>
+  ${budgetLine}
+  <div class="card"><div class="chd">💸 Expense by Type</div>${btHtml}</div>
+  ${p.clientName?`<div class="card"><div class="chd">👤 Client</div><div style="font-size:13px">${esc(p.clientName)}${p.clientPhone?' · '+esc(p.clientPhone):''}</div>${p.location?`<div style="font-size:12px;color:var(--muted);margin-top:4px">📍 ${esc(p.location)}</div>`:''}</div>`:''}`;
+}
+function renderConLedgerTab(){
+  const p=_conProject;
+  const es=CON_ENTRIES.filter(e=>e.projectId===p.id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||((b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)));
+  if(!es.length)return '<div class="empty">No entries yet. Tap ＋ Add Entry.</div>';
+  const typeMeta={client:{ic:'💰',l:'Client Payment'},material:{ic:'🧱',l:'Material'},labour:{ic:'👷',l:'Labour'},contractor:{ic:'🤝',l:'Contractor'}};
+  return es.map(e=>{
+    const tm=typeMeta[e.type]||{ic:'•',l:e.type};
+    const total=(e.amount||0)+(e.gstAmount||0);
+    const inc=e.type==='client';
+    const itemsHtml=(e.items&&e.items.length)?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${e.items.map(it=>esc(it.item)+' '+(it.qty||0)+(it.unit||'')).join(', ')}</div>`:'';
+    return `<div class="card" style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1"><div style="font-weight:700;font-size:13px">${tm.ic} ${esc(e.desc||tm.l)}</div>
+          <div style="font-size:10px;color:var(--muted)">${e.date||''} · ${esc(e.vendor||tm.l)} · ${e.paidNow?esc(e.paymentMode||'cash'):'<span style="color:#d97706">On credit</span>'}</div>
+          ${itemsHtml}</div>
+        <div style="text-align:right"><div style="font-weight:800;color:${inc?'var(--green)':'var(--red)'}">${inc?'+':'−'}₹${fmt(total)}</div>
+          ${e.gstAmount>0?`<div style="font-size:9px;color:var(--muted)">incl GST ₹${fmt(e.gstAmount)}</div>`:''}</div>
+      </div>
+      <div style="text-align:right;margin-top:4px"><button onclick="delConEntry('${e.id}')" style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer">Delete</button></div>
+    </div>`;
+  }).join('');
+}
+function renderConBillsTab(){
+  const p=_conProject;
+  const es=CON_ENTRIES.filter(e=>e.projectId===p.id&&!e.paidNow);
+  const toPay=es.filter(e=>e.type!=='client');
+  const toCollect=es.filter(e=>e.type==='client');
+  const row=e=>{const total=(e.amount||0)+(e.gstAmount||0);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-weight:600;font-size:13px">${esc(e.vendor||e.desc||'—')}</div><div style="font-size:10px;color:var(--muted)">${e.date||''}</div></div>
+      <div style="display:flex;align-items:center;gap:8px"><b>₹${fmt(total)}</b><button onclick="conMarkPaid('${e.id}')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer">Settle</button></div>
+    </div>`;};
+  const payTotal=toPay.reduce((s,e)=>s+(e.amount||0)+(e.gstAmount||0),0);
+  const colTotal=toCollect.reduce((s,e)=>s+(e.amount||0)+(e.gstAmount||0),0);
+  return `<div class="card"><div class="chd" style="display:flex;justify-content:space-between"><span>🔴 To Pay</span><b style="color:var(--red)">₹${fmt(payTotal)}</b></div>${toPay.length?toPay.map(row).join(''):'<div class="empty">Nothing pending</div>'}</div>
+  <div class="card"><div class="chd" style="display:flex;justify-content:space-between"><span>🟢 To Collect</span><b style="color:var(--green)">₹${fmt(colTotal)}</b></div>${toCollect.length?toCollect.map(row).join(''):'<div class="empty">Nothing pending</div>'}</div>`;
+}
+async function conMarkPaid(id){
+  const e=CON_ENTRIES.find(x=>x.id===id); if(!e)return;
+  try{ await DB.collection('construction_entries').doc(id).update({paidNow:true,paymentMode:e.paymentMode||'cash'});
+    e.paidNow=true; toast('✅ Settled'); renderConTab();
+  }catch(err){toast('Error','error');}
+}
+function conOverlay(html){
+  document.getElementById('con-overlay')?.remove();
+  const m=document.createElement('div');
+  m.id='con-overlay';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+  m.innerHTML=`<div onclick="event.stopPropagation()" style="background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto">${html}</div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+}
+function conCloseOverlay(){ document.getElementById('con-overlay')?.remove(); }
+function newConProject(){
+  if(!isProUser()){ openPaywall('Construction module is a Pro feature.'); return; }
+  conOverlay(`
+    <div style="font-size:18px;font-weight:800;margin-bottom:14px">🏗️ New Project</div>
+    <div class="fg"><label>Project Name *</label><input id="cp-name" placeholder="e.g. Kumar Residence"></div>
+    <div class="fr">
+      <div class="fg"><label>Type</label><select id="cp-type">${CON_PTYPES.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div class="fg"><label>Status</label><select id="cp-status">${CON_STATUS.map(t=>`<option>${t}</option>`).join('')}</select></div>
+    </div>
+    <div class="fg"><label>Location</label><input id="cp-loc" placeholder="Site address / area"></div>
+    <div class="fr">
+      <div class="fg"><label>Client Name</label><input id="cp-client" placeholder="Owner name"></div>
+      <div class="fg"><label>Client Phone</label><input id="cp-phone" type="tel" placeholder="Optional"></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>Budget (₹)</label><input id="cp-budget" type="number" inputmode="decimal" placeholder="Estimated"></div>
+      <div class="fg"><label>Start</label><input id="cp-start" type="month"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button onclick="conCloseOverlay()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer">Cancel</button>
+      <button class="btn G" style="flex:1;margin-top:0" onclick="saveConProject()">Create Project</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('cp-name')?.focus(),100);
+}
+async function saveConProject(){
+  const name=(document.getElementById('cp-name')?.value||'').trim();
+  if(!name){toast('Enter project name','warn');return;}
+  const bid=ME.businessId||ME.uid;
+  const doc={
+    businessId:bid,name,
+    projectType:document.getElementById('cp-type')?.value||'Residential',
+    status:document.getElementById('cp-status')?.value||'Ongoing',
+    location:(document.getElementById('cp-loc')?.value||'').trim(),
+    clientName:(document.getElementById('cp-client')?.value||'').trim(),
+    clientPhone:(document.getElementById('cp-phone')?.value||'').trim(),
+    budget:parseFloat(document.getElementById('cp-budget')?.value)||0,
+    startLabel:document.getElementById('cp-start')?.value||'',
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    const ref=await DB.collection('construction_projects').add(doc);
+    CON_PROJECTS.push({id:ref.id,...doc});
+    conCloseOverlay(); toast('✅ Project "'+name+'" created');
+    _conProject=CON_PROJECTS.find(p=>p.id===ref.id); _conTab='summary';
+    renderConstruction();
+  }catch(e){toast('Save error','error');console.warn(e);}
+}
+async function delConProject(id){
+  if(!confirm('Delete this project and ALL its entries? This cannot be undone.'))return;
+  try{
+    const es=CON_ENTRIES.filter(e=>e.projectId===id);
+    const batch=DB.batch();
+    batch.delete(DB.collection('construction_projects').doc(id));
+    es.forEach(e=>batch.delete(DB.collection('construction_entries').doc(e.id)));
+    await batch.commit();
+    CON_PROJECTS=CON_PROJECTS.filter(p=>p.id!==id);
+    CON_ENTRIES=CON_ENTRIES.filter(e=>e.projectId!==id);
+    _conProject=null; renderConstruction(); toast('Project deleted');
+  }catch(e){toast('Error','error');console.warn(e);}
+}
+function openConEntry(){
+  if(!isProUser()){ openPaywall('Construction module is a Pro feature.'); return; }
+  if(!_conProject){ toast('Open a project first','warn'); return; }
+  _conEntryType='material'; _conItems=[];
+  conOverlay(`
+    <div style="font-size:18px;font-weight:800;margin-bottom:12px">＋ Add Entry</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px" id="ce-types">
+      ${[['client','💰 Client'],['material','🧱 Material'],['labour','👷 Labour'],['contractor','🤝 Contractor']].map(([t,l])=>
+        `<div onclick="setConEntryType('${t}')" id="ce-t-${t}" style="flex:1;text-align:center;padding:8px 3px;border:2px solid var(--border);border-radius:10px;font-size:11px;font-weight:600;cursor:pointer">${l}</div>`).join('')}
+    </div>
+    <div id="ce-items-wrap"></div>
+    <div class="fg" id="ce-amt-wrap"><label>Amount (₹) *</label><input id="ce-amt" type="number" inputmode="decimal" placeholder="0" oninput="conRecalc()"></div>
+    <div class="fg"><label id="ce-vendor-lbl">Vendor / Party</label><input id="ce-vendor" placeholder="Name"></div>
+    <div class="fg"><label>Description</label><input id="ce-desc" placeholder="Note (optional)"></div>
+    <div class="fr">
+      <div class="fg"><label>Date</label><input id="ce-date" type="date" value="${tod()}"></div>
+      <div class="fg"><label>Payment Mode</label><select id="ce-mode"><option>cash</option><option>gpay</option><option>bank</option><option>upi</option><option>cheque</option></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>GST %</label><select id="ce-gst" onchange="conRecalc()"><option value="0">No GST</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
+      <div class="fg"><label>Payment Status</label><select id="ce-paid"><option value="1">Paid now</option><option value="0">On credit</option></select></div>
+    </div>
+    <div id="ce-total" style="text-align:right;font-weight:800;font-size:15px;margin:8px 0;color:var(--green)"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="conCloseOverlay()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer">Cancel</button>
+      <button class="btn G" style="flex:1;margin-top:0" onclick="saveConEntry()">Save Entry</button>
+    </div>`);
+  setConEntryType('material');
+}
+function setConEntryType(t){
+  _conEntryType=t;
+  document.querySelectorAll('#ce-types > div').forEach(d=>d.style.borderColor='var(--border)');
+  const sel=document.getElementById('ce-t-'+t); if(sel)sel.style.borderColor='var(--green)';
+  const isMat=t==='material';
+  const iw=document.getElementById('ce-items-wrap');
+  const aw=document.getElementById('ce-amt-wrap');
+  const vl=document.getElementById('ce-vendor-lbl');
+  if(vl)vl.textContent=t==='client'?'Client Name':t==='labour'?'Labour / Mason':t==='contractor'?'Contractor':'Vendor / Supplier';
+  if(aw)aw.style.display=isMat?'none':'block';
+  if(iw){ iw.style.display=isMat?'block':'none'; if(isMat)conRenderItems(); }
+  conRecalc();
+}
+function conRenderItems(){
+  const w=document.getElementById('ce-items-wrap'); if(!w)return;
+  const rows=_conItems.map((it,i)=>`
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
+      <input value="${escAttr(it.item||'')}" oninput="conUpdItem(${i},'item',this.value)" placeholder="Item" style="flex:2;padding:7px;font-size:12px;min-width:0">
+      <input value="${it.qty||''}" oninput="conUpdItem(${i},'qty',this.value)" type="number" inputmode="decimal" placeholder="Qty" style="width:50px;padding:7px;font-size:12px">
+      <input value="${escAttr(it.unit||'')}" oninput="conUpdItem(${i},'unit',this.value)" placeholder="unit" style="width:46px;padding:7px;font-size:12px">
+      <input value="${it.rate||''}" oninput="conUpdItem(${i},'rate',this.value)" type="number" inputmode="decimal" placeholder="Rate" style="width:58px;padding:7px;font-size:12px">
+      <button onclick="conDelItem(${i})" style="background:var(--rl);color:var(--red);border:none;border-radius:6px;width:26px;height:30px;cursor:pointer;flex-shrink:0">✕</button>
+    </div>`).join('');
+  w.innerHTML=`
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">MATERIAL ITEMS</div>
+    ${rows||'<div style="font-size:11px;color:var(--muted);padding:4px 0">No items — add from catalog or blank line.</div>'}
+    <div style="display:flex;gap:6px;margin:6px 0 12px">
+      <select onchange="conQuickMat(this.value);this.value=''" style="flex:1;padding:8px;font-size:12px;min-width:0"><option value="">+ From catalog</option>${CON_MATERIALS.map((m,i)=>`<option value="${i}">${esc(m.name)} (₹${m.rate}/${m.unit})</option>`).join('')}</select>
+      <button onclick="conAddBlank()" style="background:var(--gl);color:var(--green);border:1px solid var(--green);border-radius:8px;padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">+ Line</button>
+    </div>`;
+}
+function conQuickMat(idx){ if(idx==='')return; const m=CON_MATERIALS[+idx]; if(!m)return; _conItems.push({item:m.name,hsn:m.hsn,unit:m.unit,rate:m.rate,qty:1}); conRenderItems(); conRecalc(); }
+function conAddBlank(){ _conItems.push({item:'',hsn:'',unit:'',rate:0,qty:1}); conRenderItems(); }
+function conUpdItem(i,f,val){ if(!_conItems[i])return; _conItems[i][f]=(f==='qty'||f==='rate')?(parseFloat(val)||0):val; conRecalc(); }
+function conDelItem(i){ _conItems.splice(i,1); conRenderItems(); conRecalc(); }
+function conItemsTotal(){ return _conItems.reduce((s,it)=>s+((parseFloat(it.qty)||0)*(parseFloat(it.rate)||0)),0); }
+function conRecalc(){
+  const isMat=_conEntryType==='material';
+  const base=isMat?conItemsTotal():(parseFloat(document.getElementById('ce-amt')?.value)||0);
+  const gstPct=parseFloat(document.getElementById('ce-gst')?.value)||0;
+  const gstAmt=base*gstPct/100;
+  const el=document.getElementById('ce-total');
+  if(el)el.textContent='Total: ₹'+fmt(base+gstAmt)+(gstPct?` (base ₹${fmt(base)} + GST ₹${fmt(gstAmt)})`:'');
+}
+async function saveConEntry(){
+  if(!_conProject)return;
+  const isMat=_conEntryType==='material';
+  const base=isMat?conItemsTotal():(parseFloat(document.getElementById('ce-amt')?.value)||0);
+  if(!base||base<=0){toast('Enter amount / items','warn');return;}
+  const gstPct=parseFloat(document.getElementById('ce-gst')?.value)||0;
+  const gstAmt=Math.round(base*gstPct/100*100)/100;
+  const bid=ME.businessId||ME.uid;
+  const doc={
+    businessId:bid,projectId:_conProject.id,type:_conEntryType,
+    items:isMat?_conItems.filter(it=>it.item||it.rate).map(it=>({item:it.item||'',hsn:it.hsn||'',qty:parseFloat(it.qty)||0,unit:it.unit||'',rate:parseFloat(it.rate)||0})):[],
+    amount:Math.round(base*100)/100,gst:gstPct,gstAmount:gstAmt,
+    desc:(document.getElementById('ce-desc')?.value||'').trim(),
+    vendor:(document.getElementById('ce-vendor')?.value||'').trim(),
+    paidNow:(document.getElementById('ce-paid')?.value||'1')==='1',
+    paymentMode:document.getElementById('ce-mode')?.value||'cash',
+    date:document.getElementById('ce-date')?.value||tod(),
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    const ref=await DB.collection('construction_entries').add(doc);
+    CON_ENTRIES.push({id:ref.id,...doc});
+    conCloseOverlay(); toast('✅ Entry saved');
+    renderConstruction();
+  }catch(e){toast('Save error','error');console.warn(e);}
+}
+async function delConEntry(id){
+  if(!confirm('Delete this entry?'))return;
+  try{ await DB.collection('construction_entries').doc(id).delete(); CON_ENTRIES=CON_ENTRIES.filter(e=>e.id!==id); renderConstruction(); toast('Deleted'); }
+  catch(e){toast('Error','error');}
 }
 
 // ════════════════════════════════════════
@@ -6969,6 +7364,13 @@ function applyBizTypeUI(){
   if(nf){
     const hasFinShop=Object.values(SHOPS||{}).some(s=>s.type==='finance'||s.type==='chit');
     nf.style.display=(hasFinShop||_bizType==='finance'||_bizType==='chit')?'flex':'none';
+  }
+
+  // Show Construction nav tab if user has any construction shops or bizType is construction
+  const nc=document.getElementById('nav-construction');
+  if(nc){
+    const hasConShop=Object.values(SHOPS||{}).some(s=>s.type==='construction');
+    nc.style.display=(hasConShop||_bizType==='construction')?'flex':'none';
   }
 
   // Update Sales option label in entry form type dropdown
