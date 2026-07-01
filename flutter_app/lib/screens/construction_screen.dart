@@ -302,7 +302,7 @@ class ConstructionProjectDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     final svc = ConstructionService();
     return DefaultTabController(
-      length: 2,
+      length: 4,
       child: Scaffold(
         backgroundColor: kBg,
         appBar: AppBar(
@@ -321,10 +321,16 @@ class ConstructionProjectDetail extends StatelessWidget {
             ],
           ),
           bottom: const TabBar(
+            isScrollable: true,
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            tabs: [Tab(text: 'Summary'), Tab(text: 'Ledger')],
+            tabs: [
+              Tab(text: 'Summary'),
+              Tab(text: 'Ledger'),
+              Tab(text: 'Transactions'),
+              Tab(text: 'Cont. Bills'),
+            ],
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
@@ -342,6 +348,9 @@ class ConstructionProjectDetail extends StatelessWidget {
             return TabBarView(children: [
               _SummaryTab(project: project, summary: summary),
               _LedgerTab(entries: entries, svc: svc),
+              _LedgerTab(
+                  entries: entries.where((e) => e.paidNow).toList(), svc: svc),
+              _ContBillsTab(entries: entries),
             ]);
           },
         ),
@@ -531,6 +540,91 @@ class _LedgerTab extends StatelessWidget {
     );
   }
 }
+
+// ── Contractor / credit bills tab ────────────────────────────────────────────
+class _ContBillsTab extends StatelessWidget {
+  final List<ConstructionEntry> entries;
+  const _ContBillsTab({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final toPay = <String, double>{};
+    double toCollect = 0;
+    for (final e in entries.where((e) => !e.paidNow)) {
+      if (e.isIncome) {
+        toCollect += e.amount;
+      } else {
+        final key = e.vendor.trim().isNotEmpty
+            ? e.vendor.trim()
+            : _capitalise(e.type);
+        toPay[key] = (toPay[key] ?? 0) + e.amount;
+      }
+    }
+    if (toPay.isEmpty && toCollect == 0) {
+      return const Center(
+        child: Text('No pending bills — all settled 🎉',
+            style: TextStyle(color: kMuted)),
+      );
+    }
+    final payEntries = toPay.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final totalPay = toPay.values.fold(0.0, (s, v) => s + v);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
+      children: [
+        if (toCollect > 0) ...[
+          _billHeader('To Collect (from client)', toCollect, kAmber),
+          const SizedBox(height: 14),
+        ],
+        if (payEntries.isNotEmpty) ...[
+          _billHeader('To Pay (contractors / vendors)', totalPay, kRed),
+          const SizedBox(height: 8),
+          ...payEntries.map((e) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: kCardShadow,
+                ),
+                child: Row(children: [
+                  const Icon(Icons.engineering_outlined,
+                      color: kRed, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(e.key,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
+                  ),
+                  Text(rupee(e.value),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: kRed,
+                          fontSize: 15)),
+                ]),
+              )),
+        ],
+      ],
+    );
+  }
+}
+
+Widget _billHeader(String label, double amount, Color color) => Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800, fontSize: 13))),
+        Text(rupee(amount),
+            style: TextStyle(
+                fontWeight: FontWeight.w800, color: color, fontSize: 16)),
+      ]),
+    );
 
 // ── Add entry sheet ──────────────────────────────────────────────────────────
 void _addEntrySheet(
