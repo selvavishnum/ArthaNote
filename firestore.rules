@@ -95,5 +95,16 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
       allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
     }
+
+    // Construction — projects & their ledger entries
+    match /construction_projects/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    match /construction_entries/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
   }
 }
