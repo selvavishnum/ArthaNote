@@ -4096,12 +4096,15 @@ function buildUI(){
   ['sc-shop','m-shop','et-shop','sn-s','st-shop','es-shop'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
   const fs=document.getElementById('f-shop'); if(fs) fs.innerHTML=allOpts;
 
-  // Shop editor
+  // Shop editor (name + business type — changing type to Construction/Finance/
+  // Chit makes tapping that shop on the dashboard open its module).
+  const SHOP_TYPES=[['personal','👤 Personal'],['vegetables','🥬 Vegetables'],['grocery','🛒 Grocery'],['tea','☕ Tea'],['bakery','🍞 Bakery'],['textile','👕 Textile'],['hardware','🔧 Hardware'],['jewellery','💍 Jewellery'],['medical','💊 Medical'],['hotel','🍽️ Hotel'],['finance','💰 Finance'],['chit','🎰 Chit'],['construction','🏗️ Construction'],['other','🏪 Other']];
   const sed=document.getElementById('shop-ed');
   if(sed) sed.innerHTML=Object.entries(SHOPS).map(([k,vv])=>`
-    <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <span style="font-size:18px">${vv.icon}</span>
-      <div class="fg" style="flex:1"><input type="text" id="se-${k}" value="${escAttr(vv.name)}" style="font-size:13px;padding:8px 10px"></div>
+      <div class="fg" style="flex:1;min-width:110px"><input type="text" id="se-${k}" value="${escAttr(vv.name)}" style="font-size:13px;padding:8px 10px"></div>
+      <select id="st-${k}" style="font-size:12px;padding:8px 6px;max-width:140px;flex-shrink:0">${SHOP_TYPES.map(([t,l])=>`<option value="${t}" ${t===(vv.type||'other')?'selected':''}>${l}</option>`).join('')}</select>
       <button onclick="deleteShop('${k}')" style="background:none;border:1px solid var(--red);border-radius:8px;color:var(--red);padding:6px 8px;font-size:13px;cursor:pointer;flex-shrink:0" title="Delete ${escAttr(vv.name)}">🗑️</button>
     </div>`).join('');
 
@@ -4117,11 +4120,21 @@ function setShop(s,el){
   renderDash(); renderLedger();
 }
 async function saveShops(){
-  Object.keys(SHOPS).forEach(k=>{const i=document.getElementById('se-'+k);if(i&&i.value.trim())SHOPS[k].name=i.value.trim();});
+  Object.keys(SHOPS).forEach(k=>{
+    const i=document.getElementById('se-'+k); if(i&&i.value.trim())SHOPS[k].name=i.value.trim();
+    const ts=document.getElementById('st-'+k);
+    if(ts&&ts.value&&ts.value!==SHOPS[k].type){
+      SHOPS[k].type=ts.value;
+      SHOPS[k].icon=BIZ_ICONS[ts.value]||SHOPS[k].icon;
+      const bc=BIZ_CATS[ts.value]||BIZ_CATS.other;
+      CATS[k]={sales:bc.sales,expense:bc.expense};
+    }
+  });
   localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
+  localStorage.setItem('slv_cats',JSON.stringify(CATS));
   localStorage.removeItem('kp_cfg_cache');
   try{await DB.collection('config').doc(ME.businessId||ME.uid).set({shops:SHOPS,cats:CATS},{merge:true});}catch(e){}
-  buildUI(); toast('✅ Shop names saved!');
+  applyBizTypeUI(); buildUI(); renderDash(); toast('✅ Shops saved!');
 }
 async function deleteShop(key){
   if(Object.keys(SHOPS).length<=1){toast('குறைந்தது 1 shop இருக்கணும்!','warn');return;}
