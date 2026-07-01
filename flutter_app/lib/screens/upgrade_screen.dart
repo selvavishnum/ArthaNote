@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../widgets/promo_dialog.dart';
 
 /// Full-screen "this is a Pro feature" placeholder shown in place of a gated
 /// screen's content when the user is on the free tier (trial ended). Tapping
@@ -210,6 +211,22 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                   ]),
                 ),
                 const SizedBox(height: 14),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      final ok = await showPromoCodeSheet(context);
+                      if (ok && mounted) Navigator.of(context).pop();
+                    },
+                    icon: const Icon(Icons.card_giftcard_rounded,
+                        size: 18, color: kPrimary),
+                    label: const Text('Have a promo code? Redeem',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: kPrimary)),
+                  ),
+                ),
+                const SizedBox(height: 6),
                 const Center(
                   child: Text(
                     'Cancel anytime · Secure payment via Google Play',
