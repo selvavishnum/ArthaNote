@@ -639,6 +639,37 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .gst-rate{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--border);background:var(--soft);transition:all .2s}
 .gst-rate.sel{background:var(--green);color:#fff;border-color:var(--green)}
 .gst-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;background:var(--yl);color:var(--yellow);margin-left:4px}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SERIF LEDGER — app-wide theme (concept #10). Chrome → gold + serif;
+   thin rules. Money keeps green(+)/red(−) for readability (semantic, not
+   decorative). This block is last in the stylesheet so it wins the cascade.
+   ═══════════════════════════════════════════════════════════════════════ */
+/* Serif titles everywhere: card headers, section labels, wordmark */
+.chd{font-family:var(--serif);font-size:15px;font-weight:800;color:var(--text);
+  text-transform:none;letter-spacing:-.2px}
+.brandname,.tname,.ls-logo,.lp-logo{font-family:var(--serif)!important;letter-spacing:-.4px}
+
+/* Gold accent for all chrome (tabs / chips / buttons / steps / FAB) */
+.dtab.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.qb.sel{background:var(--gold);border-color:var(--gold);color:#fff}
+.qb:hover{border-color:var(--gold);color:var(--gold)}
+.gst-rate.sel{background:var(--gold);border-color:var(--gold);color:#fff}
+.btn.G{background:var(--gold);color:#fff}
+.addsbtn:hover{border-color:var(--gold);color:var(--gold)}
+.step.done .sd{background:var(--gold);border-color:var(--gold)}
+.step.done .sline{background:var(--gold)}
+.uzone:hover{border-color:var(--gold);background:var(--gold-soft)}
+.spin{border-top-color:var(--gold)}
+input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:focus{border-color:var(--gold)}
+.langbtn.ta{background:var(--gold);border-color:var(--gold)}
+/* Header wordmark logo → black square (mockup), gold ring accents */
+.tlogo{background:#111!important}
+#ai-fab{background:linear-gradient(135deg,#8a5a09,var(--gold))!important;
+  box-shadow:0 4px 14px rgba(161,98,7,.45)!important}
+@keyframes aiFabPulse{0%,100%{box-shadow:0 4px 14px rgba(161,98,7,.45)}50%{box-shadow:0 4px 22px rgba(239,68,68,.65)}}
+/* Card section accent bar (the vertical rule before card titles) → gold */
+.chd::before{background:var(--gold)!important}
 </style>
 <!-- Gemini SDK via ESM -->
 <script type="importmap">
