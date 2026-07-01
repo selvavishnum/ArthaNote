@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../l10n.dart';
 import '../models/txn.dart';
 import '../models/shop.dart';
-import '../models/supplier.dart';
 import '../models/currency.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
 import 'shop_detail_screen.dart';
 
+// ── Serif Ledger design tokens (concept #10) ──────────────────────────────────
+const _kGold = Color(0xFFA16207); // single accent
+const _kSerif = 'serif';          // built-in serif (Noto Serif on Android)
+
 // ── Formatting helpers ────────────────────────────────────────────────────────
-// Module-level singleton — avoids allocating a new DateFormat on every
-// list iteration (was creating thousands of objects per render pass).
 final _dayFmt   = DateFormat('yyyy-MM-dd');
-// Renders in the currently active currency (Currency.active, kept in sync by
-// AppProvider) — lets call sites without BuildContext format amounts too.
 String rupee(double v) => Currency.active.format(v.abs());
+// Signed rupee: negative renders with a proper minus glyph.
+String _signed(double v) => v < 0 ? '−${rupee(v)}' : rupee(v);
 
 class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
@@ -28,191 +28,9 @@ class DashboardTab extends StatefulWidget {
 
 class _DashboardTabState extends State<DashboardTab> {
   final _db            = DbService();
-  int  _period         = 0; // 0=today 1=yesterday 2=week 3=month 4=custom
+  int  _period         = 0; // 0=today 1=yesterday 2=week 3=month 4=custom 5=year
   DateTime? _customDate;     // chosen day when _period == 4
   String? _dismissedDate;
-  int _streakCount     = 0;
-  // Track the last txn count we ran streak update on — avoids re-running
-  // the SharedPreferences I/O on every rebuild when nothing changed.
-  int _lastStreakTxnCount = -1;
-  // Per-shop health score cache: shopId → score map.
-  // Invalidated when the txn count changes.
-  final Map<String, Map<String, dynamic>> _healthCache = {};
-  int _healthCacheTxnCount = -1;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadStreak());
-  }
-
-  Future<void> _loadStreak() async {
-    final prefs = await SharedPreferences.getInstance();
-    final count = prefs.getInt('slv_streak_count') ?? 0;
-    if (mounted) setState(() => _streakCount = count);
-  }
-
-  Future<void> _updateStreak(List<Txn> all) async {
-    // Skip if nothing changed since last call.
-    if (all.length == _lastStreakTxnCount) return;
-    _lastStreakTxnCount = all.length;
-
-    final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final today     = _dayFmt.format(now);
-    final yesterday = _dayFmt.format(now.subtract(const Duration(days: 1)));
-    final lastDate  = prefs.getString('slv_streak_date') ?? '';
-
-    if (all.isEmpty) return;
-    final lastEntryDate = _dayFmt.format(
-        all.reduce((a, b) => a.date.isAfter(b.date) ? a : b).date);
-
-    int count = prefs.getInt('slv_streak_count') ?? 0;
-
-    if (lastDate == today) return;
-
-    if (lastEntryDate == today || lastEntryDate == yesterday) {
-      count = (lastDate == yesterday || lastDate == today) ? count + 1 : 1;
-    } else {
-      count = 0;
-    }
-
-    await prefs.setInt('slv_streak_count', count);
-    await prefs.setString('slv_streak_date', today);
-    if (mounted) setState(() => _streakCount = count);
-  }
-
-  // ── Shop Health Score (memoized) ───────────────────────────────────────────
-  // O(7n) per shop per build is expensive with many shops. Cache by shopId and
-  // invalidate only when the total txn count changes (new entry → recompute).
-  Map<String, dynamic> _shopHealthScore(String shopId, List<Txn> allTxns) {
-    if (allTxns.length != _healthCacheTxnCount) {
-      _healthCache.clear();
-      _healthCacheTxnCount = allTxns.length;
-    }
-    if (_healthCache.containsKey(shopId)) return _healthCache[shopId]!;
-    final result = _computeShopHealth(shopId, allTxns);
-    _healthCache[shopId] = result;
-    return result;
-  }
-
-  Map<String, dynamic> _computeShopHealth(String shopId, List<Txn> allTxns) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    // Last 7 days vs prev 7 days sales trend
-    final last7Start = today.subtract(const Duration(days: 7));
-    final prev7Start = today.subtract(const Duration(days: 14));
-
-    final last7Sales = allTxns
-        .where((tx) => tx.shop == shopId &&
-            tx.type == 'sale' &&
-            !tx.date.isBefore(last7Start) && tx.date.isBefore(today))
-        .fold(0.0, (s, x) => s + x.amount);
-
-    final prev7Sales = allTxns
-        .where((tx) => tx.shop == shopId &&
-            tx.type == 'sale' &&
-            !tx.date.isBefore(prev7Start) && tx.date.isBefore(last7Start))
-        .fold(0.0, (s, x) => s + x.amount);
-
-    // Expense ratio last 30 days
-    final last30Start = today.subtract(const Duration(days: 30));
-    final last30Sales = allTxns
-        .where((tx) => tx.shop == shopId &&
-            tx.type == 'sale' &&
-            !tx.date.isBefore(last30Start))
-        .fold(0.0, (s, x) => s + x.amount);
-    final last30Exp = allTxns
-        .where((tx) => tx.shop == shopId &&
-            tx.type == 'expense' &&
-            !tx.date.isBefore(last30Start))
-        .fold(0.0, (s, x) => s + x.amount);
-
-    // Days active last 30 days
-    final activeDays = allTxns
-        .where((tx) => tx.shop == shopId && !tx.date.isBefore(last30Start))
-        .map((tx) => _dayFmt.format(tx.date))
-        .toSet()
-        .length;
-
-    int score = 50;
-    final breakdown = <String>[];
-
-    // Sales trend
-    int trendPts = 0;
-    if (prev7Sales > 0) {
-      final growth = (last7Sales - prev7Sales) / prev7Sales;
-      if (growth > 0.10) {
-        trendPts = 20;
-        breakdown.add('📈 Sales up ${(growth * 100).toStringAsFixed(0)}% (+20pts)');
-      } else if (growth < -0.10) {
-        trendPts = -20;
-        breakdown.add('📉 Sales down ${(growth.abs() * 100).toStringAsFixed(0)}% (-20pts)');
-      } else {
-        breakdown.add('➡️ Sales stable (0pts)');
-      }
-    } else {
-      breakdown.add('➡️ No prev week data (0pts)');
-    }
-    score += trendPts;
-
-    // Expense ratio
-    int expPts = 0;
-    if (last30Sales > 0) {
-      final ratio = last30Exp / last30Sales;
-      if (ratio < 0.50) {
-        expPts = 15;
-        breakdown.add('✅ Low expense ratio ${(ratio * 100).toStringAsFixed(0)}% (+15pts)');
-      } else if (ratio > 0.80) {
-        expPts = -15;
-        breakdown.add('⚠️ High expense ratio ${(ratio * 100).toStringAsFixed(0)}% (-15pts)');
-      } else {
-        breakdown.add('🔸 Expense ratio ${(ratio * 100).toStringAsFixed(0)}% (0pts)');
-      }
-    } else {
-      breakdown.add('🔸 No sales data for ratio (0pts)');
-    }
-    score += expPts;
-
-    // Days active
-    int activePts = 0;
-    if (activeDays > 22) {
-      activePts = 15;
-      breakdown.add('🟢 Active $activeDays days (+15pts)');
-    } else if (activeDays < 10) {
-      activePts = -15;
-      breakdown.add('🔴 Active only $activeDays days (-15pts)');
-    } else {
-      breakdown.add('🟡 Active $activeDays days (0pts)');
-    }
-    score += activePts;
-
-    String badge;
-    String label;
-    Color  color;
-    if (score >= 75) {
-      badge = '💚';
-      label = 'Good Performance';
-      color = const Color(0xFF16A34A);
-    } else if (score >= 50) {
-      badge = '💛';
-      label = 'Moderate Performance';
-      color = const Color(0xFFD97706);
-    } else {
-      badge = '🔴';
-      label = 'Low Performance';
-      color = const Color(0xFFDC2626);
-    }
-
-    return {
-      'score': score,
-      'badge': badge,
-      'label': label,
-      'color': color,
-      'breakdown': breakdown,
-    };
-  }
 
   DateTimeRange _range() {
     final now   = DateTime.now();
@@ -226,6 +44,8 @@ class _DashboardTabState extends State<DashboardTab> {
             start: today.subtract(const Duration(days: 7)), end: now);
       case 3:
         return DateTimeRange(start: DateTime(now.year, now.month, 1), end: now);
+      case 5:
+        return DateTimeRange(start: DateTime(now.year, 1, 1), end: now);
       case 4:
         final d = _customDate ?? today;
         final start = DateTime(d.year, d.month, d.day);
@@ -233,6 +53,17 @@ class _DashboardTabState extends State<DashboardTab> {
             start: start, end: start.add(const Duration(days: 1)));
       default:
         return DateTimeRange(start: today, end: now);
+    }
+  }
+
+  String _periodLabel() {
+    switch (_period) {
+      case 1: return 'YESTERDAY';
+      case 2: return 'THIS WEEK';
+      case 3: return 'THIS MONTH';
+      case 5: return 'THIS YEAR';
+      case 4: return 'CUSTOM';
+      default: return 'TODAY';
     }
   }
 
@@ -245,7 +76,7 @@ class _DashboardTabState extends State<DashboardTab> {
       lastDate: now,
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: Theme.of(ctx).colorScheme.copyWith(primary: kPrimary),
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(primary: _kGold),
         ),
         child: child!,
       ),
@@ -258,9 +89,7 @@ class _DashboardTabState extends State<DashboardTab> {
     }
   }
 
-  /// The single reference day the AI Missing-Entry alert checks against —
-  /// follows the selected period (today / yesterday / custom day; week & month
-  /// fall back to today).
+  /// The single reference day the AI Missing-Entry alert checks against.
   DateTime _refDate() {
     final now   = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -282,25 +111,18 @@ class _DashboardTabState extends State<DashboardTab> {
 
   @override
   Widget build(BuildContext context) {
-    final p       = context.watch<AppProvider>();
-    final l       = p.lang;
-    final periods = [
-      t('today', l),
-      t('yesterday', l),
-      t('this_week', l),
-      t('this_month', l),
-    ];
+    final p   = context.watch<AppProvider>();
+    final l   = p.lang;
+    final all = p.txns;
+    final txns = _filter(all, p);
 
-    final all    = p.txns;
-    // Update streak in background
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateStreak(all));
+    // Net Balance hero totals (across all visible shops in the period).
+    final totSales = txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
+    final totExp   = txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
+    final totPay   = txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
+    final totNet   = totSales - totExp - totPay;
 
-    final txns    = _filter(all, p);
-
-    // AI Missing-Entry alert — computed for the selected reference day. The
-    // "no entries", "review expenses" and "upcoming payments" banners were
-    // removed from the dashboard to declutter it; upcoming payments already
-    // surface as scheduled notifications via ReminderService.
+    // AI Missing-Entry alert — computed for the selected reference day.
     final refDate    = _refDate();
     final missingItems = _detectMissingPatterns(all, refDate);
     final isRefToday = _period != 4 ||
@@ -310,227 +132,146 @@ class _DashboardTabState extends State<DashboardTab> {
         : (_period == 1 ? 'yesterday' : 'on ${_dayFmt.format(refDate)}');
 
     return RefreshIndicator(
-          color: kPrimary,
-          backgroundColor: Colors.white,
-          onRefresh: () async => setState(() {}),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
-            children: [
+      color: _kGold,
+      backgroundColor: Colors.white,
+      onRefresh: () async {
+        await context.read<AppProvider>().syncNow();
+        if (mounted) setState(() {});
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
+        children: [
+          // ── Date filter (underline tabs) ─────────────────────────────────
+          _periodTabs(),
+          const SizedBox(height: 16),
 
-              // Entry count + Streak + Refresh
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [
-                    Text(
-                      '${all.length} ${t("entries", l)} · synced',
-                      style: const TextStyle(
-                        color: kMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (_streakCount > 0) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7ED),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFBD38D)),
-                        ),
-                        child: Text(
-                          '🔥 $_streakCount-day streak',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFD97706),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ]),
-                  GestureDetector(
-                    onTap: () => context.read<AppProvider>().syncNow(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: kPrimary.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(children: [
-                        Icon(Icons.refresh, color: kPrimary, size: 14),
-                        SizedBox(width: 4),
-                        Text('Refresh',
-                            style: TextStyle(
-                                color: kPrimary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ]),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Period chips (+ a Custom-date chip at the end)
-              SizedBox(
-                height: 40,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.zero,
-                  itemCount: periods.length + 1,
-                  itemBuilder: (_, i) {
-                    final isCustom = i == periods.length;
-                    final selected = isCustom ? _period == 4 : _period == i;
-                    final label = isCustom
-                        ? (_period == 4 && _customDate != null
-                            ? '📅 ${_dayFmt.format(_customDate!)}'
-                            : '📅 Custom')
-                        : periods[i];
-                    return GestureDetector(
-                      onTap: () =>
-                          isCustom ? _pickCustomDate() : setState(() => _period = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: selected ? kPrimary : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color:
-                                selected ? kPrimary : const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              color: selected
-                                  ? Colors.white
-                                  : Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // The "no entries", "upcoming payments" and "net-loss / review
-              // expenses" alerts have moved off the dashboard — they are now
-              // delivered as app notifications (see ReminderService) to keep
-              // the dashboard clean. The 4-box stat grid was also removed; the
-              // same Sales / Expense / Net figures appear per shop below.
-
-              const SizedBox(height: 4),
-
-              // ── Shop Summary ─────────────────────────────────────────────
-              _SectionHeader(
-                icon: '🏪',
-                title: t('shop_summary', l).toUpperCase(),
-                trailing: 'TAP FOR 360° REPORT',
-              ),
-              const SizedBox(height: 8),
-
-              if (p.syncing && p.visibleShops.isEmpty)
-                const Center(
-                    child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(color: kPrimary),
-                ))
-              else if (p.visibleShops.isEmpty)
-                _EmptyCard(text: 'No shops set up yet')
-              else
-                ...p.visibleShops.values.map((shop) {
-                  final shopTxns =
-                      txns.where((x) => x.shop == shop.id).toList();
-                  final shopSales = shopTxns
-                      .where((x) => x.type == 'sale')
-                      .fold(0.0, (s, x) => s + x.amount);
-                  final shopExp = shopTxns
-                      .where((x) => x.type == 'expense')
-                      .fold(0.0, (s, x) => s + x.amount);
-                  final shopPay = shopTxns
-                      .where((x) => x.type == 'payment')
-                      .fold(0.0, (s, x) => s + x.amount);
-                  final healthData = _shopHealthScore(shop.id, all);
-                  return _ShopSummaryCard(
-                    shop: shop,
-                    entryCount: shopTxns.length,
-                    sales: shopSales,
-                    expense: shopExp,
-                    payment: shopPay,
-                    net: shopSales - shopExp - shopPay,
-                    l: l,
-                    healthBadge: healthData['badge'] as String,
-                    healthLabel: healthData['label'] as String,
-                    healthColor: healthData['color'] as Color,
-                    healthScore: healthData['score'] as int,
-                    healthBreakdown: List<String>.from(healthData['breakdown'] as List),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              ShopDetailScreen(shop: shop)),
-                    ),
-                  );
-                }),
-
-              const SizedBox(height: 16),
-
-              // ── Supplier Alerts ──────────────────────────────────────────
-              _SupplierAlertsSection(
-                businessId:   p.businessId,
-                db:           _db,
-                selectedShop: p.selectedShop,
-                isCashier:    p.isCashier,
-                staffShop:    p.staffShop,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Daily Reconciliation section removed to simplify the dashboard.
-
-              // ── AI Missing Entry Alert (Pro / trial only) ─────────────────
-              _AiAlertSection(
-                show: p.canUseAiAlerts &&
-                    missingItems.isNotEmpty &&
-                    _dismissedDate != _dayFmt.format(refDate),
-                dateLabel:     aiDateLabel,
-                targetDate:    refDate,
-                missingItems:  missingItems,
-                onDismiss: () => setState(
-                    () => _dismissedDate = _dayFmt.format(refDate)),
-                businessId:    p.businessId,
-                shops:         p.visibleShops,
-                db:            _db,
-              ),
-            ],
+          // ── Net Balance hero ─────────────────────────────────────────────
+          _NetHero(
+            net: totNet,
+            sales: totSales,
+            expense: totExp,
+            periodLabel: _periodLabel(),
+            isPersonal: p.isPersonal,
           ),
-        );
+          Container(
+            height: 2,
+            color: kText,
+            margin: const EdgeInsets.fromLTRB(2, 6, 2, 18),
+          ),
+
+          // ── Shops ────────────────────────────────────────────────────────
+          const Padding(
+            padding: EdgeInsets.fromLTRB(2, 0, 2, 2),
+            child: Text('SHOPS',
+                style: TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.w800,
+                    color: kMuted)),
+          ),
+
+          if (p.syncing && p.visibleShops.isEmpty)
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: _kGold)))
+          else if (p.visibleShops.isEmpty)
+            _EmptyCard(text: 'No shops set up yet')
+          else
+            ...p.visibleShops.values.map((shop) {
+              final st = txns.where((x) => x.shop == shop.id);
+              final ss = st.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
+              final se = st.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
+              final sp = st.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
+              return _LxShopRow(
+                name: shop.name,
+                sales: ss,
+                expense: se,
+                net: ss - se - sp,
+                l: l,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ShopDetailScreen(shop: shop)),
+                ),
+              );
+            }),
+
+          const SizedBox(height: 16),
+
+          // ── AI Missing Entry Alert (Pro / trial only, conditional) ────────
+          _AiAlertSection(
+            show: p.canUseAiAlerts &&
+                missingItems.isNotEmpty &&
+                _dismissedDate != _dayFmt.format(refDate),
+            dateLabel:     aiDateLabel,
+            targetDate:    refDate,
+            missingItems:  missingItems,
+            onDismiss: () => setState(
+                () => _dismissedDate = _dayFmt.format(refDate)),
+            businessId:    p.businessId,
+            shops:         p.visibleShops,
+            db:            _db,
+          ),
+        ],
+      ),
+    );
   }
 
-  /// Entries the user usually records that are missing on [refDate]. The
-  /// pattern is learned from the 14 days BEFORE refDate, so the alert follows
-  /// whichever day is selected in the dashboard (today / yesterday / custom).
+  Widget _periodTabs() {
+    final tabs = <(String, int)>[
+      ('Today', 0), ('Week', 2), ('Month', 3), ('Year', 5),
+    ];
+    return SizedBox(
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        children: [
+          for (final tb in tabs)
+            _tabItem(tb.$1, tb.$2, () => setState(() => _period = tb.$2)),
+          _tabItem(
+            _period == 4 && _customDate != null
+                ? '📅 ${_dayFmt.format(_customDate!)}'
+                : '📅 Custom',
+            4,
+            _pickCustomDate,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabItem(String label, int pv, VoidCallback onTap) {
+    final on = _period == pv;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 22),
+        padding: const EdgeInsets.only(bottom: 5),
+        decoration: BoxDecoration(
+          border: Border(
+              bottom: BorderSide(
+                  color: on ? _kGold : Colors.transparent, width: 2)),
+        ),
+        child: Center(
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+                  color: on ? _kGold : kMuted)),
+        ),
+      ),
+    );
+  }
+
+  /// Entries the user usually records that are missing on [refDate].
   List<Map<String, dynamic>> _detectMissingPatterns(List<Txn> all, DateTime refDate) {
     final dayStart = DateTime(refDate.year, refDate.month, refDate.day);
     final dayEnd   = dayStart.add(const Duration(days: 1));
     final since    = dayStart.subtract(const Duration(days: 14));
 
-    // Past 14 days of txns before the reference day
     final past = all.where((tx) =>
         !tx.date.isBefore(since) && tx.date.isBefore(dayStart)).toList();
 
-    // Frequency map: desc+type+shop → set of days it appeared
     final dayFreq = <String, Set<String>>{};
     final meta    = <String, Map<String, dynamic>>{};
     for (final tx in past) {
@@ -546,13 +287,11 @@ class _DashboardTabState extends State<DashboardTab> {
       };
     }
 
-    // Descriptions already recorded on the reference day
     final dayDescs = all
         .where((tx) => !tx.date.isBefore(dayStart) && tx.date.isBefore(dayEnd))
         .map((tx) => tx.desc)
         .toSet();
 
-    // Items appearing 3+ days in the window but missing on the reference day
     final missing = <Map<String, dynamic>>[];
     for (final entry in dayFreq.entries) {
       if (entry.value.length >= 3 &&
@@ -570,7 +309,127 @@ class _DashboardTabState extends State<DashboardTab> {
   }
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
+// ── Net Balance hero ──────────────────────────────────────────────────────────
+class _NetHero extends StatelessWidget {
+  final double net;
+  final double sales;
+  final double expense;
+  final String periodLabel;
+  final bool   isPersonal;
+  const _NetHero({
+    required this.net,
+    required this.sales,
+    required this.expense,
+    required this.periodLabel,
+    required this.isPersonal,
+  });
+
+  Widget _sub(String label, double val) => RichText(
+        text: TextSpan(
+          style: const TextStyle(color: kMuted, fontSize: 13),
+          children: [
+            TextSpan(text: '$label '),
+            TextSpan(
+                text: rupee(val),
+                style: const TextStyle(
+                    color: kText, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(2, 4, 2, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${isPersonal ? "BALANCE" : "NET BALANCE"} · $periodLabel',
+                style: const TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 1.6,
+                    fontWeight: FontWeight.w800,
+                    color: kMuted)),
+            const SizedBox(height: 2),
+            Text(_signed(net),
+                style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800,
+                    color: kText,
+                    letterSpacing: -1.2,
+                    height: 1.04)),
+            const SizedBox(height: 9),
+            Row(children: [
+              _sub('Sales', sales),
+              const SizedBox(width: 22),
+              _sub('Expense', expense),
+            ]),
+          ],
+        ),
+      );
+}
+
+// ── Serif shop row ────────────────────────────────────────────────────────────
+class _LxShopRow extends StatelessWidget {
+  final String name;
+  final double sales;
+  final double expense;
+  final double net;
+  final String l;
+  final VoidCallback onTap;
+  const _LxShopRow({
+    required this.name,
+    required this.sales,
+    required this.expense,
+    required this.net,
+    required this.l,
+    required this.onTap,
+  });
+
+  Widget _num(String label, String value, Color valColor) => RichText(
+        text: TextSpan(
+          style: const TextStyle(color: kMuted, fontSize: 13),
+          children: [
+            TextSpan(text: '$label '),
+            TextSpan(
+                text: value,
+                style: TextStyle(
+                    color: valColor, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 2),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name,
+                  style: const TextStyle(
+                      fontFamily: _kSerif,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w800,
+                      color: kText,
+                      height: 1.1,
+                      letterSpacing: -0.3)),
+              const SizedBox(height: 7),
+              Wrap(spacing: 20, runSpacing: 4, children: [
+                _num(t('sales', l), rupee(sales), kText),
+                _num('Exp', rupee(expense), kText),
+                _num(t('net', l), _signed(net), _kGold),
+              ]),
+            ],
+          ),
+        ),
+      );
+}
+
+// ── Section header (used by the AI alert) ─────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String icon;
   final String title;
@@ -587,7 +446,7 @@ class _SectionHeader extends StatelessWidget {
             const SizedBox(width: 6),
             Text(title,
                 style: const TextStyle(
-                    color: kPrimary,
+                    color: _kGold,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.0)),
@@ -596,201 +455,6 @@ class _SectionHeader extends StatelessWidget {
             Text(trailing,
                 style: const TextStyle(
                     color: kMuted, fontSize: 9, fontWeight: FontWeight.w600)),
-        ],
-      );
-}
-
-// ── Shop summary card ─────────────────────────────────────────────────────────
-class _ShopSummaryCard extends StatelessWidget {
-  final Shop     shop;
-  final int      entryCount;
-  final double   sales;
-  final double   expense;
-  final double   payment;
-  final double   net;
-  final String   l;
-  final String   healthBadge;
-  final String   healthLabel;
-  final Color    healthColor;
-  final int      healthScore;
-  final List<String> healthBreakdown;
-  final VoidCallback onTap;
-
-  const _ShopSummaryCard({
-    required this.shop,
-    required this.entryCount,
-    required this.sales,
-    required this.expense,
-    required this.payment,
-    required this.net,
-    required this.l,
-    required this.healthBadge,
-    required this.healthLabel,
-    required this.healthColor,
-    required this.healthScore,
-    required this.healthBreakdown,
-    required this.onTap,
-  });
-
-  void _showHealthSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-                color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-          ),
-          const SizedBox(height: 16),
-          Text('${shop.icon} ${shop.name} — Health Report',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: healthColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: healthColor.withOpacity(0.3)),
-            ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text(healthBadge, style: const TextStyle(fontSize: 22)),
-              const SizedBox(width: 10),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(healthLabel,
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: healthColor)),
-                Text('Score: $healthScore / 100',
-                    style: const TextStyle(color: kMuted, fontSize: 12)),
-              ]),
-            ]),
-          ),
-          const SizedBox(height: 16),
-          ...healthBreakdown.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(item, style: const TextStyle(fontSize: 13, color: kText)),
-          )),
-        ]),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: kCardShadow,
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [
-                    Text(shop.icon, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 8),
-                    Text(shop.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: kText)),
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: () => _showHealthSheet(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: healthColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: healthColor.withOpacity(0.25)),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(healthBadge, style: const TextStyle(fontSize: 11)),
-                          const SizedBox(width: 3),
-                          Text(healthLabel,
-                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: healthColor)),
-                        ]),
-                      ),
-                    ),
-                  ]),
-                  Row(children: [
-                    Text('$entryCount ${t("entries", l)}',
-                        style: const TextStyle(
-                            color: kMuted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500)),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.arrow_forward_ios,
-                        color: kMuted, size: 11),
-                  ]),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(children: [
-                _MiniStat(
-                    label: t('sales', l),
-                    value: rupee(sales),
-                    color: kSecondary),
-                const SizedBox(width: 16),
-                _MiniStat(
-                    label: t('expense', l),
-                    value: rupee(expense),
-                    color: kRed),
-                const SizedBox(width: 16),
-                if (payment > 0) ...[
-                  _MiniStat(
-                      label: 'Payment',
-                      value: rupee(payment),
-                      color: kAmber),
-                  const SizedBox(width: 16),
-                ],
-                _MiniStat(
-                    label: t('net', l),
-                    value: rupee(net),
-                    color: net >= 0 ? kSecondary : kRed),
-              ]),
-              const SizedBox(height: 6),
-              const Text('Tap → 360° report',
-                  style: TextStyle(
-                      color: kMuted,
-                      fontSize: 10,
-                      fontStyle: FontStyle.italic)),
-            ]),
-          ),
-        ),
-      );
-}
-
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color  color;
-  const _MiniStat(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(height: 2),
-          Text(value,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700)),
         ],
       );
 }
@@ -813,100 +477,6 @@ class _EmptyCard extends StatelessWidget {
             child: Text(text,
                 style: const TextStyle(color: kMuted, fontSize: 13))),
       );
-}
-
-// ── Supplier Alerts Section ───────────────────────────────────────────────────
-class _SupplierAlertsSection extends StatelessWidget {
-  final String    businessId;
-  final DbService db;
-  final String    selectedShop;
-  final bool      isCashier;
-  final String    staffShop;
-  const _SupplierAlertsSection({
-    required this.businessId,
-    required this.db,
-    this.selectedShop = '',
-    this.isCashier = false,
-    this.staffShop = '',
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<Supplier>>(
-      stream: db.supplierStream(businessId),
-      builder: (ctx, snap) {
-        final suppliers = snap.data ?? [];
-        // Filter by shop context (same logic as suppliers_tab.dart)
-        final List<Supplier> visible;
-        if (isCashier && staffShop.isNotEmpty) {
-          visible = suppliers.where((s) => s.shopId.isEmpty || s.shopId == staffShop).toList();
-        } else if (!isCashier && selectedShop.isNotEmpty) {
-          visible = suppliers.where((s) => s.shopId.isEmpty || s.shopId == selectedShop).toList();
-        } else {
-          visible = suppliers;
-        }
-        final dues = visible.where((s) => s.balance > 0).toList();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _SectionHeader(icon: '⚠️', title: 'SUPPLIER ALERTS'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: kCardShadow,
-              ),
-              child: dues.isEmpty
-                  ? const Row(children: [
-                      Text('✓  All supplier balances OK',
-                          style: TextStyle(
-                              color: kSecondary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13)),
-                    ])
-                  : Column(
-                      children: dues.take(5).map((s) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(s.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13),
-                                  overflow: TextOverflow.ellipsis),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: kRed.withOpacity(0.1),
-                                borderRadius:
-                                    BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Due ${rupee(s.balance)}',
-                                style: const TextStyle(
-                                    color: kRed,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )).toList(),
-                    ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
 
 // ── AI Missing Entry Alert Section ───────────────────────────────────────────
@@ -1002,11 +572,6 @@ class _AiAlertSection extends StatelessWidget {
                     final desc     = item['desc'] as String;
                     final type     = item['type'] as String;
                     final days     = item['days'] as int;
-                    final typeColor = type == 'sale'
-                        ? kSecondary
-                        : type == 'expense'
-                            ? kRed
-                            : kAmber;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -1032,7 +597,8 @@ class _AiAlertSection extends StatelessWidget {
                           onPressed: () =>
                               _quickAdd(ctx, item, businessId, db),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: kPrimary,
+                            backgroundColor: _kGold,
+                            foregroundColor: Colors.white,
                             minimumSize: const Size(60, 34),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12),
