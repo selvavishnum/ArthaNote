@@ -1286,6 +1286,8 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
         </div>
       </div>
     </div>
+    <!-- AI missing-entry: single-line suggestion, tap to expand -->
+    <div id="led-missing"></div>
     <div id="led-body"></div>
   </div>
 
@@ -5126,28 +5128,9 @@ function renderDash(){
     </div>`;
   }).join('');
 
-  // AI Missing Entry Check (only for Today)
-  if(_dd==='today'){
-    setTimeout(()=>{
-      learnDailyPatterns();
-      const shop=_shop;
-      const missing=checkMissingEntries(shop);
-      const mc=document.getElementById('missing-card');
-      const me=document.getElementById('missing-entries');
-      if(missing.length&&mc&&me){
-        mc.style.display='block';
-        me.innerHTML=`<div class="alert warn" style="margin-bottom:8px">🤔 ${missing.length} entries AI expects today are missing — quick add with one tap!</div>`+
-          missing.slice(0,8).map(m=>`
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-              <div style="flex:1;min-width:0;margin-right:8px">
-                <div style="font-weight:600;font-size:13px;font-family:var(--tamil)">${esc(m.desc)}</div>
-                <div style="font-size:10px;color:var(--muted)">${SHOPS[m.shop]?.name||m.shop} · ${m.type} · ${m.frequency}× usual</div>
-              </div>
-              <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}')" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);flex-shrink:0">+ Add</button>
-            </div>`).join('');
-      } else if(mc){ mc.style.display='none'; }
-    }, 500);
-  }
+  // AI Missing-Entry alert moved OFF the dashboard → now a single-line
+  // suggestion on the Ledger page (see renderLedger / #led-missing).
+  const _mc=document.getElementById('missing-card'); if(_mc) _mc.style.display='none';
 
   // Recon
   const rc=document.getElementById('d-recon');
@@ -5757,6 +5740,37 @@ async function addEntry(){
 // LEDGER TABLE
 // ════════════════════════════════════════
 function _txTypeLbl(type){ return _bizType==='personal'?(type==='sales'?'Received':type==='expense'?'Paid':'Payment'):(type==='sales'?'Sales':type==='expense'?'Expense':'Payment'); }
+// AI missing-entry — single-line suggestion on the Ledger page (tap to expand)
+function renderLedgerMissing(){
+  const el=document.getElementById('led-missing'); if(!el) return;
+  let missing=[];
+  try{ learnDailyPatterns(); missing=checkMissingEntries(_shop); }catch(e){}
+  if(!missing.length){ el.innerHTML=''; return; }
+  const rows=missing.slice(0,10).map(m=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:0;margin-right:8px">
+        <div style="font-weight:700;font-size:13px;font-family:var(--tamil)">${esc(m.desc)}</div>
+        <div style="font-size:10px;color:var(--muted)">${esc(SHOPS[m.shop]?.name||m.shop)} · ${esc(m.type)}</div>
+      </div>
+      <button onclick="quickAddMissing('${esc(m.desc).replace(/'/g,"\\'")}','${m.type}','${m.shop}')" style="background:var(--gold);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">+ Add</button>
+    </div>`).join('');
+  el.innerHTML=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleLedMissing()" style="display:flex;align-items:center;gap:8px;padding:11px 13px;cursor:pointer">
+        <span style="font-size:15px">🧠</span>
+        <div style="flex:1;font-size:13px;font-weight:700;color:var(--gold)">${missing.length} entries you usually add are missing today</div>
+        <span id="led-missing-chev" style="color:var(--muted);font-size:13px;display:inline-block;transition:transform .2s">▸</span>
+      </div>
+      <div id="led-missing-list" style="display:none;padding:0 13px 6px">${rows}</div>
+    </div>`;
+}
+function toggleLedMissing(){
+  const l=document.getElementById('led-missing-list'),c=document.getElementById('led-missing-chev');
+  if(!l) return;
+  const open=l.style.display!=='none';
+  l.style.display=open?'none':'block';
+  if(c) c.style.transform=open?'rotate(0deg)':'rotate(90deg)';
+}
 function renderLedger(){
   const fs=v('f-shop')||'all',ft=v('f-type')||'all';
   const f=getDF(_ld,'l-from','l-to');
@@ -5769,6 +5783,8 @@ function renderLedger(){
 
   const body=document.getElementById('led-body');
   if(!body)return;
+
+  renderLedgerMissing();
 
   // Summary label
   const lbl=document.getElementById('led-summary-lbl');
