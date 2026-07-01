@@ -241,8 +241,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     final isAdmin    = p.isAdmin;
     final isCashier  = p.isCashier;
-    final showFinance = _showFinanceTab(p);
-    final showConstruction = p.isSelectedShopConstruction;
     final bodies     = _bodies(isAdmin, isCashier);
     final safeTab    = _tab.clamp(0, bodies.length - 1);
 
@@ -285,8 +283,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
-        bottomNavigationBar:
-            _buildBottomNav(p.lang, isAdmin, isCashier, showFinance, showConstruction),
+        bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, isCashier),
         floatingActionButton: FloatingActionButton(
           backgroundColor: kPrimary,
           foregroundColor: Colors.white,
@@ -702,13 +699,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               isAllChip: true,
               onTap: () => p.setSelectedShop(''),
             ),
-            // Individual shop chips
-            ...p.shops.values.map((s) => _ShopChip(
-              label: '${s.icon} ${s.name}',
-              active: p.selectedShop == s.id,
-              isAllChip: false,
-              onTap: () => p.setSelectedShop(s.id),
-            )),
+            // Individual shop chips. Finance/Chit/Construction shops open their
+            // dedicated module full-view when tapped; normal shops just filter.
+            ...p.shops.values.map((s) {
+              final type = s.type.toLowerCase();
+              final isModule =
+                  type == 'finance' || type == 'chit' || type == 'construction';
+              return _ShopChip(
+                label: '${s.icon} ${s.name}',
+                active: p.selectedShop == s.id,
+                isAllChip: false,
+                onTap: () {
+                  p.setSelectedShop(s.id);
+                  if (type == 'construction') {
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const ConstructionScreen()));
+                  } else if (isModule) {
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const FinanceTab()));
+                  }
+                },
+              );
+            }),
           ],
         ),
       ),
@@ -721,18 +733,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l, bool isAdmin, bool isCashier,
-      bool showFinance, bool showConstruction) {
-    // A shop is at most one of finance/chit OR construction, so only one
-    // extra "module" tab ever appears at the end of the bar.
-    final showModule = showFinance || showConstruction;
-    // Cashier: Dashboard(0), Entry(1), Ledger(2) [, Module(3 if applicable)]
-    // Normal:  Dashboard(0), [Scan(1 if admin)], Entry, Ledger, Suppliers, Reports [, Module]
-    final maxIdx = isCashier
-        ? (showModule ? 4 : 3)
-        : showModule
-            ? (isAdmin ? 6 : 5)
-            : (isAdmin ? 5 : 4);
+  Widget _buildBottomNav(String l, bool isAdmin, bool isCashier) {
+    // Finance/Chit/Construction are opened by tapping their shop chip on the
+    // dashboard (not a bottom-nav tab), so the bar stays fixed.
+    final maxIdx = isCashier ? 3 : (isAdmin ? 5 : 4);
     final cur = _tab.clamp(0, maxIdx);
 
     BottomNavigationBarItem _item(NavIconType type, String label, int idx) =>
@@ -750,28 +754,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _item(NavIconType.ledger, t('ledger', l), idx++),
       _item(NavIconType.suppliers, t('suppliers', l), idx++),
       if (!isCashier) _item(NavIconType.reports, t('reports', l), idx++),
-      if (showFinance) _item(NavIconType.finance, 'Finance', idx),
-      if (showConstruction)
-        const BottomNavigationBarItem(
-          icon: Icon(Icons.construction_outlined),
-          activeIcon: Icon(Icons.construction),
-          label: 'Construction',
-        ),
     ];
 
     return BottomNavigationBar(
       currentIndex: cur,
-      onTap: (i) {
-        final moduleIdx = isCashier ? 4 : (isAdmin ? 6 : 5);
-        if (showModule && i == moduleIdx) {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) =>
-                showFinance ? const FinanceTab() : const ConstructionScreen(),
-          ));
-          return;
-        }
-        setState(() => _tab = i);
-      },
+      onTap: (i) => setState(() => _tab = i),
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
       selectedItemColor: kPrimary,
