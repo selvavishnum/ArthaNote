@@ -28,6 +28,7 @@ class _LedgerTabState extends State<LedgerTab> {
   DateTimeRange? _customRange;
   DateTime? _monthStart;              // null = current month
   final Set<String> _collapsed = {};  // day keys that are folded
+  bool _missingExpanded = false;      // AI missing-entry suggestion expand state
   List<String> _duplicateWarnings = [];
   Set<String>  _duplicateIds      = {};
   bool   _dupBannerDismissed = false;
@@ -272,6 +273,190 @@ class _LedgerTabState extends State<LedgerTab> {
     return txns;
   }
 
+  // ── AI missing-entry: entries usually recorded that are absent TODAY ────────
+  List<Map<String, dynamic>> _detectMissingToday(List<Txn> all) {
+    final now      = DateTime.now();
+    final dayStart = DateTime(now.year, now.month, now.day);
+    final dayEnd   = dayStart.add(const Duration(days: 1));
+    final since    = dayStart.subtract(const Duration(days: 14));
+
+    final past = all.where((tx) =>
+        !tx.date.isBefore(since) && tx.date.isBefore(dayStart)).toList();
+
+    final dayFreq = <String, Set<String>>{};
+    final meta    = <String, Map<String, dynamic>>{};
+    for (final tx in past) {
+      if (tx.desc.isEmpty) continue;
+      final key = '${tx.desc}|${tx.type}|${tx.shop}';
+      dayFreq.putIfAbsent(key, () => {});
+      dayFreq[key]!.add(_dayKey(tx.date));
+      meta[key] = {
+        'desc': tx.desc, 'type': tx.type, 'shop': tx.shop, 'shopName': tx.shopName,
+      };
+    }
+    final todayDescs = all
+        .where((tx) => !tx.date.isBefore(dayStart) && tx.date.isBefore(dayEnd))
+        .map((tx) => tx.desc)
+        .toSet();
+
+    final missing = <Map<String, dynamic>>[];
+    for (final e in dayFreq.entries) {
+      if (e.value.length >= 3 && !todayDescs.contains(meta[e.key]!['desc'])) {
+        missing.add({...meta[e.key]!, 'days': e.value.length});
+      }
+    }
+    missing.sort((a, b) => (b['days'] as int).compareTo(a['days'] as int));
+    return missing.take(8).toList();
+  }
+
+  // Single-line suggestion at the very top of the ledger — tap to expand.
+  Widget _missingBanner(List<Map<String, dynamic>> missing) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(children: [
+        InkWell(
+          onTap: () => setState(() => _missingExpanded = !_missingExpanded),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+            child: Row(children: [
+              const Text('🧠', style: TextStyle(fontSize: 15)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${missing.length} entries you usually add are missing today',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700, color: kPrimary),
+                ),
+              ),
+              AnimatedRotation(
+                turns: _missingExpanded ? 0.25 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(Icons.chevron_right,
+                    size: 18, color: Colors.grey.shade400),
+              ),
+            ]),
+          ),
+        ),
+        if (_missingExpanded)
+          ...missing.map((m) => Padding(
+                padding: const EdgeInsets.fromLTRB(13, 0, 10, 10),
+                child: Row(children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(m['desc'] as String,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13)),
+                        Text(
+                          '${(m['shopName'] as String).isNotEmpty ? "${m['shopName']} · " : ""}${m['type']}',
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _quickAddMissing(m),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(56, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      textStyle: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    child: const Text('+ Add'),
+                  ),
+                ]),
+              )),
+      ]),
+    );
+  }
+
+  Future<void> _quickAddMissing(Map<String, dynamic> m) async {
+    final p        = context.read<AppProvider>();
+    final desc     = m['desc'] as String;
+    final type     = m['type'] as String;
+    final shop     = m['shop'] as String;
+    final shopName = m['shopName'] as String;
+    final amtCtrl  = TextEditingController();
+
+    final result = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2)),
+          ),
+          const SizedBox(height: 16),
+          Text('Quick Add: $desc',
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
+          const SizedBox(height: 4),
+          Text(shopName, style: const TextStyle(color: kMuted, fontSize: 13)),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: amtCtrl,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Amount ${p.currency.symbol}',
+              prefixText: '${p.currency.symbol} ',
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.pop(ctx, double.tryParse(amtCtrl.text.trim())),
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+            child: const Text('Save Entry'),
+          ),
+        ]),
+      ),
+    );
+
+    if (result == null || result <= 0) return;
+    if (!mounted) return;
+    final now = DateTime.now();
+    final txn = Txn(
+      id:         now.millisecondsSinceEpoch.toString(),
+      businessId: p.businessId,
+      shop:       shop,
+      shopName:   shopName,
+      date:       DateTime(now.year, now.month, now.day, now.hour, now.minute),
+      type:       type,
+      amount:     result,
+      desc:       desc,
+      createdAt:  now,
+    );
+    try {
+      await DbService().addTxn(txn);
+      if (mounted) {
+        context.read<AppProvider>().addLocalTxn(txn);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$desc saved'),
+          backgroundColor: kSecondary,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<AppProvider>();
@@ -379,7 +564,12 @@ class _LedgerTabState extends State<LedgerTab> {
       ),
     );
 
+    // AI missing-entry suggestion (Pro/trial) — single line above the search bar.
+    final missingToday =
+        p.canUseAiAlerts ? _detectMissingToday(all) : <Map<String, dynamic>>[];
+
     final leading = <Widget>[
+      if (missingToday.isNotEmpty) _missingBanner(missingToday),
       if (dupBanner != null) dupBanner,
       searchField,
       _buildPeriodRow(l),
