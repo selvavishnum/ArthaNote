@@ -324,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: kPrimary,
+                  color: const Color(0xFF111827), // black square (Serif Ledger)
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
@@ -349,8 +349,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     'ArthaNote',
                     style: TextStyle(
                       color: kText,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      fontFamily: kSerif,
+                      letterSpacing: -0.3,
                     ),
                   ),
                   Text(
