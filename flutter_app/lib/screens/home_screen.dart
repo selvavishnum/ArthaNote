@@ -761,7 +761,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       onTap: (i) => setState(() => _tab = i),
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
-      selectedItemColor: kPrimary,
+      selectedItemColor: const Color(0xFFA16207), // Serif Ledger gold accent
       unselectedItemColor: const Color(0xFF9CA3AF),
       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
       unselectedLabelStyle: const TextStyle(fontSize: 10),

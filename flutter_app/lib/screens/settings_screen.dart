@@ -20,6 +20,7 @@ import '../models/shop.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/auth_service.dart';
+import '../widgets/promo_dialog.dart';
 import 'upgrade_screen.dart';
 import '../services/db_service.dart';
 import 'login_screen.dart';
@@ -310,6 +311,14 @@ class SettingsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
                   builder: (_) => _ProfileSheet(p: p),
                 ),
+              ),
+              const _ItemDivider(),
+              _SettingsItem(
+                icon: Icons.card_giftcard_rounded,
+                iconColor: const Color(0xFFD97706),
+                title: 'Redeem promo code',
+                subtitle: 'Have a code? Unlock Pro',
+                onTap: () => showPromoCodeSheet(context),
               ),
               const _ItemDivider(),
               _SettingsItem(

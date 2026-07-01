@@ -9,10 +9,12 @@ import '../models/shop.dart';
 import '../models/txn.dart';
 import '../services/auth_service.dart';
 import '../services/db_service.dart';
+import '../services/promo_service.dart';
 
 class AppProvider extends ChangeNotifier {
   final _auth  = AuthService();
   final _dbSvc = DbService();
+  final _promo = PromoService();
 
   // 'system' | 'en' | 'ta' — "system" follows the device's language setting.
   String             _langMode     = 'system';
@@ -612,6 +614,41 @@ class AppProvider extends ChangeNotifier {
   void updateProfileField(String key, dynamic value) {
     _profile = Map<String, dynamic>.from(_profile)..[key] = value;
     notifyListeners();
+  }
+
+  /// Redeem a promo code for the signed-in user. On success the local profile
+  /// is flipped to Pro immediately (so gates unlock without a reload) and then
+  /// refreshed from Firestore. Guests must log in first.
+  Future<PromoResult> redeemPromoCode(String code) async {
+    if (_isGuest) {
+      return const PromoResult(false, 'Please log in to redeem a code');
+    }
+    final uid = _auth.currentUser?.uid ?? '';
+    if (uid.isEmpty) {
+      return const PromoResult(false, 'Please log in to redeem a code');
+    }
+    final res = await _promo.redeem(code, uid);
+    if (res.ok) {
+      final next = Map<String, dynamic>.from(_profile)
+        ..['pro'] = true
+        ..['planType'] = res.planType ?? 'pro';
+      if (res.proExpiry != null) {
+        next['proExpiry'] = Timestamp.fromDate(res.proExpiry!);
+      } else {
+        next.remove('proExpiry'); // lifetime
+      }
+      _profile = next;
+      notifyListeners();
+      // Best-effort re-sync with the source of truth.
+      try {
+        final fresh = await _auth.getProfile(uid);
+        if (fresh != null) {
+          _profile = fresh;
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
+    return res;
   }
 
   Future<void> _persistShops() async {
