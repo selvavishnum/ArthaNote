@@ -2,9 +2,7 @@ name: Build Flutter APK
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'flutter_app/**'
+    branches: [main, claude/setup-claude-context-ZYkcp]
   workflow_dispatch:
 
 permissions:

@@ -45,6 +45,7 @@ const List<Map<String, String>> kShopTypes = [
   {'type': 'hotel',      'icon': '🍽️', 'label': 'Hotel'},
   {'type': 'finance',    'icon': '💰', 'label': 'Finance'},
   {'type': 'chit',       'icon': '🤝', 'label': 'Chit Fund'},
+  {'type': 'construction','icon': '🏗️', 'label': 'Construction'},
   {'type': 'other',      'icon': '🏪', 'label': 'Other'},
 ];
 

@@ -25,6 +25,7 @@ import 'finance_tab.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
 import 'upgrade_screen.dart';
+import 'construction_screen.dart';
 import 'qr_scan_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
@@ -175,6 +176,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     mode: LaunchMode.externalApplication,
                   );
                 }
+              },
+            ),
+            _FabChip(
+              label: '🏗️ Construction',
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ConstructionScreen()),
+                );
               },
             ),
           ]),

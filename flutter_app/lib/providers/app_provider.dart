@@ -243,6 +243,7 @@ class AppProvider extends ChangeNotifier {
   bool get canUseDuplicateAlert => hasFullAccess;
   bool get canUseReminders      => hasFullAccess;
   bool get canUseCustomEntry    => hasFullAccess; // the "+ Custom" quick button
+  bool get canUseConstruction   => hasFullAccess; // construction projects module
 
   /// Business shops currently set up (excludes the implicit personal shop).
   int get businessShopCount =>
@@ -406,6 +407,14 @@ class AppProvider extends ChangeNotifier {
       try {
         await _dbSvc.addTxn(t.copyWith(businessId: targetBid));
       } catch (_) {}
+    }
+
+    // Mark the account synced so the first post-login load reads the cache we
+    // just populated (with the migrated entries) instead of racing a full
+    // Firestore sync whose writes are still in flight. The live listener then
+    // reconciles once the writes land.
+    if (guestTxns.isNotEmpty) {
+      await _dbSvc.markSynced(targetBid);
     }
 
     // 5. Tear down the guest session.
@@ -653,7 +662,10 @@ class AppProvider extends ChangeNotifier {
         } else {
           _txns = fresh;
         }
-        await _dbSvc.saveTxnsToCache(_businessId, fresh);
+        // Persist the MERGED list (not just `fresh`) so entries whose Firestore
+        // write is still in flight — e.g. freshly migrated guest entries — are
+        // kept in the cache instead of being wiped by an empty/partial sync.
+        await _dbSvc.saveTxnsToCache(_businessId, _txns);
         await _dbSvc.markSynced(_businessId);
         _lastSynced = DateTime.now();
       } catch (_) {}
