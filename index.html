@@ -26,7 +26,7 @@
 </style>
 <title>ArthaNote — Your Wealth, Noted</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800;900&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -43,6 +43,8 @@
   --purple:#7c3aed;--pl:#ede9fe;
   --orange:#ea580c;
   --sans:'Plus Jakarta Sans',sans-serif;
+  --serif:'Playfair Display',Georgia,'Times New Roman',serif;
+  --gold:#a16207;--gold-soft:#fef3c7;
   --mono:'JetBrains Mono',monospace;
   --tamil:'Noto Sans Tamil',var(--sans);
   --devanagari:'Noto Sans Devanagari',var(--sans);
@@ -226,7 +228,8 @@ body.bn{font-family:var(--bengali)}
 .nbt{flex:1;padding:7px 2px 10px;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;font-family:var(--sans)}
 .nbt .ni{font-size:18px}
 .nbt .nl{font-size:9px;color:var(--muted);font-weight:600}
-.nbt.on .nl{color:var(--green);font-weight:800}
+.nbt.on .nl{color:var(--gold);font-weight:800}
+.nbt.on .ni{color:var(--gold)}
 
 /* PANES */
 .pane{display:none;padding:14px}
@@ -264,6 +267,26 @@ body.bn{font-family:var(--bengali)}
 .sc-cnt{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(255,255,255,.8)}
 .sc-nums{display:flex;gap:12px;flex-wrap:wrap}
 .sc-num{font-family:var(--mono);font-size:11px}
+
+/* ── SERIF LEDGER DASHBOARD (design #10) ── */
+.lx-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;padding:6px 0 14px;margin-bottom:4px}
+.lx-tabs::-webkit-scrollbar{display:none}
+.lx-tab{font-size:15px;font-weight:600;color:var(--muted);padding:4px 0;margin-right:22px;white-space:nowrap;cursor:pointer;border-bottom:2px solid transparent;flex-shrink:0;font-family:var(--sans)}
+.lx-tab.on{color:var(--gold);font-weight:800;border-bottom:2px solid var(--gold)}
+.lx-hero{padding:4px 2px 12px}
+.lx-hero-lbl{font-size:11px;letter-spacing:1.6px;font-weight:800;color:var(--muted)}
+.lx-hero-val{font-size:40px;font-weight:800;color:var(--text);letter-spacing:-1.2px;line-height:1.04;margin-top:2px}
+.lx-hero-sub{display:flex;gap:22px;margin-top:9px;font-size:13px;color:var(--muted)}
+.lx-hero-sub b{color:var(--text);font-weight:800}
+.lx-rule{height:2px;background:var(--text);margin:0 2px 18px;border-radius:2px}
+.lx-sec{font-size:11px;letter-spacing:2px;font-weight:800;color:var(--muted);padding:0 2px 4px}
+.lx-shop{padding:16px 2px;border-bottom:1px solid var(--border);cursor:pointer}
+.lx-shop:active{opacity:.6}
+.lx-shop-name{font-family:var(--serif);font-size:23px;font-weight:800;color:var(--text);letter-spacing:-.3px;line-height:1.1}
+.lx-shop-nums{display:flex;gap:20px;flex-wrap:wrap;margin-top:7px;font-size:13px;color:var(--muted)}
+.lx-shop-nums b{color:var(--text);font-weight:800}
+.lx-shop-nums b.gold{color:var(--gold)}
+.lx-addshop{text-align:center;color:var(--gold);font-weight:800;font-size:13px;padding:18px 0 4px;cursor:pointer;letter-spacing:.3px}
 
 /* DATE TABS */
 .dtabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
@@ -1018,8 +1041,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <button class="tmenu" onclick="openM('menu-modal')">&#9776;</button>
   </div>
 
-  <!-- SHOP STRIP -->
-  <div class="sstrip" id="shop-strip"></div>
+  <!-- SHOP STRIP (hidden — Serif Ledger design filters by tapping a shop) -->
+  <div class="sstrip" id="shop-strip" style="display:none"></div>
 
   <!-- SYNC BAR -->
   <div class="syncbar" id="syncbar">
@@ -1027,53 +1050,68 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
     <button onclick="syncNow()" style="background:var(--yellow);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-left:auto;font-family:var(--sans)">Sync Now</button>
   </div>
 
-  <!-- ── DASHBOARD ── -->
+  <!-- ── DASHBOARD (Serif Ledger design) ── -->
   <div class="pane on" id="pane-dash">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0 4px;margin-bottom:4px">
-      <div style="font-size:10px;color:var(--muted)" id="data-range-lbl">📅 Loading last 90 days...</div>
-      <button onclick="manualRefresh()" id="refresh-dash-btn" style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:16px;border:1px solid var(--border);background:var(--soft);color:var(--muted);cursor:pointer">↻ Refresh</button>
-    </div>
-    <div class="dtabs" id="dash-tabs">
-      <div class="dtab on" onclick="setDDate('today',this)">&#128197; Today</div>
-      <div class="dtab" onclick="setDDate('yesterday',this)">&#9194; Yesterday</div>
-      <div class="dtab" onclick="setDDate('week',this)">&#128198; This Week</div>
-      <div class="dtab" onclick="setDDate('month',this)">&#128197; This Month</div>
-      <div class="dtab" onclick="setDDate('custom',this)">&#128198; Custom</div>
+    <!-- date filter — underline tabs -->
+    <div class="lx-tabs" id="dash-tabs">
+      <div class="lx-tab on" onclick="setDDate('today',this)">Today</div>
+      <div class="lx-tab" onclick="setDDate('week',this)">Week</div>
+      <div class="lx-tab" onclick="setDDate('month',this)">Month</div>
+      <div class="lx-tab" onclick="setDDate('year',this)">Year</div>
+      <div class="lx-tab" onclick="setDDate('custom',this)">📅 Custom</div>
     </div>
     <div class="cdrow" id="d-cdrow">
       <div class="fr"><div class="fg"><label>From</label><input type="date" id="d-from" onchange="renderDash()"></div><div class="fg"><label>To</label><input type="date" id="d-to" onchange="renderDash()"></div></div>
     </div>
-    <div class="pill ok" id="d-pill"><div class="pdot"></div><span id="d-msg">Loading...</span></div>
+
+    <!-- net balance hero -->
+    <div class="lx-hero">
+      <div class="lx-hero-lbl" id="d-hero-lbl">NET BALANCE · TODAY</div>
+      <div class="lx-hero-val" id="d-net">₹0</div>
+      <div class="lx-hero-sub">
+        <span id="d-sales-wrap">Sales <b id="d-sales">₹0</b></span>
+        <span id="d-exp-wrap">Expense <b id="d-exp">₹0</b></span>
+      </div>
+    </div>
+    <div class="lx-rule"></div>
+
     <div id="biz-type-banner" style="display:none;background:linear-gradient(135deg,var(--green),var(--sec));color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-weight:700;font-size:14px;letter-spacing:0.3px"></div>
     <div id="d-new-user-tip" style="display:none"></div>
     <div id="ai-briefing-slot"></div>
-    <div class="sgrid">
-      <div class="stile"><div class="slbl" id="d-sales-lbl">Total Sales</div><div class="sval cg" id="d-sales">&#8377;0</div></div>
-      <div class="stile"><div class="slbl" id="d-exp-lbl">Total Expense</div><div class="sval cr" id="d-exp">&#8377;0</div></div>
-      <div class="stile"><div class="slbl" id="d-net-lbl">Net Balance</div><div class="sval" id="d-net">&#8377;0</div></div>
-      <div class="stile"><div class="slbl" id="d-od-lbl">Overdraft</div><div class="sval cy" id="d-od">NONE</div></div>
-    </div>
-    <div id="d-gst-row" style="display:none;margin-bottom:12px">
+
+    <!-- optional GST strip (shown only when GST is on) -->
+    <div id="d-gst-row" style="display:none;margin-bottom:14px">
       <div class="sgrid">
         <div class="stile" style="border-left:3px solid var(--yellow)"><div class="slbl">🧾 GST Collected</div><div class="sval cy" id="d-gst-col">₹0</div></div>
         <div class="stile" style="border-left:3px solid var(--blue)"><div class="slbl">📊 Base Sales (ex-GST)</div><div class="sval cb" id="d-gst-base">₹0</div></div>
       </div>
     </div>
-    <div class="card"><div class="chd">&#127978; Shop Summary <small style="font-weight:400;font-size:9px;color:var(--muted)">(tap for 360&deg; report)</small></div><div id="shop-cards"></div></div>
-    <div class="card"><div class="chd">&#9888;&#65039; Supplier Alerts</div><div id="d-sup"></div></div>
-    <div class="card"><div class="chd">&#128202; Daily Reconciliation</div><div id="d-recon"></div></div>
-    <div class="card" id="upcoming-payments-card" style="display:none">
-      <div class="chd">📋 Upcoming Payments <button onclick="openM('reminders-modal')" style="float:right;background:var(--green);color:#fff;border:none;border-radius:6px;padding:2px 10px;font-size:10px;cursor:pointer;font-weight:700">Manage</button></div>
-      <div id="upcoming-payments-body"></div>
-    </div>
-    <div class="card" id="ai-conf-card" style="display:none">
-      <div class="chd">&#129504; AI Learning Progress</div>
-      <div id="ai-conf-body"></div>
-    </div>
+
+    <!-- shops -->
+    <div class="lx-sec">SHOPS</div>
+    <div id="shop-cards"></div>
+
+    <!-- AI missing-entry (shown only for Today when relevant) -->
     <div class="card" id="missing-card" style="display:none">
       <div class="chd">&#129504; AI Missing Entry Alert</div>
       <div id="missing-entries"></div>
     </div>
+    <!-- upcoming payments (shown only when relevant) -->
+    <div class="card" id="upcoming-payments-card" style="display:none">
+      <div class="chd">📋 Upcoming Payments <button onclick="openM('reminders-modal')" style="float:right;background:var(--gold);color:#fff;border:none;border-radius:6px;padding:2px 10px;font-size:10px;cursor:pointer;font-weight:700">Manage</button></div>
+      <div id="upcoming-payments-body"></div>
+    </div>
+
+    <!-- hidden fallbacks: kept in DOM so renderDash()/helpers never hit null -->
+    <span id="d-od" style="display:none"></span>
+    <span id="d-net-lbl" style="display:none"></span>
+    <span id="d-sales-lbl" style="display:none"></span>
+    <span id="d-exp-lbl" style="display:none"></span>
+    <span id="d-od-lbl" style="display:none"></span>
+    <div id="d-pill" style="display:none"><span id="d-msg"></span></div>
+    <div id="d-sup" style="display:none"></div>
+    <div id="d-recon" style="display:none"></div>
+    <div id="ai-conf-card" style="display:none"><div id="ai-conf-body"></div></div>
   </div>
 
   <!-- ── SCAN ── -->
@@ -4927,10 +4965,12 @@ function getDF(mode,fid,tid){
   const y=new Date(); y.setDate(y.getDate()-1); const ys=y.toISOString().split('T')[0];
   const ws=new Date(); ws.setDate(ws.getDate()-6); const wss=ws.toISOString().split('T')[0];
   const ms=t.substring(0,7)+'-01';
+  const yrs=t.substring(0,4)+'-01-01';
   if(mode==='today')     return txs=>txs.filter(x=>x.date===t);
   if(mode==='yesterday') return txs=>txs.filter(x=>x.date===ys);
   if(mode==='week')      return txs=>txs.filter(x=>x.date>=wss);
   if(mode==='month')     return txs=>txs.filter(x=>x.date>=ms);
+  if(mode==='year')      return txs=>txs.filter(x=>x.date>=yrs);
   if(mode==='custom'){
     const fr=document.getElementById(fid)?.value||'',to=document.getElementById(tid)?.value||t;
     return txs=>txs.filter(x=>x.date&&(!fr||x.date>=fr)&&x.date<=to);
@@ -4939,7 +4979,7 @@ function getDF(mode,fid,tid){
 }
 function setDDate(m,el){
   _dd=m;
-  document.querySelectorAll('#dash-tabs .dtab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#dash-tabs .lx-tab').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
   const cr=document.getElementById('d-cdrow');
   if(cr){
@@ -4984,7 +5024,10 @@ function renderDash(){
   const s=sum(txs,'sales'),e=sum(txs,'expense'),p=sum(txs,'payment'),net=s-e-p;
   document.getElementById('d-sales').textContent='₹'+fmt(s);
   document.getElementById('d-exp').textContent='₹'+fmt(e+p);
-  const ne=document.getElementById('d-net'); ne.textContent=(net>=0?'+':'')+'₹'+fmt(net); ne.className='sval '+(net>=0?'cg':'cr');
+  const ne=document.getElementById('d-net'); ne.textContent=(net<0?'−₹'+fmt(Math.abs(net)):'₹'+fmt(net)); ne.className='lx-hero-val';
+  const hl=document.getElementById('d-hero-lbl');
+  if(hl){ const lm={today:'TODAY',yesterday:'YESTERDAY',week:'THIS WEEK',month:'THIS MONTH',year:'THIS YEAR',custom:'CUSTOM'};
+    hl.textContent=(_bizType==='personal'?'BALANCE':'NET BALANCE')+' · '+(lm[_dd]||'TODAY'); }
   const od=document.getElementById('d-od');
   if(net<0){od.textContent='₹'+fmt(Math.abs(net));od.className='sval cr';}else{od.textContent='NONE';od.className='sval cy';}
 
@@ -5014,18 +5057,16 @@ function renderDash(){
   sc.innerHTML=show.map(k=>{
     const stxs=af.filter(x=>x.shop===k);
     const ss=sum(stxs,'sales'),se2=sum(stxs,'expense'),sn=ss-se2;
-    const h=_shopHealthScore(k);
-    return `<div class="sc ${k}" onclick="openSd('${k}')">
-      <div class="sc-top"><div class="sc-name">${SHOPS[k]?.icon||'🏪'} ${SHOPS[k]?.name||k}</div>
-      <div style="display:flex;align-items:center;gap:5px"><span title="${h.label} · Score ${h.score}" style="font-size:14px">${h.badge}</span><div class="sc-cnt">${stxs.length}</div><span style="font-size:10px;color:var(--muted)">→</span></div></div>
-      <div class="sc-nums">
-        <span class="sc-num">Sales:₹${fmt(ss)}</span>
-        <span class="sc-num">Exp:₹${fmt(se2)}</span>
-        <span class="sc-num" style="color:${sn>=0?'var(--green)':'var(--red)'}">Net:${sn>=0?'+':''}₹${fmt(sn)}</span>
+    const netStr=sn<0?'−₹'+fmt(Math.abs(sn)):'₹'+fmt(sn);
+    return `<div class="lx-shop" onclick="openSd('${k}')">
+      <div class="lx-shop-name">${esc(SHOPS[k]?.name||k)}</div>
+      <div class="lx-shop-nums">
+        <span>Sales <b>₹${fmt(ss)}</b></span>
+        <span>Exp <b>₹${fmt(se2)}</b></span>
+        <span>Net <b class="gold">${netStr}</b></span>
       </div>
-      <div style="font-size:9px;color:var(--muted);margin-top:3px;text-align:right">Tap → 360° report</div>
     </div>`;
-  }).join('');
+  }).join('') + `<div class="lx-addshop" onclick="openAddShopModal()">+ Add shop</div>`;
   } // end of else (shops exist)
 
   // Supplier alerts
