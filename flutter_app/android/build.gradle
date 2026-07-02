@@ -11,6 +11,30 @@ rootProject.buildDir = "../build"
 subprojects { project.buildDir = "${rootProject.buildDir}/${project.name}" }
 subprojects { project.evaluationDependsOn(":app") }
 
+// Force a consistent JVM target (17) across ALL modules — the app and every
+// Flutter plugin. Some plugins (e.g. receive_sharing_intent) compile Kotlin
+// at 17 but leave Java at 1.8, which the Kotlin 2.0 Gradle plugin rejects with
+// "Inconsistent JVM-target compatibility". Aligning both to 17 everywhere
+// fixes it without touching plugin source.
+subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin("com.android.application") ||
+            project.plugins.hasPlugin("com.android.library")) {
+            project.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = "17"
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
