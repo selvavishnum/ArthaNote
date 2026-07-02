@@ -141,9 +141,8 @@ class _NavPainter extends CustomPainter {
     const top = 2.5, bot = 24.0, le = 1.5, re = 24.5, cr = 3.0;
     final mx = s.width / 2;
 
-    Path _page(bool left) {
+    Path page(bool left) {
       final x = left ? le : mx;
-      final xEnd = left ? mx : re;
       return Path()
         ..moveTo(mx, top)
         ..lineTo(x + (left ? cr : -cr), top)
@@ -153,7 +152,7 @@ class _NavPainter extends CustomPainter {
         ..lineTo(mx, bot);
     }
 
-    final lp = _page(true), rp = _page(false);
+    final lp = page(true), rp = page(false);
     if (active) {
       canvas.drawPath(lp, _fp(_kTint));
       canvas.drawPath(rp, _fp(_kTint));
