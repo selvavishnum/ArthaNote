@@ -29,6 +29,8 @@ import 'construction_screen.dart';
 import 'qr_scan_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'quick_expense_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,12 +42,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
   final _db     = DbService();
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
+  StreamSubscription<List<SharedMediaFile>>? _shareSub;
   DateTime? _lastBackPress;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _initShareIntake();
     // Sync any pending offline entries when connectivity returns
     _connectivity = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
@@ -61,10 +65,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  // ── Receive shared GPay/PhonePe receipts → quick expense ──────────────────
+  void _initShareIntake() {
+    // Warm start: app already open when a receipt is shared.
+    _shareSub = ReceiveSharingIntent.instance.getMediaStream().listen(
+      (files) { if (files.isNotEmpty) _handleShared(files); },
+      onError: (_) {},
+    );
+    // Cold start: app launched from the share sheet.
+    ReceiveSharingIntent.instance.getInitialMedia().then((files) {
+      if (files.isNotEmpty) {
+        _handleShared(files);
+        ReceiveSharingIntent.instance.reset();
+      }
+    });
+  }
+
+  void _handleShared(List<SharedMediaFile> files) {
+    final f = files.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final isImage = f.type == SharedMediaType.image;
+      showQuickExpenseFromShare(
+        context,
+        imagePath: isImage ? f.path : null,
+        sharedText: isImage ? null : f.path,
+      );
+    });
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivity?.cancel();
+    _shareSub?.cancel();
     super.dispose();
   }
 
