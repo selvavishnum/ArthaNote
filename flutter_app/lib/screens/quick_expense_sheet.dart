@@ -1,34 +1,31 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../models/txn.dart';
 import '../providers/app_provider.dart';
 import '../services/db_service.dart';
+import '../services/receipt_ocr.dart';
 
-/// Opens the "quick expense from a shared GPay/PhonePe receipt" sheet.
-/// [imagePath] = a shared receipt screenshot (OCR'd for amount/payee when a
-/// Gemini key is set). [sharedText] = shared plain text (amount parsed by regex).
+/// Opens the "add expense from a shared receipt" sheet, pre-filled with
+/// whatever the on-device OCR could read ([parsed]). Used as a review/edit
+/// step (auto-save handles the confident case directly).
 Future<void> showQuickExpenseFromShare(BuildContext context,
-    {String? imagePath, String? sharedText}) async {
+    {String? imagePath, ReceiptData? parsed}) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) =>
-        _QuickExpenseSheet(imagePath: imagePath, sharedText: sharedText),
+    builder: (_) => _QuickExpenseSheet(imagePath: imagePath, parsed: parsed),
   );
 }
 
 class _QuickExpenseSheet extends StatefulWidget {
   final String? imagePath;
-  final String? sharedText;
-  const _QuickExpenseSheet({this.imagePath, this.sharedText});
+  final ReceiptData? parsed;
+  const _QuickExpenseSheet({this.imagePath, this.parsed});
   @override
   State<_QuickExpenseSheet> createState() => _QuickExpenseSheetState();
 }
@@ -37,20 +34,21 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
   final _amt  = TextEditingController();
   final _desc = TextEditingController();
   String? _shopId;
-  bool _reading = false;   // OCR in progress
-  bool _saving  = false;
+  String? _txnId;
+  DateTime? _date;
+  bool _saving = false;
   String _status = '';
 
   @override
   void initState() {
     super.initState();
-    // Prefill from shared text immediately (cheap regex).
-    if (widget.sharedText != null && widget.sharedText!.trim().isNotEmpty) {
-      _parseText(widget.sharedText!);
-    }
-    // Then, if it's a receipt image, OCR it for amount + payee.
-    if (widget.imagePath != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _ocrReceipt());
+    final d = widget.parsed;
+    if (d != null) {
+      if (d.amount != null) _amt.text = d.amount!.toStringAsFixed(d.amount! % 1 == 0 ? 0 : 2);
+      if (d.payee != null)  _desc.text = d.payee!;
+      _txnId = d.txnId;
+      _date  = d.date;
+      if (!d.hasAmount) _status = 'Couldn\'t read the amount — enter it below';
     }
   }
 
@@ -59,81 +57,6 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
     _amt.dispose();
     _desc.dispose();
     super.dispose();
-  }
-
-  void _parseText(String text) {
-    // ₹500 / Rs.500 / INR 500 / "500.00"
-    final m = RegExp(r'(?:₹|rs\.?|inr)\s*([0-9][0-9,]*\.?[0-9]{0,2})',
-            caseSensitive: false)
-        .firstMatch(text);
-    final n = m?.group(1)?.replaceAll(',', '');
-    if (n != null && _amt.text.isEmpty) _amt.text = n;
-    // "to <name>" / "paid to <name>"
-    final p = RegExp(r'(?:paid to|to)\s+([A-Za-z0-9 .&\-]{2,40})',
-            caseSensitive: false)
-        .firstMatch(text);
-    if (p != null && _desc.text.isEmpty) _desc.text = p.group(1)!.trim();
-  }
-
-  Future<void> _ocrReceipt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = prefs.getString('slv_gemini_key') ?? '';
-    final on  = prefs.getBool('slv_gemini_on') ?? true;
-    if (key.isEmpty || !on) return; // no key → user types manually
-    setState(() { _reading = true; _status = 'Reading receipt…'; });
-    try {
-      final bytes = await File(widget.imagePath!).readAsBytes();
-      final b64   = base64Encode(bytes);
-      final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$key');
-      const prompt =
-          'This is a UPI payment receipt screenshot (Google Pay / PhonePe / Paytm). '
-          'Return STRICT JSON only, no prose: '
-          '{"amount": <number paid, no symbol>, "payee": "<who was paid>"}. '
-          'If unknown use null.';
-      final resp = await http.post(url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'contents': [
-              {
-                'parts': [
-                  {'text': prompt},
-                  {
-                    'inline_data': {'mime_type': 'image/jpeg', 'data': b64}
-                  }
-                ]
-              }
-            ]
-          }));
-      if (resp.statusCode == 200) {
-        final txt = (jsonDecode(resp.body)['candidates']?[0]?['content']
-                ?['parts']?[0]?['text'] as String?) ??
-            '';
-        final jsonStr = RegExp(r'\{[\s\S]*\}').firstMatch(txt)?.group(0);
-        if (jsonStr != null) {
-          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-          final amt = data['amount'];
-          final payee = data['payee'];
-          if (amt != null && _amt.text.isEmpty) {
-            _amt.text = (amt is num) ? amt.toString() : amt.toString();
-          }
-          if (payee != null &&
-              payee.toString().trim().isNotEmpty &&
-              _desc.text.isEmpty) {
-            _desc.text = payee.toString().trim();
-          }
-          _status = '✓ Read from receipt';
-        } else {
-          _status = 'Could not read — enter amount';
-        }
-      } else {
-        _status = 'Could not read — enter amount';
-      }
-    } catch (_) {
-      _status = 'Could not read — enter amount';
-    } finally {
-      if (mounted) setState(() => _reading = false);
-    }
   }
 
   Future<void> _save() async {
@@ -145,18 +68,21 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
     }
     final shops = p.shops;
     final shopId = _shopId ??
-        (p.selectedShop.isNotEmpty ? p.selectedShop : (shops.keys.isNotEmpty ? shops.keys.first : ''));
+        (p.selectedShop.isNotEmpty ? p.selectedShop
+                                   : (shops.keys.isNotEmpty ? shops.keys.first : ''));
     setState(() => _saving = true);
     final now = DateTime.now();
+    final day = _date ?? now;
     final txn = Txn(
       id:         now.millisecondsSinceEpoch.toString(),
       businessId: p.businessId,
       shop:       shopId,
       shopName:   shops[shopId]?.name ?? '',
-      date:       DateTime(now.year, now.month, now.day, now.hour, now.minute),
+      date:       DateTime(day.year, day.month, day.day, now.hour, now.minute),
       type:       'expense',
       amount:     amount,
       desc:       _desc.text.trim().isEmpty ? 'UPI payment' : _desc.text.trim(),
+      contact:    _txnId ?? '',
       createdAt:  now,
     );
     try {
@@ -179,7 +105,8 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
     final p = context.watch<AppProvider>();
     final shops = p.shops;
     final shopId = _shopId ??
-        (p.selectedShop.isNotEmpty ? p.selectedShop : (shops.keys.isNotEmpty ? shops.keys.first : null));
+        (p.selectedShop.isNotEmpty ? p.selectedShop
+                                   : (shops.keys.isNotEmpty ? shops.keys.first : null));
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       decoration: const BoxDecoration(
@@ -206,25 +133,21 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
           ),
         ]),
         if (_status.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Row(children: [
-            if (_reading) const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary)),
-            if (_reading) const SizedBox(width: 8),
-            Text(_status, style: const TextStyle(fontSize: 12, color: kMuted)),
-          ]),
+          const SizedBox(height: 8),
+          Text(_status, style: const TextStyle(fontSize: 12, color: kMuted)),
         ],
         const SizedBox(height: 14),
         if (widget.imagePath != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.file(File(widget.imagePath!),
-                height: 120, width: double.infinity, fit: BoxFit.cover,
+                height: 110, width: double.infinity, fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink()),
           ),
         const SizedBox(height: 14),
         TextField(
           controller: _amt,
-          autofocus: widget.imagePath == null,
+          autofocus: widget.parsed?.hasAmount != true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
@@ -241,6 +164,15 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
           decoration: const InputDecoration(
             labelText: 'Paid to / note', filled: true, fillColor: Colors.white),
         ),
+        if (_txnId != null && _txnId!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text('UPI Ref: $_txnId', style: const TextStyle(fontSize: 11, color: kMuted)),
+        ],
+        if (_date != null) ...[
+          const SizedBox(height: 4),
+          Text('Date: ${_date!.day}/${_date!.month}/${_date!.year}',
+              style: const TextStyle(fontSize: 11, color: kMuted)),
+        ],
         const SizedBox(height: 12),
         if (shops.length > 1)
           DropdownButtonFormField<String>(

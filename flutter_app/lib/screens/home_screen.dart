@@ -31,6 +31,7 @@ import '../services/lock_service.dart';
 import 'lock_screen.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'quick_expense_sheet.dart';
+import '../services/receipt_ocr.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -83,15 +84,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _handleShared(List<SharedMediaFile> files) {
     final f = files.first;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final isImage = f.type == SharedMediaType.image;
-      showQuickExpenseFromShare(
-        context,
-        imagePath: isImage ? f.path : null,
-        sharedText: isImage ? null : f.path,
-      );
+      // On-device OCR runs invisibly (no API). Image → ML Kit; text → regex.
+      final ReceiptData data = isImage
+          ? await ReceiptOcr.extractFromImage(f.path)
+          : ReceiptParser.parse(f.path);
+      if (!mounted) return;
+      if (data.hasAmount) {
+        // Confident read → save automatically, with an Edit action.
+        await _autoSaveReceipt(data, imagePath: isImage ? f.path : null);
+      } else {
+        // Couldn't read the amount → open the sheet for a quick manual finish.
+        showQuickExpenseFromShare(context,
+            imagePath: isImage ? f.path : null, parsed: data);
+      }
     });
+  }
+
+  Future<void> _autoSaveReceipt(ReceiptData d, {String? imagePath}) async {
+    final p = context.read<AppProvider>();
+    if (p.businessId.isEmpty) {
+      showQuickExpenseFromShare(context, imagePath: imagePath, parsed: d);
+      return;
+    }
+    final shopId = p.selectedShop.isNotEmpty
+        ? p.selectedShop
+        : (p.shops.keys.isNotEmpty ? p.shops.keys.first : '');
+    final now = DateTime.now();
+    final day = d.date ?? now;
+    final txn = Txn(
+      id:         now.millisecondsSinceEpoch.toString(),
+      businessId: p.businessId,
+      shop:       shopId,
+      shopName:   p.shops[shopId]?.name ?? '',
+      date:       DateTime(day.year, day.month, day.day, now.hour, now.minute),
+      type:       'expense',
+      amount:     d.amount!,
+      desc:       (d.payee == null || d.payee!.isEmpty) ? 'UPI payment' : d.payee!,
+      contact:    d.txnId ?? '',
+      createdAt:  now,
+    );
+    try {
+      await _db.addTxn(txn);
+      if (!mounted) return;
+      p.addLocalTxn(txn);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('✓ ${p.currency.symbol}${d.amount!.toStringAsFixed(0)} '
+            'to ${d.payee ?? "UPI"} saved'),
+        backgroundColor: kSecondary,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'Edit',
+          textColor: Colors.white,
+          onPressed: () =>
+              showQuickExpenseFromShare(context, imagePath: imagePath, parsed: d),
+        ),
+      ));
+    } catch (_) {
+      if (mounted) {
+        showQuickExpenseFromShare(context, imagePath: imagePath, parsed: d);
+      }
+    }
   }
 
   @override
