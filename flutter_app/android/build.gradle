@@ -13,26 +13,28 @@ subprojects { project.evaluationDependsOn(":app") }
 
 // Force a consistent JVM target (17) across ALL modules — the app and every
 // Flutter plugin. Some plugins (e.g. receive_sharing_intent) compile Kotlin
-// at 17 but leave Java at 1.8, which the Kotlin 2.0 Gradle plugin rejects with
-// "Inconsistent JVM-target compatibility". Aligning both to 17 everywhere
-// fixes it without touching plugin source.
+// at 17 but leave Java at 1.8, which the Kotlin 2.x Gradle plugin rejects with
+// "Inconsistent JVM-target compatibility".
+// NOTE: must NOT use afterEvaluate here — the evaluationDependsOn(":app")
+// block above forces :app to evaluate during root configuration, and calling
+// afterEvaluate on an already-evaluated project throws. plugins.withId fires
+// immediately when the plugin is already applied (or later when it is), and
+// tasks.matching{}.configureEach is lazy — both are evaluation-order safe.
 subprojects {
-    afterEvaluate { project ->
-        if (project.plugins.hasPlugin("com.android.application") ||
-            project.plugins.hasPlugin("com.android.library")) {
-            project.android {
-                compileOptions {
-                    sourceCompatibility JavaVersion.VERSION_17
-                    targetCompatibility JavaVersion.VERSION_17
-                }
+    plugins.withId("com.android.library") {
+        android {
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
             }
         }
-        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    }
+    tasks.matching { it.name.startsWith("compile") && it.name.contains("Kotlin") }
+        .configureEach {
             kotlinOptions {
                 jvmTarget = "17"
             }
         }
-    }
 }
 
 tasks.register("clean", Delete) {
