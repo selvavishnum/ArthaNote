@@ -29,6 +29,9 @@ import 'construction_screen.dart';
 import 'qr_scan_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'quick_expense_sheet.dart';
+import '../services/receipt_ocr.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,12 +43,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
   final _db     = DbService();
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
+  StreamSubscription<List<SharedMediaFile>>? _shareSub;
   DateTime? _lastBackPress;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _initShareIntake();
     // Sync any pending offline entries when connectivity returns
     _connectivity = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
@@ -61,10 +66,95 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  // ── Receive shared GPay/PhonePe receipts → quick expense ──────────────────
+  void _initShareIntake() {
+    // Warm start: app already open when a receipt is shared.
+    _shareSub = ReceiveSharingIntent.instance.getMediaStream().listen(
+      (files) { if (files.isNotEmpty) _handleShared(files); },
+      onError: (_) {},
+    );
+    // Cold start: app launched from the share sheet.
+    ReceiveSharingIntent.instance.getInitialMedia().then((files) {
+      if (files.isNotEmpty) {
+        _handleShared(files);
+        ReceiveSharingIntent.instance.reset();
+      }
+    });
+  }
+
+  void _handleShared(List<SharedMediaFile> files) {
+    final f = files.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final isImage = f.type == SharedMediaType.image;
+      // On-device OCR runs invisibly (no API). Image → ML Kit; text → regex.
+      final ReceiptData data = isImage
+          ? await ReceiptOcr.extractFromImage(f.path)
+          : ReceiptParser.parse(f.path);
+      if (!mounted) return;
+      if (data.hasAmount) {
+        // Confident read → save automatically, with an Edit action.
+        await _autoSaveReceipt(data, imagePath: isImage ? f.path : null);
+      } else {
+        // Couldn't read the amount → open the sheet for a quick manual finish.
+        showQuickExpenseFromShare(context,
+            imagePath: isImage ? f.path : null, parsed: data);
+      }
+    });
+  }
+
+  Future<void> _autoSaveReceipt(ReceiptData d, {String? imagePath}) async {
+    final p = context.read<AppProvider>();
+    if (p.businessId.isEmpty) {
+      showQuickExpenseFromShare(context, imagePath: imagePath, parsed: d);
+      return;
+    }
+    final shopId = p.selectedShop.isNotEmpty
+        ? p.selectedShop
+        : (p.shops.keys.isNotEmpty ? p.shops.keys.first : '');
+    final now = DateTime.now();
+    final day = d.date ?? now;
+    final txn = Txn(
+      id:         now.millisecondsSinceEpoch.toString(),
+      businessId: p.businessId,
+      shop:       shopId,
+      shopName:   p.shops[shopId]?.name ?? '',
+      date:       DateTime(day.year, day.month, day.day, now.hour, now.minute),
+      type:       'expense',
+      amount:     d.amount!,
+      desc:       (d.payee == null || d.payee!.isEmpty) ? 'UPI payment' : d.payee!,
+      contact:    d.txnId ?? '',
+      createdAt:  now,
+    );
+    try {
+      await _db.addTxn(txn);
+      if (!mounted) return;
+      p.addLocalTxn(txn);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('✓ ${p.currency.symbol}${d.amount!.toStringAsFixed(0)} '
+            'to ${d.payee ?? "UPI"} saved'),
+        backgroundColor: kSecondary,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'Edit',
+          textColor: Colors.white,
+          onPressed: () =>
+              showQuickExpenseFromShare(context, imagePath: imagePath, parsed: d),
+        ),
+      ));
+    } catch (_) {
+      if (mounted) {
+        showQuickExpenseFromShare(context, imagePath: imagePath, parsed: d);
+      }
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivity?.cancel();
+    _shareSub?.cancel();
     super.dispose();
   }
 
