@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 /// Structured fields pulled from a UPI payment receipt.
@@ -20,7 +21,21 @@ class ReceiptOcr {
     try {
       final recognized =
           await recognizer.processImage(InputImage.fromFilePath(imagePath));
-      return ReceiptParser.parse(recognized.text);
+      // ML Kit returns blocks in DETECTION order, not reading order — on
+      // PhonePe receipts the header time can land right after "Paid to",
+      // which broke payee extraction. Rebuild true reading order from each
+      // line's on-screen geometry (top-to-bottom, then left-to-right).
+      final lines = <TextLine>[];
+      for (final block in recognized.blocks) {
+        lines.addAll(block.lines);
+      }
+      lines.sort((a, b) {
+        final at = a.boundingBox.top, bt = b.boundingBox.top;
+        if ((at - bt).abs() > 14) return at.compareTo(bt);
+        return a.boundingBox.left.compareTo(b.boundingBox.left);
+      });
+      final ordered = lines.map((l) => l.text).join('\n');
+      return ReceiptParser.parse(ordered.isEmpty ? recognized.text : ordered);
     } catch (_) {
       return const ReceiptData();
     } finally {
@@ -37,13 +52,12 @@ class ReceiptParser {
 
   /// Parse raw OCR text into {amount, payee, txnId, date}.
   static ReceiptData parse(String raw) {
-    final text  = raw.replaceAll('₹', '₹');
-    final flat  = text.replaceAll('\n', ' ');
-    final lines = text
+    final lines = raw
         .split('\n')
         .map((l) => l.trim())
         .where((l) => l.isNotEmpty)
         .toList();
+    final flat = lines.join(' ');
 
     return ReceiptData(
       amount: _amount(lines),
@@ -53,58 +67,145 @@ class ReceiptParser {
     );
   }
 
+  // Lines that carry amounts we must NOT treat as the payment (cashback,
+  // promo banners, "payments up to ₹5,000" ads, battery %).
+  static bool _noiseLine(String low) =>
+      low.contains('cashback') ||
+      low.contains('earned') ||
+      low.contains('reward') ||
+      low.contains('up to') ||
+      low.contains('upto') ||
+      low.contains('%');
+
   // ── Amount ──────────────────────────────────────────────────────────────
-  // Collect every ₹ value, skip cashback/reward/ad lines, take the largest —
-  // the main payment amount is the prominent one; cashback (₹1.44) is smaller.
+  // Tier 1: explicit ₹ / Rs / INR prefix.
+  // Tier 2: OCR frequently misreads or drops the ₹ glyph, so also accept a
+  //         line that is essentially just a number — but only when it has a
+  //         comma group / decimals, or a short mangled-symbol prefix ("?20,000").
+  // The payment amount is the largest surviving candidate (cashback is small).
   static double? _amount(List<String> lines) {
-    final amtRe = RegExp(r'₹\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)');
-    final vals = <double>[];
+    final withCurrency = <double>[];
+    final bare = <double>[];
+    final curRe = RegExp(r'(?:₹|rs\.?|inr)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)',
+        caseSensitive: false);
+    final bareRe = RegExp(
+        r'^([^0-9\s]{0,2})\s*([0-9]{1,3}(?:,[0-9]{2,3})+(?:\.[0-9]{1,2})?|[0-9]{1,6}(?:\.[0-9]{1,2})?)\s*$');
+
     for (final l in lines) {
       final low = l.toLowerCase();
-      if (low.contains('cashback') ||
-          low.contains('earned') ||
-          low.contains('reward') ||
-          low.contains('up to') ||
-          low.contains('upto')) continue;
-      for (final m in amtRe.allMatches(l)) {
+      if (_noiseLine(low)) continue;
+
+      for (final m in curRe.allMatches(l)) {
         final v = double.tryParse(m.group(1)!.replaceAll(',', ''));
-        if (v != null && v > 0) vals.add(v);
+        if (v != null && v > 0 && v < 10000000) withCurrency.add(v);
       }
+
+      // Bare-number fallback. Skip lines with ':' (times "09:38",
+      // labels "UTR: 4463...").
+      if (low.contains(':')) continue;
+      final m = bareRe.firstMatch(l);
+      if (m == null) continue;
+      final prefix = m.group(1)!;
+      final numStr = m.group(2)!;
+      final hasComma = numStr.contains(',');
+      final hasDecimal = numStr.contains('.');
+      // A plain integer with no currency hint is too risky (years, counts,
+      // status-bar numbers). Require a comma group, decimals, or a mangled
+      // symbol prefix as evidence it was rendered as money.
+      if (prefix.isEmpty && !hasComma && !hasDecimal) continue;
+      final v = double.tryParse(numStr.replaceAll(',', ''));
+      if (v != null && v > 0 && v < 10000000) bare.add(v);
     }
-    if (vals.isEmpty) return null;
-    return vals.reduce((a, b) => a > b ? a : b);
+
+    final pool = withCurrency.isNotEmpty ? withCurrency : bare;
+    if (pool.isEmpty) return null;
+    return pool.reduce(math.max);
   }
 
   // ── Payee ───────────────────────────────────────────────────────────────
   static String? _payee(List<String> lines) {
-    String? clean(String s) {
-      var name = s.replaceAll(RegExp(r'\s+'), ' ').trim();
-      // reject emails / VPAs / phone numbers
-      if (name.contains('@')) return null;
-      if (RegExp(r'^\+?\d[\d ]{5,}$').hasMatch(name)) return null;
-      if (name.length < 2) return null;
-      if (name.length > 40) name = name.substring(0, 40).trim();
-      return name;
-    }
-
-    for (int i = 0; i < lines.length; i++) {
+    for (var i = 0; i < lines.length; i++) {
       final l   = lines[i];
       final low = l.toLowerCase();
 
-      // PhonePe: a lone "Paid to" line, name on the next line.
-      if ((low == 'paid to' || low == 'to') && i + 1 < lines.length) {
-        final c = clean(lines[i + 1]);
-        if (c != null) return c;
+      // "Paid to" / "To" header — the name may not be the very next OCR line
+      // (avatars, phone numbers, stray rows). Scan a few lines ahead for the
+      // first thing that survives the name cleaner.
+      if (low == 'paid to' || low == 'to') {
+        for (var j = i + 1; j < lines.length && j <= i + 4; j++) {
+          final c = _cleanName(lines[j]);
+          if (c != null) return c;
+        }
       }
-      // GPay: "to S P Broilers" / "To Advocate Rohith" / "To: Rohith Kumar M"
-      final m = RegExp(r'^(?:paid to|to)\s*:?\s+(.{2,50})$', caseSensitive: false)
+      // Inline: "to S P Broilers" / "To Advocate Rohith" / "To: Rohith Kumar M"
+      final m = RegExp(r'^(?:paid to|to)\s*:?\s+(.{2,60})$', caseSensitive: false)
           .firstMatch(l);
       if (m != null) {
-        final c = clean(m.group(1)!);
+        final c = _cleanName(m.group(1)!);
+        if (c != null) return c;
+      }
+    }
+
+    // PhonePe fallback: "Banking Name : Rajasekaran G"
+    for (final l in lines) {
+      final m = RegExp(r'banking name\s*:?\s*(.+)$', caseSensitive: false)
+          .firstMatch(l);
+      if (m != null) {
+        final c = _cleanName(m.group(1)!);
+        if (c != null) return c;
+      }
+    }
+
+    // Last resort: the line just above a phone number is usually the name.
+    final phoneRe = RegExp(r'^\+?[0-9][0-9 ]{8,14}$');
+    for (var i = 1; i < lines.length; i++) {
+      if (phoneRe.hasMatch(lines[i])) {
+        final c = _cleanName(lines[i - 1]);
         if (c != null) return c;
       }
     }
     return null;
+  }
+
+  /// Normalizes a payee candidate; returns null for anything that is clearly
+  /// not a name (dates, times, phone numbers, VPAs, receipt UI chrome).
+  static String? _cleanName(String s) {
+    var name = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    // Strip an inline amount when name+amount share one OCR row
+    // ("Mr Rajasekaran ₹20,000").
+    name = name
+        .replaceAll(
+            RegExp(r'(?:₹|rs\.?|inr)\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?',
+                caseSensitive: false),
+            '')
+        .trim();
+    if (name.length < 2) return null;
+    if (name.contains('@')) return null; // VPA / email
+
+    // Dates & times are never names ("09:38 am on 03 Jul 2026", "3/7/2026").
+    if (RegExp(r'\d{1,2}:\d{2}').hasMatch(name)) return null;
+    final low = name.toLowerCase();
+    if (RegExp(r'\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)')
+        .hasMatch(low)) return null;
+    if (RegExp(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}').hasMatch(name)) return null;
+
+    // Phone numbers / ID-like strings (mostly digits).
+    final digitCount = name.replaceAll(RegExp(r'[^0-9]'), '').length;
+    if (digitCount * 2 > name.length) return null;
+
+    // Receipt UI chrome that sits near the name.
+    const junk = [
+      'transaction', 'successful', 'transfer detail', 'debited',
+      'banking name', 'completed', 'view history', 'split expense',
+      'share receipt', 'send again', 'powered by', 'contact', 'support',
+      'pay again', 'view details', 'add a note', 'in your',
+    ];
+    for (final j in junk) {
+      if (low.contains(j)) return null;
+    }
+
+    if (name.length > 40) name = name.substring(0, 40).trim();
+    return name.isEmpty ? null : name;
   }
 
   // ── Transaction ID ──────────────────────────────────────────────────────
