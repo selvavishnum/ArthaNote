@@ -36,6 +36,7 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
   String? _shopId;
   String? _txnId;
   DateTime? _date;
+  String _type = 'expense'; // 'expense' (paid) | 'sale' (received)
   bool _saving = false;
   String _status = '';
 
@@ -44,6 +45,7 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
     super.initState();
     final d = widget.parsed;
     if (d != null) {
+      _type = d.txnType;
       if (d.amount != null) _amt.text = d.amount!.toStringAsFixed(d.amount! % 1 == 0 ? 0 : 2);
       if (d.payee != null)  _desc.text = d.payee!;
       _txnId = d.txnId;
@@ -73,15 +75,18 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
     setState(() => _saving = true);
     final now = DateTime.now();
     final day = _date ?? now;
+    final isIncome = _type == 'sale';
     final txn = Txn(
       id:         now.millisecondsSinceEpoch.toString(),
       businessId: p.businessId,
       shop:       shopId,
       shopName:   shops[shopId]?.name ?? '',
       date:       DateTime(day.year, day.month, day.day, now.hour, now.minute),
-      type:       'expense',
+      type:       _type,
       amount:     amount,
-      desc:       _desc.text.trim().isEmpty ? 'UPI payment' : _desc.text.trim(),
+      desc:       _desc.text.trim().isEmpty
+          ? (isIncome ? 'UPI received' : 'UPI payment')
+          : _desc.text.trim(),
       contact:    _txnId ?? '',
       createdAt:  now,
     );
@@ -91,7 +96,8 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
       p.addLocalTxn(txn);
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Expense ${p.currency.symbol}${amount.toStringAsFixed(0)} saved'),
+        content: Text(
+            '${isIncome ? "Received" : "Expense"} ${p.currency.symbol}${amount.toStringAsFixed(0)} saved'),
         backgroundColor: kSecondary,
         behavior: SnackBarBehavior.floating,
       ));
@@ -128,9 +134,47 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
           ),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text('Add expense from receipt',
+            child: Text('Add entry from receipt',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kText)),
           ),
+        ]),
+        const SizedBox(height: 12),
+        // Direction toggle — pre-set by OCR ("Paid to" → Paid, "From X" →
+        // Received), user can flip if the receipt was read wrong.
+        Row(children: [
+          for (final opt in const [
+            ('expense', '💸 Paid', kRed),
+            ('sale', '💰 Received', kSecondary),
+          ])
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _type = opt.$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _type == opt.$1
+                        ? opt.$3.withOpacity(0.12)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _type == opt.$1 ? opt.$3 : const Color(0xFFE5E7EB),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    opt.$2,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _type == opt.$1 ? opt.$3 : kMuted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ]),
         if (_status.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -161,8 +205,11 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
         const SizedBox(height: 12),
         TextField(
           controller: _desc,
-          decoration: const InputDecoration(
-            labelText: 'Paid to / note', filled: true, fillColor: Colors.white),
+          decoration: InputDecoration(
+            labelText: _type == 'sale' ? 'Received from / note' : 'Paid to / note',
+            filled: true,
+            fillColor: Colors.white,
+          ),
         ),
         if (_txnId != null && _txnId!.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -196,7 +243,8 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
             ),
             child: _saving
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                : const Text('Save Expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                : Text(_type == 'sale' ? 'Save Received' : 'Save Expense',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ),
         ),
       ]),

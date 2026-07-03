@@ -114,15 +114,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         : (p.shops.keys.isNotEmpty ? p.shops.keys.first : '');
     final now = DateTime.now();
     final day = d.date ?? now;
+    final isIncome = d.isIncome;
     final txn = Txn(
       id:         now.millisecondsSinceEpoch.toString(),
       businessId: p.businessId,
       shop:       shopId,
       shopName:   p.shops[shopId]?.name ?? '',
       date:       DateTime(day.year, day.month, day.day, now.hour, now.minute),
-      type:       'expense',
+      type:       d.txnType, // 'expense' (paid) or 'sale' (received)
       amount:     d.amount!,
-      desc:       (d.payee == null || d.payee!.isEmpty) ? 'UPI payment' : d.payee!,
+      desc:       (d.payee == null || d.payee!.isEmpty)
+          ? (isIncome ? 'UPI received' : 'UPI payment')
+          : d.payee!,
       contact:    d.txnId ?? '',
       createdAt:  now,
     );
@@ -131,8 +134,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       p.addLocalTxn(txn);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('✓ ${p.currency.symbol}${d.amount!.toStringAsFixed(0)} '
-            'to ${d.payee ?? "UPI"} saved'),
+        content: Text(isIncome
+            ? '✓ ${p.currency.symbol}${d.amount!.toStringAsFixed(0)} '
+                'from ${d.payee ?? "UPI"} received'
+            : '✓ ${p.currency.symbol}${d.amount!.toStringAsFixed(0)} '
+                'to ${d.payee ?? "UPI"} saved'),
         backgroundColor: kSecondary,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
