@@ -29,6 +29,11 @@ class _LedgerTabState extends State<LedgerTab> {
   DateTime? _monthStart;              // null = current month
   final Set<String> _collapsed = {};  // day keys that are folded
   bool _missingExpanded = false;      // AI missing-entry suggestion expand state
+  // Memoized AI missing-entry scan — the ledger rebuilds on every search
+  // keystroke/filter tap, and the detector is O(n) over ALL txns. Only
+  // recompute when the data (or the day) actually changes.
+  String _missingDigest = '';
+  List<Map<String, dynamic>> _missingCache = const [];
   List<String> _duplicateWarnings = [];
   Set<String>  _duplicateIds      = {};
   bool   _dupBannerDismissed = false;
@@ -229,28 +234,32 @@ class _LedgerTabState extends State<LedgerTab> {
   static String _dayKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
 
-  // Single O(n²) pass returning both warnings and IDs — avoids scanning twice.
-  static ({List<String> warnings, Set<String> ids}) _findDuplicates(List<Txn> all, String currencySymbol) {
+  // Single O(n) pass: group by (day, shop, type, amount, desc) — any bucket
+  // with 2+ entries is a duplicate set. The old pairwise scan was O(n²)
+  // (~28M comparisons at 7.5k entries, each allocating day-key strings) and
+  // ran on the UI thread whenever the txn list changed.
+  static ({List<String> warnings, Set<String> ids}) _findDuplicates(
+      List<Txn> all, String currencySymbol) {
+    final groups = <String, List<Txn>>{};
+    for (final t in all) {
+      if (t.desc.isEmpty) continue;
+      final key = '${_dayKey(t.date)}|${t.shop}|${t.type}|${t.amount}|${t.desc}';
+      (groups[key] ??= []).add(t);
+    }
     final warnings = <String>[];
     final ids      = <String>{};
-    for (int i = 0; i < all.length; i++) {
-      for (int j = i + 1; j < all.length; j++) {
-        final a = all[i];
-        final b = all[j];
-        if (a.desc.isNotEmpty &&
-            a.desc == b.desc &&
-            a.shop == b.shop &&
-            a.type == b.type &&
-            a.amount == b.amount &&
-            _dayKey(a.date) == _dayKey(b.date)) {
-          ids.add(a.id);
-          ids.add(b.id);
-          final warn = '⚠️ Duplicate on ${_dayKey(a.date)}: "${a.desc}" $currencySymbol${a.amount.toStringAsFixed(0)}';
-          if (!warnings.contains(warn)) warnings.add(warn);
-        }
+    for (final g in groups.values) {
+      if (g.length < 2) continue;
+      for (final t in g) {
+        ids.add(t.id);
+      }
+      if (warnings.length < 3) {
+        final a = g.first;
+        warnings.add(
+            '⚠️ Duplicate on ${_dayKey(a.date)}: "${a.desc}" $currencySymbol${a.amount.toStringAsFixed(0)}');
       }
     }
-    return (warnings: warnings.take(3).toList(), ids: ids);
+    return (warnings: warnings, ids: ids);
   }
 
   // ── Apply all filters ─────────────────────────────────────────────────────
@@ -564,9 +573,18 @@ class _LedgerTabState extends State<LedgerTab> {
       ),
     );
 
-    // AI missing-entry suggestion (Pro/trial) — single line above the search bar.
-    final missingToday =
-        p.canUseAiAlerts ? _detectMissingToday(all) : <Map<String, dynamic>>[];
+    // AI missing-entry suggestion (Pro/trial) — single line above the search
+    // bar. Memoized: recompute only when the txn list or the day changes.
+    List<Map<String, dynamic>> missingToday = const [];
+    if (p.canUseAiAlerts) {
+      final mDigest =
+          '${all.length}/${all.isEmpty ? "" : all.first.id}/${all.length > 1 ? all.last.id : ""}/${_dayKey(DateTime.now())}';
+      if (mDigest != _missingDigest) {
+        _missingDigest = mDigest;
+        _missingCache  = _detectMissingToday(all);
+      }
+      missingToday = _missingCache;
+    }
 
     final leading = <Widget>[
       if (missingToday.isNotEmpty) _missingBanner(missingToday),

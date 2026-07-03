@@ -102,11 +102,34 @@ class AppProvider extends ChangeNotifier {
   // Free tier (after trial) can access only the last [dataRetentionYears] of
   // history; full-access users see everything. Short-circuit for full access —
   // the "unlimited" retention value would overflow a Duration otherwise.
+  //
+  // PERF: List.unmodifiable COPIES the list, and this getter is hit many
+  // times per frame across tabs — with thousands of txns that's constant
+  // GC churn. Every mutation reassigns `_txns` to a NEW list, so an
+  // identity-keyed cache is exact. (Free-tier retention cutoff refreshes on
+  // any data change or app restart — a stale view across midnight is fine.)
+  List<Txn>? _txnsView;
+  List<Txn>? _txnsViewSource;
+  bool _txnsViewFull = true;
+
   List<Txn> get txns {
-    if (hasFullAccess) return List.unmodifiable(_txns);
-    final cutoff =
-        DateTime.now().subtract(Duration(days: 365 * dataRetentionYears));
-    return List.unmodifiable(_txns.where((t) => !t.date.isBefore(cutoff)));
+    final full = hasFullAccess;
+    if (_txnsView != null &&
+        identical(_txnsViewSource, _txns) &&
+        _txnsViewFull == full) {
+      return _txnsView!;
+    }
+    _txnsViewSource = _txns;
+    _txnsViewFull = full;
+    if (full) {
+      _txnsView = List.unmodifiable(_txns);
+    } else {
+      final cutoff =
+          DateTime.now().subtract(Duration(days: 365 * dataRetentionYears));
+      _txnsView =
+          List.unmodifiable(_txns.where((t) => !t.date.isBefore(cutoff)));
+    }
+    return _txnsView!;
   }
   bool               get syncing      => _syncing;
   DateTime?          get lastSynced   => _lastSynced;
@@ -760,7 +783,10 @@ class AppProvider extends ChangeNotifier {
           final txn = Txn.fromFirestore(change.doc);
           final idx = _txns.indexWhere((t) => t.id == txn.id);
           if (idx != -1) {
-            _txns[idx] = txn;
+            // Reassign (don't mutate in place) — the txns-view cache is
+            // invalidated by list identity, so every mutation must produce
+            // a new list.
+            _txns = List.of(_txns)..[idx] = txn;
             changed = true;
           }
         }
