@@ -7,9 +7,13 @@ class ReceiptData {
   final String?   payee;
   final String?   txnId;
   final DateTime? date;
-  const ReceiptData({this.amount, this.payee, this.txnId, this.date});
+  /// 'expense' (money paid out) or 'sale' (money received).
+  final String    txnType;
+  const ReceiptData(
+      {this.amount, this.payee, this.txnId, this.date, this.txnType = 'expense'});
 
   bool get hasAmount => amount != null && amount! > 0;
+  bool get isIncome  => txnType == 'sale';
 }
 
 /// On-device OCR (Google ML Kit — offline, no API key) + a UPI-receipt parser.
@@ -50,7 +54,7 @@ class ReceiptParser {
     'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
   };
 
-  /// Parse raw OCR text into {amount, payee, txnId, date}.
+  /// Parse raw OCR text into {amount, payee, txnId, date, direction}.
   static ReceiptData parse(String raw) {
     final lines = raw
         .split('\n')
@@ -58,13 +62,33 @@ class ReceiptParser {
         .where((l) => l.isNotEmpty)
         .toList();
     final flat = lines.join(' ');
+    final type = _direction(lines);
 
     return ReceiptData(
-      amount: _amount(lines),
-      payee:  _payee(lines),
-      txnId:  _txnId(flat),
-      date:   _date(flat),
+      amount:  _amount(lines),
+      payee:   _payee(lines, income: type == 'sale'),
+      txnId:   _txnId(flat),
+      date:    _date(flat),
+      txnType: type,
     );
+  }
+
+  // ── Direction: paid out (expense) vs received (sale) ────────────────────
+  // Receipts state the counterparty headline first (lines are in reading
+  // order): a PAID receipt leads with "Paid to X" / "To X"; a RECEIVED
+  // receipt leads with "From X" / "Received" / "Credited". Both kinds also
+  // carry To:/From: rows further down in Transfer Details, so the FIRST
+  // marker wins.
+  static String _direction(List<String> lines) {
+    for (final l in lines) {
+      final low = l.toLowerCase().trim();
+      if (low.contains('paid to') || low.contains('debited')) return 'expense';
+      if (low.contains('received') || low.contains('credited')) return 'sale';
+      if (low == 'to' || RegExp(r'^to[:\s]').hasMatch(low)) return 'expense';
+      if (low == 'from' || RegExp(r'^from[:\s]').hasMatch(low)) return 'sale';
+    }
+    // Sharing your own outgoing payment is the common case.
+    return 'expense';
   }
 
   // Lines that carry amounts we must NOT treat as the payment (cashback,
@@ -122,37 +146,47 @@ class ReceiptParser {
     return pool.reduce(math.max);
   }
 
-  // ── Payee ───────────────────────────────────────────────────────────────
-  static String? _payee(List<String> lines) {
+  // ── Payee (counterparty) ─────────────────────────────────────────────────
+  // For a PAID receipt the counterparty follows "Paid to"/"To"; for a
+  // RECEIVED one it follows "From" ("From ASHRAF ALI", "From: ASHRAF ALI").
+  static String? _payee(List<String> lines, {bool income = false}) {
+    final standalone = income ? ['from'] : ['paid to', 'to'];
+    final inlineRe = income
+        ? RegExp(r'^from\s*:?\s+(.{2,60})$', caseSensitive: false)
+        : RegExp(r'^(?:paid to|to)\s*:?\s+(.{2,60})$', caseSensitive: false);
+
     for (var i = 0; i < lines.length; i++) {
       final l   = lines[i];
       final low = l.toLowerCase();
 
-      // "Paid to" / "To" header — the name may not be the very next OCR line
+      // Keyword-only header — the name may not be the very next OCR line
       // (avatars, phone numbers, stray rows). Scan a few lines ahead for the
       // first thing that survives the name cleaner.
-      if (low == 'paid to' || low == 'to') {
+      if (standalone.contains(low)) {
         for (var j = i + 1; j < lines.length && j <= i + 4; j++) {
           final c = _cleanName(lines[j]);
           if (c != null) return c;
         }
       }
-      // Inline: "to S P Broilers" / "To Advocate Rohith" / "To: Rohith Kumar M"
-      final m = RegExp(r'^(?:paid to|to)\s*:?\s+(.{2,60})$', caseSensitive: false)
-          .firstMatch(l);
+      // Inline: "to S P Broilers" / "To: Rohith Kumar M" / "From ASHRAF ALI"
+      final m = inlineRe.firstMatch(l);
       if (m != null) {
         final c = _cleanName(m.group(1)!);
         if (c != null) return c;
       }
     }
 
-    // PhonePe fallback: "Banking Name : Rajasekaran G"
-    for (final l in lines) {
-      final m = RegExp(r'banking name\s*:?\s*(.+)$', caseSensitive: false)
-          .firstMatch(l);
-      if (m != null) {
-        final c = _cleanName(m.group(1)!);
-        if (c != null) return c;
+    // PhonePe fallback: "Banking Name : Rajasekaran G" (paid receipts show
+    // the counterparty's banking name; skip for received to avoid picking
+    // our own account name).
+    if (!income) {
+      for (final l in lines) {
+        final m = RegExp(r'banking name\s*:?\s*(.+)$', caseSensitive: false)
+            .firstMatch(l);
+        if (m != null) {
+          final c = _cleanName(m.group(1)!);
+          if (c != null) return c;
+        }
       }
     }
 
