@@ -90,10 +90,12 @@ class _EntryTabState extends State<EntryTab> {
     });
   }
 
+  // 'payment' removed from manual entry to keep the form simple — supplier
+  // payments are recorded from the Suppliers tab; old payment entries still
+  // display fine in ledger/reports.
   static const _typeOptions = [
     {'type': 'sale',    'label': 'Sales / Income', 'icon': '💚', 'color': kSecondary},
     {'type': 'expense', 'label': 'Expense',         'icon': '📉', 'color': kRed},
-    {'type': 'payment', 'label': 'Payment',         'icon': '💳', 'color': kAmber},
   ];
 
   bool _isPersonalShop(AppProvider p) =>
