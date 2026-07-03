@@ -99,11 +99,25 @@ class _DashboardTabState extends State<DashboardTab> {
     final all = p.txns;
     final txns = _filter(all, p);
 
-    // Net Balance hero totals (across all visible shops in the period).
-    final totSales = txns.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
-    final totExp   = txns.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
-    final totPay   = txns.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
-    final totNet   = totSales - totExp - totPay;
+    // PERF: one pass builds per-shop AND grand totals (previously 3 passes
+    // for the hero plus 3 more per shop, re-run on every rebuild — the
+    // dashboard rebuilds on every live-sync notification).
+    final shopTotals = <String, List<double>>{}; // shopId → [sales, exp, pay]
+    double totSales = 0, totExp = 0, totPay = 0;
+    for (final x in txns) {
+      final t = shopTotals.putIfAbsent(x.shop, () => [0.0, 0.0, 0.0]);
+      if (x.type == 'sale') {
+        t[0] += x.amount;
+        totSales += x.amount;
+      } else if (x.type == 'expense') {
+        t[1] += x.amount;
+        totExp += x.amount;
+      } else if (x.type == 'payment') {
+        t[2] += x.amount;
+        totPay += x.amount;
+      }
+    }
+    final totNet = totSales - totExp - totPay;
 
     // (AI Missing-Entry alert moved OFF the dashboard → now a single-line
     // suggestion at the top of the Ledger page.)
@@ -156,15 +170,12 @@ class _DashboardTabState extends State<DashboardTab> {
             _EmptyCard(text: 'No shops set up yet')
           else
             ...p.visibleShops.values.map((shop) {
-              final st = txns.where((x) => x.shop == shop.id);
-              final ss = st.where((x) => x.type == 'sale').fold(0.0, (s, x) => s + x.amount);
-              final se = st.where((x) => x.type == 'expense').fold(0.0, (s, x) => s + x.amount);
-              final sp = st.where((x) => x.type == 'payment').fold(0.0, (s, x) => s + x.amount);
+              final t = shopTotals[shop.id] ?? const [0.0, 0.0, 0.0];
               return _LxShopRow(
                 name: shop.name,
-                sales: ss,
-                expense: se,
-                net: ss - se - sp,
+                sales: t[0],
+                expense: t[1],
+                net: t[0] - t[1] - t[2],
                 l: l,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => ShopDetailScreen(shop: shop)),
