@@ -3878,7 +3878,9 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
       final shop = (e['shop'] as String?) ?? '';
       if (widget.p.shops.containsKey(shop)) _selectedShopId = shop;
       final role = (e['role'] as String?) ?? 'cashier';
-      if (role == 'manager' || role == 'cashier') _role = role;
+      if (role == 'manager' || role == 'cashier' || role == 'worker') {
+        _role = role;
+      }
     }
   }
 
@@ -4060,11 +4062,11 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
         Row(children: [
           const Text('Role:', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(width: 12),
-          ...['cashier', 'manager'].map((r) =>
+          ...['manager', 'cashier', 'worker'].map((r) =>
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(r == 'cashier' ? 'Cashier' : 'Manager'),
+                label: Text('${r[0].toUpperCase()}${r.substring(1)}'),
                 selected: _role == r,
                 onSelected: (_) => setState(() => _role = r),
                 selectedColor: const Color(0xFFD1FAE5),
