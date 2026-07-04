@@ -770,7 +770,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
               children: [
                 _ShopChip(
-                  label: '${assignedShop.icon} ${assignedShop.name}',
+                  label: assignedShop.name,
                   active: true,
                   isAllChip: false,
                   onTap: () {},
@@ -792,7 +792,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             // "All" chip
             _ShopChip(
-              label: '🏠 ${t("all", l)}',
+              label: t("all", l),
               active: p.selectedShop.isEmpty,
               isAllChip: true,
               onTap: () => p.setSelectedShop(''),
@@ -804,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               final isModule =
                   type == 'finance' || type == 'chit' || type == 'construction';
               return _ShopChip(
-                label: '${s.icon} ${s.name}',
+                label: s.name,
                 active: p.selectedShop == s.id,
                 isAllChip: false,
                 onTap: () {
