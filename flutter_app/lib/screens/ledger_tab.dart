@@ -234,19 +234,20 @@ class _LedgerTabState extends State<LedgerTab> {
   static String _dayKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
 
-  // Single O(n) pass: duplicate = SAME NAME + SAME AMOUNT + SAME DATE
-  // (per owner spec — shop/type intentionally NOT part of the key, so the
-  // same entry recorded twice under different shops or types is caught too).
-  // Name matching is case/space-insensitive ("Tea" == "tea "). Any bucket
-  // with 2+ entries is a duplicate set; matched rows get the gold-yellow
-  // highlight in the ledger.
+  // Single O(n) pass: duplicate = SAME NAME + SAME AMOUNT + SAME DATE +
+  // SAME TYPE (per owner spec). A sale and an expense with the same name
+  // and amount are money-in vs money-out — legitimately different, never a
+  // duplicate. Shop is intentionally NOT in the key, so the same entry
+  // recorded twice under different shops IS caught. Name matching is
+  // case/space-insensitive ("Tea" == "tea "). Any bucket with 2+ entries is
+  // a duplicate set; matched rows get the gold-yellow ledger highlight.
   static ({List<String> warnings, Set<String> ids}) _findDuplicates(
       List<Txn> all, String currencySymbol) {
     final groups = <String, List<Txn>>{};
     for (final t in all) {
       final name = t.desc.trim().toLowerCase();
       if (name.isEmpty) continue;
-      final key = '${_dayKey(t.date)}|${t.amount}|$name';
+      final key = '${_dayKey(t.date)}|${t.type}|${t.amount}|$name';
       (groups[key] ??= []).add(t);
     }
     final warnings = <String>[];
