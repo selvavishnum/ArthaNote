@@ -77,7 +77,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kPrimary,
+    backgroundColor: Colors.white, // pure white splash (owner request)
     body: SafeArea(
       child: Stack(
         children: [
@@ -88,7 +88,7 @@ class _SplashScreenState extends State<SplashScreen>
               width: 260, height: 260,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.04),
+                color: Colors.black.withOpacity(0.03),
               ),
             ),
           ),
@@ -98,7 +98,7 @@ class _SplashScreenState extends State<SplashScreen>
               width: 300, height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.04),
+                color: Colors.black.withOpacity(0.03),
               ),
             ),
           ),
@@ -128,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ],
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.25),
+                        color: Colors.black.withOpacity(0.06),
                         width: 2.5,
                       ),
                     ),
@@ -150,7 +150,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const Text(
                     'ArthaNote',
                     style: TextStyle(
-                      color:      Colors.white,
+                      color:      kText,
                       fontSize:   32,
                       fontWeight: FontWeight.w800,
                       fontFamily: 'Georgia',
@@ -164,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen>
                   Text(
                     'SHOP LEDGER',
                     style: TextStyle(
-                      color:      Colors.white.withOpacity(0.45),
+                      color:      kMuted.withOpacity(0.8),
                       fontSize:   11,
                       fontWeight: FontWeight.w400,
                       letterSpacing: 4,
@@ -184,7 +184,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: CircularProgressIndicator(
                   strokeWidth: 1.5,
                   valueColor: AlwaysStoppedAnimation(
-                    Colors.white.withOpacity(0.4)),
+                    kPrimary.withOpacity(0.5)),
                 ),
               ),
             ),
