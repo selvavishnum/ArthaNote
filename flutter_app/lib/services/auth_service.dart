@@ -81,6 +81,9 @@ class AuthService {
     required String shopName,
     required String role,
   }) async {
+    // Canonical form — the login-time email auto-link looks grants up by the
+    // signed-in account's (lowercased) email.
+    email = email.trim().toLowerCase();
     final snap = await _db
         .collection('staff')
         .where('email', isEqualTo: email)
@@ -112,6 +115,30 @@ class AuthService {
 
   Future<void> revokeStaffAccess(String docId) async {
     await _db.collection('staff').doc(docId).delete();
+  }
+
+  /// Finds an owner-created staff-access GRANT doc for this email (grant docs
+  /// never carry a 'uid' field — that shape is a self profile). Tries the
+  /// lowercased email first (new grants are stored lowercased), then the raw
+  /// form for older grants typed with capitals.
+  Future<Map<String, dynamic>?> findStaffGrantByEmail(String email) async {
+    Future<Map<String, dynamic>?> lookup(String e) async {
+      if (e.isEmpty || !e.contains('@')) return null;
+      final snap = await _db
+          .collection('staff')
+          .where('email', isEqualTo: e)
+          .limit(5)
+          .get();
+      for (final d in snap.docs) {
+        final data = d.data();
+        if (!data.containsKey('uid')) return data;
+      }
+      return null;
+    }
+
+    final trimmed = email.trim();
+    return await lookup(trimmed.toLowerCase()) ??
+        (trimmed != trimmed.toLowerCase() ? await lookup(trimmed) : null);
   }
 
   /// Permanently deletes the account and ALL data for this businessId.

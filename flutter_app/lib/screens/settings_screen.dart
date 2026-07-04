@@ -37,7 +37,7 @@ void _showConnectDialog(BuildContext context, AppProvider p) {
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text(
           'Ask your employer for their Business ID.\n'
-          'Owner opens: Settings → Staff App Access → copy the Business ID.',
+          'Owner opens: Settings → Staff Management → copy the Business ID.',
           style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.6),
         ),
         const SizedBox(height: 14),
@@ -336,26 +336,13 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               const _ItemDivider(),
+              // Staff Management — single place for staff + app access
+              // (the old separate "Staff App Access" tile is merged in here).
               _SettingsItem(
                 icon: Icons.people_outline,
                 iconColor: const Color(0xFF8B5CF6),
-                title: t('staff', l),
-                subtitle: 'View staff members',
-                onTap: () => showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  useSafeArea: true,
-                  shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                  builder: (_) => _StaffSheet(businessId: p.businessId),
-                ),
-              ),
-              const _ItemDivider(),
-              _SettingsItem(
-                icon: Icons.manage_accounts_rounded,
-                iconColor: const Color(0xFF7C3AED),
-                title: 'Staff App Access',
-                subtitle: 'Let staff add entries from the app',
+                title: 'Staff Management',
+                subtitle: 'Add staff & app access — they just log in with Gmail',
                 onTap: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
@@ -1261,319 +1248,6 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
                     ]),
             );
           }),
-        const SizedBox(height: 8),
-      ]),
-    );
-  }
-}
-
-// ── Staff sheet ───────────────────────────────────────────────────────────────
-class _StaffSheet extends StatefulWidget {
-  final String businessId;
-  const _StaffSheet({required this.businessId});
-  @override
-  State<_StaffSheet> createState() => _StaffSheetState();
-}
-
-class _StaffSheetState extends State<_StaffSheet> {
-  static const _roles = ['cashier', 'manager', 'worker'];
-  int _staffCount = 0; // tracked from the staff stream for the Pro limit gate
-
-  void _showStaffForm(BuildContext ctx, String? docId, Map<String, dynamic>? existing) {
-    final nameCtrl  = TextEditingController(text: (existing?['name']  as String?) ?? '');
-    final emailCtrl = TextEditingController(text: (existing?['email'] as String?) ?? '');
-    String role = (existing?['role'] as String?) ?? 'cashier';
-    String selectedShopId = (existing?['shop'] as String?) ?? '';
-
-    // Get shops from provider
-    final p = ctx.read<AppProvider>();
-    final shops = p.shops;
-
-    showDialog<void>(
-      context: ctx,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (dialogCtx, setDialogState) => AlertDialog(
-          title: Text(docId != null ? 'Edit Staff' : 'Add Staff'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Gmail / Email'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: role,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: _roles
-                      .map((r) => DropdownMenuItem(
-                            value: r,
-                            child: Text(r[0].toUpperCase() + r.substring(1)),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => role = v ?? 'cashier'),
-                ),
-                if (shops.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text('Shop Access',
-                      style: TextStyle(fontSize: 12, color: kMuted, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      GestureDetector(
-                        onTap: () => setDialogState(() => selectedShopId = ''),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: selectedShopId.isEmpty ? kPrimary : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: selectedShopId.isEmpty ? kPrimary : const Color(0xFFE5E7EB),
-                            ),
-                          ),
-                          child: Text(
-                            'All Shops',
-                            style: TextStyle(
-                              color: selectedShopId.isEmpty ? Colors.white : kText,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                      ...shops.values.map((shop) => GestureDetector(
-                        onTap: () => setDialogState(() => selectedShopId = shop.id),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: selectedShopId == shop.id ? kPrimary : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: selectedShopId == shop.id ? kPrimary : const Color(0xFFE5E7EB),
-                            ),
-                          ),
-                          child: Text(
-                            '${shop.icon} ${shop.name}',
-                            style: TextStyle(
-                              color: selectedShopId == shop.id ? Colors.white : kText,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      )),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final data = {
-                  'name':       nameCtrl.text.trim(),
-                  'email':      emailCtrl.text.trim(),
-                  'role':       role,
-                  'shop':       selectedShopId,
-                  'businessId': widget.businessId,
-                };
-                final col = FirebaseFirestore.instance.collection('staff');
-                if (docId != null) {
-                  await col.doc(docId).update(data);
-                } else {
-                  await col.doc().set(data);
-                }
-                if (ctx.mounted) {
-                  Navigator.pop(dialogCtx);
-                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                    content: Text(docId != null ? 'Staff updated ✅' : 'Staff added ✅'),
-                    backgroundColor: kSecondary,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ));
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary,
-                foregroundColor: Colors.white,
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    ).then((_) {
-      nameCtrl.dispose();
-      emailCtrl.dispose();
-    });
-  }
-
-  void _confirmDeleteStaff(BuildContext ctx, String docId, String name) {
-    showDialog<void>(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        title: const Text('Remove Staff?'),
-        content: Text('Remove "$name" from staff list?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await FirebaseFirestore.instance.collection('staff').doc(docId).delete();
-              if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                  content: Text('$name removed'),
-                  backgroundColor: kRed,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ));
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: kRed),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const _SheetHandle(),
-        const SizedBox(height: 18),
-        Row(children: [
-          const Text('👥', style: TextStyle(fontSize: 20)),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text('Staff Members',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              // Pro gate — free tier (after trial) is capped at 10 staff.
-              final p = context.read<AppProvider>();
-              if (_staffCount >= p.maxStaff) {
-                Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const UpgradeScreen()));
-                return;
-              }
-              _showStaffForm(context, null, null);
-            },
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('+ Add Staff'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimary,
-              foregroundColor: Colors.white,
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 16),
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('staff')
-              .where('businessId', isEqualTo: widget.businessId)
-              .snapshots(),
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(color: kPrimary),
-              );
-            }
-            final docs = snap.data?.docs ?? [];
-            _staffCount = docs.length; // keep the gate's count in sync
-            if (docs.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('No staff found.', style: TextStyle(color: kMuted)),
-              );
-            }
-            return ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.5),
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: docs.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, color: Color(0xFFF3F4F6)),
-                itemBuilder: (context, index) {
-                  final doc  = docs[index];
-                  final d    = doc.data();
-                  final name  = (d['name']  as String?) ?? 'Unknown';
-                  final email = (d['email'] as String?) ?? '';
-                  final role  = (d['role']  as String?) ?? 'staff';
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: kPrimary.withOpacity(0.12),
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                        style: const TextStyle(
-                            color: kPrimary, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    title: Text(name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 14)),
-                    subtitle: Text(email,
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: kPrimary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(role,
-                              style: const TextStyle(
-                                  color: kPrimary, fontSize: 10, fontWeight: FontWeight.w700)),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined, size: 18, color: kMuted),
-                          onPressed: () => _showStaffForm(context, doc.id, d),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 18, color: kRed),
-                          onPressed: () => _confirmDeleteStaff(context, doc.id, name),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        ),
         const SizedBox(height: 8),
       ]),
     );
@@ -3963,7 +3637,20 @@ class _StaffAccessSheet extends StatefulWidget {
 class _StaffAccessSheetState extends State<_StaffAccessSheet> {
   final _auth = AuthService();
 
-  void _showGrantSheet() {
+  Future<void> _showGrantSheet() async {
+    // Pro gate — free tier (after trial) caps staff at maxStaff (ported from
+    // the removed _StaffSheet, which used to hold this gate).
+    try {
+      final grants = await _auth.staffAccessStream(widget.p.businessId).first;
+      if (grants.length >= widget.p.maxStaff) {
+        if (mounted) {
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UpgradeScreen()));
+        }
+        return;
+      }
+    } catch (_) {}
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -4016,8 +3703,8 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Staff App Access', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                    Text('Staff can add entries from their phone', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('Staff Management', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    Text('Staff log in with their Gmail — access links automatically', style: TextStyle(fontSize: 12, color: Colors.grey)),
                   ]),
                 ),
                 TextButton.icon(
@@ -4126,7 +3813,7 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Add staff below first, then share this ID with them. They go to Settings → Connect to Employer and paste it in.',
+                'Normally not needed: staff just log in with the Gmail you added and access links automatically. Backup only — share this ID and they paste it in Settings → Connect to Employer.',
                 style: TextStyle(fontSize: 10, color: Color(0xFF065F46), height: 1.5),
               ),
             ]),
@@ -4212,12 +3899,11 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
       'Hi! I\'ve added you to ArthaNote for $shopName.\n\n'
       '📲 Download: https://arthanote.com\n'
       '📧 Login with: $email\n'
-      '🏪 Shop: $shopName\n'
-      '🔑 Business ID: $bid\n\n'
+      '🏪 Shop: $shopName\n\n'
       'Steps:\n'
       '1. Download ArthaNote app\n'
-      '2. Log in with Google using this email\n'
-      '3. If you see empty data, go to Settings → Connect to Employer and enter the Business ID above.',
+      '2. Log in with Google using this email — access connects automatically!\n'
+      '3. (Only if data doesn\'t appear: Settings → Connect to Employer and enter Business ID $bid)',
     );
     showModalBottomSheet(
       context: context,
