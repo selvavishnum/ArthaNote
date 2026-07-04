@@ -306,11 +306,6 @@ class AppProvider extends ChangeNotifier {
 
     try {
       // Resolve strictly by uid — staff/{uid} is this device's own account.
-      // (Cross-account linking is handled only via the explicit "Connect to
-      // Employer" flow in setManualBusinessId, which requires the staff
-      // member to paste a businessId they were given — never an automatic
-      // email match, which could silently pull in an unrelated account's
-      // business data if any other staff doc happens to share the email.)
       final profileData = await _auth.getProfile(uid);
 
       if (profileData != null) {
@@ -318,7 +313,23 @@ class AppProvider extends ChangeNotifier {
         _businessId = ((profileData['businessId'] as String?)?.trim().isNotEmpty == true)
             ? (profileData['businessId'] as String).trim()
             : uid;
+      } else {
+        _businessId = uid;
+      }
 
+      // Owner-granted staff auto-link: when this signed-in account isn't
+      // linked to any employer yet, look for a staff-access grant matching
+      // the VERIFIED login email (grants are created explicitly by the
+      // owner in Staff Management). Replaces the old flow where the owner
+      // had to share their Business ID and staff pasted it manually.
+      // Guard: never hijack an account that already runs its own business.
+      if (_businessId == uid) {
+        try {
+          await _tryAutoLinkStaffByEmail(uid);
+        } catch (_) {}
+      }
+
+      {
         final configData = await _auth.getConfig(_businessId);
         if (configData != null) {
           final rawShops = configData['shops'] as Map<String, dynamic>? ?? {};
@@ -341,8 +352,6 @@ class AppProvider extends ChangeNotifier {
           final sched = configData['deletionScheduledAt'];
           _deletionScheduledAt = sched is Timestamp ? sched.toDate() : null;
         }
-      } else {
-        _businessId = uid;
       }
     } catch (_) {
       _businessId = uid;
@@ -357,6 +366,47 @@ class AppProvider extends ChangeNotifier {
 
     // Non-blocking — loads txns in background (fast file read + optional daily sync)
     _loadTxns();
+  }
+
+  /// If the owner created a staff-access grant for this account's VERIFIED
+  /// login email, link this account to the owner's business automatically —
+  /// writes businessId/shop/role onto the user's own staff/{uid} profile
+  /// (same shape as the manual Connect-to-Employer flow). Skipped when this
+  /// account already runs a business of its own (onboarded config / shops),
+  /// so an owner's account can never be silently converted into staff.
+  Future<void> _tryAutoLinkStaffByEmail(String uid) async {
+    final email = _auth.currentUser?.email?.trim() ?? '';
+    if (email.isEmpty) return;
+
+    final grant = await _auth.findStaffGrantByEmail(email);
+    if (grant == null) return;
+    final gBid = (grant['businessId'] as String?)?.trim() ?? '';
+    if (gBid.isEmpty || gBid == uid) return;
+
+    // Owner guard: an account with its own onboarded business keeps it.
+    final ownCfg = await _auth.getConfig(uid);
+    if (ownCfg != null) {
+      final ownShops = ownCfg['shops'] as Map<String, dynamic>?;
+      if (ownCfg['onboarded'] == true || (ownShops?.isNotEmpty ?? false)) {
+        return;
+      }
+    }
+
+    final link = <String, dynamic>{
+      'uid':        uid,
+      'email':      email.toLowerCase(),
+      'name':       (_profile['name'] as String?) ??
+          _auth.currentUser?.displayName ?? '',
+      'businessId': gBid,
+      'shop':       grant['shop'] ?? '',
+      'shopName':   grant['shopName'] ?? '',
+      'role':       grant['role'] ?? 'cashier',
+      'linkedVia':  'email_grant',
+      'linkedAt':   FieldValue.serverTimestamp(),
+    };
+    await _auth.saveProfile(uid, link);
+    _profile    = {..._profile, ...link};
+    _businessId = gBid;
   }
 
   // ── Guest init (no login) ───────────────────────────────────────────────────
