@@ -80,36 +80,52 @@ class AuthService {
     required String shopId,
     required String shopName,
     required String role,
+    String name = '',
   }) async {
     // Canonical form — the login-time email auto-link looks grants up by the
     // signed-in account's (lowercased) email.
     email = email.trim().toLowerCase();
+    name  = name.trim();
     final snap = await _db
         .collection('staff')
         .where('email', isEqualTo: email)
         .where('businessId', isEqualTo: businessId)
-        .limit(3)
+        .limit(5)
         .get();
-    // Only ever touch a grant doc here, never a staff member's own self
-    // profile doc (which also carries a 'uid' field) — those two shapes can
-    // both match this email+businessId query.
+    // The email+businessId query matches two doc shapes: the owner's GRANT
+    // doc (no 'uid') and — once the staff has logged in — their own linked
+    // self-profile (has 'uid'). Upsert the grant, and mirror shop/role/name
+    // onto any linked profile so edits reach the staff on their next open.
     QueryDocumentSnapshot<Map<String, dynamic>>? grantDoc;
     for (final d in snap.docs) {
       if (!d.data().containsKey('uid')) { grantDoc = d; break; }
     }
+    final fields = <String, dynamic>{
+      'shop': shopId,
+      'shopName': shopName,
+      'role': role,
+      if (name.isNotEmpty) 'name': name,
+    };
     if (grantDoc != null) {
       await _db.collection('staff').doc(grantDoc.id).update({
-        'shop': shopId, 'role': role, 'updatedAt': FieldValue.serverTimestamp(),
+        ...fields,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } else {
       await _db.collection('staff').add({
         'email': email,
         'businessId': businessId,
-        'shop': shopId,
-        'shopName': shopName,
-        'role': role,
+        ...fields,
         'accessGrantedAt': FieldValue.serverTimestamp(),
       });
+    }
+    // Propagate to the staff member's linked self-profile(s), if any.
+    for (final d in snap.docs) {
+      if (d.data().containsKey('uid')) {
+        try {
+          await _db.collection('staff').doc(d.id).update(fields);
+        } catch (_) {}
+      }
     }
   }
 

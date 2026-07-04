@@ -3745,8 +3745,10 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
                   itemBuilder: (_, i) {
                     final s = list[i];
                     final email = s['email'] as String? ?? '';
+                    final name  = (s['name'] as String? ?? '').trim();
                     final shop = widget.p.shops[s['shop'] as String? ?? ''];
                     final role = s['role'] as String? ?? 'cashier';
+                    final display = name.isNotEmpty ? name : email;
                     return Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FAFB),
@@ -3754,18 +3756,35 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ListTile(
+                        // Tap to EDIT the staff member (name / shop / role).
+                        onTap: () => showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => _GrantAccessSheet(
+                            p: widget.p,
+                            existing: {
+                              'id':    s['id'],
+                              'name':  name,
+                              'email': email,
+                              'shop':  s['shop'] ?? '',
+                              'role':  role,
+                            },
+                          ),
+                        ),
                         leading: CircleAvatar(
                           backgroundColor: const Color(0xFFEDE9FE),
-                          child: Text(email.isNotEmpty ? email[0].toUpperCase() : '?', style: const TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.w800)),
+                          child: Text(display.isNotEmpty ? display[0].toUpperCase() : '?', style: const TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.w800)),
                         ),
-                        title: Text(email, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        title: Text(display, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                         subtitle: Text(
-                          '${shop != null ? "${shop.icon} ${shop.name}" : "All shops"} · ${role[0].toUpperCase()}${role.substring(1)}',
+                          '${name.isNotEmpty && email.isNotEmpty ? "$email · " : ""}'
+                          '${shop != null ? "${shop.icon} ${shop.name}" : "All shops"} · ${role[0].toUpperCase()}${role.substring(1)} · tap to edit',
                           style: const TextStyle(fontSize: 11),
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
-                          onPressed: () => _revoke(s['id'] as String, email),
+                          onPressed: () => _revoke(s['id'] as String, display),
                         ),
                       ),
                     );
@@ -3828,17 +3847,23 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
 
 class _GrantAccessSheet extends StatefulWidget {
   final AppProvider p;
-  const _GrantAccessSheet({required this.p});
+  /// Non-null when editing an existing staff grant (keys: id, name, email,
+  /// shop, role) — email is locked; name/shop/role become editable.
+  final Map<String, dynamic>? existing;
+  const _GrantAccessSheet({required this.p, this.existing});
   @override
   State<_GrantAccessSheet> createState() => _GrantAccessSheetState();
 }
 
 class _GrantAccessSheetState extends State<_GrantAccessSheet> {
   final _auth = AuthService();
+  final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
   String _selectedShopId = '';
   String _role = 'cashier';
   bool _saving = false;
+
+  bool get _isEdit => widget.existing != null;
 
   @override
   void initState() {
@@ -3846,10 +3871,22 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
     if (widget.p.shops.isNotEmpty) {
       _selectedShopId = widget.p.shops.keys.first;
     }
+    final e = widget.existing;
+    if (e != null) {
+      _nameCtrl.text  = (e['name'] as String?) ?? '';
+      _emailCtrl.text = (e['email'] as String?) ?? '';
+      final shop = (e['shop'] as String?) ?? '';
+      if (widget.p.shops.containsKey(shop)) _selectedShopId = shop;
+      final role = (e['role'] as String?) ?? 'cashier';
+      if (role == 'manager' || role == 'cashier' || role == 'worker') {
+        _role = role;
+      }
+    }
   }
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _emailCtrl.dispose();
     super.dispose();
   }
@@ -3874,14 +3911,22 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
       await _auth.grantStaffAccess(
         businessId: widget.p.businessId,
         email: email,
+        name: _nameCtrl.text.trim(),
         shopId: _selectedShopId,
         shopName: shop?.name ?? '',
         role: _role,
       );
       if (!mounted) return;
       Navigator.pop(context); // close grant sheet
-      // Show share message
-      _showShareMessage(email, shop);
+      if (_isEdit) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Staff updated'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      } else {
+        // Show share message
+        _showShareMessage(email, shop);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3960,17 +4005,39 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
         const SizedBox(height: 20),
-        const Text('Grant App Access', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(_isEdit ? 'Edit Staff' : 'Grant App Access',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
-        const Text('Staff can log in and add entries for their shop', style: TextStyle(color: Colors.grey, fontSize: 12)),
+        Text(
+            _isEdit
+                ? 'Change name, shop or role — updates apply on their next app open'
+                : 'Staff can log in and add entries for their shop',
+            style: const TextStyle(color: Colors.grey, fontSize: 12)),
         const SizedBox(height: 20),
-        // Email field
+        // Name field
+        TextField(
+          controller: _nameCtrl,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            labelText: 'Staff Name',
+            hintText: 'e.g. Subhala',
+            prefixIcon: const Icon(Icons.person_outline),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Email field (locked when editing — remove & re-add to change email)
         TextField(
           controller: _emailCtrl,
+          enabled: !_isEdit,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
             labelText: 'Staff Gmail Address',
             hintText: 'staffname@gmail.com',
+            helperText: _isEdit
+                ? 'Email can\'t be changed — remove & add again for a new email'
+                : null,
+            helperStyle: const TextStyle(fontSize: 10),
             prefixIcon: const Icon(Icons.email_outlined),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -3995,11 +4062,11 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
         Row(children: [
           const Text('Role:', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(width: 12),
-          ...['cashier', 'manager'].map((r) =>
+          ...['manager', 'cashier', 'worker'].map((r) =>
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(r == 'cashier' ? 'Cashier' : 'Manager'),
+                label: Text('${r[0].toUpperCase()}${r.substring(1)}'),
                 selected: _role == r,
                 onSelected: (_) => setState(() => _role = r),
                 selectedColor: const Color(0xFFD1FAE5),
@@ -4020,7 +4087,8 @@ class _GrantAccessSheetState extends State<_GrantAccessSheet> {
             ),
             child: _saving
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Grant Access & Share', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                : Text(_isEdit ? 'Save Changes' : 'Grant Access & Share',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           ),
         ),
       ]),

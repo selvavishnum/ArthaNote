@@ -395,8 +395,10 @@ class AppProvider extends ChangeNotifier {
     final link = <String, dynamic>{
       'uid':        uid,
       'email':      email.toLowerCase(),
-      'name':       (_profile['name'] as String?) ??
-          _auth.currentUser?.displayName ?? '',
+      'name':       ((grant['name'] as String?)?.trim().isNotEmpty ?? false)
+          ? (grant['name'] as String).trim()
+          : (_profile['name'] as String?) ??
+              _auth.currentUser?.displayName ?? '',
       'businessId': gBid,
       'shop':       grant['shop'] ?? '',
       'shopName':   grant['shopName'] ?? '',

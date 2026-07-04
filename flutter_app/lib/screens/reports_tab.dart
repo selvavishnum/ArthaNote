@@ -17,14 +17,14 @@ enum _Period { week, month, lastMonth, custom }
 // Simplified per owner request: credit / salary / staff / payment / alerts /
 // insights / actions sections removed to keep Reports focused.
 const _kSections = [
-  {'id': 'exec',     'label': '📊 Summary'},
-  {'id': 'shopwise', 'label': '🏪 Shop P&L'},
-  {'id': 'daily',    'label': '📅 Daily'},
-  {'id': 'weekly',   'label': '📆 Weekly'},
-  {'id': 'monthly',  'label': '📈 Monthly'},
-  {'id': 'expense',  'label': '💸 Expense'},
-  {'id': 'variance', 'label': '📉 Variance'},
-  {'id': 'charts',   'label': '📊 Charts'},
+  {'id': 'exec',     'label': 'Summary'},
+  {'id': 'shopwise', 'label': 'Shop P&L'},
+  {'id': 'daily',    'label': 'Daily'},
+  {'id': 'weekly',   'label': 'Weekly'},
+  {'id': 'monthly',  'label': 'Monthly'},
+  {'id': 'expense',  'label': 'Expense'},
+  {'id': 'variance', 'label': 'Variance'},
+  {'id': 'charts',   'label': 'Charts'},
 ];
 
 // ── Module-level helpers ──────────────────────────────────────────────────────
@@ -294,10 +294,10 @@ class _ReportsTabState extends State<ReportsTab> {
 
   Widget _buildPeriodTabs(BuildContext context) {
     final tabs = [
-      {'period': _Period.week,      'label': '📆 This Week'},
-      {'period': _Period.month,     'label': '📅 This Month'},
-      {'period': _Period.lastMonth, 'label': '⏮ Last Month'},
-      {'period': _Period.custom,    'label': '📅 Custom'},
+      {'period': _Period.week,      'label': 'This Week'},
+      {'period': _Period.month,     'label': 'This Month'},
+      {'period': _Period.lastMonth, 'label': 'Last Month'},
+      {'period': _Period.custom,    'label': 'Custom'},
     ];
 
     return SingleChildScrollView(
@@ -516,7 +516,7 @@ class _ExecSection extends StatelessWidget {
                     child: _KpiBox(
                       label: 'Net Profit',
                       value: rupee(net),
-                      color: net >= 0 ? kPrimary : kRed,
+                      color: net >= 0 ? kSecondary : kRed,
                       delta: _chg(net, prevNet),
                     ),
                   ),
@@ -525,7 +525,7 @@ class _ExecSection extends StatelessWidget {
                     child: _KpiBox(
                       label: 'Margin %',
                       value: '${margin.toStringAsFixed(1)}%',
-                      color: margin >= 10 ? kPrimary : kAmber,
+                      color: margin >= 0 ? kSecondary : kRed,
                     ),
                   ),
                 ],
@@ -541,13 +541,13 @@ class _ExecSection extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: _KpiBox(label: 'Days Active', value: '$days', color: kPrimary),
+                child: _KpiBox(label: 'Days Active', value: '$days', color: kText),
               ),
               Expanded(
                 child: _KpiBox(label: 'Avg/Day', value: rupee(avgDay), color: kSecondary),
               ),
               Expanded(
-                child: _KpiBox(label: '# Entries', value: '${txns.length}', color: kMuted),
+                child: _KpiBox(label: '# Entries', value: '${txns.length}', color: kText),
               ),
             ],
           ),
@@ -732,7 +732,7 @@ class _ShopwiseSectionState extends State<_ShopwiseSection> {
                     child: _KpiBox(
                       label: 'Net',
                       value: rupee(shopNet),
-                      color: shopNet >= 0 ? kPrimary : kRed,
+                      color: shopNet >= 0 ? kSecondary : kRed,
                     ),
                   ),
                 ],
@@ -1101,7 +1101,7 @@ class _ExpenseSection extends StatelessWidget {
               child: _KpiBox(
                   label: '# Categories',
                   value: '${byCat.length}',
-                  color: kAmber),
+                  color: kText),
             ),
           ],
         ),
@@ -1696,10 +1696,15 @@ class _KpiBox extends StatelessWidget {
       deltaColor = deltaVal.startsWith('+') ? kSecondary : kRed;
     }
 
+    // Colour psychology: the CARD stays neutral (white + hairline) so the
+    // page doesn't become a multi-colour patchwork — only the VALUE carries
+    // the semantic colour (green = money in, red = money out/loss,
+    // black = neutral counts).
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
