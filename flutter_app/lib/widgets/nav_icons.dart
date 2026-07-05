@@ -9,7 +9,9 @@ const _kGrey   = Color(0xFF9CA3AF);
 const _kFaint  = Color(0xFFD1D5DB);
 const _kTint   = Color(0xFFDCFCE7);
 
-enum NavIconType { dashboard, scan, entry, ledger, suppliers, reports, finance }
+enum NavIconType {
+  dashboard, scan, entry, ledger, suppliers, reports, finance, construction,
+}
 
 class NavIcon extends StatelessWidget {
   final NavIconType type;
@@ -48,6 +50,7 @@ class _NavPainter extends CustomPainter {
       case NavIconType.suppliers:  _suppliers(canvas, s);
       case NavIconType.reports:    _reports(canvas, s);
       case NavIconType.finance:    _finance(canvas, s);
+      case NavIconType.construction: _construction(canvas, s);
     }
   }
 
@@ -268,6 +271,45 @@ class _NavPainter extends CustomPainter {
       Offset(s.width * 0.72, s.height * 0.64),
       s.width * 0.13,
       _sp,
+    );
+  }
+
+  // ── Construction: building under a crane hook ────────────────────────────
+  void _construction(Canvas canvas, Size s) {
+    // Building body
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(s.width * 0.16, s.height * 0.38, s.width * 0.68, s.height * 0.55),
+      const Radius.circular(3.5),
+    );
+    if (active) canvas.drawRRect(body, _fp(_kTint));
+    canvas.drawRRect(body, _sp);
+    // Roof beam
+    canvas.drawLine(
+      Offset(s.width * 0.08, s.height * 0.38),
+      Offset(s.width * 0.92, s.height * 0.38),
+      _sp,
+    );
+    // Crane hook line dropping onto the roof
+    final hookPaint = Paint()
+      ..color = active ? _kAccent : _kFaint
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(s.width * 0.5, 2.0),
+      Offset(s.width * 0.5, s.height * 0.30),
+      hookPaint,
+    );
+    canvas.drawCircle(Offset(s.width * 0.5, s.height * 0.30), 2.2,
+        _fp(active ? _kAccent : _kFaint));
+    // Door
+    final doorPaint = Paint()
+      ..color = active ? _kGreen : _kFaint
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(s.width * 0.5, s.height * 0.93),
+      Offset(s.width * 0.5, s.height * 0.68),
+      doorPaint,
     );
   }
 
