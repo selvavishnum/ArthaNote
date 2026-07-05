@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 /// Structured fields pulled from a UPI payment receipt.
@@ -14,6 +16,17 @@ class ReceiptData {
 
   bool get hasAmount => amount != null && amount! > 0;
   bool get isIncome  => txnType == 'sale';
+
+  /// Field-wise merge: [primary] wins, [secondary] only fills the gaps.
+  /// Direction stays with [primary] — it read the receipt's own markers.
+  static ReceiptData merge(ReceiptData primary, ReceiptData secondary) =>
+      ReceiptData(
+        amount:  primary.amount ?? secondary.amount,
+        payee:   primary.payee  ?? secondary.payee,
+        txnId:   primary.txnId  ?? secondary.txnId,
+        date:    primary.date   ?? secondary.date,
+        txnType: primary.txnType,
+      );
 }
 
 /// On-device OCR (Google ML Kit — offline, no API key) + a UPI-receipt parser.
@@ -23,27 +36,59 @@ class ReceiptOcr {
   static Future<ReceiptData> extractFromImage(String imagePath) async {
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
-      final recognized =
-          await recognizer.processImage(InputImage.fromFilePath(imagePath));
-      // ML Kit returns blocks in DETECTION order, not reading order — on
-      // PhonePe receipts the header time can land right after "Paid to",
-      // which broke payee extraction. Rebuild true reading order from each
-      // line's on-screen geometry (top-to-bottom, then left-to-right).
-      final lines = <TextLine>[];
-      for (final block in recognized.blocks) {
-        lines.addAll(block.lines);
-      }
-      lines.sort((a, b) {
-        final at = a.boundingBox.top, bt = b.boundingBox.top;
-        if ((at - bt).abs() > 14) return at.compareTo(bt);
-        return a.boundingBox.left.compareTo(b.boundingBox.left);
-      });
-      final ordered = lines.map((l) => l.text).join('\n');
-      return ReceiptParser.parse(ordered.isEmpty ? recognized.text : ordered);
+      final first = ReceiptParser.parse(await _ocr(recognizer, imagePath));
+      if (first.hasAmount) return first;
+      // GPay renders the amount as a huge thin-stroke headline that the
+      // on-device model often fails to detect at full screenshot resolution
+      // (the small detail rows still read fine, so payee/date/ref arrive
+      // without an amount). On a downscaled copy that headline becomes
+      // normal-sized text — retry there and merge whatever was missing.
+      final small = await _downscale(imagePath);
+      if (small == null) return first;
+      final second = ReceiptParser.parse(await _ocr(recognizer, small));
+      return ReceiptData.merge(first, second);
     } catch (_) {
       return const ReceiptData();
     } finally {
       await recognizer.close();
+    }
+  }
+
+  static Future<String> _ocr(TextRecognizer recognizer, String path) async {
+    final recognized =
+        await recognizer.processImage(InputImage.fromFilePath(path));
+    // ML Kit returns blocks in DETECTION order, not reading order — on
+    // PhonePe receipts the header time can land right after "Paid to",
+    // which broke payee extraction. Rebuild true reading order from each
+    // line's on-screen geometry (top-to-bottom, then left-to-right).
+    final lines = <TextLine>[];
+    for (final block in recognized.blocks) {
+      lines.addAll(block.lines);
+    }
+    lines.sort((a, b) {
+      final at = a.boundingBox.top, bt = b.boundingBox.top;
+      if ((at - bt).abs() > 14) return at.compareTo(bt);
+      return a.boundingBox.left.compareTo(b.boundingBox.left);
+    });
+    final ordered = lines.map((l) => l.text).join('\n');
+    return ordered.isEmpty ? recognized.text : ordered;
+  }
+
+  static Future<String?> _downscale(String path) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes,
+          targetWidth: 800, allowUpscaling: false);
+      final frame = await codec.getNextFrame();
+      final png =
+          await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      frame.image.dispose();
+      if (png == null) return null;
+      final f = File('${Directory.systemTemp.path}/an_receipt_small.png');
+      await f.writeAsBytes(png.buffer.asUint8List(), flush: true);
+      return f.path;
+    } catch (_) {
+      return null;
     }
   }
 }
@@ -110,40 +155,70 @@ class ReceiptParser {
   static double? _amount(List<String> lines) {
     final withCurrency = <double>[];
     final bare = <double>[];
-    final curRe = RegExp(r'(?:₹|rs\.?|inr)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)',
+    final curRe = RegExp(r'(?:₹|rs\.?|inr)\s*([0-9][0-9,.]*)',
         caseSensitive: false);
-    final bareRe = RegExp(
-        r'^([^0-9\s]{0,2})\s*([0-9]{1,3}(?:,[0-9]{2,3})+(?:\.[0-9]{1,2})?|[0-9]{1,6}(?:\.[0-9]{1,2})?)\s*$');
+    final bareRe = RegExp(r'^([^0-9\s]{0,2})\s*([0-9][0-9,.]{0,14})\s*$');
 
-    for (final l in lines) {
-      final low = l.toLowerCase();
-      if (_noiseLine(low)) continue;
-
+    void scan(String l, String low) {
       for (final m in curRe.allMatches(l)) {
-        final v = double.tryParse(m.group(1)!.replaceAll(',', ''));
+        final v = _parseMoney(m.group(1)!);
         if (v != null && v > 0 && v < 10000000) withCurrency.add(v);
       }
 
       // Bare-number fallback. Skip lines with ':' (times "09:38",
       // labels "UTR: 4463...").
-      if (low.contains(':')) continue;
+      if (low.contains(':')) return;
       final m = bareRe.firstMatch(l);
-      if (m == null) continue;
+      if (m == null) return;
       final prefix = m.group(1)!;
       final numStr = m.group(2)!;
-      final hasComma = numStr.contains(',');
-      final hasDecimal = numStr.contains('.');
       // A plain integer with no currency hint is too risky (years, counts,
-      // status-bar numbers). Require a comma group, decimals, or a mangled
-      // symbol prefix as evidence it was rendered as money.
-      if (prefix.isEmpty && !hasComma && !hasDecimal) continue;
-      final v = double.tryParse(numStr.replaceAll(',', ''));
+      // status-bar numbers). Require a separator group, or a mangled symbol
+      // prefix, as evidence it was rendered as money.
+      if (prefix.isEmpty && !RegExp(r'[.,]').hasMatch(numStr)) return;
+      final v = _parseMoney(numStr);
       if (v != null && v > 0 && v < 10000000) bare.add(v);
+    }
+
+    for (final l in lines) {
+      final low = l.toLowerCase();
+      if (_noiseLine(low)) continue;
+      scan(l, low);
+      // Retry with common digit misreads fixed ("7,0OO" → "7,000"): only
+      // amount-shaped patterns can match, so words stay harmless.
+      final fixed = _fixDigits(l);
+      if (fixed != l) scan(fixed, fixed.toLowerCase());
     }
 
     final pool = withCurrency.isNotEmpty ? withCurrency : bare;
     if (pool.isEmpty) return null;
     return pool.reduce(math.max);
+  }
+
+  /// OCR confuses O/0 and l/I/1 inside the big thin-font amount.
+  static String _fixDigits(String s) => s
+      .replaceAll('O', '0')
+      .replaceAll('o', '0')
+      .replaceAll('l', '1')
+      .replaceAll('|', '1');
+
+  /// Parses an OCR'd money token, tolerating both separator styles:
+  /// "20,000" / "7.000" (dot misread of the lakh comma) → thousands groups;
+  /// "1,234.56" / "7.50" → decimals. Trailing punctuation is stripped.
+  static double? _parseMoney(String s) {
+    s = s.replaceAll(RegExp(r'[.,]+$'), '');
+    if (s.isEmpty) return null;
+    // Every separator followed by a 3-digit (or Indian 2-digit) group and
+    // no 1–2-digit tail → they are thousands separators, drop them all.
+    if (RegExp(r'^[0-9]{1,3}(?:[.,][0-9]{2,3})+$').hasMatch(s) &&
+        !RegExp(r'\.[0-9]{1,2}$').hasMatch(s)) {
+      return double.tryParse(s.replaceAll(RegExp(r'[.,]'), ''));
+    }
+    final m = RegExp(r'^([0-9,]+)(?:\.([0-9]{1,2}))?$').firstMatch(s);
+    if (m == null) return null;
+    final whole = m.group(1)!.replaceAll(',', '');
+    return double.tryParse(
+        m.group(2) == null ? whole : '$whole.${m.group(2)}');
   }
 
   // ── Payee (counterparty) ─────────────────────────────────────────────────
@@ -215,6 +290,13 @@ class ReceiptParser {
         .trim();
     if (name.length < 2) return null;
     if (name.contains('@')) return null; // VPA / email
+
+    // Latin OCR of a Tamil/regional-script header produces gibberish like
+    // "6IräiJTg" (for லிங்கராஜ்). Real UPI counterparty names are plain
+    // ASCII — reject accented output and words with digits fused to letters,
+    // so the scan falls through to the clean "To: LINGA RAJ A" detail row.
+    if (name.codeUnits.any((c) => c > 127)) return null;
+    if (RegExp(r'[0-9][A-Za-z]|[A-Za-z][0-9]').hasMatch(name)) return null;
 
     // Dates & times are never names ("09:38 am on 03 Jul 2026", "3/7/2026").
     if (RegExp(r'\d{1,2}:\d{2}').hasMatch(name)) return null;

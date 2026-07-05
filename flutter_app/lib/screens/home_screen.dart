@@ -83,22 +83,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _handleShared(List<SharedMediaFile> files) {
-    final f = files.first;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final isImage = f.type == SharedMediaType.image;
+      // GPay shares the receipt image AND a caption text in one intent —
+      // parse every part and merge, image first (it carries the details).
       // On-device OCR runs invisibly (no API). Image → ML Kit; text → regex.
-      final ReceiptData data = isImage
-          ? await ReceiptOcr.extractFromImage(f.path)
-          : ReceiptParser.parse(f.path);
-      if (!mounted) return;
+      final images = files
+          .where((f) => f.type == SharedMediaType.image)
+          .toList();
+      final others = files
+          .where((f) => f.type != SharedMediaType.image)
+          .toList();
+      ReceiptData? data;
+      for (final f in images) {
+        final d = await ReceiptOcr.extractFromImage(f.path);
+        data = data == null ? d : ReceiptData.merge(data, d);
+      }
+      for (final f in others) {
+        final d = ReceiptParser.parse(f.path);
+        data = data == null ? d : ReceiptData.merge(data, d);
+      }
+      if (data == null || !mounted) return;
+      final imagePath = images.isNotEmpty ? images.first.path : null;
       if (data.hasAmount) {
         // Confident read → save automatically, with an Edit action.
-        await _autoSaveReceipt(data, imagePath: isImage ? f.path : null);
+        await _autoSaveReceipt(data, imagePath: imagePath);
       } else {
         // Couldn't read the amount → open the sheet for a quick manual finish.
-        showQuickExpenseFromShare(context,
-            imagePath: isImage ? f.path : null, parsed: data);
+        showQuickExpenseFromShare(context, imagePath: imagePath, parsed: data);
       }
     });
   }
@@ -145,8 +157,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         action: SnackBarAction(
           label: 'Edit',
           textColor: Colors.white,
-          onPressed: () =>
-              showQuickExpenseFromShare(context, imagePath: imagePath, parsed: d),
+          // Pass the SAVED txn so the sheet updates it in place — reopening
+          // with only the parsed data would insert a second entry on save.
+          onPressed: () => showQuickExpenseFromShare(context,
+              imagePath: imagePath, parsed: d, editTxn: txn),
         ),
       ));
     } catch (_) {
