@@ -11,21 +11,26 @@ import '../services/receipt_ocr.dart';
 /// Opens the "add expense from a shared receipt" sheet, pre-filled with
 /// whatever the on-device OCR could read ([parsed]). Used as a review/edit
 /// step (auto-save handles the confident case directly).
+///
+/// When [editTxn] is given (the "Edit" action after an auto-save), the sheet
+/// UPDATES that already-saved entry in place instead of inserting a new one.
 Future<void> showQuickExpenseFromShare(BuildContext context,
-    {String? imagePath, ReceiptData? parsed}) async {
+    {String? imagePath, ReceiptData? parsed, Txn? editTxn}) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _QuickExpenseSheet(imagePath: imagePath, parsed: parsed),
+    builder: (_) => _QuickExpenseSheet(
+        imagePath: imagePath, parsed: parsed, editTxn: editTxn),
   );
 }
 
 class _QuickExpenseSheet extends StatefulWidget {
   final String? imagePath;
   final ReceiptData? parsed;
-  const _QuickExpenseSheet({this.imagePath, this.parsed});
+  final Txn? editTxn;
+  const _QuickExpenseSheet({this.imagePath, this.parsed, this.editTxn});
   @override
   State<_QuickExpenseSheet> createState() => _QuickExpenseSheetState();
 }
@@ -43,6 +48,18 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
   @override
   void initState() {
     super.initState();
+    final e = widget.editTxn;
+    if (e != null) {
+      // Editing the entry auto-save just wrote — prefill from the saved
+      // record itself, not the parse.
+      _type = e.type;
+      _amt.text = e.amount.toStringAsFixed(e.amount % 1 == 0 ? 0 : 2);
+      _desc.text = e.desc;
+      _shopId = e.shop.isEmpty ? null : e.shop;
+      _txnId = e.contact.isEmpty ? null : e.contact;
+      _date  = e.date;
+      return;
+    }
     final d = widget.parsed;
     if (d != null) {
       _type = d.txnType;
@@ -76,28 +93,39 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
     final now = DateTime.now();
     final day = _date ?? now;
     final isIncome = _type == 'sale';
+    final editing = widget.editTxn;
+    // Edit mode reuses the saved entry's identity so we UPDATE it in place —
+    // a fresh id here is what caused the double-save bug.
     final txn = Txn(
-      id:         now.millisecondsSinceEpoch.toString(),
-      businessId: p.businessId,
+      id:         editing?.id ?? now.millisecondsSinceEpoch.toString(),
+      businessId: editing?.businessId ?? p.businessId,
       shop:       shopId,
-      shopName:   shops[shopId]?.name ?? '',
-      date:       DateTime(day.year, day.month, day.day, now.hour, now.minute),
+      shopName:   shops[shopId]?.name ?? editing?.shopName ?? '',
+      date:       editing?.date ??
+          DateTime(day.year, day.month, day.day, now.hour, now.minute),
       type:       _type,
       amount:     amount,
       desc:       _desc.text.trim().isEmpty
           ? (isIncome ? 'UPI received' : 'UPI payment')
           : _desc.text.trim(),
       contact:    _txnId ?? '',
-      createdAt:  now,
+      createdAt:  editing?.createdAt ?? now,
     );
     try {
-      await DbService().addTxn(txn);
-      if (!mounted) return;
-      p.addLocalTxn(txn);
+      if (editing != null) {
+        await DbService().updateTxn(txn);
+        if (!mounted) return;
+        p.updateLocalTxn(txn);
+      } else {
+        await DbService().addTxn(txn);
+        if (!mounted) return;
+        p.addLocalTxn(txn);
+      }
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            '${isIncome ? "Received" : "Expense"} ${p.currency.symbol}${amount.toStringAsFixed(0)} saved'),
+            '${isIncome ? "Received" : "Expense"} ${p.currency.symbol}${amount.toStringAsFixed(0)} '
+            '${editing != null ? "updated" : "saved"}'),
         backgroundColor: kSecondary,
         behavior: SnackBarBehavior.floating,
       ));
@@ -133,9 +161,13 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
             child: const Icon(Icons.receipt_long_rounded, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Text('Add entry from receipt',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kText)),
+          Expanded(
+            child: Text(
+                widget.editTxn != null
+                    ? 'Edit saved entry'
+                    : 'Add entry from receipt',
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800, color: kText)),
           ),
         ]),
         const SizedBox(height: 12),
@@ -243,7 +275,10 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
             ),
             child: _saving
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                : Text(_type == 'sale' ? 'Save Received' : 'Save Expense',
+                : Text(
+                    widget.editTxn != null
+                        ? 'Update Entry'
+                        : (_type == 'sale' ? 'Save Received' : 'Save Expense'),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ),
         ),
