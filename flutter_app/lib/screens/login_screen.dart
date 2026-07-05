@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import '../providers/app_provider.dart';
 import '../theme.dart';
@@ -106,21 +107,94 @@ class _LoginScreenState extends State<LoginScreen>
       _showErr('Enter your email address first.');
       return;
     }
-    try {
-      await _auth.sendPasswordReset(email);
-      _showSuccess('Password reset email sent to $email');
-    } catch (e) {
-      _showErr(_friendlyError(e.toString()));
-    }
+    // Same message on success AND failure — never confirm whether an
+    // email is registered (anti-enumeration).
+    try { await _auth.sendPasswordReset(email); } catch (_) {}
+    _showSuccess('If this email is registered, a reset link has been sent.');
   }
+
+  // ── Client-side brute-force protection ────────────────────────────────────
+  // Firebase Auth already throttles per-IP server-side; this adds a local
+  // layer: progressive delay after each failure (2^n s, capped 30 s) and a
+  // 15-minute lockout after 5 consecutive failures, with a password-reset
+  // email fired on lockout. Counters reset on success.
+  static const _kFails     = 'slv_lf_n';
+  static const _kNextTry   = 'slv_lf_until';
+  static const _kLockUntil = 'slv_lf_lock';
+
+  Future<String?> _loginBlockedMsg() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final lockUntil = prefs.getInt(_kLockUntil) ?? 0;
+    if (lockUntil > now) {
+      final mins = ((lockUntil - now) / 60000).ceil();
+      return 'Too many failed attempts. Try again in $mins min, '
+          'or use Forgot Password.';
+    }
+    final nextTry = prefs.getInt(_kNextTry) ?? 0;
+    if (nextTry > now) {
+      final secs = ((nextTry - now) / 1000).ceil();
+      return 'Please wait $secs s before trying again.';
+    }
+    return null;
+  }
+
+  /// Records a failed credential attempt. Returns a lockout message when
+  /// this failure triggered the 15-minute lockout, else null (the caller
+  /// shows the generic error).
+  Future<String?> _recordLoginFailure() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fails = (prefs.getInt(_kFails) ?? 0) + 1;
+    await prefs.setInt(_kFails, fails);
+    if (fails >= 5) {
+      await prefs.setInt(_kLockUntil, now + 15 * 60 * 1000);
+      await prefs.setInt(_kFails, 0);
+      await prefs.remove(_kNextTry);
+      // Lockout notification: send a reset link (silently — the generic
+      // message never confirms whether the email is registered).
+      final email = _email.text.trim();
+      if (email.contains('@')) {
+        try { await _auth.sendPasswordReset(email); } catch (_) {}
+      }
+      return 'Too many failed attempts. Login is paused for 15 minutes. '
+          'If this email is registered, a password-reset link has been sent.';
+    }
+    // Progressive delay: 2s, 4s, 8s, 16s (capped at 30s).
+    final delayMs =
+        (1 << fails) * 1000 > 30000 ? 30000 : (1 << fails) * 1000;
+    await prefs.setInt(_kNextTry, now + delayMs);
+    return null;
+  }
+
+  Future<void> _clearLoginFailures() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kFails);
+    await prefs.remove(_kNextTry);
+    await prefs.remove(_kLockUntil);
+  }
+
+  bool _isCredentialError(String raw) =>
+      raw.contains('user-not-found') ||
+      raw.contains('wrong-password') ||
+      raw.contains('invalid-credential') ||
+      raw.contains('INVALID_LOGIN_CREDENTIALS');
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_isLogin) {
+      final blocked = await _loginBlockedMsg();
+      if (blocked != null) {
+        _showErr(blocked);
+        return;
+      }
+    }
     setState(() => _loading = true);
     try {
       if (_isLogin) {
         final cred = await _auth.signInEmail(
           _email.text.trim(), _pass.text);
+        await _clearLoginFailures();
         await _navigateAfterLogin(cred.user!.uid);
       } else {
         final cred = await _auth.registerEmail(
@@ -136,7 +210,11 @@ class _LoginScreenState extends State<LoginScreen>
         await _navigateAfterLogin(cred.user!.uid);
       }
     } catch (e) {
-      _showErr(_friendlyError(e.toString()));
+      String? lockMsg;
+      if (_isLogin && _isCredentialError(e.toString())) {
+        lockMsg = await _recordLoginFailure();
+      }
+      _showErr(lockMsg ?? _friendlyError(e.toString()));
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -169,14 +247,16 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   String _friendlyError(String raw) {
-    if (raw.contains('user-not-found'))      return 'No account found for this email.';
-    if (raw.contains('wrong-password'))      return 'Incorrect password. Please try again.';
+    // ONE message for every credential failure — never reveal whether the
+    // account exists, the password was wrong, or a lockout applies
+    // (anti-enumeration).
+    if (_isCredentialError(raw))             return 'Email or password is incorrect.';
     if (raw.contains('invalid-email'))       return 'Please enter a valid email address.';
     if (raw.contains('email-already-in-use'))return 'This email is already registered. Please login.';
     if (raw.contains('weak-password'))       return 'Password must be at least 6 characters.';
     if (raw.contains('network-request-failed')) return 'Network error. Check your connection.';
     if (raw.contains('too-many-requests'))   return 'Too many attempts. Please wait and try again.';
-    return raw.replaceAll(RegExp(r'\[.*?\]'), '').trim();
+    return 'Login failed. Please try again.';
   }
 
   @override
