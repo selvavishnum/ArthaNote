@@ -2091,15 +2091,24 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
                 final entry    = byStaff.entries.elementAt(i);
                 final name     = entry.key;
                 final records  = entry.value;
-                final presentDays = records
+                // Half-day dates (a day with a 'half' mark counts as ½ even
+                // if an IN was also punched that morning).
+                final halfDates = records
+                    .where((r) => r['type'] == 'half')
+                    .map((r) => r['date'] as String?)
+                    .whereType<String>()
+                    .toSet();
+                final fullDates = records
                     .where((r) => r['type'] == 'in' || r['type'] == null)
                     .map((r) => r['date'] as String?)
                     .whereType<String>()
                     .toSet()
-                    .length;
-                final absentDays = workingDays - presentDays;
+                  ..removeAll(halfDates);
+                final presentDays = fullDates.length;
+                final halfDays    = halfDates.length;
+                final absentDays  = workingDays - presentDays - halfDays;
                 final rate = workingDays > 0
-                    ? (presentDays / workingDays * 100).round()
+                    ? ((presentDays + halfDays * 0.5) / workingDays * 100).round()
                     : 0;
 
                 // Average hours calculation
@@ -2132,14 +2141,11 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
                 }
                 final avgHrs = hrCount > 0 ? (totalHrs / hrCount) : 0.0;
 
-                final presentDatesList = records
-                    .where((r) => r['type'] == 'in' || r['type'] == null)
-                    .map((r) => r['date'] as String?)
-                    .whereType<String>()
-                    .toSet()
-                    .map((d) => d.split('-').last)
-                    .toList()
-                  ..sort();
+                // Chips: (day, isHalf) — full days green, half days amber "½".
+                final dayChips = <(String, bool)>[
+                  ...fullDates.map((d) => (d.split('-').last, false)),
+                  ...halfDates.map((d) => (d.split('-').last, true)),
+                ]..sort((a, b) => a.$1.compareTo(b.$1));
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -2208,6 +2214,8 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
                         child: Row(children: [
                           _StatCell(label: 'PRESENT', value: '$presentDays', color: kSecondary),
                           const VerticalDivider(color: Color(0xFFE5E7EB), width: 1),
+                          _StatCell(label: 'HALF DAY', value: '$halfDays', color: const Color(0xFFB45309)),
+                          const VerticalDivider(color: Color(0xFFE5E7EB), width: 1),
                           _StatCell(label: 'ABSENT', value: '${absentDays < 0 ? 0 : absentDays}', color: kRed),
                           const VerticalDivider(color: Color(0xFFE5E7EB), width: 1),
                           _StatCell(
@@ -2217,25 +2225,39 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
                           ),
                         ]),
                       ),
-                      if (presentDatesList.isNotEmpty) ...[
+                      if (dayChips.isNotEmpty) ...[
                         const SizedBox(height: 10),
-                        Text('வந்த நாட்கள்',
+                        Text('வந்த நாட்கள்  (🌗 = half day)',
                             style: TextStyle(color: Colors.grey.shade500, fontSize: 11,
                                 fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 6, runSpacing: 4,
-                          children: presentDatesList.map((day) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: kSecondary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: kSecondary.withOpacity(0.3)),
-                            ),
-                            child: Text(day,
-                                style: TextStyle(
-                                    color: kSecondary, fontSize: 11, fontWeight: FontWeight.w700)),
-                          )).toList(),
+                          children: dayChips.map((c) {
+                            final isHalf = c.$2;
+                            final color = isHalf ? const Color(0xFFB45309) : kSecondary;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: color.withOpacity(isHalf ? 0.6 : 0.3)),
+                              ),
+                              child: Text(isHalf ? '${c.$1} ½' : c.$1,
+                                  style: TextStyle(
+                                      color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                      // Payroll — owner/admin only; staff never see this
+                      // (salary lives in config/{businessId}, owner-only rules).
+                      if (widget.p.isAdmin || !widget.p.isCashier) ...[
+                        const SizedBox(height: 10),
+                        _PayrollBlock(
+                          p: widget.p,
+                          staffName: name,
+                          monthStr: monthStr,
                         ),
                       ],
                     ]),
@@ -2304,19 +2326,23 @@ class _DirectMarkSection extends StatelessWidget {
                 final hasRest = recs.any((r) => r['type'] == 'rest');
                 final hasBack = recs.any((r) => r['type'] == 'back');
                 final hasOut  = recs.any((r) => r['type'] == 'out');
-                String inTime='', restTime='', backTime='', outTime='';
+                final hasHalf = recs.any((r) => r['type'] == 'half');
+                String inTime='', restTime='', backTime='', outTime='', halfTime='';
                 for (final r in recs) {
                   final t = (r['time'] as String?) ?? '';
                   if (r['type'] == 'in' || r['type'] == null) inTime = t;
                   if (r['type'] == 'rest') restTime = t;
                   if (r['type'] == 'back') backTime = t;
                   if (r['type'] == 'out') outTime = t;
+                  if (r['type'] == 'half') halfTime = t;
                 }
                 return _StaffAttCard(
                   name: name,
                   role: (s['role'] as String?) ?? 'staff',
                   hasIn: hasIn, hasRest: hasRest, hasBack: hasBack, hasOut: hasOut,
+                  hasHalf: hasHalf,
                   inTime: inTime, restTime: restTime, backTime: backTime, outTime: outTime,
+                  halfTime: halfTime,
                   businessId: businessId, shopId: shopId, shopName: shopName,
                 );
               }).toList(),
@@ -2330,13 +2356,15 @@ class _DirectMarkSection extends StatelessWidget {
 
 class _StaffAttCard extends StatefulWidget {
   final String name, role, businessId, shopId, shopName;
-  final bool hasIn, hasRest, hasBack, hasOut;
-  final String inTime, restTime, backTime, outTime;
+  final bool hasIn, hasRest, hasBack, hasOut, hasHalf;
+  final String inTime, restTime, backTime, outTime, halfTime;
   const _StaffAttCard({
     required this.name, required this.role,
     required this.businessId, required this.shopId, required this.shopName,
     required this.hasIn, required this.hasRest, required this.hasBack, required this.hasOut,
+    required this.hasHalf,
     required this.inTime, required this.restTime, required this.backTime, required this.outTime,
+    required this.halfTime,
   });
   @override
   State<_StaffAttCard> createState() => _StaffAttCardState();
@@ -2382,7 +2410,8 @@ class _StaffAttCardState extends State<_StaffAttCard> {
   }
 
   String _typeLabel(String type) => const {
-    'in': 'Mark IN', 'rest': 'Take Break', 'back': 'Back to Work', 'out': 'Mark OUT',
+    'in': 'Mark IN', 'rest': 'Take Break', 'back': 'Back to Work',
+    'out': 'Mark OUT', 'half': 'Half Day',
   }[type] ?? type;
 
   @override
@@ -2390,7 +2419,9 @@ class _StaffAttCardState extends State<_StaffAttCard> {
     // Card border color by state
     Color borderColor;
     Color bgColor;
-    if (widget.hasOut) {
+    if (widget.hasHalf) {
+      borderColor = const Color(0xFFFBBF24); bgColor = const Color(0xFFFFFBEB);
+    } else if (widget.hasOut) {
       borderColor = const Color(0xFFD1D5DB); bgColor = const Color(0xFFF9FAFB);
     } else if (widget.hasBack) {
       borderColor = const Color(0xFF5EEAD4); bgColor = const Color(0xFFF0FDFA);
@@ -2430,7 +2461,16 @@ class _StaffAttCardState extends State<_StaffAttCard> {
                     style: const TextStyle(color: kMuted, fontSize: 11)),
               ]),
             ),
-            if (widget.hasOut)
+            if (widget.hasHalf)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('🌗 Half Day', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB45309))),
+              )
+            else if (widget.hasOut)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -2441,11 +2481,13 @@ class _StaffAttCardState extends State<_StaffAttCard> {
               ),
           ]),
           // Punch time info
-          if (widget.hasIn) ...[
+          if (widget.hasIn || widget.hasHalf) ...[
             const SizedBox(height: 6),
             Wrap(spacing: 12, children: [
               if (widget.inTime.isNotEmpty)
                 _TimeChip('IN', widget.inTime, const Color(0xFF059669)),
+              if (widget.halfTime.isNotEmpty)
+                _TimeChip('HALF', widget.halfTime, const Color(0xFFB45309)),
               if (widget.restTime.isNotEmpty)
                 _TimeChip('REST', widget.restTime, const Color(0xFFD97706)),
               if (widget.backTime.isNotEmpty)
@@ -2454,8 +2496,8 @@ class _StaffAttCardState extends State<_StaffAttCard> {
                 _TimeChip('OUT', widget.outTime, kPrimary),
             ]),
           ],
-          // Action buttons
-          if (!widget.hasOut) ...[
+          // Action buttons — a half-day mark closes the day like OUT does.
+          if (!widget.hasOut && !widget.hasHalf) ...[
             const SizedBox(height: 10),
             if (_saving)
               const Center(child: SizedBox(
@@ -2463,27 +2505,33 @@ class _StaffAttCardState extends State<_StaffAttCard> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary),
               ))
             else if (!widget.hasIn)
-              SizedBox(
-                width: double.infinity,
-                child: _AttBtn('✅ Mark IN', kPrimary, () => _mark('in')),
-              )
+              Row(children: [
+                Expanded(child: _AttBtn('✅ Mark IN', kPrimary, () => _mark('in'))),
+                const SizedBox(width: 8),
+                Expanded(child: _AttBtn('🌗 Half Day', const Color(0xFFB45309), () => _mark('half'))),
+              ])
             else if (!widget.hasRest)
               Row(children: [
-                Expanded(child: _AttBtn('☕ Take Break', const Color(0xFFD97706), () => _mark('rest'))),
-                const SizedBox(width: 8),
-                Expanded(child: _AttBtn('🏁 Mark OUT', kPrimary, () => _mark('out'))),
+                Expanded(child: _AttBtn('☕ Break', const Color(0xFFD97706), () => _mark('rest'))),
+                const SizedBox(width: 6),
+                Expanded(child: _AttBtn('🌗 Half', const Color(0xFFB45309), () => _mark('half'))),
+                const SizedBox(width: 6),
+                Expanded(child: _AttBtn('🏁 OUT', kPrimary, () => _mark('out'))),
               ])
             else if (!widget.hasBack)
               Row(children: [
-                Expanded(child: _AttBtn('✅ Back to Work', const Color(0xFF0D9488), () => _mark('back'))),
-                const SizedBox(width: 8),
-                Expanded(child: _AttBtn('🏁 Mark OUT', kPrimary, () => _mark('out'))),
+                Expanded(child: _AttBtn('✅ Back', const Color(0xFF0D9488), () => _mark('back'))),
+                const SizedBox(width: 6),
+                Expanded(child: _AttBtn('🌗 Half', const Color(0xFFB45309), () => _mark('half'))),
+                const SizedBox(width: 6),
+                Expanded(child: _AttBtn('🏁 OUT', kPrimary, () => _mark('out'))),
               ])
             else
-              SizedBox(
-                width: double.infinity,
-                child: _AttBtn('🏁 Mark OUT', kPrimary, () => _mark('out')),
-              ),
+              Row(children: [
+                Expanded(child: _AttBtn('🌗 Half Day', const Color(0xFFB45309), () => _mark('half'))),
+                const SizedBox(width: 8),
+                Expanded(child: _AttBtn('🏁 Mark OUT', kPrimary, () => _mark('out'))),
+              ]),
           ],
         ]),
       ),
@@ -2542,6 +2590,214 @@ class _StatCell extends StatelessWidget {
       ],
     ),
   );
+}
+
+// ── Payroll block (owner/admin only) ─────────────────────────────────────────
+// Salary + advance payments per staff, shown under their attendance summary.
+// Data lives in config/{businessId}.payroll — that doc is readable ONLY by
+// the owner/admin under the Firestore rules, so salary never reaches staff.
+class _PayrollBlock extends StatefulWidget {
+  final AppProvider p;
+  final String staffName;
+  final String monthStr; // 'yyyy-MM' of the summary month
+  const _PayrollBlock(
+      {required this.p, required this.staffName, required this.monthStr});
+  @override
+  State<_PayrollBlock> createState() => _PayrollBlockState();
+}
+
+class _PayrollBlockState extends State<_PayrollBlock> {
+  final _auth = AuthService();
+  Map<String, dynamic> _entry = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final cfg = await _auth.getConfig(widget.p.businessId);
+      final payroll = (cfg?['payroll'] as Map<String, dynamic>?) ?? {};
+      _entry = Map<String, dynamic>.from(
+          (payroll[widget.staffName] as Map<String, dynamic>?) ?? {});
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _save() async {
+    final cfg = await _auth.getConfig(widget.p.businessId);
+    final payroll = Map<String, dynamic>.from(
+        (cfg?['payroll'] as Map<String, dynamic>?) ?? {});
+    payroll[widget.staffName] = _entry;
+    await _auth.saveConfig(widget.p.businessId, {'payroll': payroll});
+    if (mounted) setState(() {});
+  }
+
+  Future<double?> _askAmount(String title, {double initial = 0}) {
+    final ctrl = TextEditingController(
+        text: initial > 0 ? initial.toStringAsFixed(0) : '');
+    return showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            prefixText: '${widget.p.currency.symbol} ',
+            hintText: '0',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, double.tryParse(ctrl.text.trim())),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editSalary() async {
+    final salary = (_entry['salary'] as num?)?.toDouble() ?? 0;
+    final v = await _askAmount('Monthly Salary — ${widget.staffName}',
+        initial: salary);
+    if (v == null || v < 0) return;
+    _entry['salary'] = v;
+    await _save();
+  }
+
+  Future<void> _addAdvance() async {
+    final v = await _askAmount('Advance Payment — ${widget.staffName}');
+    if (v == null || v <= 0) return;
+    final advances =
+        List<Map<String, dynamic>>.from((_entry['advances'] as List?) ?? []);
+    advances.add({
+      'amount': v,
+      'date': DateTime.now().toIso8601String().split('T')[0],
+    });
+    _entry['advances'] = advances;
+    await _save();
+  }
+
+  Future<void> _removeAdvance(Map<String, dynamic> adv) async {
+    final advances =
+        List<Map<String, dynamic>>.from((_entry['advances'] as List?) ?? []);
+    advances.removeWhere(
+        (a) => a['date'] == adv['date'] && a['amount'] == adv['amount']);
+    _entry['advances'] = advances;
+    await _save();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(
+          height: 20,
+          child: Center(
+              child: SizedBox(
+                  width: 14, height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: kMuted))));
+    }
+    final sym = widget.p.currency.symbol;
+    final salary = (_entry['salary'] as num?)?.toDouble() ?? 0;
+    final advances =
+        List<Map<String, dynamic>>.from((_entry['advances'] as List?) ?? []);
+    final monthAdvances = advances
+        .where((a) => (a['date'] as String? ?? '').startsWith(widget.monthStr))
+        .toList();
+    final advTotal =
+        monthAdvances.fold(0.0, (s, a) => s + ((a['amount'] as num?)?.toDouble() ?? 0));
+    final balance = salary - advTotal;
+
+    String fmtAmt(double v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFBF5),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFEDE4CE)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('💰 Payroll',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: kPrimary)),
+          const Spacer(),
+          GestureDetector(
+            onTap: _addAdvance,
+            child: const Text('+ Advance',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kSecondary)),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: _editSalary,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('SALARY ✏️',
+                    style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
+                Text(salary > 0 ? '$sym${fmtAmt(salary)}' : 'Set',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kText)),
+              ]),
+            ),
+          ),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('ADVANCE (MONTH)',
+                  style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
+              Text('$sym${fmtAmt(advTotal)}',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kRed)),
+            ]),
+          ),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('BALANCE',
+                  style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
+              Text(salary > 0 ? '$sym${fmtAmt(balance)}' : '—',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 14,
+                      color: balance >= 0 ? kSecondary : kRed)),
+            ]),
+          ),
+        ]),
+        if (monthAdvances.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6, runSpacing: 4,
+            children: monthAdvances.map((a) {
+              final d = (a['date'] as String? ?? '').split('-').last;
+              final amt = ((a['amount'] as num?)?.toDouble() ?? 0);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: kRed.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kRed.withOpacity(0.25)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('$d: $sym${fmtAmt(amt)}',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kRed)),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _removeAdvance(a),
+                    child: const Icon(Icons.close, size: 12, color: kRed),
+                  ),
+                ]),
+              );
+            }).toList(),
+          ),
+        ],
+      ]),
+    );
+  }
 }
 
 // ── Backup sheet ──────────────────────────────────────────────────────────────
