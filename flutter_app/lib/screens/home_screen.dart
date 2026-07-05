@@ -30,6 +30,7 @@ import 'qr_scan_screen.dart';
 import '../services/lock_service.dart';
 import 'lock_screen.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'quick_expense_sheet.dart';
 import '../services/receipt_ocr.dart';
 
@@ -393,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
-        bottomNavigationBar: _buildBottomNav(p.lang, isAdmin, isCashier),
+        bottomNavigationBar: _buildBottomNav(p, p.lang, isAdmin, isCashier),
         floatingActionButton: FloatingActionButton(
           backgroundColor: kPrimary,
           foregroundColor: Colors.white,
@@ -811,8 +812,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               isAllChip: true,
               onTap: () => p.setSelectedShop(''),
             ),
-            // Individual shop chips. Finance/Chit/Construction shops open their
-            // dedicated module full-view when tapped; normal shops just filter.
+            // Individual shop chips. Selecting a Finance/Chit/Construction
+            // shop reveals its module as the 2nd bottom-nav tab (next to
+            // Dashboard); a one-time coach sheet guides first-time users.
             ...p.shops.values.map((s) {
               final type = s.type.toLowerCase();
               final isModule =
@@ -823,13 +825,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 isAllChip: false,
                 onTap: () {
                   p.setSelectedShop(s.id);
-                  if (type == 'construction') {
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const ConstructionScreen()));
-                  } else if (isModule) {
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const FinanceTab()));
-                  }
+                  if (isModule) _maybeShowModuleGuide(type);
                 },
               );
             }),
@@ -844,33 +840,177 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return p.isSelectedShopFinance;
   }
 
-  // ── Bottom navigation ──────────────────────────────────────────────────────
-  Widget _buildBottomNav(String l, bool isAdmin, bool isCashier) {
-    // Finance/Chit/Construction are opened by tapping their shop chip on the
-    // dashboard (not a bottom-nav tab), so the bar stays fixed.
-    final maxIdx = isCashier ? 3 : (isAdmin ? 5 : 4);
-    final cur = _tab.clamp(0, maxIdx);
+  // ── First-time module guide ────────────────────────────────────────────────
+  // Shown ONCE per module type, the first time the user selects that shop
+  // chip — tells them the module now lives in the bottom bar (2nd tab, next
+  // to Dashboard) and how to use it in 3 steps.
+  Future<void> _maybeShowModuleGuide(String type) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'slv_mguide_$type';
+    if (prefs.getBool(key) == true) return;
+    await prefs.setBool(key, true);
+    if (!mounted) return;
 
-    BottomNavigationBarItem _item(NavIconType type, String label, int idx) =>
+    final (title, steps) = switch (type) {
+      'construction' => (
+          '🏗️ Construction Ledger',
+          [
+            '1️⃣  Material & labour செலவுகளை பதிவு செய்யுங்கள்',
+            '2️⃣  Site (project) வாரியாக செலவு பாருங்கள்',
+            '3️⃣  360° report-ல் மொத்த கணக்கு பாருங்கள்',
+          ],
+        ),
+      'chit' => (
+          '🎰 Chit Fund Module',
+          [
+            '1️⃣  Members-ஐ சேருங்கள்',
+            '2️⃣  Monthly collection பதிவு செய்யுங்கள்',
+            '3️⃣  Chit auction & defaulters கண்காணியுங்கள்',
+          ],
+        ),
+      _ => (
+          '💰 Finance Module',
+          [
+            '1️⃣  Members-ஐ சேருங்கள்',
+            '2️⃣  Monthly collection பதிவு செய்யுங்கள்',
+            '3️⃣  Reports & defaulter alerts பாருங்கள்',
+          ],
+        ),
+    };
+
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(
+            child: Container(width: 40, height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2))),
+          ),
+          const SizedBox(height: 16),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800,
+                  fontFamily: 'serif', color: kText)),
+          const SizedBox(height: 6),
+          const Text(
+            'இந்த module இப்போ கீழே உள்ள bar-ல, Dashboard-க்கு அடுத்த இடத்துல இருக்கு 👇\nIt now sits in the bottom bar — right next to Dashboard.',
+            style: TextStyle(fontSize: 12.5, color: kMuted, height: 1.5),
+          ),
+          const SizedBox(height: 14),
+          ...steps.map((st) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(st,
+                    style: const TextStyle(
+                        fontSize: 13, color: kText, height: 1.4)),
+              )),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kMuted,
+                  side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+                child: const Text('புரிந்தது · Got it',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => type == 'construction'
+                          ? const ConstructionScreen()
+                          : const FinanceTab()));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+                child: const Text('Open now →',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  // ── Bottom navigation ──────────────────────────────────────────────────────
+  /// 'finance' | 'chit' | 'construction' when the selected shop chip is a
+  /// module-type shop — its module then appears as the SECOND nav tab
+  /// (Dashboard → Module → …). Null hides the tab (All / normal shops).
+  String? _selectedModuleType(AppProvider p) {
+    if (p.selectedShop.isEmpty) return null;
+    final ty = p.shops[p.selectedShop]?.type.toLowerCase() ?? '';
+    return (ty == 'finance' || ty == 'chit' || ty == 'construction') ? ty : null;
+  }
+
+  Widget _buildBottomNav(AppProvider p, String l, bool isAdmin, bool isCashier) {
+    // Context-aware nav: selecting a Finance/Chit/Construction shop chip
+    // surfaces its module right after Dashboard, so the module is always one
+    // thumb-tap away while that shop is the user's current "identity".
+    final modType   = _selectedModuleType(p);
+    final hasModule = modType != null;
+    final maxIdx = isCashier ? 3 : (isAdmin ? 5 : 4);
+    final bodyTab = _tab.clamp(0, maxIdx);
+    // _tab indexes the BODY list; the module tab (nav slot 1) pushes a screen
+    // instead, so map body index → nav index around it.
+    final navIdx = (hasModule && bodyTab >= 1) ? bodyTab + 1 : bodyTab;
+
+    BottomNavigationBarItem _item(NavIconType type, String label) =>
         BottomNavigationBarItem(
           icon: NavIcon(type: type, active: false),
           activeIcon: NavIcon(type: type, active: true),
           label: label,
         );
 
-    int idx = 0;
     final items = <BottomNavigationBarItem>[
-      _item(NavIconType.dashboard, t('dashboard', l), idx++),
-      if (isAdmin) _item(NavIconType.scan, t('scan', l), idx++),
-      _item(NavIconType.entry, t('entry', l), idx++),
-      _item(NavIconType.ledger, t('ledger', l), idx++),
-      _item(NavIconType.suppliers, t('suppliers', l), idx++),
-      if (!isCashier) _item(NavIconType.reports, t('reports', l), idx++),
+      _item(NavIconType.dashboard, t('dashboard', l)),
+      if (hasModule)
+        _item(
+          modType == 'construction'
+              ? NavIconType.construction
+              : NavIconType.finance,
+          modType == 'construction'
+              ? 'Site'
+              : (modType == 'chit' ? 'Chit' : 'Finance'),
+        ),
+      if (isAdmin) _item(NavIconType.scan, t('scan', l)),
+      _item(NavIconType.entry, t('entry', l)),
+      _item(NavIconType.ledger, t('ledger', l)),
+      _item(NavIconType.suppliers, t('suppliers', l)),
+      if (!isCashier) _item(NavIconType.reports, t('reports', l)),
     ];
 
     return BottomNavigationBar(
-      currentIndex: cur,
-      onTap: (i) => setState(() => _tab = i),
+      currentIndex: navIdx.clamp(0, items.length - 1),
+      onTap: (i) {
+        if (hasModule && i == 1) {
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => modType == 'construction'
+                  ? const ConstructionScreen()
+                  : const FinanceTab()));
+          return;
+        }
+        setState(() => _tab = (hasModule && i > 1) ? i - 1 : i);
+      },
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
       selectedItemColor: const Color(0xFFA16207), // Serif Ledger gold accent
