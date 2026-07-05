@@ -2258,6 +2258,8 @@ class _QrAttendanceSheetState extends State<_QrAttendanceSheet>
                           p: widget.p,
                           staffName: name,
                           monthStr: monthStr,
+                          daysWorked: presentDays + halfDays * 0.5,
+                          workingDays: workingDays,
                         ),
                       ],
                     ]),
@@ -2600,8 +2602,17 @@ class _PayrollBlock extends StatefulWidget {
   final AppProvider p;
   final String staffName;
   final String monthStr; // 'yyyy-MM' of the summary month
+  /// Attendance for the month: full days + half days × 0.5, and the
+  /// working-day base — earned pay is pro-rated from these, so a ₹7,500
+  /// salary with 8/30 days present earns ₹2,000, not the full ₹7,500.
+  final double daysWorked;
+  final int workingDays;
   const _PayrollBlock(
-      {required this.p, required this.staffName, required this.monthStr});
+      {required this.p,
+      required this.staffName,
+      required this.monthStr,
+      required this.daysWorked,
+      required this.workingDays});
   @override
   State<_PayrollBlock> createState() => _PayrollBlockState();
 }
@@ -2714,7 +2725,15 @@ class _PayrollBlockState extends State<_PayrollBlock> {
         .toList();
     final advTotal =
         monthAdvances.fold(0.0, (s, a) => s + ((a['amount'] as num?)?.toDouble() ?? 0));
-    final balance = salary - advTotal;
+    // Earned pay is pro-rated by attendance: (salary ÷ working days) ×
+    // days worked (half day = 0.5). Balance owed = earned − advances.
+    final earned = widget.workingDays > 0
+        ? salary / widget.workingDays * widget.daysWorked
+        : salary;
+    final balance = earned - advTotal;
+    final daysLabel = widget.daysWorked % 1 == 0
+        ? widget.daysWorked.toStringAsFixed(0)
+        : widget.daysWorked.toStringAsFixed(1);
 
     String fmtAmt(double v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
 
@@ -2745,16 +2764,24 @@ class _PayrollBlockState extends State<_PayrollBlock> {
                 const Text('SALARY ✏️',
                     style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
                 Text(salary > 0 ? '$sym${fmtAmt(salary)}' : 'Set',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kText)),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kText)),
               ]),
             ),
           ),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('ADVANCE (MONTH)',
+              Text('EARNED (${daysLabel}d/${widget.workingDays})',
+                  style: const TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
+              Text(salary > 0 ? '$sym${fmtAmt(earned)}' : '—',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kText)),
+            ]),
+          ),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('ADVANCE',
                   style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
               Text('$sym${fmtAmt(advTotal)}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kRed)),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kRed)),
             ]),
           ),
           Expanded(
@@ -2763,7 +2790,7 @@ class _PayrollBlockState extends State<_PayrollBlock> {
                   style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
               Text(salary > 0 ? '$sym${fmtAmt(balance)}' : '—',
                   style: TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 14,
+                      fontWeight: FontWeight.w800, fontSize: 13,
                       color: balance >= 0 ? kSecondary : kRed)),
             ]),
           ),
