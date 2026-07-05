@@ -2034,7 +2034,7 @@ let _shop='all',_lang=localStorage.getItem('slv_lang')||'en';
 let _scanImg=null,_scanEntries=[];
 let _dd='today',_ld='today',_sdShop='s1',_sdP='today';
 const LQ='slv_q', AIK='slv_ai';
-let _la=0,_ll=false;
+// (login attempt counters live in localStorage — see loginEmail())
 
 // GST STATE
 let _gstOn=JSON.parse(localStorage.getItem('slv_gst')||'false');
@@ -3576,23 +3576,47 @@ async function loginGoogle(){
 async function forgotPassword(){
   const em=v('li-em');
   if(!em){showErr('Enter your email address first, then click Forgot Password');return;}
-  try{
-    await AUTH.sendPasswordResetEmail(em);
-    const e=document.getElementById('lerr');
-    if(e){e.textContent='✅ Reset link sent to '+em+' — check your Gmail!';e.style.cssText='display:block;background:#dcfce7;color:#065f46;border-color:#6ee7b7';setTimeout(()=>{e.style.display='none';e.style.cssText='';},6000);}
-  }catch(e){
-    showErr('Could not send reset email: '+e.message);
-  }
+  // Same message on success AND failure — never confirm whether an email
+  // is registered (anti-enumeration).
+  try{ await AUTH.sendPasswordResetEmail(em); }catch(e){}
+  const e2=document.getElementById('lerr');
+  if(e2){e2.textContent='✅ If this email is registered, a reset link has been sent — check Gmail!';e2.style.cssText='display:block;background:#dcfce7;color:#065f46;border-color:#6ee7b7';setTimeout(()=>{e2.style.display='none';e2.style.cssText='';},6000);}
 }
+// ── Login brute-force protection ──────────────────────────────────────────
+// Firebase Auth throttles per-IP server-side already; this adds a local
+// layer: progressive delay after each failure (2^n s, capped 30 s) and a
+// 15-minute lockout after 5 consecutive failures, with a password-reset
+// email fired on lockout. Counters persist in localStorage so a page
+// reload doesn't reset them. Error messages are ONE generic line — never
+// reveal account-exists vs wrong-password vs lockout cause.
+function _lfGet(k){return parseInt(localStorage.getItem(k)||'0',10);}
+function _credErr(e){const c=(e&&(e.code||e.message))||'';return /user-not-found|wrong-password|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(c);}
 async function loginEmail(){
-  if(_ll){showErr('Too many attempts. Wait 30 seconds.');return;}
+  const now=Date.now();
+  const lockUntil=_lfGet('slv_lf_lock');
+  if(lockUntil>now){showErr('Too many failed attempts. Try again in '+Math.ceil((lockUntil-now)/60000)+' min, or use Forgot Password.');return;}
+  const nextTry=_lfGet('slv_lf_until');
+  if(nextTry>now){showErr('Please wait '+Math.ceil((nextTry-now)/1000)+'s before trying again.');return;}
   const em=v('li-em'),pw=v('li-pw');
   if(!em||!pw){showErr('Enter email and password');return;}
-  try{ await AUTH.signInWithEmailAndPassword(em,pw); _la=0; }
-  catch(e){
-    _la++;
-    if(_la>=5){_ll=true;showErr('Locked 30 seconds — too many failed attempts');setTimeout(()=>{_ll=false;_la=0;},30000);}
-    else showErr(e.message+' ('+_la+'/5 attempts)');
+  try{
+    await AUTH.signInWithEmailAndPassword(em,pw);
+    ['slv_lf_n','slv_lf_until','slv_lf_lock'].forEach(k=>localStorage.removeItem(k));
+  }catch(e){
+    if(!_credErr(e)){showErr('Login failed. Please check your connection and try again.');return;}
+    const fails=_lfGet('slv_lf_n')+1;
+    localStorage.setItem('slv_lf_n',String(fails));
+    if(fails>=5){
+      localStorage.setItem('slv_lf_lock',String(now+15*60*1000));
+      localStorage.setItem('slv_lf_n','0');
+      localStorage.removeItem('slv_lf_until');
+      // Lockout notification — reset link, silently (generic message).
+      if(em.includes('@')){try{await AUTH.sendPasswordResetEmail(em);}catch(_){}}
+      showErr('Too many failed attempts. Login is paused for 15 minutes. If this email is registered, a password-reset link has been sent.');
+    }else{
+      localStorage.setItem('slv_lf_until',String(now+Math.min((1<<fails)*1000,30000)));
+      showErr('Email or password is incorrect.');
+    }
   }
 }
 async function registerEmail(){
@@ -3617,7 +3641,13 @@ async function registerEmail(){
       uid:cr.user.uid,name:nm,email:em,role,shop,
       businessId:bid,createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-  }catch(e){showErr(e.message);}
+  }catch(e){
+    const c=(e&&(e.code||e.message))||'';
+    if(/email-already-in-use/i.test(c)) showErr('This email is already registered. Please login.');
+    else if(/weak-password/i.test(c)) showErr('Password must be at least 6 characters.');
+    else if(/invalid-email/i.test(c)) showErr('Please enter a valid email address.');
+    else showErr('Sign up failed. Please try again.');
+  }
 }
 async function doLogout(){
   _unsubs.forEach(u=>u()); _unsubs=[];

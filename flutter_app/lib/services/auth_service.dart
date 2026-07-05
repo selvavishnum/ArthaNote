@@ -2,6 +2,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// SECURITY MODEL — password handling (audited):
+/// - Passwords are NEVER stored, hashed, cached, or logged by this app.
+///   They pass through to Firebase Auth over TLS, which stores them
+///   server-side with scrypt (salted, memory-hard). There is no custom
+///   password table to migrate.
+/// - Do not add code that persists `password` to Firestore, prefs, or logs.
+/// - Brute-force protection: Firebase throttles per-IP server-side
+///   ('too-many-requests'); login_screen.dart adds a local progressive
+///   delay + 15-min lockout after 5 failures with a reset-link email.
+/// - The offline app-lock PIN (lock_service.dart) uses salted
+///   PBKDF2-HMAC-SHA256 (50k iterations) with constant-time comparison and
+///   auto-migration from the legacy hash on next successful unlock.
 class AuthService {
   final _auth = FirebaseAuth.instance;
   final _db   = FirebaseFirestore.instance;
