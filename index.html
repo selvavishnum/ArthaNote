@@ -5828,11 +5828,17 @@ async function addEntry(){
 // LEDGER TABLE
 // ════════════════════════════════════════
 function _txTypeLbl(type){ return _bizType==='personal'?(type==='sales'?'Received':type==='expense'?'Paid':'Payment'):(type==='sales'?'Sales':type==='expense'?'Expense':'Payment'); }
-// AI missing-entry — single-line suggestion on the Ledger page (tap to expand)
+// AI missing-entry — single-line suggestion on the Ledger page (tap to expand).
+// Pro feature, owner/manager only — never shown to cashier staff. Scoped to
+// the shop the CURRENT USER can actually see: a cashier locked to one shop
+// must never have another shop's missing-entry names surface here, even
+// though the shop-chip variable (_shop) defaults to 'all' for them.
 function renderLedgerMissing(){
   const el=document.getElementById('led-missing'); if(!el) return;
+  if(!isProUser()||ME.role==='cashier'){ el.innerHTML=''; return; }
+  const effShop=(ME.role!=='owner'&&ME.shop!=='all')?ME.shop:_shop;
   let missing=[];
-  try{ learnDailyPatterns(); missing=checkMissingEntries(_shop); }catch(e){}
+  try{ learnDailyPatterns(); missing=checkMissingEntries(effShop); }catch(e){}
   if(!missing.length){ el.innerHTML=''; return; }
   const rows=missing.slice(0,10).map(m=>`
     <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
