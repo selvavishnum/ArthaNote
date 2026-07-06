@@ -907,7 +907,7 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
           <li>Reports (last 30 days)</li>
           <li>Supplier management</li>
           <li>Staff & attendance</li>
-          <li>Finance module (30-day trial)</li>
+          <li>Finance module (90-day trial)</li>
           <li class="no">Multiple shops</li>
           <li class="no">Full report history</li>
           <li class="no">OCR scan</li>
@@ -918,7 +918,7 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
       <div class="lp-plan pro">
         <div class="lp-plan-badge">Most Popular</div>
         <div class="lp-plan-name">Pro</div>
-        <div class="lp-plan-price">₹99 <span>/month</span></div>
+        <div class="lp-plan-price">₹199 <span>/month</span></div>
         <div class="lp-plan-desc">For growing businesses</div>
         <ul class="lp-plan-features">
           <li>Unlimited shops</li>
@@ -1075,8 +1075,8 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
     <button class="tmenu" onclick="openM('menu-modal')">&#9776;</button>
   </div>
 
-  <!-- SHOP STRIP (hidden — Serif Ledger design filters by tapping a shop) -->
-  <div class="sstrip" id="shop-strip" style="display:none"></div>
+  <!-- SHOP STRIP — top-nav shop chips, restored per owner request -->
+  <div class="sstrip" id="shop-strip"></div>
 
   <!-- SYNC BAR -->
   <div class="syncbar" id="syncbar">
@@ -1503,7 +1503,7 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
     <div style="font-size:20px;font-weight:800;color:#065f46;margin-bottom:4px">Upgrade to Pro</div>
     <div style="font-size:13px;color:#6b7280;margin-bottom:20px" id="pw-reason">Unlock all features</div>
     <div style="background:#f0fdf4;border-radius:16px;padding:20px;margin-bottom:20px;text-align:left">
-      <div style="font-size:24px;font-weight:800;color:#065f46;margin-bottom:4px">₹99 <span style="font-size:13px;font-weight:500;color:#6b7280">/month</span></div>
+      <div style="font-size:24px;font-weight:800;color:#065f46;margin-bottom:4px">₹199 <span style="font-size:13px;font-weight:500;color:#6b7280">/month</span></div>
       <div style="font-size:12px;color:#6b7280;margin-bottom:14px">No auto-renewal · Pay when you need</div>
       <ul style="list-style:none;padding:0;margin:0">
         <li style="font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center"><span style="color:#059669;font-weight:800">✓</span> Unlimited shops</li>
@@ -1513,7 +1513,7 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
         <li style="font-size:13px;padding:5px 0;display:flex;gap:8px;align-items:center"><span style="color:#059669;font-weight:800">✓</span> Finance & Chit Fund (continued)</li>
       </ul>
     </div>
-    <button onclick="startProPayment()" style="width:100%;background:#d97706;color:#fff;border:none;padding:14px;border-radius:20px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px">Pay ₹99 via Razorpay →</button>
+    <button onclick="startProPayment()" style="width:100%;background:#d97706;color:#fff;border:none;padding:14px;border-radius:20px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px">Pay ₹199 via Razorpay →</button>
     <button onclick="closeM('paywall-modal')" style="width:100%;background:transparent;border:1.5px solid #e5e7eb;padding:10px;border-radius:20px;font-size:13px;cursor:pointer;color:#6b7280">Maybe Later</button>
   </div>
 </div>
@@ -2656,7 +2656,7 @@ function obNext1(){
       }catch(e){console.warn('save err:',e);}
       document.getElementById('onboard-screen').classList.remove('on');
       document.getElementById('app').style.display='block';
-      buildUI(); buildShopStrip(); applyBizTypeUI(); renderDash(); loadFinanceData();
+      buildUI(); applyBizTypeUI(); renderDash(); loadFinanceData();
       toast('🎉 Welcome! Add members in the 💰 Finance tab.');
       setTimeout(()=>{const nf=document.getElementById('nav-finance');if(nf)goPane('finance',nf);},600);
     };
@@ -2753,7 +2753,7 @@ async function finishOnboard(){
   // Hide onboarding, show app
   document.getElementById('onboard-screen').classList.remove('on');
   document.getElementById('app').style.display='block';
-  buildShopStrip(); renderDash(); applyBizTypeUI();
+  buildUI(); renderDash(); applyBizTypeUI();
   toast('🎉 Welcome to ArthaNote!');
 }
 
@@ -3777,7 +3777,7 @@ async function _finishAppSetup(user){
   const psb=document.getElementById('pro-status-bar');
   if(psb){
     if(ME.pro){ const d=new Date(ME.proExpiry); psb.innerHTML=`<div style="background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;font-weight:700">⭐ Pro · expires ${d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>`; }
-    else { psb.innerHTML=`<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center"><span style="color:#92400e">Free Plan</span><button onclick="closeM('menu-modal');openPaywall('Unlock Pro features for ₹99/month.')" style="background:#d97706;color:#fff;border:none;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer">Upgrade ⭐</button></div>`; }
+    else { psb.innerHTML=`<div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center"><span style="color:#92400e">Free Plan</span><button onclick="closeM('menu-modal');openPaywall('Unlock Pro features for ₹199/month.')" style="background:#d97706;color:#fff;border:none;padding:4px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer">Upgrade ⭐</button></div>`; }
   }
   document.getElementById('owner-only').style.display=ME.role==='owner'?'block':'none';
   document.getElementById('nav-scan').style.display=ME.role==='cashier'?'none':'flex';
@@ -4123,6 +4123,7 @@ function buildUI(){
 
   // Shop strip
   const strip=document.getElementById('shop-strip');
+  strip.style.display='flex';
   strip.innerHTML='';
   if(isO||us==='all') strip.innerHTML+=`<div class="schip all on" onclick="setShop('all',this)">🏠 All</div>`;
   se.forEach(([k,vv])=>strip.innerHTML+=`<div class="schip ${k}" onclick="setShop('${k}',this)">${vv.icon} ${vv.name}</div>`);
@@ -4269,7 +4270,7 @@ async function doDeleteShop(key, btn){
     delete CATS[key];
     localStorage.setItem('slv_shops',JSON.stringify(SHOPS));
     await persistCats();
-    buildUI(); buildShopStrip(); applyBizTypeUI(); renderDash();
+    buildUI(); applyBizTypeUI(); renderDash();
     toast('🗑️ '+name+' deleted!');
   }catch(e){
     toast('Error: '+e.message,'bad');
@@ -7626,10 +7627,10 @@ function renderNewUserTip(){
     html+=`<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
       <div style="font-size:28px;flex-shrink:0">⭐</div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:2px">Upgrade to Pro — ₹99/month</div>
+        <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:2px">Upgrade to Pro — ₹199/month</div>
         <div style="font-size:11px;color:#78350f;line-height:1.5">Unlimited shops · Full report history · CSV export · Finance & Chit Fund</div>
       </div>
-      <button onclick="openPaywall('Unlock Pro features for ₹99/month.')" style="background:#d97706;color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(217,119,6,.35)">Upgrade →</button>
+      <button onclick="openPaywall('Unlock Pro features for ₹199/month.')" style="background:#d97706;color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;box-shadow:0 2px 8px rgba(217,119,6,.35)">Upgrade →</button>
     </div>`;
   }
 
