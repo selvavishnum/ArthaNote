@@ -2706,6 +2706,33 @@ class _PayrollBlockState extends State<_PayrollBlock> {
     await _save();
   }
 
+  /// Records the salary settlement handed to the staff (e.g. paying the
+  /// remaining ₹3,500 balance after a ₹4,000 advance on a ₹7,500 salary).
+  /// Dialog defaults to the current unpaid balance so a full settlement is
+  /// one tap; the amount can still be edited for a partial payout.
+  Future<void> _paySalary(double balance) async {
+    final v = await _askAmount('Pay Salary — ${widget.staffName}',
+        initial: balance > 0 ? balance : 0);
+    if (v == null || v <= 0) return;
+    final payments =
+        List<Map<String, dynamic>>.from((_entry['payments'] as List?) ?? []);
+    payments.add({
+      'amount': v,
+      'date': DateTime.now().toIso8601String().split('T')[0],
+    });
+    _entry['payments'] = payments;
+    await _save();
+  }
+
+  Future<void> _removePayment(Map<String, dynamic> pmt) async {
+    final payments =
+        List<Map<String, dynamic>>.from((_entry['payments'] as List?) ?? []);
+    payments.removeWhere(
+        (p) => p['date'] == pmt['date'] && p['amount'] == pmt['amount']);
+    _entry['payments'] = payments;
+    await _save();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -2725,12 +2752,20 @@ class _PayrollBlockState extends State<_PayrollBlock> {
         .toList();
     final advTotal =
         monthAdvances.fold(0.0, (s, a) => s + ((a['amount'] as num?)?.toDouble() ?? 0));
+    final payments =
+        List<Map<String, dynamic>>.from((_entry['payments'] as List?) ?? []);
+    final monthPayments = payments
+        .where((pm) => (pm['date'] as String? ?? '').startsWith(widget.monthStr))
+        .toList();
+    final paidTotal = monthPayments
+        .fold(0.0, (s, pm) => s + ((pm['amount'] as num?)?.toDouble() ?? 0));
     // Earned pay is pro-rated by attendance: (salary ÷ working days) ×
-    // days worked (half day = 0.5). Balance owed = earned − advances.
+    // days worked (half day = 0.5). Balance owed = earned − advances − what
+    // was already handed over this month (recorded via "Pay Salary").
     final earned = widget.workingDays > 0
         ? salary / widget.workingDays * widget.daysWorked
         : salary;
-    final balance = earned - advTotal;
+    final balance = earned - advTotal - paidTotal;
     final daysLabel = widget.daysWorked % 1 == 0
         ? widget.daysWorked.toStringAsFixed(0)
         : widget.daysWorked.toStringAsFixed(1);
@@ -2752,7 +2787,15 @@ class _PayrollBlockState extends State<_PayrollBlock> {
           GestureDetector(
             onTap: _addAdvance,
             child: const Text('+ Advance',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kSecondary)),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kRed)),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: salary > 0 ? () => _paySalary(balance) : null,
+            child: Text('💵 Pay Salary',
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: salary > 0 ? kSecondary : kMuted)),
           ),
         ]),
         const SizedBox(height: 8),
@@ -2776,6 +2819,9 @@ class _PayrollBlockState extends State<_PayrollBlock> {
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kText)),
             ]),
           ),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('ADVANCE',
@@ -2786,40 +2832,79 @@ class _PayrollBlockState extends State<_PayrollBlock> {
           ),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('PAID',
+                  style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
+              Text('$sym${fmtAmt(paidTotal)}',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kSecondary)),
+            ]),
+          ),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('BALANCE',
                   style: TextStyle(color: kMuted, fontSize: 9, fontWeight: FontWeight.w700)),
-              Text(salary > 0 ? '$sym${fmtAmt(balance)}' : '—',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 13,
-                      color: balance >= 0 ? kSecondary : kRed)),
+              Row(children: [
+                Text(salary > 0 ? '$sym${fmtAmt(balance)}' : '—',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 13,
+                        color: balance > 0.01
+                            ? kRed
+                            : (balance < -0.01 ? kSecondary : kMuted))),
+                if (salary > 0 && balance.abs() < 0.01) ...[
+                  const SizedBox(width: 4),
+                  const Text('✓ settled', style: TextStyle(fontSize: 9, color: kSecondary, fontWeight: FontWeight.w700)),
+                ],
+              ]),
             ]),
           ),
         ]),
-        if (monthAdvances.isNotEmpty) ...[
+        if (monthAdvances.isNotEmpty || monthPayments.isNotEmpty) ...[
           const SizedBox(height: 8),
           Wrap(
             spacing: 6, runSpacing: 4,
-            children: monthAdvances.map((a) {
-              final d = (a['date'] as String? ?? '').split('-').last;
-              final amt = ((a['amount'] as num?)?.toDouble() ?? 0);
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: kRed.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: kRed.withOpacity(0.25)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text('$d: $sym${fmtAmt(amt)}',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kRed)),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => _removeAdvance(a),
-                    child: const Icon(Icons.close, size: 12, color: kRed),
+            children: [
+              ...monthAdvances.map((a) {
+                final d = (a['date'] as String? ?? '').split('-').last;
+                final amt = ((a['amount'] as num?)?.toDouble() ?? 0);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: kRed.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kRed.withOpacity(0.25)),
                   ),
-                ]),
-              );
-            }).toList(),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('Advance $d: $sym${fmtAmt(amt)}',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kRed)),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => _removeAdvance(a),
+                      child: const Icon(Icons.close, size: 12, color: kRed),
+                    ),
+                  ]),
+                );
+              }),
+              ...monthPayments.map((pm) {
+                final d = (pm['date'] as String? ?? '').split('-').last;
+                final amt = ((pm['amount'] as num?)?.toDouble() ?? 0);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: kSecondary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kSecondary.withOpacity(0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('Paid $d: $sym${fmtAmt(amt)}',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kSecondary)),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => _removePayment(pm),
+                      child: const Icon(Icons.close, size: 12, color: kSecondary),
+                    ),
+                  ]),
+                );
+              }),
+            ],
           ),
         ],
       ]),
