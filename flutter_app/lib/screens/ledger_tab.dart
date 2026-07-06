@@ -477,13 +477,24 @@ class _LedgerTabState extends State<LedgerTab> {
     final l = p.lang;
 
     final all  = p.txns;
+    // Missing-entry and duplicate detection scope to the shop actually being
+    // viewed — a staff member locked to one shop (or an owner who picked a
+    // single shop chip) must never see another shop's entries surface here.
+    // "All shops" (selectedShop empty) keeps the business-wide scan.
+    final scoped = p.selectedShop.isEmpty
+        ? all
+        : all.where((tx) => tx.shop == p.selectedShop).toList();
+    // Insights are for the owner/manager, not day-to-day cashier staff.
+    final showInsights = p.isAdmin || !p.isCashier;
     // Cheap digest: only re-run the O(n²) scan when list size or boundary IDs change.
-    final digest = '${all.length}/${all.isEmpty ? "" : all.first.id}/${all.length > 1 ? all.last.id : ""}';
-    if (digest != _lastDupDigest) {
+    final digest = '${p.selectedShop}/${scoped.length}/'
+        '${scoped.isEmpty ? "" : scoped.first.id}/'
+        '${scoped.length > 1 ? scoped.last.id : ""}';
+    if (showInsights && digest != _lastDupDigest) {
       _lastDupDigest = digest;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final result = _findDuplicates(all, p.currency.symbol);
+        final result = _findDuplicates(scoped, p.currency.symbol);
         if (result.warnings.toString() != _duplicateWarnings.toString() ||
             result.ids.length != _duplicateIds.length) {
           setState(() {
@@ -517,6 +528,7 @@ class _LedgerTabState extends State<LedgerTab> {
     // widgets so the WHOLE header scrolls away with the entries, giving the
     // ledger maximum room (nothing stays pinned).
     final Widget? dupBanner = (p.canUseDuplicateAlert &&
+            showInsights &&
             _duplicateWarnings.isNotEmpty &&
             !_dupBannerDismissed)
         ? Container(
@@ -578,15 +590,17 @@ class _LedgerTabState extends State<LedgerTab> {
       ),
     );
 
-    // AI missing-entry suggestion (Pro/trial) — single line above the search
-    // bar. Memoized: recompute only when the txn list or the day changes.
+    // AI missing-entry suggestion (Pro/trial, owner/manager only) — single
+    // line above the search bar. Memoized: recompute only when the
+    // shop-scoped txn list or the day changes.
     List<Map<String, dynamic>> missingToday = const [];
-    if (p.canUseAiAlerts) {
-      final mDigest =
-          '${all.length}/${all.isEmpty ? "" : all.first.id}/${all.length > 1 ? all.last.id : ""}/${_dayKey(DateTime.now())}';
+    if (p.canUseAiAlerts && showInsights) {
+      final mDigest = '${p.selectedShop}/${scoped.length}/'
+          '${scoped.isEmpty ? "" : scoped.first.id}/'
+          '${scoped.length > 1 ? scoped.last.id : ""}/${_dayKey(DateTime.now())}';
       if (mDigest != _missingDigest) {
         _missingDigest = mDigest;
-        _missingCache  = _detectMissingToday(all);
+        _missingCache  = _detectMissingToday(scoped);
       }
       missingToday = _missingCache;
     }
