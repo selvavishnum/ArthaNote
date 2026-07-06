@@ -459,27 +459,38 @@ function _renderActions(name){
   const hasRest=!!_todayAtt.find(a=>a.staffName===name&&a.type==='rest');
   const hasBack=!!_todayAtt.find(a=>a.staffName===name&&a.type==='back');
   const hasOut =!!_todayAtt.find(a=>a.staffName===name&&a.type==='out');
+  const hasHalf=!!_todayAtt.find(a=>a.staffName===name&&a.type==='half');
 
-  if(hasOut){area.innerHTML='';return;}
+  // Half Day closes the day, same as OUT — no further action once marked.
+  if(hasOut||hasHalf){area.innerHTML='';return;}
 
   const btn=(label,type,bg)=>`<button class="submit-btn" style="${bg?'background:'+bg:''}" onclick="go('${type}')">${label}</button>`;
+  const halfBtn=btn('🌗 Half Day','half','linear-gradient(135deg,#92400e,#b45309)');
 
   if(!hasIn){
-    area.innerHTML=btn('✅ Mark IN','in');
-  } else if(!hasRest){
-    // IN done: show Take Break + Mark OUT side by side
     area.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      ${btn('☕ Take Break','rest','linear-gradient(135deg,#d97706,#f59e0b)')}
-      ${btn('🏁 Mark OUT','out')}
+      ${btn('✅ Mark IN','in')}
+      ${halfBtn}
+    </div>`;
+  } else if(!hasRest){
+    // IN done: Take Break + Half Day + Mark OUT
+    area.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      ${btn('☕ Break','rest','linear-gradient(135deg,#d97706,#f59e0b)')}
+      ${halfBtn}
+      ${btn('🏁 OUT','out')}
     </div>`;
   } else if(!hasBack){
-    // On rest: show Back to Work + Mark OUT side by side
-    area.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      ${btn('✅ Back to Work','back','linear-gradient(135deg,#0d9488,#14b8a6)')}
-      ${btn('🏁 Mark OUT','out')}
+    // On rest: Back to Work + Half Day + Mark OUT
+    area.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      ${btn('✅ Back','back','linear-gradient(135deg,#0d9488,#14b8a6)')}
+      ${halfBtn}
+      ${btn('🏁 OUT','out')}
     </div>`;
   } else {
-    area.innerHTML=btn('🏁 Mark OUT','out');
+    area.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${halfBtn}
+      ${btn('🏁 Mark OUT','out')}
+    </div>`;
   }
 }
 
@@ -489,9 +500,9 @@ async function go(type){
   document.querySelectorAll('#action-area button').forEach(b=>{b.disabled=true;b.style.opacity='.6';});
   const errArea=document.getElementById('err-area');
 
-  const existingOut=_todayAtt.find(a=>a.staffName===_sel&&a.type==='out');
+  const existingOut=_todayAtt.find(a=>a.staffName===_sel&&(a.type==='out'||a.type==='half'));
   if(existingOut){
-    showErrInline('நீங்கள் இன்னைக்கு OUT போட்டீங்க! 🏁');
+    showErrInline('நீங்கள் இன்னைக்கு attendance முடிச்சாச்சு! 🏁');
     _renderActions(_sel); return;
   }
 
@@ -512,7 +523,8 @@ async function go(type){
       in:  {label:'வருகை (IN)',   emoji:'✅', color:'#065f46', next:'மாலையில் logout செய்ய மீண்டும் scan பண்ணுங்க 👋'},
       rest:{label:'Rest Break ☕', emoji:'☕', color:'#d97706', next:'Rest முடிந்ததும் "Back to Work" scan பண்ணுங்க'},
       back:{label:'Back to Work ✅',emoji:'✅',color:'#0d9488', next:'மாலையில் OUT mark பண்ண மீண்டும் scan பண்ணுங்க'},
-      out: {label:'விடுதல் (OUT)', emoji:'🏁', color:'#d97706', next:'நாளைக்கு பார்க்கலாம்! 😊'}
+      out: {label:'விடுதல் (OUT)', emoji:'🏁', color:'#d97706', next:'நாளைக்கு பார்க்கலாம்! 😊'},
+      half:{label:'Half Day 🌗',    emoji:'🌗', color:'#92400e', next:'இன்னைக்கு Half Day-ஆ பதிவு ஆச்சு. நாளைக்கு பார்க்கலாம்! 😊'}
     }[type];
 
     // Store for screenshot generation
@@ -555,7 +567,7 @@ async function managerMark(){
   const existingIn=_todayAtt.find(a=>a.staffName===mgr.name&&(a.type==='in'||!a.type));
   const existingRest=_todayAtt.find(a=>a.staffName===mgr.name&&a.type==='rest');
   const existingBack=_todayAtt.find(a=>a.staffName===mgr.name&&a.type==='back');
-  const existingOut=_todayAtt.find(a=>a.staffName===mgr.name&&a.type==='out');
+  const existingOut=_todayAtt.find(a=>a.staffName===mgr.name&&(a.type==='out'||a.type==='half'));
   if(existingOut){msgEl.textContent='🏁 Already completed today!';return;}
 
   let type;

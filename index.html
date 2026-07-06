@@ -423,7 +423,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);ba
 .att-rate-bar{height:6px;background:#e5e7eb;border-radius:6px;margin:6px 0 8px;overflow:hidden}
 .att-rate-fill{height:100%;border-radius:6px;background:#ef4444;transition:width .5s}
 .att-rate-fill.good{background:#059669}
-.att-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:1px solid var(--border);padding-top:8px}
+.att-stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;border-top:1px solid var(--border);padding-top:8px}
+.att-day-chip.half{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+.payroll-box{background:#fdfbf5;border:1px solid #ede4ce;border-radius:10px;padding:10px;margin-top:10px}
+.payroll-box .pr-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.payroll-box .pr-title{font-weight:800;font-size:12px;color:var(--gold)}
+.payroll-box .pr-actions{display:flex;gap:10px}
+.payroll-box .pr-action{font-size:11px;font-weight:700;cursor:pointer;background:none;border:none;padding:0}
+.payroll-box .pr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.payroll-box .pr-grid2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.payroll-box .pr-lbl{font-size:9px;font-weight:700;color:var(--muted)}
+.payroll-box .pr-val{font-weight:800;font-size:13px;margin-top:2px}
+.payroll-box .pr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.payroll-box .pr-chip{padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.payroll-box .pr-chip.adv{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.25);color:#ef4444}
+.payroll-box .pr-chip.paid{background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.3);color:#059669}
+.payroll-box .pr-chip .x{cursor:pointer;margin-left:2px}
 .att-stat{text-align:center;padding:4px 0}
 .att-stat:not(:last-child){border-right:1px solid var(--border)}
 .att-stat-val{font-size:18px;font-weight:800}
@@ -1540,6 +1555,18 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
     <!-- ── Pro / Free status bar ── -->
     <div id="pro-status-bar"></div>
 
+    <!-- ── Promo Code Redemption ── -->
+    <div style="padding:10px 0 4px">
+      <div class="stitle">🎟️ Redeem Promo Code</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="promo-code-inp" placeholder="e.g. FOUNDER100"
+          style="flex:1;text-transform:uppercase;font-family:var(--mono);font-size:13px"
+          oninput="this.value=this.value.toUpperCase()">
+        <button class="btn G sm" style="margin:0;flex-shrink:0;padding:0 16px" onclick="redeemPromoCode()">Redeem</button>
+      </div>
+      <div id="promo-status-msg" style="font-size:11px;margin-top:6px;min-height:14px"></div>
+    </div>
+
     <!-- ── OCR API Keys (admin-only, hidden by default) ── -->
     <div id="ocr-settings-section" style="display:none">
       <div style="padding:10px 0 4px">
@@ -1912,11 +1939,31 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
       <select id="st-role">
         <option value="manager">&#128084; Manager &mdash; Scan + Entry + Edit</option>
         <option value="cashier">&#128181; Cashier &mdash; Manual Entry Only</option>
+        <option value="worker">&#128119; Worker &mdash; Attendance Only</option>
       </select>
     </div></div>
     <div class="fr full"><div class="fg"><label>Shop Access</label><select id="st-shop"></select></div></div>
     <div class="alert info" style="font-size:11px">Staff creates account at your app URL and enters the Business Code above to join.</div>
     <button class="btn G" onclick="addStaff()">+ Add Staff Member</button>
+  </div>
+</div>
+
+<!-- EDIT STAFF MODAL — email is locked (it's the Gmail auto-link key) -->
+<div class="mover center-modal" id="edit-staff-modal">
+  <div class="modal">
+    <div class="mhd">Edit Staff <button class="mclose" onclick="closeM('edit-staff-modal')">&#10005;</button></div>
+    <input type="hidden" id="es2-docid">
+    <div class="fr full"><div class="fg"><label>Full Name</label><input type="text" id="es2-name"></div></div>
+    <div class="fr full"><div class="fg"><label>Email (Gmail)</label><input type="email" id="es2-email" disabled style="background:var(--soft);color:var(--muted)"></div></div>
+    <div class="fr full"><div class="fg"><label>Role</label>
+      <select id="es2-role">
+        <option value="manager">&#128084; Manager &mdash; Scan + Entry + Edit</option>
+        <option value="cashier">&#128181; Cashier &mdash; Manual Entry Only</option>
+        <option value="worker">&#128119; Worker &mdash; Attendance Only</option>
+      </select>
+    </div></div>
+    <div class="fr full"><div class="fg"><label>Shop Access</label><select id="es2-shop"></select></div></div>
+    <button class="btn G" onclick="saveStaffEdit()">&#10003; Save Changes</button>
   </div>
 </div>
 
@@ -2359,23 +2406,37 @@ async function loadAttSummary(){
     let workingDays=0;
     for(let d=new Date(startDate+'T00:00');d<=new Date(lastDay+'T00:00');d.setDate(d.getDate()+1)) workingDays++;
 
-    // Group by staffName
+    // Owner-only: Payroll lives on this same card, read once for all staff.
+    let payrollMap={};
+    if(ME.role==='owner'){
+      try{
+        const cfgDoc=await DB.collection('config').doc(BID).get();
+        payrollMap=(cfgDoc.exists&&cfgDoc.data().payroll)||{};
+      }catch(e){}
+    }
+
+    // Group by staffName — a date with a 'half' record is a half day even
+    // if a full in/out was also punched that day (half closes the day).
     const staffMap={};
     records.forEach(r=>{
       const n=r.staffName||'Unknown';
-      if(!staffMap[n]) staffMap[n]={dates:new Set(),times:[]};
+      if(!staffMap[n]) staffMap[n]={dates:new Set(),halfDates:new Set(),times:[]};
       staffMap[n].dates.add(r.date);
+      if(r.type==='half') staffMap[n].halfDates.add(r.date);
       if(r.time) staffMap[n].times.push(r.time);
     });
 
     const html=Object.entries(staffMap).sort((a,b)=>b[1].dates.size-a[1].dates.size).map(([name,data])=>{
-      const present=data.dates.size;
-      const absent=Math.max(0,workingDays-present);
-      const rate=workingDays>0?Math.round((present/workingDays)*100):0;
+      const halfDates=[...data.halfDates].sort();
+      const fullDates=[...data.dates].filter(d=>!data.halfDates.has(d)).sort();
+      const present=fullDates.length;
+      const halfDays=halfDates.length;
+      const absent=Math.max(0,workingDays-present-halfDays);
+      const rate=workingDays>0?Math.round(((present+halfDays*0.5)/workingDays)*100):0;
       const rateClass=rate>=75?'good':'';
       const letter=name[0].toUpperCase();
-      const sortedDates=[...data.dates].sort();
-      const dayChips=sortedDates.map(d=>`<span class="att-day-chip">${parseInt(d.split('-')[2])}</span>`).join('');
+      const dayChips=fullDates.map(d=>`<span class="att-day-chip">${parseInt(d.split('-')[2])}</span>`).join('')
+        +halfDates.map(d=>`<span class="att-day-chip half">${parseInt(d.split('-')[2])} ½</span>`).join('');
       return `<div class="att-staff-card">
         <div class="att-staff-hd">
           <div class="att-staff-av">${letter}</div>
@@ -2395,10 +2456,12 @@ async function loadAttSummary(){
         <div class="att-rate-bar"><div class="att-rate-fill ${rateClass}" style="width:${rate}%"></div></div>
         <div class="att-stats">
           <div class="att-stat"><div class="att-stat-val green">${present}</div><div class="att-stat-lbl">Present</div></div>
+          <div class="att-stat"><div class="att-stat-val amber">${halfDays}</div><div class="att-stat-lbl">Half Day</div></div>
           <div class="att-stat"><div class="att-stat-val red">${absent}</div><div class="att-stat-lbl">Absent</div></div>
           <div class="att-stat"><div class="att-stat-val amber">—</div><div class="att-stat-lbl">Avg Hrs</div></div>
         </div>
-        ${dayChips?`<div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:8px;margin-bottom:4px">வந்த நாட்கள்</div><div class="att-day-chips">${dayChips}</div>`:''}
+        ${dayChips?`<div style="font-size:10px;color:var(--muted);font-weight:700;margin-top:8px;margin-bottom:4px">வந்த நாட்கள் (½ = half day)</div><div class="att-day-chips">${dayChips}</div>`:''}
+        ${renderPayrollBox(name,monthVal,present+halfDays*0.5,workingDays,payrollMap[name])}
       </div>`;
     }).join('');
 
@@ -2406,6 +2469,107 @@ async function loadAttSummary(){
   }catch(e){
     body.innerHTML=`<div class="empty">Error loading: ${String(e.message||e).replace(/</g,'&lt;')}</div>`;
   }
+}
+
+// ── Payroll (owner-only): salary, advances, and the "Pay Salary"
+// settlement action — persisted at config/{businessId}.payroll[staffName].
+function renderPayrollBox(name,monthVal,daysWorked,workingDays,entry){
+  if(ME.role!=='owner') return '';
+  entry=entry||{};
+  const fmt=v=>{v=Number(v)||0; return v%1===0?v.toFixed(0):v.toFixed(2);};
+  const salary=Number(entry.salary)||0;
+  const advances=(entry.advances||[]).filter(a=>(a.date||'').startsWith(monthVal));
+  const payments=(entry.payments||[]).filter(p=>(p.date||'').startsWith(monthVal));
+  const advTotal=advances.reduce((s,a)=>s+(Number(a.amount)||0),0);
+  const paidTotal=payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const earned=workingDays>0?salary/workingDays*daysWorked:salary;
+  const balance=earned-advTotal-paidTotal;
+  const settled=salary>0&&Math.abs(balance)<0.01;
+  const daysLabel=daysWorked%1===0?daysWorked.toFixed(0):daysWorked.toFixed(1);
+  const chips=[
+    ...advances.map(a=>`<span class="pr-chip adv">Advance ${(a.date||'').split('-').pop()}: ₹${fmt(a.amount)}<span class="x" onclick="payrollRemoveAdvance('${esc(name).replace(/'/g,"\\'")}','${a.date}',${Number(a.amount)||0})">✕</span></span>`),
+    ...payments.map(p=>`<span class="pr-chip paid">Paid ${(p.date||'').split('-').pop()}: ₹${fmt(p.amount)}<span class="x" onclick="payrollRemovePayment('${esc(name).replace(/'/g,"\\'")}','${p.date}',${Number(p.amount)||0})">✕</span></span>`),
+  ].join('');
+  const nameJs=esc(name).replace(/'/g,"\\'");
+  return `<div class="payroll-box">
+    <div class="pr-hd">
+      <span class="pr-title">💰 Payroll</span>
+      <span class="pr-actions">
+        <button class="pr-action" style="color:#ef4444" onclick="payrollAddAdvance('${nameJs}','${monthVal}')">+ Advance</button>
+        <button class="pr-action" style="color:${salary>0?'#059669':'#9ca3af'}" ${salary>0?`onclick="payrollPaySalary('${nameJs}','${monthVal}',${balance})"`:'disabled'}>💵 Pay Salary</button>
+      </span>
+    </div>
+    <div class="pr-grid">
+      <div><div class="pr-lbl" style="cursor:pointer" onclick="payrollEditSalary('${nameJs}')">SALARY ✏️</div><div class="pr-val">${salary>0?'₹'+fmt(salary):'Set'}</div></div>
+      <div><div class="pr-lbl">EARNED (${daysLabel}d/${workingDays})</div><div class="pr-val">${salary>0?'₹'+fmt(earned):'—'}</div></div>
+    </div>
+    <div class="pr-grid2">
+      <div><div class="pr-lbl">ADVANCE</div><div class="pr-val" style="color:#ef4444">₹${fmt(advTotal)}</div></div>
+      <div><div class="pr-lbl">PAID</div><div class="pr-val" style="color:#059669">₹${fmt(paidTotal)}</div></div>
+      <div><div class="pr-lbl">BALANCE</div><div class="pr-val" style="color:${balance>0.01?'#ef4444':(balance<-0.01?'#059669':'#9ca3af')}">${salary>0?'₹'+fmt(balance):'—'}${settled?' <span style="font-size:9px;color:#059669;font-weight:700">✓ settled</span>':''}</div></div>
+    </div>
+    ${chips?`<div class="pr-chips">${chips}</div>`:''}
+  </div>`;
+}
+
+async function _getPayrollMap(){
+  const BID=ME.businessId||ME.uid;
+  try{
+    const cfgDoc=await DB.collection('config').doc(BID).get();
+    return (cfgDoc.exists&&cfgDoc.data().payroll)||{};
+  }catch(e){ return {}; }
+}
+async function _savePayrollEntry(name,entry){
+  const BID=ME.businessId||ME.uid;
+  const payroll=await _getPayrollMap();
+  payroll[name]=entry;
+  await DB.collection('config').doc(BID).set({payroll},{merge:true});
+  loadAttSummary();
+}
+async function payrollEditSalary(name){
+  const payroll=await _getPayrollMap();
+  const entry=payroll[name]||{};
+  const v=prompt(`Monthly Salary — ${name}`,entry.salary>0?String(entry.salary):'');
+  if(v===null) return;
+  const num=parseFloat(v);
+  if(isNaN(num)||num<0){ toast('Enter a valid amount','warn'); return; }
+  entry.salary=num;
+  await _savePayrollEntry(name,entry);
+}
+async function payrollAddAdvance(name,monthVal){
+  const payroll=await _getPayrollMap();
+  const entry=payroll[name]||{};
+  const v=prompt(`Advance Payment — ${name}`,'');
+  if(v===null) return;
+  const num=parseFloat(v);
+  if(isNaN(num)||num<=0){ toast('Enter a valid amount','warn'); return; }
+  entry.advances=entry.advances||[];
+  entry.advances.push({amount:num,date:tod()});
+  await _savePayrollEntry(name,entry);
+}
+async function payrollPaySalary(name,monthVal,balance){
+  const payroll=await _getPayrollMap();
+  const entry=payroll[name]||{};
+  const v=prompt(`Pay Salary — ${name}`,balance>0?String(Math.round(balance*100)/100):'0');
+  if(v===null) return;
+  const num=parseFloat(v);
+  if(isNaN(num)||num<=0){ toast('Enter a valid amount','warn'); return; }
+  entry.payments=entry.payments||[];
+  entry.payments.push({amount:num,date:tod()});
+  await _savePayrollEntry(name,entry);
+  toast('✅ Salary payment recorded!');
+}
+async function payrollRemoveAdvance(name,date,amount){
+  const payroll=await _getPayrollMap();
+  const entry=payroll[name]||{};
+  entry.advances=(entry.advances||[]).filter(a=>!(a.date===date&&Number(a.amount)===Number(amount)));
+  await _savePayrollEntry(name,entry);
+}
+async function payrollRemovePayment(name,date,amount){
+  const payroll=await _getPayrollMap();
+  const entry=payroll[name]||{};
+  entry.payments=(entry.payments||[]).filter(p=>!(p.date===date&&Number(p.amount)===Number(amount)));
+  await _savePayrollEntry(name,entry);
 }
 
 async function saveProfile(){
@@ -3557,6 +3721,100 @@ async function startProPayment(){
   rzp.open();
 }
 
+// ── Promo code redemption ─────────────────────────────────────────────────
+// Mirrors flutter_app/lib/services/promo_service.dart: validate against
+// promo_codes/{CODE}, record the redemption FIRST (fail closed), then grant
+// Pro on the user's own staff doc — rolling back the usage record if the
+// grant write fails, so a code is never burned for nothing.
+// NOTE ON SECURITY: same as the app — this is a client-trusted business-logic
+// gate (Firestore rules already let a user write pro:true on their own doc,
+// same as the trial mechanism), not a hard security boundary.
+async function redeemPromoCode(){
+  const inp=document.getElementById('promo-code-inp');
+  const msgEl=document.getElementById('promo-status-msg');
+  const setMsg=(txt,color)=>{ if(msgEl){ msgEl.textContent=txt; msgEl.style.color=color; } };
+  const rawCode=(inp?.value||'').trim().toUpperCase();
+  const uid=ME.uid;
+  if(!rawCode){ setMsg('Enter a code','#ef4444'); return; }
+  if(!uid){ setMsg('Please log in first','#ef4444'); return; }
+  setMsg('⏳ Checking...','#6b7280');
+
+  const ref=DB.collection('promo_codes').doc(rawCode);
+  let snap;
+  try{ snap=await ref.get(); }
+  catch(e){ setMsg('Network error — try again','#ef4444'); return; }
+  if(!snap.exists){ setMsg('Invalid code','#ef4444'); return; }
+  const d=snap.data()||{};
+
+  if(d.active===false){ setMsg('This code is no longer active','#ef4444'); return; }
+
+  const expiresAt=d.expiresAt;
+  if(expiresAt&&expiresAt.toDate&&expiresAt.toDate()<new Date()){ setMsg('This code has expired','#ef4444'); return; }
+
+  const usedBy=Array.isArray(d.usedBy)?d.usedBy:[];
+  if(usedBy.includes(uid)){ setMsg('You have already used this code','#ef4444'); return; }
+
+  const maxUses=Number(d.maxUses)||1;
+  const usedCount=Number(d.usedCount)||usedBy.length;
+  if(maxUses>0&&usedCount>=maxUses){ setMsg('This code has reached its usage limit','#ef4444'); return; }
+
+  const ptRaw=(d.planType||'').trim();
+  const planType=ptRaw||'pro';
+  const durationDays=Number(d.durationDays)||0;
+  const lifetime=planType==='lifetime'||durationDays<=0;
+  // Millis timestamp — matches how the rest of the web app stores/reads
+  // ME.proExpiry (new Date(ME.proExpiry)), unlike the app's Firestore Timestamp.
+  const proExpiry=lifetime?null:Date.now()+durationDays*86400000;
+
+  // 1) Record the redemption first. Fail closed: if we can't mark it used
+  //    (e.g. it just hit its limit in a race), don't grant Pro.
+  try{
+    await ref.update({
+      usedCount:firebase.firestore.FieldValue.increment(1),
+      usedBy:firebase.firestore.FieldValue.arrayUnion(uid)
+    });
+  }catch(e){ setMsg('Could not redeem right now — try again','#ef4444'); return; }
+
+  // 2) Grant Pro on the user's own staff doc.
+  const entitlement={
+    pro:true, planType, proSource:'promo:'+rawCode,
+    promoRedeemedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    proExpiry:proExpiry!=null?proExpiry:firebase.firestore.FieldValue.delete()
+  };
+  try{
+    await DB.collection('staff').doc(uid).set(entitlement,{merge:true});
+  }catch(e){
+    // Roll back the usage record so the code isn't burned for nothing.
+    try{
+      await ref.update({
+        usedCount:firebase.firestore.FieldValue.increment(-1),
+        usedBy:firebase.firestore.FieldValue.arrayRemove(uid)
+      });
+    }catch(e2){}
+    setMsg('Could not activate Pro — try again','#ef4444');
+    return;
+  }
+
+  ME.pro=true; ME.proExpiry=proExpiry;
+  const cm=localStorage.getItem('kp_me_cache');
+  if(cm){ try{ const m=JSON.parse(cm); m.pro=true; m.proExpiry=proExpiry; localStorage.setItem('kp_me_cache',JSON.stringify(m)); }catch(e){} }
+
+  const label=lifetime
+    ?'Lifetime Pro unlocked! 🎉'
+    :'Pro unlocked until '+new Date(proExpiry).toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'})+' 🎉';
+  setMsg('✅ '+label,'#059669');
+  if(inp) inp.value='';
+  toast('✅ '+label);
+
+  // Refresh the pro-status bar in place.
+  const psb=document.getElementById('pro-status-bar');
+  if(psb){
+    psb.innerHTML=lifetime
+      ?`<div style="background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;font-weight:700">⭐ Pro · Lifetime</div>`
+      :`<div style="background:#f0fdf4;border:1.5px solid #6ee7b7;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;font-weight:700">⭐ Pro · expires ${new Date(proExpiry).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>`;
+  }
+}
+
 async function loginGoogle(){
   // POPUP ONLY — redirect breaks on Android Chrome (sessionStorage partition issue)
   const provider=new firebase.auth.GoogleAuthProvider();
@@ -4132,7 +4390,7 @@ function buildUI(){
   // Shop selects
   const opts=se.map(([k,vv])=>`<option value="${k}">${vv.icon} ${esc(vv.name)}</option>`).join('');
   const allOpts='<option value="all">All Shops</option>'+opts;
-  ['sc-shop','m-shop','et-shop','sn-s','st-shop','es-shop'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  ['sc-shop','m-shop','et-shop','sn-s','st-shop','es-shop','es2-shop'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
   const fs=document.getElementById('f-shop'); if(fs) fs.innerHTML=allOpts;
 
   // Shop editor (name + business type — changing type to Construction/Finance/
@@ -5912,8 +6170,11 @@ function renderLedger(){
       const col=isIn?'var(--green)':t.type==='payment'?'var(--yellow)':'var(--red)';
       const bg=isIn?'var(--gl)':t.type==='payment'?'var(--yl)':'var(--rl)';
       const icon=isIn?'↑':t.type==='payment'?'↔':'↓';
-      const isDup=dayTxs.filter(x=>x.shop===t.shop&&x.type===t.type&&x.amount===t.amount&&x.desc===t.desc).length>1;
-      return`<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)${isDup?';background:#fffbe6':''}">
+      // Same day+shop+type+amount+name = a true accidental double entry
+      // (name matching is case/space-insensitive, same rule as the app).
+      const dName=(t.desc||'').trim().toLowerCase();
+      const isDup=dName&&dayTxs.filter(x=>x.shop===t.shop&&x.type===t.type&&x.amount===t.amount&&(x.desc||'').trim().toLowerCase()===dName).length>1;
+      return`<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)${isDup?';background:#FFFBEB;border-left:3px solid #FCD34D':''}">
         <div style="width:34px;height:34px;border-radius:10px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${col};flex-shrink:0">${icon}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)">${esc(t.desc||'Entry')}${isDup?' <span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 4px;font-weight:700">⚠️ dup</span>':''}</div>
@@ -7279,17 +7540,17 @@ async function loadStaffList(){
     el.innerHTML=snap.docs.map(d=>{
       const s=d.data(); const docId=d.id;
       if(s.role==='owner') return ''; // don't show owner in list
-      return `<div style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--border)">
+      return `<div onclick="openEditStaff('${docId}')" style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer">
         <div style="width:34px;height:34px;border-radius:50%;background:var(--green);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${(s.name||'?')[0].toUpperCase()}</div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:13px">${s.name||'Unknown'}</div>
-          <div style="font-size:11px;color:var(--muted)">${s.email||''}</div>
+          <div style="font-size:11px;color:var(--muted)">${s.email||''} · tap to edit</div>
         </div>
         <div style="text-align:right;flex-shrink:0;margin-right:6px">
           <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--bl);color:var(--blue);display:block;margin-bottom:2px">${s.shop==='all'?'All Shops':(SHOPS[s.shop]?.name||s.shop||'All')}</span>
           <span style="font-size:9px;padding:2px 6px;border-radius:20px;background:var(--yl);color:var(--yellow)">${(s.role||'staff').toUpperCase()}</span>
         </div>
-        <button onclick="confirmRemoveStaff('${docId}','${(s.name||'').replace(/'/g,'')}')" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;border:none;background:var(--rl);color:var(--red);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Remove staff">🗑</button>
+        <button onclick="event.stopPropagation();confirmRemoveStaff('${docId}','${(s.name||'').replace(/'/g,'')}')" style="flex-shrink:0;width:28px;height:28px;border-radius:50%;border:none;background:var(--rl);color:var(--red);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Remove staff">🗑</button>
       </div>`;
     }).join('')||'<div class="empty">No staff added yet</div>';
   }catch(e){el.innerHTML='<div class="empty">Unable to load staff list</div>';}
@@ -7345,6 +7606,32 @@ async function doRemoveStaff(docId, staffName, btn){
     toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');
     btn.textContent='Remove'; btn.disabled=false;
   }
+}
+async function openEditStaff(docId){
+  try{
+    const doc=await DB.collection('staff').doc(docId).get();
+    if(!doc.exists){toast('Staff record not found','warn');return;}
+    const s=doc.data();
+    document.getElementById('es2-docid').value=docId;
+    document.getElementById('es2-name').value=s.name||'';
+    document.getElementById('es2-email').value=s.email||'';
+    document.getElementById('es2-role').value=s.role||'cashier';
+    // Shop select is rebuilt fresh by buildUI() on every login — it may not
+    // contain 'all' as an option, so guard the assignment.
+    const shopSel=document.getElementById('es2-shop');
+    if(shopSel){ shopSel.value=s.shop||''; if(shopSel.value!==(s.shop||'') && s.shop) shopSel.value=Object.keys(SHOPS)[0]||''; }
+    openM('edit-staff-modal');
+  }catch(e){toast('Error loading staff: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');}
+}
+async function saveStaffEdit(){
+  const docId=v('es2-docid'),name=v('es2-name'),role=v('es2-role'),shop=v('es2-shop');
+  if(!docId||!name){toast('Enter a name','warn');return;}
+  try{
+    await DB.collection('staff').doc(docId).update({name,role,shop});
+    closeM('edit-staff-modal');
+    await loadStaffList();
+    toast('✅ Staff updated!');
+  }catch(e){toast('Error: '+String(e.message||'unknown').replace(/</g,'&lt;').replace(/>/g,'&gt;'),'bad');}
 }
 async function addStaff(){
   const name=v('st-name'),email=v('st-email'),role=v('st-role'),shop=v('st-shop');
