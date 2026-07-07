@@ -173,9 +173,16 @@ class ReceiptParser {
       final prefix = m.group(1)!;
       final numStr = m.group(2)!;
       // A plain integer with no currency hint is too risky (years, counts,
-      // status-bar numbers). Require a separator group, or a mangled symbol
-      // prefix, as evidence it was rendered as money.
-      if (prefix.isEmpty && !RegExp(r'[.,]').hasMatch(numStr)) return;
+      // status-bar numbers, or — the bug this guards against — a MASKED
+      // ACCOUNT/CARD NUMBER like "XX5607" or "XXXX1234"). Only a non-empty
+      // prefix made of punctuation/symbol noise is trusted as a corrupted
+      // currency glyph ("?200"); a letters prefix is the masking convention
+      // banks/UPI apps use, never a mangled ₹, so it must NOT count as
+      // evidence this line is money.
+      final prefixIsLetters =
+          prefix.isNotEmpty && RegExp(r'^[A-Za-z]+$').hasMatch(prefix);
+      if ((prefix.isEmpty || prefixIsLetters) &&
+          !RegExp(r'[.,]').hasMatch(numStr)) return;
       final v = _parseMoney(numStr);
       if (v != null && v > 0 && v < 10000000) bare.add(v);
     }
