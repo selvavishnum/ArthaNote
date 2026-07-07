@@ -1124,7 +1124,6 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
     </div>
     <div class="lx-rule"></div>
 
-    <div id="biz-type-banner" style="display:none;background:linear-gradient(135deg,var(--green),var(--sec));color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-weight:700;font-size:14px;letter-spacing:0.3px"></div>
     <div id="d-new-user-tip" style="display:none"></div>
     <div id="ai-briefing-slot"></div>
 
@@ -1234,10 +1233,9 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
       </div>
       <div class="fr" id="m-type-select-row">
         <div class="fg"><label>Type</label>
-          <select id="m-type" onchange="loadQB();toggleSup()">
+          <select id="m-type" onchange="loadQB()">
             <option value="sales">&#128154; Sales / Income</option>
             <option value="expense">&#128308; Expense</option>
-            <option value="payment">&#128993; Supplier Payment</option>
           </select>
         </div>
         <div class="fg"><label>Amount (&#8377;)</label><input type="number" id="m-amt" placeholder="0" min="0" inputmode="decimal" oninput="updateGstPreview()"></div>
@@ -1257,7 +1255,6 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
       </div>
       <div id="qb-area"></div>
       <div id="community-tip" style="display:none;background:var(--soft);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px"></div>
-      <div class="fr full" id="sup-row" style="display:none"><div class="fg"><label>Supplier</label><select id="m-sup"></select></div></div>
       <div class="fr full"><div class="fg"><label id="m-desc-lbl">Description</label><input type="text" id="m-desc" placeholder="What is this entry?" style="font-family:var(--tamil)" oninput="aiSuggestEntry(this.value)"></div></div>
       <div class="fr full" id="m-contact-row" style="display:none"><div class="fg"><label>Contact Name</label><input type="text" id="m-contact" placeholder="Who is this with? (optional)" style="font-family:var(--tamil)"></div></div>
       <div id="ai-suggest-bar" style="display:none;background:#f0fdf4;border:1.5px solid #059669;border-radius:8px;padding:7px 10px;margin:-4px 0 6px;font-size:12px;align-items:center;gap:8px;flex-wrap:wrap">
@@ -3020,7 +3017,7 @@ function quickAddMissing(desc, type, shop){
   if(mShop){for(let i=0;i<mShop.options.length;i++)if(mShop.options[i].value===shop){mShop.selectedIndex=i;break;}}
   const mType=document.getElementById('m-type');
   if(mType){for(let i=0;i<mType.options.length;i++)if(mType.options[i].value===type){mType.selectedIndex=i;break;}}
-  loadQB(); toggleSup(); goPane('entry');
+  loadQB(); goPane('entry');
   document.getElementById('m-amt')?.focus();
   toast('📝 '+desc+' pre-filled — enter the amount','info');
 }
@@ -5930,7 +5927,6 @@ async function confirmScan(){
 // ════════════════════════════════════════
 // MANUAL ENTRY
 // ════════════════════════════════════════
-function toggleSup(){ document.getElementById('sup-row').style.display=v('m-type')==='payment'?'grid':'none'; }
 function setPersonalType(t){
   const sel=document.getElementById('m-type');
   if(sel) sel.value=t;
@@ -6027,7 +6023,6 @@ async function addEntry(){
     category:desc, contact,
     gstOn:_gstOn, gstRate:_gstOn?_gstRate:0, gstAmount:gstInfo.gst, baseAmount:gstInfo.base,
     billRef:v('m-ref')||'', note:v('m-note')||'',
-    supplier:type==='payment'?v('m-sup'):null,
     source:'manual', by:ME.name||'user',
     createdMs:Date.now(),
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -6041,19 +6036,6 @@ async function addEntry(){
     await DB.collection('transactions').add(data);
     rmQ([_lid]); // Cloud saved — remove from local queue
 
-    // Supplier bill if payment
-    if(type==='payment'&&txData.supplier){
-      const sup=SUPS.find(x=>x.name===txData.supplier);
-      if(sup){
-        await DB.collection('sup_bills').add({
-          businessId:BID, userId:ME.uid,
-          supplierId:sup.id, supplierName:sup.name,
-          type:'payment', amount:amt, date,
-          billRef:txData.billRef, note:txData.note,
-          createdAt:firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-    }
     // Audit
     await DB.collection('audit').add({
       businessId:BID, userId:ME.uid, by:ME.name,
@@ -6301,8 +6283,6 @@ function getSupBal(sid){
           -bills.filter(b=>b.type==='payment').reduce((s,b)=>s+(b.amount||0),0);
 }
 function buildSupSels(){
-  const opts=SUPS.length?SUPS.map(s=>`<option value="${s.name}">${s.name}</option>`).join(''):'<option>No suppliers yet</option>';
-  const ms=document.getElementById('m-sup'); if(ms)ms.innerHTML=opts;
   const bs=document.getElementById('bl-sup'); if(bs)bs.innerHTML=SUPS.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}">${s.name}</option>`).join('');
 }
 let _supDate='all';
@@ -7872,19 +7852,11 @@ function applyBizTypeUI(){
   // type). Logic lives in updateModuleNav().
   updateModuleNav();
 
-  // Update Sales option label in entry form type dropdown
-  const mtype=document.getElementById('m-type');
-  if(mtype){
-    const opt=mtype.querySelector('option[value="sales"]');
-    if(opt) opt.textContent='💚 '+cfg.salesLabel;
-  }
-
-  // Show bizType banner on dashboard
-  const banner=document.getElementById('biz-type-banner');
-  if(banner&&_bizType&&_bizType!=='other'){
-    banner.textContent=cfg.dashTitle;
-    banner.style.display='block';
-  }
+  // Sales option label stays the generic "Sales / Income" (set in the HTML)
+  // regardless of business type — a business can mix shops of different
+  // types (e.g. vegetables + jewellery + construction) under one dashboard,
+  // so a single global per-bizType label was showing the wrong shop's
+  // terminology (e.g. "Jewellery Sale") no matter which shop was selected.
 
   // New-user community tip on dashboard
   renderNewUserTip();
