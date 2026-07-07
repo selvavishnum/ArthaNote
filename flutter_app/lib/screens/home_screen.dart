@@ -212,7 +212,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isCashier  = p.isCashier;
     final entryIdx   = isAdmin ? 2 : 1;
     final reportsIdx = isCashier ? -1 : (isAdmin ? 5 : 4);
-    final useNativeFinance = _showFinanceTab(p);
 
     showModalBottomSheet(
       context: context,
@@ -277,16 +276,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               label: '💼 Finance',
               onTap: () {
                 Navigator.pop(ctx);
-                if (useNativeFinance) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const FinanceTab()),
-                  );
-                } else {
-                  launchUrl(
-                    Uri.parse('https://arthanote.com/finance.html'),
-                    mode: LaunchMode.externalApplication,
-                  );
-                }
+                // Finance & Chit are fully native — always open in-app,
+                // same as Construction below (no website fallback).
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const FinanceTab()),
+                );
               },
             ),
             _FabChip(
@@ -833,11 +827,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
     );
-  }
-
-  // ── Check if Finance tab should be shown ──────────────────────────────────
-  bool _showFinanceTab(AppProvider p) {
-    return p.isSelectedShopFinance;
   }
 
   // ── First-time module guide ────────────────────────────────────────────────

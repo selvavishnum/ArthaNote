@@ -287,10 +287,35 @@ class _LedgerTabState extends State<LedgerTab> {
     return txns;
   }
 
-  // ── AI missing-entry: entries usually recorded that are absent TODAY ────────
-  List<Map<String, dynamic>> _detectMissingToday(List<Txn> all) {
-    final now      = DateTime.now();
-    final dayStart = DateTime(now.year, now.month, now.day);
+  // The ledger's own period selector decides which single day the
+  // missing-entry check targets — Today/Yesterday obviously mean that day;
+  // a Custom range collapsed to one day (start == end) means that day too.
+  // A multi-day view (Week/Month/All) has no single "day" to check missing-
+  // ness against, so falls back to null (caller uses device-clock today).
+  // This is what makes catching up on a BACKDATED entry (e.g. scanning
+  // yesterday's paper ledger this morning) correctly clear that day's
+  // missing-entry list instead of it staying stuck on "today".
+  DateTime? _missingTargetDate() {
+    switch (_period) {
+      case _Period.today:
+        return DateTime.now();
+      case _Period.yesterday:
+        return DateTime.now().subtract(const Duration(days: 1));
+      case _Period.custom:
+        final r = _customRange;
+        if (r != null && _dayKey(r.start) == _dayKey(r.end)) return r.start;
+        return null;
+      case _Period.week:
+      case _Period.month:
+      case _Period.all:
+        return null;
+    }
+  }
+
+  // ── AI missing-entry: entries usually recorded that are absent on the
+  // ledger's currently viewed day (see _missingTargetDate) ────────────────
+  List<Map<String, dynamic>> _detectMissingForDate(List<Txn> all, DateTime target) {
+    final dayStart = DateTime(target.year, target.month, target.day);
     final dayEnd   = dayStart.add(const Duration(days: 1));
     final since    = dayStart.subtract(const Duration(days: 14));
 
@@ -323,8 +348,16 @@ class _LedgerTabState extends State<LedgerTab> {
     return missing.take(8).toList();
   }
 
+  String _shortDate(DateTime d) => DateFormat('d MMM').format(d);
+
   // Single-line suggestion at the very top of the ledger — tap to expand.
-  Widget _missingBanner(List<Map<String, dynamic>> missing) {
+  // [targetDate] is whichever day the ledger's period selector is currently
+  // showing (see _missingTargetDate) — both the label and the quick-add
+  // save date follow it, so catching up on a past day's entries actually
+  // clears that day's missing list instead of silently logging to today.
+  Widget _missingBanner(List<Map<String, dynamic>> missing, DateTime targetDate) {
+    final isToday = _dayKey(targetDate) == _dayKey(DateTime.now());
+    final dayLabel = isToday ? 'today' : _shortDate(targetDate);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       decoration: BoxDecoration(
@@ -342,7 +375,7 @@ class _LedgerTabState extends State<LedgerTab> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${missing.length} entries you usually add are missing today',
+                  '${missing.length} entries you usually add are missing $dayLabel',
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w700, color: kPrimary),
                 ),
@@ -376,7 +409,7 @@ class _LedgerTabState extends State<LedgerTab> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: () => _quickAddMissing(m),
+                    onPressed: () => _quickAddMissing(m, targetDate),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kPrimary,
                       foregroundColor: Colors.white,
@@ -395,13 +428,14 @@ class _LedgerTabState extends State<LedgerTab> {
     );
   }
 
-  Future<void> _quickAddMissing(Map<String, dynamic> m) async {
+  Future<void> _quickAddMissing(Map<String, dynamic> m, DateTime targetDate) async {
     final p        = context.read<AppProvider>();
     final desc     = m['desc'] as String;
     final type     = m['type'] as String;
     final shop     = m['shop'] as String;
     final shopName = m['shopName'] as String;
     final amtCtrl  = TextEditingController();
+    final isToday  = _dayKey(targetDate) == _dayKey(DateTime.now());
 
     final result = await showModalBottomSheet<double>(
       context: context,
@@ -422,7 +456,9 @@ class _LedgerTabState extends State<LedgerTab> {
               style: const TextStyle(
                   fontWeight: FontWeight.w800, fontSize: 17, color: kPrimary)),
           const SizedBox(height: 4),
-          Text(shopName, style: const TextStyle(color: kMuted, fontSize: 13)),
+          Text(
+              isToday ? shopName : '$shopName · ${_shortDate(targetDate)}',
+              style: const TextStyle(color: kMuted, fontSize: 13)),
           const SizedBox(height: 20),
           TextFormField(
             controller: amtCtrl,
@@ -447,12 +483,18 @@ class _LedgerTabState extends State<LedgerTab> {
     if (result == null || result <= 0) return;
     if (!mounted) return;
     final now = DateTime.now();
+    // Dated to the day the missing-list was actually shown for (targetDate),
+    // not always "now" — otherwise catching up on a past day's missing
+    // entry would log it as TODAY and that past day would stay short.
     final txn = Txn(
       id:         now.millisecondsSinceEpoch.toString(),
       businessId: p.businessId,
       shop:       shop,
       shopName:   shopName,
-      date:       DateTime(now.year, now.month, now.day, now.hour, now.minute),
+      date:       isToday
+          ? DateTime(now.year, now.month, now.day, now.hour, now.minute)
+          : DateTime(targetDate.year, targetDate.month, targetDate.day,
+              now.hour, now.minute),
       type:       type,
       amount:     result,
       desc:       desc,
@@ -592,21 +634,22 @@ class _LedgerTabState extends State<LedgerTab> {
 
     // AI missing-entry suggestion (Pro/trial, owner/manager only) — single
     // line above the search bar. Memoized: recompute only when the
-    // shop-scoped txn list or the day changes.
+    // shop-scoped txn list or the checked day changes.
     List<Map<String, dynamic>> missingToday = const [];
+    final missingDate = _missingTargetDate() ?? DateTime.now();
     if (p.canUseAiAlerts && showInsights) {
       final mDigest = '${p.selectedShop}/${scoped.length}/'
           '${scoped.isEmpty ? "" : scoped.first.id}/'
-          '${scoped.length > 1 ? scoped.last.id : ""}/${_dayKey(DateTime.now())}';
+          '${scoped.length > 1 ? scoped.last.id : ""}/${_dayKey(missingDate)}';
       if (mDigest != _missingDigest) {
         _missingDigest = mDigest;
-        _missingCache  = _detectMissingToday(scoped);
+        _missingCache  = _detectMissingForDate(scoped, missingDate);
       }
       missingToday = _missingCache;
     }
 
     final leading = <Widget>[
-      if (missingToday.isNotEmpty) _missingBanner(missingToday),
+      if (missingToday.isNotEmpty) _missingBanner(missingToday, missingDate),
       if (dupBanner != null) dupBanner,
       searchField,
       _buildPeriodRow(l),

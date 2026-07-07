@@ -147,20 +147,6 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Finance tab shows only when the currently selected shop is finance/chit type.
-  // When "All" is selected (selectedShop empty), Finance tab is hidden.
-  bool get isSelectedShopFinance {
-    if (_selectedShop.isEmpty) return false;
-    final t = _shops[_selectedShop]?.type.toLowerCase() ?? '';
-    return t == 'finance' || t == 'chit';
-  }
-
-  /// True when the currently selected shop is a construction site — the bottom
-  /// nav then shows a "Construction" tab that opens the projects module.
-  bool get isSelectedShopConstruction {
-    if (_selectedShop.isEmpty) return false;
-    return (_shops[_selectedShop]?.type.toLowerCase() ?? '') == 'construction';
-  }
 
   // Onboarded if: explicit flag set, OR shops exist and the profile belongs to
   // this user's own business (businessId == profile uid). The second condition
