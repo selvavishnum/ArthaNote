@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin.html
+Disallow: /finance.html
+Disallow: /attend.html
+Disallow: /clear-cache.html
+Disallow: /gemini-test.html
+Disallow: /icon-gen.html
+Disallow: /icon-preview.html
+Disallow: /feature-graphic-gen.html
+Disallow: /ui-design-concepts.html
+Disallow: /ui-design-luxury.html
+Disallow: /arthanote-ad.html
+Disallow: /arthanote-voice.html
+Disallow: /intro.html
+
+Sitemap: https://www.arthanote.com/sitemap.xml
