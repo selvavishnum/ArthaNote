@@ -132,11 +132,21 @@ const BID=P.get('bid')||'';
 const SHOP_ID=P.get('shop')||'s1';
 const SHOP_NAME=decodeURIComponent(P.get('sname')||'Shop');
 
-// Auto date/time — permanent QR
-const NOW_DATE=new Date();
-const DATE=NOW_DATE.toISOString().split('T')[0];
-const TIME=NOW_DATE.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
-const DATE_NICE=NOW_DATE.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+// Auto date/time — permanent QR. This page is scanned/reused across many
+// days without a fresh reload (a printed QR stays valid indefinitely), so
+// the date/time must be computed FRESH at the moment each attendance
+// action is actually submitted — never cached once at page load. A stale
+// page-load-time date silently mis-dates every action taken later in that
+// same browser session/tab (bug: staff marked OUT at 6:38pm one day got
+// logged as 6:38am the NEXT day, because the date was frozen from whenever
+// the tab first opened).
+function nowDate(){ return new Date(); }
+function dateStr(d){ return d.toISOString().split('T')[0]; }
+function dateNice(d){ return d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
+// Only for the very first paint (header subtitle, initial today-query) —
+// every actual attendance SUBMIT recomputes fresh, see go()/managerMark().
+const DATE=dateStr(nowDate());
+const DATE_NICE=dateNice(nowDate());
 
 let _staff=[],_todayAtt=[],_sel=null,_activeTab='mark';
 let _lastAttend=null; // set when success screen shows, read by shareAttendCard()
@@ -506,13 +516,19 @@ async function go(type){
     _renderActions(_sel); return;
   }
 
-  const nowMs=Date.now();
-  const nowTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  // Fresh at the moment of THIS submit — never the page-load-time DATE
+  // constant, since this QR page can stay open/cached across day
+  // boundaries (see comment above at the DATE declaration).
+  const submitNow=nowDate();
+  const nowMs=submitNow.getTime();
+  const submitDate=dateStr(submitNow);
+  const submitDateNice=dateNice(submitNow);
+  const nowTime=submitNow.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
 
   try{
     await DB.collection('attendance').add({
       businessId:BID, shopId:SHOP_ID, shopName:SHOP_NAME,
-      staffName:_sel, date:DATE, time:nowTime,
+      staffName:_sel, date:submitDate, time:nowTime,
       timeRaw:nowMs, type,
       markedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -528,7 +544,7 @@ async function go(type){
     }[type];
 
     // Store for screenshot generation
-    _lastAttend={name:_sel,shop:SHOP_NAME,date:DATE_NICE,time:nowTime,
+    _lastAttend={name:_sel,shop:SHOP_NAME,date:submitDateNice,time:nowTime,
                  label:config.label,emoji:config.emoji,color:config.color};
     card.innerHTML=`<div class="success-wrap">
       <div class="s-anim">${config.emoji}</div>
@@ -536,7 +552,7 @@ async function go(type){
       <div style="font-size:14px;font-weight:800;color:${config.color};margin-bottom:8px">${config.label} பதிவாகிவிட்டது!</div>
       <div class="s-detail">
         <div class="s-row">🏪 <b>${esc(SHOP_NAME)}</b></div>
-        <div class="s-row">📅 ${DATE_NICE}</div>
+        <div class="s-row">📅 ${submitDateNice}</div>
         <div class="s-row">⏰ <b style="color:${config.color}">${nowTime}</b></div>
         <div class="s-row" style="border-top:1px solid #6ee7b7;margin-top:8px;padding-top:8px;font-size:12px;color:#6b7280">${config.next}</div>
       </div>
@@ -576,12 +592,14 @@ async function managerMark(){
   else if(!existingBack) type='back';
   else                   type='out';
 
-  const nowMs=Date.now();
-  const nowTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  // Fresh at the moment of THIS submit — see comment at the DATE declaration.
+  const mgrSubmitNow=nowDate();
+  const nowMs=mgrSubmitNow.getTime();
+  const nowTime=mgrSubmitNow.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
   try{
     await DB.collection('attendance').add({
       businessId:BID, shopId:SHOP_ID, shopName:SHOP_NAME,
-      staffName:mgr.name, date:DATE, time:nowTime,
+      staffName:mgr.name, date:dateStr(mgrSubmitNow), time:nowTime,
       timeRaw:nowMs, type,
       markedBy:'gmail:'+email,
       markedAt:firebase.firestore.FieldValue.serverTimestamp()
