@@ -2,15 +2,21 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 /// Google Play Billing integration for the ArthaNote Pro subscription.
 ///
 /// Product setup required in Play Console (Monetise with Play → Products):
-///   - Subscription product id `arthanote_pro`, with two base plans:
-///       id `monthly` → ₹199 / month
-///       id `yearly`  → ₹999 / year
+///   - Subscription product id `arthanote_pro_monthly` → ₹199 / month
+///   - Subscription product id `arthanote_pro_yearly`  → ₹999 / year
 ///   - One-time (non-consumable) product id `arthanote_lifetime` → ₹1999
+///
+/// Deliberately THREE separate flat products rather than one subscription
+/// with multiple "base plans" — the base-plan/offer-selection API
+/// (GooglePlayPurchaseParam.offerToken) only landed in
+/// in_app_purchase_android 0.4.0+2, which requires Flutter >=3.27 / Dart
+/// SDK ^3.6.0, newer than this project's pinned Flutter (3.24.5). Three
+/// flat products work with the older, already-verified plugin version and
+/// need no offer-token/base-plan lookup at all — simpler and more robust.
 ///
 /// NOTE ON SECURITY — same client-trust model as promo_service.dart: there is
 /// no backend yet to verify a purchase token server-side via the Play
@@ -25,24 +31,19 @@ class BillingService {
   static final BillingService _instance = BillingService._();
   factory BillingService() => _instance;
 
-  static const subscriptionProductId = 'arthanote_pro';
+  static const monthlyProductId = 'arthanote_pro_monthly';
+  static const yearlyProductId = 'arthanote_pro_yearly';
   static const lifetimeProductId = 'arthanote_lifetime';
-  static const monthlyBasePlanId = 'monthly';
-  static const yearlyBasePlanId = 'yearly';
+  static const _allProductIds = {
+    monthlyProductId,
+    yearlyProductId,
+    lifetimeProductId,
+  };
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _sub;
   List<ProductDetails> _products = [];
   bool _initialized = false;
-
-  /// Best-effort hint for which base plan a subscription purchase was
-  /// launched for — Play's purchase callback doesn't reliably expose which
-  /// base plan (monthly/yearly) of one subscription product was bought
-  /// without server-side verification, so we remember what the UI asked
-  /// for. Falls back to 'monthly' if the app was killed mid-flow and this
-  /// in-memory hint was lost (e.g. purchase resolved via restorePurchases
-  /// on next launch).
-  String? _pendingPlanId;
 
   /// Called after Pro is successfully granted from a purchase, so the app
   /// can refresh its in-memory profile (the purchase stream can fire at any
@@ -56,8 +57,7 @@ class BillingService {
     if (!await _iap.isAvailable()) return;
     _sub = _iap.purchaseStream.listen(_onPurchaseUpdate, onError: (_) {});
     try {
-      final resp = await _iap
-          .queryProductDetails({subscriptionProductId, lifetimeProductId});
+      final resp = await _iap.queryProductDetails(_allProductIds);
       _products = resp.productDetails;
     } catch (_) {}
   }
@@ -65,6 +65,12 @@ class BillingService {
   void dispose() => _sub?.cancel();
 
   Future<bool> isAvailable() => _iap.isAvailable();
+
+  static String _productIdFor(String planId) => switch (planId) {
+        'yearly' => yearlyProductId,
+        'lifetime' => lifetimeProductId,
+        _ => monthlyProductId,
+      };
 
   /// Launches the Play Billing purchase sheet for [planId]
   /// ('monthly' | 'yearly' | 'lifetime'). Fire-and-forget — the actual Pro
@@ -75,45 +81,17 @@ class BillingService {
       throw Exception('Google Play Billing is not available on this device');
     }
     if (_products.isEmpty) {
-      final resp = await _iap
-          .queryProductDetails({subscriptionProductId, lifetimeProductId});
+      final resp = await _iap.queryProductDetails(_allProductIds);
       _products = resp.productDetails;
     }
 
-    if (planId == 'lifetime') {
-      final product = _products.where((p) => p.id == lifetimeProductId);
-      if (product.isEmpty) {
-        throw Exception('Lifetime plan is not available right now');
-      }
-      await _iap.buyNonConsumable(
-          purchaseParam: PurchaseParam(productDetails: product.first));
-      return;
+    final productId = _productIdFor(planId);
+    final match = _products.where((p) => p.id == productId);
+    if (match.isEmpty) {
+      throw Exception('This plan is not available right now');
     }
-
-    final product = _products.where((p) => p.id == subscriptionProductId);
-    if (product.isEmpty) {
-      throw Exception('Subscription plan is not available right now');
-    }
-    final basePlanId = planId == 'yearly' ? yearlyBasePlanId : monthlyBasePlanId;
-    _pendingPlanId = planId;
-
-    final details = product.first;
-    if (details is GooglePlayProductDetails) {
-      final offerList = details.subscriptionOfferDetails ?? const [];
-      final offers =
-          offerList.where((o) => o.basePlanId == basePlanId).toList();
-      if (offers.isEmpty) {
-        throw Exception('$planId plan is not available right now');
-      }
-      final param = GooglePlayPurchaseParam(
-          productDetails: details, offerToken: offers.first.offerToken);
-      await _iap.buyNonConsumable(purchaseParam: param);
-    } else {
-      // Fallback for non-Android platforms / older plugin versions without
-      // base-plan support — buys the product's default offer.
-      await _iap.buyNonConsumable(
-          purchaseParam: PurchaseParam(productDetails: details));
-    }
+    await _iap.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: match.first));
   }
 
   Future<void> restorePurchases() => _iap.restorePurchases();
@@ -137,14 +115,20 @@ class BillingService {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
+    // The product ID itself unambiguously identifies the plan — no
+    // guessing needed (each plan is its own flat product).
     String planType;
     DateTime? expiry;
-    if (p.productID == lifetimeProductId) {
-      planType = 'lifetime';
-      expiry = null;
-    } else {
-      planType = _pendingPlanId ?? 'monthly';
-      expiry = DateTime.now().add(Duration(days: planType == 'yearly' ? 365 : 30));
+    switch (p.productID) {
+      case lifetimeProductId:
+        planType = 'lifetime';
+        expiry = null;
+      case yearlyProductId:
+        planType = 'yearly';
+        expiry = DateTime.now().add(const Duration(days: 365));
+      default:
+        planType = 'monthly';
+        expiry = DateTime.now().add(const Duration(days: 30));
     }
 
     final entitlement = <String, dynamic>{
