@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme.dart';
+import '../providers/app_provider.dart';
+import '../services/billing_service.dart';
 import '../widgets/promo_dialog.dart';
 
 /// Full-screen "this is a Pro feature" placeholder shown in place of a gated
@@ -64,13 +67,13 @@ class ProLockView extends StatelessWidget {
 /// ArthaNote Pro upgrade / paywall screen.
 ///
 /// Presents the three subscription tiers (monthly / yearly / lifetime) and the
-/// free-vs-Pro feature comparison. The actual purchase is wired to Google Play
-/// Billing in a later phase — [onSubscribe] is invoked with the chosen plan id
-/// ('monthly' | 'yearly' | 'lifetime') so billing can be plugged in centrally
-/// without touching this UI.
+/// free-vs-Pro feature comparison. Purchases go through Google Play Billing
+/// ([BillingService]) by default; [onSubscribe] lets a caller override that
+/// (e.g. for tests) with a custom handler for the chosen plan id
+/// ('monthly' | 'yearly' | 'lifetime').
 class UpgradeScreen extends StatefulWidget {
-  /// Called when the user taps Subscribe. Receives the plan id. When null, a
-  /// "coming soon" notice is shown (billing not yet enabled).
+  /// Called when the user taps Subscribe, overriding the default
+  /// [BillingService] purchase flow. Receives the plan id.
   final Future<void> Function(String planId)? onSubscribe;
   const UpgradeScreen({super.key, this.onSubscribe});
 
@@ -100,20 +103,50 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
   ];
 
   Future<void> _subscribe() async {
-    if (widget.onSubscribe == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Payments are being set up — coming very soon!'),
-        backgroundColor: kPrimary,
-      ));
-      return;
-    }
     setState(() => _busy = true);
     try {
-      await widget.onSubscribe!(_selected);
+      if (widget.onSubscribe != null) {
+        await widget.onSubscribe!(_selected);
+      } else {
+        await BillingService().buy(_selected);
+      }
+      // Purchase confirmation arrives asynchronously via BillingService's
+      // stream listener (Play shows its own sheet/receipt UI meanwhile) —
+      // this just launched the flow.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Continue in the Google Play sheet to complete your purchase'),
+          backgroundColor: kPrimary,
+        ));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Purchase failed: $e'), backgroundColor: kRed));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _restore() async {
+    setState(() => _busy = true);
+    try {
+      await BillingService().restorePurchases();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Checking Google Play for previous purchases…'),
+          backgroundColor: kPrimary,
+        ));
+        // Give the purchase stream a moment to deliver restored purchases,
+        // then pull the (possibly now-updated) profile.
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) await context.read<AppProvider>().refreshProfile();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Restore failed: $e'), backgroundColor: kRed));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -224,6 +257,18 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: kPrimary)),
+                  ),
+                ),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _busy ? null : _restore,
+                    icon: const Icon(Icons.restore_rounded,
+                        size: 18, color: kMuted),
+                    label: const Text('Already subscribed? Restore purchases',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: kMuted)),
                   ),
                 ),
                 const SizedBox(height: 6),

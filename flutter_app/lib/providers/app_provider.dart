@@ -712,6 +712,23 @@ class AppProvider extends ChangeNotifier {
     return res;
   }
 
+  /// Re-fetches the signed-in user's profile from Firestore and updates
+  /// local state. Used by BillingService after a Play Billing purchase
+  /// grants Pro — that write happens outside any widget's context (the
+  /// purchase stream can fire at any time), so this is how the UI learns
+  /// about it afterward.
+  Future<void> refreshProfile() async {
+    final uid = _auth.currentUser?.uid ?? '';
+    if (uid.isEmpty) return;
+    try {
+      final fresh = await _auth.getProfile(uid);
+      if (fresh != null) {
+        _profile = fresh;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
   Future<void> _persistShops() async {
     if (_businessId.isEmpty) return;
     if (_isGuest) { await _saveConfigLocal(); return; } // local-only for guests
