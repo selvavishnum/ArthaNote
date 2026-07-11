@@ -13,6 +13,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
 
+    <!-- Google Play Billing (Pro subscription) -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
+
     <!-- Allow Android 11+ to resolve https/http intents (needed for url_launcher + WhatsApp) -->
     <queries>
         <intent>

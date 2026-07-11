@@ -10,6 +10,7 @@ import 'theme.dart';
 import 'providers/app_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/reminder_service.dart';
+import 'services/billing_service.dart';
 
 Future<void> storeCrashLog(String error) async {
   try {
@@ -65,9 +66,16 @@ void main() async {
     cacheSizeBytes:     Settings.CACHE_SIZE_UNLIMITED,
   );
 
+  final appProvider = AppProvider();
+  // Fire-and-forget: Billing availability check + product query shouldn't
+  // block first paint. The purchase stream listener is what matters being
+  // attached early (it can fire for a purchase made before this launch,
+  // e.g. resumed after the app was killed mid-flow).
+  BillingService().init(onGranted: appProvider.refreshProfile);
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppProvider(),
+    ChangeNotifierProvider.value(
+      value: appProvider,
       child: const ArthaNote(),
     ),
   );
