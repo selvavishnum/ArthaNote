@@ -121,5 +121,15 @@ service cloud.firestore {
           .hasOnly(['usedCount', 'usedBy'])
       );
     }
+
+    // Billing anomalies — write-only audit log from BillingService when a
+    // restored/purchased Play Billing purchase is tagged for a different
+    // Firebase user than whoever is logged in (cross-account leak guard).
+    // Any signed-in user can log one (it's just a client detecting its own
+    // mismatch), nobody but the admin can read/change the log afterward.
+    match /billing_anomalies/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }

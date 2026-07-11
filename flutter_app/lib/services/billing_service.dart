@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 /// Google Play Billing integration for the ArthaNote Pro subscription.
 ///
@@ -26,6 +27,23 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 /// phase, same as documented for promo codes. This is a business-logic gate,
 /// not a hard security boundary — Firestore rules already let a user write
 /// pro:true on their own staff doc (same as the trial mechanism).
+///
+/// FIXED CROSS-ACCOUNT LEAK: a Play Billing purchase belongs to the
+/// DEVICE's Play Store account, NOT to whichever ArthaNote user is logged
+/// into the app — those are two independent identities. Tapping "Restore
+/// Purchases" while logged into ArthaNote as user A, on a device/Play
+/// Store account that user B previously bought Pro on, used to grant Pro
+/// to A for free (real incident: a trial-expired test account restored and
+/// got Pro despite zero orders on that account in Play Console — the only
+/// real order belonged to a completely different Gmail). Fixed by tagging
+/// every purchase with the buyer's Firebase uid via
+/// PurchaseParam.applicationUserName at buy() time — Play stores this as
+/// obfuscatedAccountId and returns it on every later query/restore of that
+/// purchase — and refusing to grant if it doesn't match whoever is
+/// currently logged in. Purchases made before this fix have no tag (null)
+/// and are still honoured since we can't retroactively verify them, but any
+/// purchase tagged with a DIFFERENT uid is now rejected and logged to
+/// `billing_anomalies` for review.
 class BillingService {
   BillingService._();
   static final BillingService _instance = BillingService._();
@@ -90,8 +108,16 @@ class BillingService {
     if (match.isEmpty) {
       throw Exception('This plan is not available right now');
     }
+    // Tag the purchase with the buyer's Firebase uid — this is what lets
+    // _grantEntitlement later verify the purchase actually belongs to
+    // whoever is logged in, instead of trusting "some purchase exists on
+    // this device" (see the cross-account-leak note above the class).
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     await _iap.buyNonConsumable(
-        purchaseParam: PurchaseParam(productDetails: match.first));
+        purchaseParam: PurchaseParam(
+      productDetails: match.first,
+      applicationUserName: (uid != null && uid.isNotEmpty) ? uid : null,
+    ));
   }
 
   Future<void> restorePurchases() => _iap.restorePurchases();
@@ -111,9 +137,40 @@ class BillingService {
     }
   }
 
+  /// The Firebase uid this purchase was tagged with at buy() time (see
+  /// PurchaseParam.applicationUserName above), or null for purchases made
+  /// before this fix existed / on platforms without the Android wrapper.
+  String? _taggedUid(PurchaseDetails p) =>
+      p is GooglePlayPurchaseDetails
+          ? p.billingClientPurchase.obfuscatedAccountId
+          : null;
+
+  Future<void> _logAnomaly(
+      PurchaseDetails p, String loggedInUid, String purchaseOwnerUid) async {
+    try {
+      await FirebaseFirestore.instance.collection('billing_anomalies').add({
+        'productId': p.productID,
+        'purchaseId': p.purchaseID ?? '',
+        'loggedInUid': loggedInUid,
+        'purchaseOwnerUid': purchaseOwnerUid,
+        'detectedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
   Future<void> _grantEntitlement(PurchaseDetails p) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
+
+    // Refuse a purchase that's tagged for a DIFFERENT Firebase user than
+    // whoever is currently logged in — this is the cross-account-leak fix.
+    // A null tag means the purchase predates this fix; still honoured since
+    // there's nothing to verify it against.
+    final taggedUid = _taggedUid(p);
+    if (taggedUid != null && taggedUid.isNotEmpty && taggedUid != uid) {
+      await _logAnomaly(p, uid, taggedUid);
+      return;
+    }
 
     // The product ID itself unambiguously identifies the plan — no
     // guessing needed (each plan is its own flat product).
