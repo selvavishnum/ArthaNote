@@ -237,6 +237,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <div class="ntab" onclick="showTab('shops',this)">🏪 Shops</div>
     <div class="ntab" onclick="showTab('transactions',this)">💰 Transactions</div>
     <div class="ntab" onclick="showTab('revenue',this)">📈 Revenue</div>
+    <div class="ntab" onclick="showTab('deletions',this)">🗑 Deletions</div>
     <div class="ntab" onclick="showTab('activity',this)">🔍 Activity Log</div>
     <div class="ntab" onclick="showTab('attendance',this)">📋 Attendance</div>
     <div class="ntab" onclick="showTab('customers',this)">👤 Customers</div>
@@ -301,10 +302,11 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         </div>
         <div class="tbl-wrap">
           <table class="atbl">
-            <thead><tr><th>#</th><th>User</th><th>Plan</th><th>Business</th><th>Shops</th><th>Joined</th><th></th></tr></thead>
-            <tbody id="users-tbody"><tr><td colspan="7" class="tbl-empty loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr></tbody>
+            <thead><tr><th>#</th><th>User</th><th>Plan</th><th>Business</th><th>Shops</th><th>Joined</th><th>Last Seen</th><th></th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="8" class="tbl-empty loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr></tbody>
           </table>
         </div>
+        <div style="padding:6px 14px;font-size:9px;color:var(--muted)">* joined date approximated from first entry (older accounts didn't record a signup date) · 🔥 streak = consecutive days with entries · % = active days in last 30</div>
       </div>
     </div>
 
@@ -335,12 +337,9 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         <div class="kpi-card k-blue" style="padding:12px"><div class="kpi-lbl">Net Profit</div><div class="kpi-val" id="txn-net" style="font-size:18px">₹0</div></div>
       </div>
       <div class="acard">
-        <div class="acard-hd"><span><span class="hd-icon">💰</span>All Transactions</span></div>
-        <div class="tbl-wrap">
-          <table class="atbl">
-            <thead><tr><th>Date</th><th>Business</th><th>Shop</th><th>Type</th><th>Description</th><th>Amount</th><th>GST</th><th>By</th></tr></thead>
-            <tbody id="txns-tbody"><tr><td colspan="8" class="tbl-empty loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr></tbody>
-          </table>
+        <div class="acard-hd"><span><span class="hd-icon">💰</span>Transactions by User — tap a user to expand</span></div>
+        <div class="acard-body" id="txn-groups" style="padding:10px">
+          <div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>
         </div>
       </div>
     </div>
@@ -392,6 +391,28 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       <div class="acard" style="margin-top:12px">
         <div class="acard-hd"><span><span class="hd-icon">📊</span>Monthly Signups Trend</span></div>
         <div class="acard-body" id="signup-trend"></div>
+      </div>
+    </div>
+
+    <!-- ═══ DELETIONS (soft-deleted accounts: 30-day grace window) ═══ -->
+    <div class="section" id="tab-deletions">
+      <div style="background:var(--yellowl);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:var(--yellow)">
+        ⚠️ Deletion works as a 30-day grace window: data stays intact until the purge date, so everything below is fully viewable. Use <b>📦 Archive</b> to keep a snapshot (name, shops, txn summary + recent entries) that survives the final purge. Keeping archives of deleted accounts must be reflected in your privacy policy — set a retention limit.
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="refresh-btn" onclick="loadDeletions()"><span id="del-spin">↻</span> Refresh</button>
+      </div>
+      <div class="acard">
+        <div class="acard-hd"><span><span class="hd-icon">⏳</span>Pending Deletions (in grace window)</span></div>
+        <div class="acard-body" id="del-pending"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+      </div>
+      <div class="acard" style="margin-top:10px">
+        <div class="acard-hd"><span><span class="hd-icon">📦</span>Archived (snapshot kept after purge)</span></div>
+        <div class="acard-body" id="del-archived"><div class="tbl-empty">—</div></div>
+      </div>
+      <div class="acard" style="margin-top:10px">
+        <div class="acard-hd"><span><span class="hd-icon">📮</span>Web Deletion Requests (delete-account form)</span></div>
+        <div class="acard-body" id="del-requests"><div class="tbl-empty">—</div></div>
       </div>
     </div>
 
@@ -665,6 +686,7 @@ function showTab(id,el){
   if(id==='transactions') loadTransactions();
   if(id==='revenue') loadRevenue();
   if(id==='activity') loadActivity();
+  if(id==='deletions') loadDeletions();
   if(id==='attendance'){initAttTab();}
   if(id==='customers'){initCustTab();}
   if(id==='cache'){updateCacheStats();}
@@ -1075,7 +1097,45 @@ window.addEventListener('DOMContentLoaded',()=>{
 // LOAD ALL (overview)
 // ════════════════════════════════════════
 async function loadAll(){
+  // Txn cache first: joined-date fallback, last-seen and streaks in the
+  // Users table are all computed from it (one bounded download, then 0 reads).
+  await ensureTxCache();
+  buildBizStats();
   await Promise.all([loadUsers(),loadOverview()]);
+}
+
+// ── PER-BUSINESS ACTIVITY STATS (from the 90-day txn cache) ──
+let _bizStats={};
+async function ensureTxCache(){
+  if(loadCache(ADMIN_CACHE.txns)?.data?.length) return;
+  try{ await downloadTxCache(); }catch(e){ console.warn('txn cache dl:',e); }
+}
+function buildBizStats(){
+  _bizStats={};
+  const cache=loadCache(ADMIN_CACHE.txns);
+  (cache?.data||[]).forEach(t=>{
+    const b=t.businessId; if(!b||!t.date) return;
+    const s=_bizStats[b]=_bizStats[b]||{first:t.date,last:t.date,dates:new Set()};
+    if(t.date<s.first)s.first=t.date;
+    if(t.date>s.last)s.last=t.date;
+    s.dates.add(t.date);
+  });
+}
+const localISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+// Consecutive-day usage streak, allowed to end today OR yesterday.
+function calcStreak(dates){
+  if(!dates||!dates.size) return 0;
+  let t=new Date(); t.setHours(0,0,0,0);
+  if(!dates.has(localISO(t))) t=new Date(t.getTime()-86400000);
+  let n=0;
+  while(dates.has(localISO(t))){n++;t=new Date(t.getTime()-86400000);}
+  return n;
+}
+function activePct30(dates){
+  if(!dates||!dates.size) return 0;
+  let n=0,t=new Date();t.setHours(0,0,0,0);
+  for(let i=0;i<30;i++){if(dates.has(localISO(t)))n++;t=new Date(t.getTime()-86400000);}
+  return Math.round(n/30*100);
 }
 
 // ════════════════════════════════════════
@@ -1186,29 +1246,38 @@ function renderUsers(users){
   const tb=document.getElementById('users-tbody');
   if(!tb) return;
   _renderedUsers=users;
-  if(!users.length){tb.innerHTML='<tr><td colspan="7" class="tbl-empty">No users found</td></tr>';return;}
+  if(!users.length){tb.innerHTML='<tr><td colspan="8" class="tbl-empty">No users found</td></tr>';return;}
   const avColor={free:'var(--g1)',monthly:'var(--blue)',yearly:'var(--purple)',lifetime:'var(--yellow)',expired:'var(--red)'};
   tb.innerHTML=users.map((u,i)=>{
     const initials=(u.name||u.email||'?').substring(0,2).toUpperCase();
     const shopCount=u.shopCount||0;
     const sid='user-exp-'+i;
+    const st=_bizStats[u.businessId||u.uid||u.id];
+    // Joined: signup date if recorded, else first entry date (marked *)
+    const joined=u.createdAt?fmtDate(u.createdAt):(st?.first?fmtDate(st.first)+'*':'—');
+    const lastSeen=st?.last?fmtDate(st.last):(u.lastActive?fmtDate(u.lastActive):'—');
+    const streak=st?calcStreak(st.dates):0;
+    const pct=st?activePct30(st.dates):0;
+    const streakLine=st?`<div style="font-size:9px;color:${streak>0?'var(--yellow)':'var(--muted)'};margin-top:1px">🔥 ${streak}d streak · ${pct}% (30d)</div>`:'';
     return`<tr style="cursor:pointer" onclick="expandUser(${i})">
       <td style="color:var(--muted);font-family:var(--mono);font-size:10px">${i+1}</td>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div class="av" style="background:${avColor[u.tier]||'var(--g1)'}">${initials}</div>
         <div>
-          <div style="font-size:12px;font-weight:700;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'—')}</div>
-          <div style="font-size:10px;color:var(--muted)">${esc(u.email||'—')}</div>
+          <div style="font-size:12px;font-weight:700;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'—')}</div>
+          <div style="font-size:10px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.email||'—')}</div>
+          ${streakLine}
         </div>
       </div></td>
       <td>${tierBadge(u)}</td>
       <td>${BIZ_ICONS[u.bizType]||'🏪'} <span style="font-size:11px">${u.bizType||'—'}</span></td>
       <td style="font-family:var(--mono);font-size:12px;font-weight:700">${shopCount}</td>
-      <td style="font-size:10px;color:var(--muted)">${fmtDate(u.createdAt)}</td>
+      <td style="font-size:10px;color:var(--muted);white-space:nowrap">${joined}</td>
+      <td style="font-size:10px;color:var(--muted);white-space:nowrap">${lastSeen}</td>
       <td style="text-align:center">▼</td>
     </tr>
     <tr id="${sid}" style="display:none">
-      <td colspan="7" style="padding:0;background:var(--bg)">
+      <td colspan="8" style="padding:0;background:var(--bg)">
         <div style="padding:12px 14px" id="${sid}-body">
           <div style="color:var(--muted);font-size:12px">Loading...</div>
         </div>
@@ -1270,9 +1339,10 @@ async function expandUser(i){
         </div>
       </div>
       <div style="display:flex;gap:8px;font-size:10px;flex-wrap:wrap;margin-bottom:10px">
-        <span style="background:var(--soft);padding:4px 9px;border-radius:8px">📅 Joined: <b>${fmtDate(u.createdAt)}</b></span>
+        <span style="background:var(--soft);padding:4px 9px;border-radius:8px">📅 Joined: <b>${u.createdAt?fmtDate(u.createdAt):(_bizStats[u.businessId||u.uid]?.first?fmtDate(_bizStats[u.businessId||u.uid].first)+'*':'—')}</b></span>
         <span style="background:var(--soft);padding:4px 9px;border-radius:8px">⏰ Last seen: <b>${lastDate}</b></span>
         <span style="background:var(--soft);padding:4px 9px;border-radius:8px">📈 Usage: <b>${engage}</b></span>
+        <span style="background:var(--soft);padding:4px 9px;border-radius:8px">🔥 Streak: <b>${_bizStats[u.businessId||u.uid]?calcStreak(_bizStats[u.businessId||u.uid].dates)+' days':'—'}</b></span>
       </div>
       <div style="display:flex;gap:8px;font-size:10px;flex-wrap:wrap;margin-bottom:10px">
         <span style="background:var(--soft);padding:4px 9px;border-radius:8px">💳 ${planLine}</span>
@@ -1492,24 +1562,69 @@ async function loadTransactions(){
     document.getElementById('kpi-txns').textContent=fmt(_txns.length);
     document.getElementById('kpi-txns-sub').textContent='Last '+days+' days';
     filterTxns();
-  }catch(e){console.error('loadTxns:',e);document.getElementById('txns-tbody').innerHTML='<tr><td colspan="8" class="tbl-empty">Error loading transactions</td></tr>';}
+  }catch(e){console.error('loadTxns:',e);const g=document.getElementById('txn-groups');if(g)g.innerHTML='<div class="tbl-empty">Error loading transactions: '+esc(e.message)+'</div>';}
 }
 
 function filterTxns(){
   const type=document.getElementById('txn-filter-type')?.value||'all';
   const filtered=type==='all'?_txns:_txns.filter(t=>t.type===type);
-  const tb=document.getElementById('txns-tbody');
-  if(!filtered.length){tb.innerHTML='<tr><td colspan="8" class="tbl-empty">No transactions found</td></tr>';return;}
-  tb.innerHTML=filtered.slice(0,200).map(t=>`<tr>
-    <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${t.date||'—'}</td>
-    <td style="font-size:10px;color:var(--muted);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((t.businessId||'').substring(0,12)+'...')}</td>
-    <td style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.shop||'—')}</td>
-    <td><span class="badge ${t.type==='sales'?'active':t.type==='expense'?'inactive':'staff'}">${t.type||'—'}</span></td>
-    <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)" title="${esc(t.desc||'')}">${esc(t.desc||'—')}</td>
-    <td style="font-family:var(--mono);font-weight:700;font-size:12px;color:${t.type==='sales'?'var(--g1)':'var(--red)'}">${t.type==='sales'?'+':'-'}₹${fmt(t.amount||0)}</td>
-    <td style="font-size:10px;color:var(--yellow)">${t.gstOn?'₹'+fmt(t.gstAmount||0):'—'}</td>
-    <td style="font-size:10px;color:var(--muted)">${esc(t.by||'—')}</td>
-  </tr>`).join('');
+  renderTxnGroups(filtered);
+}
+
+// ── TRANSACTIONS GROUPED BY USER — name + Gmail header, tap to expand ──
+async function renderTxnGroups(txns){
+  const cont=document.getElementById('txn-groups');
+  if(!cont) return;
+  if(!txns.length){cont.innerHTML='<div class="tbl-empty">No transactions found</div>';return;}
+  if(!_users.length){ try{ await loadUsers(); }catch(e){} }
+  const byBiz={};
+  txns.forEach(t=>{const b=t.businessId||'unknown';(byBiz[b]=byBiz[b]||[]).push(t);});
+  const userByBiz={};
+  _users.forEach(u=>{userByBiz[u.businessId||u.uid||u.id]=u;});
+
+  cont.innerHTML=Object.entries(byBiz).sort((a,b)=>b[1].length-a[1].length).map(([bid,list],gi)=>{
+    const u=userByBiz[bid];
+    const nm=u&&u.name&&u.name!=='—'?u.name:(u?u.email:'Unknown user');
+    const email=u?u.email:(bid.substring(0,14)+'…');
+    const initials=(nm||'?').substring(0,2).toUpperCase();
+    const sales=list.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const exp=list.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const net=sales-exp;
+    return`<div class="grp">
+      <div class="grp-hd" onclick="var b=document.getElementById('txg-b-${gi}');b.style.display=b.style.display==='block'?'none':'block'">
+        <div class="av" style="width:34px;height:34px;font-size:13px">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm)}</div>
+          <div style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:12px;font-weight:800;font-family:var(--mono);color:${net>=0?'var(--g1)':'var(--red)'}">${net>=0?'+':'−'}₹${fmt(Math.abs(net))}</div>
+          <div style="font-size:9px;color:var(--muted)">${list.length} entries ▼</div>
+        </div>
+      </div>
+      <div class="grp-body" id="txg-b-${gi}">
+        <div style="display:flex;gap:6px;padding:8px 14px 0;font-size:10px;flex-wrap:wrap">
+          <span style="background:var(--soft);padding:3px 8px;border-radius:8px;color:var(--g1)">Sales ₹${fmt(sales)}</span>
+          <span style="background:var(--soft);padding:3px 8px;border-radius:8px;color:var(--red)">Expense ₹${fmt(exp)}</span>
+        </div>
+        <div class="tbl-wrap" style="max-height:300px">
+          <table class="atbl" style="font-size:11px">
+            <thead><tr><th>Date</th><th>Shop</th><th>Type</th><th>Description</th><th>Amount</th><th>GST</th><th>By</th></tr></thead>
+            <tbody>${list.slice(0,100).map(t=>`<tr>
+              <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${t.date||'—'}</td>
+              <td style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.shop||'—')}</td>
+              <td><span class="badge ${t.type==='sales'?'active':t.type==='expense'?'inactive':'staff'}">${t.type||'—'}</span></td>
+              <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)" title="${esc(t.desc||'')}">${esc(t.desc||'—')}</td>
+              <td style="font-family:var(--mono);font-weight:700;color:${t.type==='sales'?'var(--g1)':'var(--red)'}">${t.type==='sales'?'+':'-'}₹${fmt(t.amount||0)}</td>
+              <td style="font-size:10px;color:var(--yellow)">${t.gstOn?'₹'+fmt(t.gstAmount||0):'—'}</td>
+              <td style="font-size:10px;color:var(--muted)">${esc(t.by||'—')}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+        ${list.length>100?`<div style="padding:6px 14px;font-size:10px;color:var(--muted)">Showing first 100 of ${list.length}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ════════════════════════════════════════
@@ -1678,6 +1793,154 @@ async function loadActivity(){
         <div class="feed-time">${fmtTime(a.at)}</div>
       </div>`).join('');
   }catch(e){console.error('loadActivity:',e);document.getElementById('activity-feed').innerHTML='<div class="tbl-empty">Error loading activity</div>';}
+}
+
+// ════════════════════════════════════════
+// DELETIONS — soft-deleted accounts (30-day grace), archives, web requests
+// ════════════════════════════════════════
+let _delPending=[];
+async function loadDeletions(){
+  const spin=document.getElementById('del-spin');
+  if(spin) spin.classList.add('spinning');
+  if(!_users.length){ try{ await loadUsers(); }catch(e){} }
+  const userByBiz={};
+  _users.forEach(u=>{userByBiz[u.businessId||u.uid||u.id]=u;});
+
+  // 1) Pending deletions — config docs flagged pending_deletion (data intact)
+  try{
+    const snap=await DB.collection('config').where('status','==','pending_deletion').get();
+    _delPending=snap.docs.map(d=>({bid:d.id,...d.data()}));
+    const el=document.getElementById('del-pending');
+    el.innerHTML=_delPending.length?_delPending.map((c,i)=>{
+      const u=userByBiz[c.bid];
+      const nm=u&&u.name!=='—'?u.name:(u?u.email:('Business '+c.bid.substring(0,10)+'…'));
+      const email=u?u.email:'—';
+      const shops=c.shops?Object.values(c.shops):[];
+      return`<div class="grp">
+        <div class="grp-hd" onclick="expandDeletion(${i})">
+          <div class="av" style="width:34px;height:34px;font-size:13px;background:var(--red)">${(nm||'?').substring(0,2).toUpperCase()}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700">${esc(nm)}</div>
+            <div style="font-size:10px;color:var(--muted)">${esc(email)}</div>
+            <div style="font-size:9px;color:var(--red);margin-top:2px">Requested ${fmtDate(c.deletionRequestedAt)} · purge after ${fmtDate(c.deletionScheduledAt)}</div>
+          </div>
+          <button class="refresh-btn" onclick="event.stopPropagation();archiveDeletion(${i},this)" style="flex-shrink:0">📦 Archive</button>
+          <span style="font-size:11px;color:var(--muted)">▼</span>
+        </div>
+        <div class="grp-body" id="del-b-${i}" style="padding:10px 14px">
+          ${shops.length?`<div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px">SHOPS</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${shops.map(s=>`<span style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:4px 9px;font-size:11px">${esc(s.icon||'🏪')} ${esc(s.name||'')}</span>`).join('')}</div>`:''}
+          <div id="del-tx-${i}" style="font-size:11px;color:var(--muted)">Loading transactions…</div>
+        </div>
+      </div>`;
+    }).join(''):'<div class="tbl-empty">✅ No accounts pending deletion</div>';
+  }catch(e){
+    document.getElementById('del-pending').innerHTML='<div class="tbl-empty">Error: '+esc(e.message)+'</div>';
+  }
+
+  // 2) Archived snapshots (survive the purge)
+  try{
+    const a=await DB.collection('deleted_accounts').orderBy('archivedAt','desc').limit(50).get();
+    const arch=a.docs.map(d=>d.data());
+    document.getElementById('del-archived').innerHTML=arch.length?arch.map(x=>`
+      <div class="stat-row" style="align-items:flex-start">
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700">${esc(x.name||'—')} <span style="font-size:10px;color:var(--muted)">${esc(x.email||'')}</span></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${(x.shops?Object.values(x.shops).map(s=>esc(s.name||'')).join(', '):'—')}</div>
+          <div style="font-size:10px;color:var(--muted)">${x.txnSummary?`${x.txnSummary.count} entries · sales ₹${fmt(x.txnSummary.sales)} · expense ₹${fmt(x.txnSummary.expense)} (${x.txnSummary.firstDate||'—'} → ${x.txnSummary.lastDate||'—'})`:''}</div>
+        </div>
+        <div style="font-size:9px;color:var(--muted);flex-shrink:0">archived ${fmtDate(x.archivedAt)}</div>
+      </div>`).join(''):'<div class="tbl-empty">No archives yet — use 📦 Archive on a pending deletion</div>';
+  }catch(e){
+    document.getElementById('del-archived').innerHTML='<div class="tbl-empty">— (deploy latest firestore.rules to enable archives)</div>';
+  }
+
+  // 3) Web delete-account form requests
+  try{
+    const r=await DB.collection('deletion_requests').orderBy('requestedAt','desc').limit(50).get();
+    const reqs=r.docs.map(d=>d.data());
+    document.getElementById('del-requests').innerHTML=reqs.length?reqs.map(x=>`
+      <div class="stat-row">
+        <div class="stat-lbl" style="font-size:12px">${esc(x.email||'—')}<div style="font-size:10px;color:var(--muted);font-weight:400">${esc(x.reason||'no reason given')}</div></div>
+        <div style="font-size:10px;color:var(--muted)">${fmtDate(x.requestedAt)}</div>
+      </div>`).join(''):'<div class="tbl-empty">No web deletion requests</div>';
+  }catch(e){
+    document.getElementById('del-requests').innerHTML='<div class="tbl-empty">— (deploy latest firestore.rules to enable)</div>';
+  }
+  if(spin) spin.classList.remove('spinning');
+}
+
+async function expandDeletion(i){
+  const body=document.getElementById('del-b-'+i);
+  if(!body) return;
+  if(body.style.display==='block'){body.style.display='none';return;}
+  body.style.display='block';
+  const c=_delPending[i]; if(!c) return;
+  const holder=document.getElementById('del-tx-'+i);
+  try{
+    const txns=await _txnsForBiz(c.bid);
+    const sales=txns.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const exp=txns.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
+    holder.innerHTML=`
+      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:5px">TRANSACTIONS (${txns.length})</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;font-size:10px;flex-wrap:wrap">
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px;color:var(--g1)">Sales ₹${fmt(sales)}</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px;color:var(--red)">Expense ₹${fmt(exp)}</span>
+      </div>
+      <div class="tbl-wrap" style="max-height:220px"><table class="atbl" style="font-size:11px">
+        <thead><tr><th>Date</th><th>Shop</th><th>Type</th><th>Desc</th><th>Amount</th></tr></thead>
+        <tbody>${txns.slice(0,60).map(t=>`<tr>
+          <td style="font-family:var(--mono);font-size:10px">${t.date||'—'}</td>
+          <td style="font-size:10px">${esc(t.shop||'—')}</td>
+          <td style="font-size:10px">${t.type||'—'}</td>
+          <td style="font-size:10px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)">${esc(t.desc||'—')}</td>
+          <td style="font-family:var(--mono);font-weight:700;color:${t.type==='sales'?'var(--g1)':'var(--red)'}">₹${fmt(t.amount||0)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  }catch(e){holder.innerHTML='Error loading txns: '+esc(e.message);}
+}
+
+async function _txnsForBiz(bid){
+  const cache=loadCache(ADMIN_CACHE.txns);
+  const cached=(cache?.data||[]).filter(t=>t.businessId===bid);
+  if(cached.length) return cached.sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+  const snap=await DB.collection('transactions').where('businessId','==',bid).orderBy('date','desc').limit(200).get();
+  return snap.docs.map(d=>d.data());
+}
+
+// Snapshot a pending-deletion account into deleted_accounts so its identity,
+// shops and transaction record survive the final purge. Slim rows, capped at
+// 200 entries, to stay far under Firestore's 1MB document limit.
+async function archiveDeletion(i,btn){
+  const c=_delPending[i]; if(!c) return;
+  if(btn){btn.textContent='⏳…';btn.disabled=true;}
+  try{
+    const userByBiz={};
+    _users.forEach(u=>{userByBiz[u.businessId||u.uid||u.id]=u;});
+    const u=userByBiz[c.bid]||{};
+    const txns=await _txnsForBiz(c.bid);
+    const sales=txns.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const exp=txns.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const dates=txns.map(t=>t.date).filter(Boolean).sort();
+    await DB.collection('deleted_accounts').doc(c.bid).set({
+      businessId:c.bid,
+      name:u.name||'—', email:u.email||'—',
+      tier:u.tier||'free', bizType:u.bizType||c.bizType||'other',
+      shops:c.shops||u.shops||{},
+      deletionRequestedAt:c.deletionRequestedAt||null,
+      deletionScheduledAt:c.deletionScheduledAt||null,
+      txnSummary:{count:txns.length,sales,expense:exp,firstDate:dates[0]||null,lastDate:dates[dates.length-1]||null},
+      txns:txns.slice(0,200).map(t=>({d:t.date||'',s:t.shop||'',t:t.type||'',a:t.amount||0,ds:(t.desc||'').substring(0,60)})),
+      archivedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      archivedBy:_adminUser?.email||''
+    });
+    if(btn){btn.textContent='✅ Archived';}
+    toast('📦 Snapshot saved to deleted_accounts');
+    loadDeletions();
+  }catch(e){
+    if(btn){btn.textContent='📦 Archive';btn.disabled=false;}
+    alert('Archive failed: '+e.message+'\n(Have you deployed the latest firestore.rules?)');
+  }
 }
 
 // ════════════════════════════════════════
