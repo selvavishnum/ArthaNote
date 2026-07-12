@@ -240,7 +240,6 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <div class="ntab" onclick="showTab('deletions',this)">🗑 Deletions</div>
     <div class="ntab" onclick="showTab('activity',this)">🔍 Activity Log</div>
     <div class="ntab" onclick="showTab('attendance',this)">📋 Attendance</div>
-    <div class="ntab" onclick="showTab('customers',this)">👤 Customers</div>
     <div class="ntab" onclick="showTab('cache',this)">💾 Data Cache</div>
   </div>
 
@@ -288,8 +287,15 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       </div>
     </div>
 
-    <!-- ═══ USERS ═══ -->
+    <!-- ═══ USERS (merged with old Customers tab) ═══ -->
     <div class="section" id="tab-users">
+      <!-- Stat cards (moved from the old Customers tab) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div class="kpi-card k-blue" style="padding:12px;display:flex;align-items:center;gap:10px"><div style="font-size:22px">👥</div><div><div class="kpi-val" id="u-stat-total" style="font-size:20px;line-height:1">—</div><div class="kpi-lbl">Total Users</div></div></div>
+        <div class="kpi-card k-purple" style="padding:12px;display:flex;align-items:center;gap:10px"><div style="font-size:22px">⭐</div><div><div class="kpi-val" id="u-stat-pro" style="font-size:20px;line-height:1">—</div><div class="kpi-lbl">Pro (paid/promo)</div></div></div>
+        <div class="kpi-card k-green" style="padding:12px;display:flex;align-items:center;gap:10px"><div style="font-size:22px">🆓</div><div><div class="kpi-val" id="u-stat-free" style="font-size:20px;line-height:1">—</div><div class="kpi-lbl">Free Users</div></div></div>
+        <div class="kpi-card k-yellow" style="padding:12px;display:flex;align-items:center;gap:10px"><div style="font-size:22px">📝</div><div><div class="kpi-val" id="u-stat-txns" style="font-size:20px;line-height:1">—</div><div class="kpi-lbl">Entries (90d)</div></div></div>
+      </div>
       <div class="search-box"><span style="color:var(--muted);font-size:14px">🔍</span><input type="text" placeholder="Search by name or email..." id="user-search" oninput="filterUsers()"></div>
       <!-- Filters: Recent/Old are sort orders; the rest filter by plan tier -->
       <div class="fchips" id="user-fchips">
@@ -305,7 +311,10 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       <div class="acard">
         <div class="acard-hd">
           <span><span class="hd-icon">👥</span>All Users <span id="user-count-lbl" style="font-size:11px;color:var(--muted);font-weight:500"></span></span>
-          <button class="refresh-btn" onclick="loadUsers()"><span id="usr-spin">↻</span> Refresh</button>
+          <span style="display:flex;gap:6px">
+            <button class="refresh-btn" onclick="downloadCsvUsers()" style="background:var(--yellow);color:#fff;border-color:var(--yellow)">⬇️ CSV</button>
+            <button class="refresh-btn" onclick="loadUsers()"><span id="usr-spin">↻</span> Refresh</button>
+          </span>
         </div>
         <div class="tbl-wrap">
           <table class="atbl">
@@ -430,8 +439,14 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         <button class="refresh-btn" onclick="loadActivity()">↻ Refresh</button>
         <div id="act-count" style="font-size:11px;color:var(--muted);margin-left:auto"></div>
       </div>
+      <!-- Live usage — built from entry timestamps, works even with no audit events -->
       <div class="acard">
-        <div class="acard-hd"><span><span class="hd-icon">🔍</span>All User Activity</span></div>
+        <div class="acard-hd"><span><span class="hd-icon">🟢</span>Who's Active — user · shop · time spent</span></div>
+        <div class="acard-body" id="act-usage" style="padding:10px"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+        <div style="padding:0 16px 12px;font-size:10px;color:var(--muted)">🟢 Online = made an entry in the last 10 minutes · ⏱ time spent is estimated from entry timing (bursts of entries ≤30 min apart count as one session)</div>
+      </div>
+      <div class="acard">
+        <div class="acard-hd"><span><span class="hd-icon">🔍</span>Event Feed (logins, saves, edits)</span></div>
         <div class="acard-body" id="activity-feed"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
       </div>
     </div>
@@ -466,82 +481,6 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     </div>
 
     <!-- ═══ CUSTOMERS 360° ═══ -->
-    <div class="section" id="tab-customers">
-      <!-- Header Actions -->
-      <div style="display:flex;gap:8px;margin-bottom:14px">
-        <button class="refresh-btn" onclick="downloadAllCache()" id="cust-dl-btn" style="flex:1;justify-content:center;padding:10px">
-          ↻ Refresh
-        </button>
-        <button class="refresh-btn" onclick="downloadCsvCustomers()" style="flex:1;justify-content:center;padding:10px;background:var(--yellow);color:#fff;border-color:var(--yellow)">
-          ⬇️ Download CSV
-        </button>
-      </div>
-
-      <!-- KPI Cards -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-        <div class="kpi-card k-blue" style="padding:12px;display:flex;align-items:center;gap:10px">
-          <div style="font-size:24px">👥</div>
-          <div><div class="kpi-val" id="cust-total" style="font-size:22px;line-height:1">—</div><div class="kpi-lbl">Total Customers</div></div>
-        </div>
-        <div class="kpi-card k-green" style="padding:12px;display:flex;align-items:center;gap:10px">
-          <div style="font-size:24px">👥</div>
-          <div><div class="kpi-val" id="cust-pro" style="font-size:22px;line-height:1">—</div><div class="kpi-lbl">Registered</div></div>
-        </div>
-        <div class="kpi-card" style="padding:12px;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border)">
-          <div style="font-size:24px">👥</div>
-          <div><div class="kpi-val" id="cust-free" style="font-size:22px;line-height:1">—</div><div class="kpi-lbl">Free Users</div></div>
-        </div>
-        <div class="kpi-card k-yellow" style="padding:12px;display:flex;align-items:center;gap:10px">
-          <div style="font-size:24px">👥</div>
-          <div><div class="kpi-val" id="cust-txns" style="font-size:22px;line-height:1">—</div><div class="kpi-lbl">Total Transactions</div></div>
-        </div>
-      </div>
-
-      <!-- Search -->
-      <div class="search-box" style="margin-bottom:12px">
-        <span style="color:var(--muted)">🔍</span>
-        <input type="text" id="cust-search" placeholder="Search by name, email or shop..." oninput="filterCustomers()">
-      </div>
-
-      <!-- Cache bar -->
-      <div id="cust-cache-bar" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;font-size:11px">
-        <div id="cust-cache-info" style="color:var(--muted)">💾 No cached data — click Refresh</div>
-        <button class="refresh-btn" onclick="clearAllCache()" style="color:var(--red);padding:4px 8px;font-size:10px">🗑 Clear</button>
-      </div>
-
-      <!-- Customer Table -->
-      <div class="acard">
-        <div class="tbl-wrap">
-          <table class="atbl">
-            <thead>
-              <tr>
-                <th style="min-width:120px">Customer</th>
-                <th>Plan</th>
-                <th>Shops</th>
-                <th>Entries</th>
-                <th>Active</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="cust-tbody">
-              <tr><td colspan="6" class="tbl-empty">⬇️ Click Refresh to load customers</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Customer Detail Modal -->
-      <div id="cust-detail-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;padding:16px">
-        <div style="background:var(--card);border-radius:20px;width:100%;max-width:400px;max-height:85vh;overflow-y:auto;padding:20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <div style="font-size:16px;font-weight:800" id="cd-title">Customer</div>
-            <button onclick="document.getElementById('cust-detail-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
-          </div>
-          <div id="cd-body"></div>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══ DATA CACHE ═══ -->
     <div class="section" id="tab-cache">
       <div class="acard">
@@ -660,6 +599,20 @@ function adminLogin(){
 }
 function adminSignOut(){AUTH.signOut();}
 
+// ── SECURITY: idle auto-lock ──
+// The admin panel exposes every customer's data; if the phone/laptop is left
+// open, sign out automatically after 15 minutes without any interaction.
+let _idleTimer=null;
+function _armIdleLock(){
+  clearTimeout(_idleTimer);
+  _idleTimer=setTimeout(()=>{
+    if(AUTH.currentUser){ AUTH.signOut(); alert('🔒 Auto-locked after 15 min idle — login again'); }
+  },15*60*1000);
+}
+['click','keydown','scroll','touchstart'].forEach(ev=>
+  document.addEventListener(ev,_armIdleLock,{passive:true}));
+_armIdleLock();
+
 AUTH.onAuthStateChanged(user=>{
   if(!user){
     document.getElementById('login-screen').style.display='flex';
@@ -695,7 +648,6 @@ function showTab(id,el){
   if(id==='activity') loadActivity();
   if(id==='deletions') loadDeletions();
   if(id==='attendance'){initAttTab();}
-  if(id==='customers'){initCustTab();}
   if(id==='cache'){updateCacheStats();}
 }
 
@@ -759,14 +711,11 @@ function updateCacheBars(){
   const attInfo=document.getElementById('att-cache-info');
   if(attInfo) attInfo.textContent=attAge?`✅ Cached ${attAge} · ${loadCache(ADMIN_CACHE.att)?.data?.length||0} records`:'💾 No cached data — click Download';
 
-  const custAge=cacheAge(ADMIN_CACHE.users);
-  const custInfo=document.getElementById('cust-cache-info');
-  if(custInfo) custInfo.textContent=custAge?`✅ Cached ${custAge} · ${_users.length} users`:'💾 No cached data';
 }
 
 // ── DOWNLOAD FUNCTIONS (1 Firestore read each) ──
 async function downloadAllCache(){
-  const btn=document.getElementById('cust-dl-btn')||document.getElementById('att-dl-btn');
+  const btn=document.getElementById('att-dl-btn');
   if(btn){btn.textContent='⏳ Downloading...';btn.disabled=true;}
   try{
     await Promise.all([downloadUsersCache(),downloadTxCache(),downloadAttCache()]);
@@ -918,181 +867,29 @@ function renderAttFromCache(){
 }
 
 // ════════════════════════════════════════
-// CUSTOMERS 360° — from cache, 0 reads
+// USERS CSV EXPORT (Customers tab merged into Users)
 // ════════════════════════════════════════
-function renderCustomers(users,txns){
-  const today=new Date().toISOString().split('T')[0];
-  const activeToday=new Set(txns.filter(t=>t.date===today).map(t=>t.businessId||t.userId)).size;
+let _custAll=[];  // still filled by downloadUsersCache (Data Cache tab)
 
-  document.getElementById('cust-total').textContent=users.length;
-  document.getElementById('cust-pro').textContent=users.filter(u=>userTier(u)!=='free'&&userTier(u)!=='expired').length;
-  document.getElementById('cust-free').textContent=users.filter(u=>userTier(u)==='free'||userTier(u)==='expired').length;
-  document.getElementById('cust-txns').textContent=fmt(txns.length);
-
-  const tbody=document.getElementById('cust-tbody');
-  if(!users.length){tbody.innerHTML='<tr><td colspan="6" class="tbl-empty">No customers found</td></tr>';return;}
-
-  tbody.innerHTML=users.map((u,i)=>{
-    const uid=u.id||u.uid;
-    const userTxns=txns.filter(t=>t.businessId===uid||t.userId===uid);
-    const lastActive=userTxns.length?[...new Set(userTxns.map(t=>t.date))].sort().pop():'—';
-    const shopCount=u.shops?Object.keys(u.shops).length:(u.shopCount||0);
-    const isActiveToday=userTxns.some(t=>t.date===today);
-    const isPro=userTier(u)!=='free'&&userTier(u)!=='expired';
-
-    return`<tr>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="av" style="width:30px;height:30px;font-size:12px;background:${isPro?'var(--blue)':'var(--g1)'}">${(u.name||u.email||'?').substring(0,2).toUpperCase()}</div>
-          <div>
-            <div style="font-size:12px;font-weight:700;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'Unknown')}</div>
-            <div style="font-size:10px;color:var(--muted);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.email||'—')}</div>
-          </div>
-        </div>
-      </td>
-      <td>
-        <span style="padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;background:${isPro?'#dbeafe':'#f0fdf4'};color:${isPro?'var(--blue)':'var(--g1)'}">
-          ${isPro?'⭐ Pro':'Free'}
-        </span>
-      </td>
-      <td style="text-align:center;font-size:13px;font-weight:700">${shopCount}</td>
-      <td style="text-align:center;font-family:var(--mono);font-size:12px;font-weight:700">${userTxns.length}</td>
-      <td style="text-align:center">
-        <div style="display:flex;align-items:center;justify-content:center;gap:4px">
-          <div style="width:7px;height:7px;border-radius:50%;background:${isActiveToday?'var(--g1)':'var(--border)'}"></div>
-          <span style="font-size:10px;color:var(--muted)">${lastActive==='—'?'Never':lastActive.substring(5)}</span>
-        </div>
-      </td>
-      <td>
-        <div style="display:flex;gap:5px">
-          <button onclick="viewCustOrders('${uid}')" style="padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:var(--soft);font-size:10px;font-weight:600;cursor:pointer;white-space:nowrap">📋 Entries</button>
-          <button onclick="viewCustDetail(${i})" style="padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:var(--soft);font-size:10px;font-weight:600;cursor:pointer">👁 View</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function viewCustDetail(idx){
+function downloadCsvUsers(){
+  if(!_users.length){alert('Users not loaded yet — tap Refresh first');return;}
   const txCache=loadCache(ADMIN_CACHE.txns);
   const txns=txCache?.data||[];
-  const u=_custAll[idx]; if(!u) return;
-  const uid=u.id||u.uid;
-  const userTxns=txns.filter(t=>t.businessId===uid||t.userId===uid);
-  const totalSales=userTxns.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
-  const totalExp=userTxns.filter(t=>t.type!=='sales').reduce((a,t)=>a+(t.amount||0),0);
-  const activeDays=new Set(userTxns.map(t=>t.date)).size;
-  const lastActive=userTxns.length?[...new Set(userTxns.map(t=>t.date))].sort().pop():'—';
-  const today=new Date().toISOString().split('T')[0];
-
-  document.getElementById('cd-title').textContent=u.name||u.email||'Customer';
-  document.getElementById('cd-body').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-      <div style="text-align:center;background:var(--soft);border-radius:10px;padding:10px">
-        <div style="font-size:16px;font-weight:800;color:var(--g1)">₹${fmt(totalSales)}</div>
-        <div style="font-size:9px;color:var(--muted)">SALES</div>
-      </div>
-      <div style="text-align:center;background:var(--soft);border-radius:10px;padding:10px">
-        <div style="font-size:16px;font-weight:800;color:var(--red)">₹${fmt(totalExp)}</div>
-        <div style="font-size:9px;color:var(--muted)">EXPENSE</div>
-      </div>
-      <div style="text-align:center;background:var(--soft);border-radius:10px;padding:10px">
-        <div style="font-size:16px;font-weight:800">${activeDays}</div>
-        <div style="font-size:9px;color:var(--muted)">DAYS</div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
-      <div class="stat-row"><div class="stat-lbl">Email</div><div>${esc(u.email||'—')}</div></div>
-      <div class="stat-row"><div class="stat-lbl">Plan</div><div>${TIER_BADGE[userTier(u)][1]}</div></div>
-      <div class="stat-row"><div class="stat-lbl">Business Type</div><div>${esc(u.bizType||'—')}</div></div>
-      <div class="stat-row"><div class="stat-lbl">Joined</div><div>${fmtDate(u.createdAt)}</div></div>
-      <div class="stat-row"><div class="stat-lbl">Last Active</div><div>${lastActive}</div></div>
-      <div class="stat-row"><div class="stat-lbl">Total Entries</div><div>${userTxns.length}</div></div>
-    </div>
-    ${u.shops?`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">SHOPS</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
-      ${Object.entries(u.shops).map(([k,s])=>`<div style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px">${esc(s.icon||'🏪')} ${esc(s.name||k)}</div>`).join('')}
-    </div>`:''}
-    <!-- Last 7 days chart -->
-    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">LAST 7 DAYS SALES</div>
-    <div style="display:flex;gap:4px;align-items:flex-end;height:50px">
-      ${[...Array(7)].map((_,i)=>{
-        const d=new Date();d.setDate(d.getDate()-(6-i));
-        const ds=d.toISOString().split('T')[0];
-        const s=userTxns.filter(t=>t.date===ds&&t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
-        const max=Math.max(...[...Array(7)].map((_,j)=>{const dd=new Date();dd.setDate(dd.getDate()-(6-j));return userTxns.filter(t=>t.date===dd.toISOString().split('T')[0]&&t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);}),1);
-        const h=Math.max(s/max*46,2);
-        const isToday=ds===today;
-        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
-          <div style="width:100%;height:${h}px;background:${s>0?(isToday?'var(--blue)':'var(--g1)'):'var(--border)'};border-radius:3px 3px 0 0"></div>
-          <div style="font-size:8px;color:var(--muted)">${d.getDate()}</div>
-        </div>`;
-      }).join('')}
-    </div>`;
-
-  document.getElementById('cust-detail-modal').style.display='flex';
-}
-
-function viewCustOrders(uid){
-  const txCache=loadCache(ADMIN_CACHE.txns);
-  const txns=(txCache?.data||[]).filter(t=>t.businessId===uid||t.userId===uid);
-  const u=_custAll.find(x=>(x.id||x.uid)===uid);
-  document.getElementById('cd-title').textContent=(u?.name||'Customer')+' — Entries';
-  document.getElementById('cd-body').innerHTML=`
-    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">${txns.length} total entries</div>
-    <div class="tbl-wrap"><table class="atbl">
-      <thead><tr><th>Date</th><th>Desc</th><th>Type</th><th>Amount</th></tr></thead>
-      <tbody>${txns.sort((a,b)=>(b.date||'')>(a.date||'')?1:-1).slice(0,50).map(t=>`
-        <tr>
-          <td style="font-size:10px;font-family:var(--mono)">${t.date||'—'}</td>
-          <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.desc||t.category||'—')}</td>
-          <td><span style="font-size:9px;padding:2px 6px;border-radius:10px;background:${t.type==='sales'?'var(--gl)':'var(--rl)'};color:${t.type==='sales'?'var(--g1)':'var(--red)'}">${t.type||'—'}</span></td>
-          <td style="font-family:var(--mono);font-size:11px;font-weight:700;color:${t.type==='sales'?'var(--g1)':'var(--red)'}">₹${fmt(t.amount)}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table></div>`;
-  document.getElementById('cust-detail-modal').style.display='flex';
-}
-
-function downloadCsvCustomers(){
-  const txCache=loadCache(ADMIN_CACHE.txns);
-  const txns=txCache?.data||[];
-  const rows=[['Name','Email','Plan','Shops','Entries','Total Sales','Last Active','Joined']];
-  _custAll.forEach(u=>{
-    const uid=u.id||u.uid;
-    const ut=txns.filter(t=>t.businessId===uid||t.userId===uid);
-    const sales=ut.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
-    const last=ut.length?[...new Set(ut.map(t=>t.date))].sort().pop():'';
-    rows.push([u.name||'',u.email||'',userTier(u),u.shops?Object.keys(u.shops).length:0,ut.length,sales,last,fmtDate(u.createdAt)]);
+  const rows=[['Name','Email','Plan','Business Type','Shops','Entries (90d)','Total Sales','Joined','Last Seen']];
+  _users.forEach(u=>{
+    const bid=u.businessId||u.uid||u.id;
+    const ut=txns.filter(t=>t.businessId===bid);
+    const sales=ut.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const st=_bizStats[bid];
+    const joined=u.createdAt?fmtDate(u.createdAt):(st?.first?st.first+'*':'');
+    rows.push([u.name||'',u.email||'',u.tier||userTier(u),u.bizType||'',u.shopCount||0,ut.length,sales,joined,st?.last||'']);
   });
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='customers_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.download='users_'+new Date().toISOString().split('T')[0]+'.csv';
   a.click();
   toast('✅ CSV downloaded!');
-}
-
-let _custAll=[];
-
-function initCustTab(){
-  const userCache=loadCache(ADMIN_CACHE.users);
-  const txCache=loadCache(ADMIN_CACHE.txns);
-  if(userCache?.data?.length){
-    _custAll=userCache.data;
-    renderCustomers(_custAll,txCache?.data||[]);
-  } else {
-    const tbody=document.getElementById('cust-tbody');
-    if(tbody) tbody.innerHTML='<tr><td colspan="6" class="tbl-empty">⬇️ Click Refresh to load customers</td></tr>';
-  }
-  updateCacheBars();
-}
-
-function filterCustomers(){
-  const q=document.getElementById('cust-search')?.value.toLowerCase()||'';
-  const txCache=loadCache(ADMIN_CACHE.txns);
-  const filtered=q?_custAll.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)):_custAll;
-  renderCustomers(filtered,txCache?.data||[]);
 }
 
 // On load, init cache
@@ -1237,7 +1034,16 @@ async function loadUsers(){
     const ts=_users.filter(u=>{const d=u.createdAt?.toDate?.();return d&&d>=today;}).length;
     const kpiUS=document.getElementById('kpi-users-sub');
     if(kpiUS) kpiUS.textContent=ts?'+'+ts+' today':'';
-    renderRecentSignups(_users.slice(0,8));
+    // Sort by real join time (signup date, else first-entry date) so the
+    // NEWEST signup is genuinely on top — the old code took the first 8 in
+    // Firestore read order, which is why the latest signup never showed.
+    renderRecentSignups([..._users].sort((a,b)=>joinMsOf(b)-joinMsOf(a)).slice(0,8));
+    // Stat cards on the Users tab (merged from old Customers tab)
+    const setU=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+    setU('u-stat-total',_users.length);
+    setU('u-stat-pro',paid);
+    setU('u-stat-free',_users.filter(u=>u.tier==='free'||u.tier==='expired').length);
+    setU('u-stat-txns',fmt(loadCache(ADMIN_CACHE.txns)?.data?.length||0));
     console.log('✅ Users loaded:',_users.length);
   }catch(e){
     console.error('loadUsers err:',e);
@@ -1303,12 +1109,19 @@ async function expandUser(i){
   row.style.display='table-row';
   const body=document.getElementById(sid+'-body');
 
-  // Load this user's transactions
+  // Load this user's transactions — cache first (0 reads). The old code ran
+  // where(businessId)+orderBy(date), which needs a composite Firestore index
+  // that was never created, so every expand errored. Plain where() needs no
+  // index; sort client-side.
   try{
-    const txSnap=await DB.collection('transactions')
-      .where('businessId','==',u.businessId||u.uid)
-      .orderBy('date','desc').limit(100).get();
-    const txns=txSnap.docs.map(d=>d.data());
+    const bid=u.businessId||u.uid;
+    let txns=(loadCache(ADMIN_CACHE.txns)?.data||[]).filter(t=>t.businessId===bid);
+    if(!txns.length){
+      const txSnap=await DB.collection('transactions')
+        .where('businessId','==',bid).limit(200).get();
+      txns=txSnap.docs.map(d=>d.data());
+    }
+    txns.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     const totalSales=txns.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
     const totalExp=txns.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
     const activeDays=new Set(txns.map(t=>t.date)).size;
@@ -1362,7 +1175,18 @@ async function expandUser(i){
       <div style="display:flex;gap:8px;font-size:10px;flex-wrap:wrap">
         <span style="background:var(--soft);padding:3px 8px;border-radius:8px">📧 ${esc(u.email)}</span>
         <span style="background:var(--soft);padding:3px 8px;border-radius:8px">🏪 ${shops.length} shops</span>
-      </div>`;
+      </div>
+      ${txns.length?`<div style="font-size:11px;font-weight:700;color:var(--muted);margin:12px 0 6px">📋 ENTRIES (latest ${Math.min(txns.length,50)} of ${txns.length})</div>
+      <div class="tbl-wrap" style="max-height:260px"><table class="atbl" style="font-size:11px">
+        <thead><tr><th>Date</th><th>Shop</th><th>Type</th><th>Description</th><th>Amount</th></tr></thead>
+        <tbody>${txns.slice(0,50).map(t=>`<tr>
+          <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${t.date||'—'}</td>
+          <td style="font-size:10px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(shopNameOf(u,t))}</td>
+          <td><span class="badge ${t.type==='sales'?'active':t.type==='expense'?'inactive':'staff'}">${t.type||'—'}</span></td>
+          <td style="font-size:10px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)" title="${esc(t.desc||'')}">${esc(t.desc||'—')}</td>
+          <td style="font-family:var(--mono);font-weight:700;color:${t.type==='sales'||t.type==='sale'?'var(--g1)':'var(--red)'}">${t.type==='sales'||t.type==='sale'?'+':'-'}₹${fmt(t.amount||0)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`:''}`;
   }catch(e){
     body.innerHTML='<div style="color:var(--muted);font-size:12px">Could not load transactions: '+esc(e.message)+'</div>';
   }
@@ -1377,7 +1201,7 @@ function renderRecentSignups(users){
       <td><div style="display:flex;align-items:center;gap:8px"><div class="av">${initials}</div><span style="font-size:12px;font-weight:600">${esc(u.name||'—')}</span></div></td>
       <td style="font-size:11px;color:var(--muted)">${esc(u.email||'—')}</td>
       <td>${tierBadge(u)}</td>
-      <td style="font-size:10px;color:var(--muted)">${fmtDate(u.createdAt)}</td>
+      <td style="font-size:10px;color:var(--muted);white-space:nowrap">${joinedLabel(u)}</td>
     </tr>`;
   }).join('');
 }
@@ -1385,12 +1209,29 @@ function renderRecentSignups(users){
 // ── USER FILTERS (search box + tier/sort chips, combined) ──
 let _userFilter='all';
 function tsOf(u){const c=u.createdAt;if(!c)return 0;if(c.toDate)return c.toDate().getTime();if(typeof c==='number')return c;if(c.seconds)return c.seconds*1000;return 0;}
+// Join time with fallback: signup date if recorded, else first-entry date
+// (older accounts never wrote createdAt — without this they sorted as 1970
+// and Recent Signups showed the wrong people with no date).
+function joinMsOf(u){
+  const t=tsOf(u); if(t) return t;
+  const st=_bizStats[u.businessId||u.uid||u.id];
+  return st?.first?new Date(st.first+'T00:00:00').getTime():0;
+}
+function joinedLabel(u){
+  if(u.createdAt) return fmtDate(u.createdAt);
+  const st=_bizStats[u.businessId||u.uid||u.id];
+  return st?.first?fmtDate(st.first)+'*':'—';
+}
+// Resolve a transaction's shop id (s1, s2…) to the owner's real shop name.
+function shopNameOf(u,t){
+  return u?.shops?.[t.shop]?.name || t.shopName || t.shop || '—';
+}
 function applyUserFilters(){
   const q=(document.getElementById('user-search')?.value||'').toLowerCase();
   let list=q?_users.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)):[..._users];
   switch(_userFilter){
-    case 'recent': list.sort((a,b)=>tsOf(b)-tsOf(a)); break;   // newest joined first
-    case 'old':    list.sort((a,b)=>tsOf(a)-tsOf(b)); break;   // oldest joined first
+    case 'recent': list.sort((a,b)=>joinMsOf(b)-joinMsOf(a)); break;   // newest joined first
+    case 'old':    list.sort((a,b)=>joinMsOf(a)-joinMsOf(b)); break;   // oldest joined first
     case 'all':    break;
     default:       list=list.filter(u=>u.tier===_userFilter);  // tier filters
   }
@@ -1659,7 +1500,7 @@ async function renderTxnGroups(txns){
             <thead><tr><th>Date</th><th>Shop</th><th>Type</th><th>Description</th><th>Amount</th><th>GST</th><th>By</th></tr></thead>
             <tbody>${list.slice(0,100).map(t=>`<tr>
               <td style="font-family:var(--mono);font-size:10px;white-space:nowrap">${t.date||'—'}</td>
-              <td style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.shop||'—')}</td>
+              <td style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(shopNameOf(u,t))}</td>
               <td><span class="badge ${t.type==='sales'?'active':t.type==='expense'?'inactive':'staff'}">${t.type||'—'}</span></td>
               <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)" title="${esc(t.desc||'')}">${esc(t.desc||'—')}</td>
               <td style="font-family:var(--mono);font-weight:700;color:${t.type==='sales'?'var(--g1)':'var(--red)'}">${t.type==='sales'?'+':'-'}₹${fmt(t.amount||0)}</td>
@@ -1819,9 +1660,79 @@ async function loadRevenue(){
 // ════════════════════════════════════════
 // ACTIVITY LOG
 // ════════════════════════════════════════
+// Ms timestamp of a cached transaction (cache is JSON — Firestore Timestamps
+// become plain {seconds} objects). Falls back to the entry's date at noon.
+function txMs(t){
+  if(t.createdMs) return t.createdMs;
+  if(t.createdAt?.seconds) return t.createdAt.seconds*1000;
+  if(typeof t.createdAt==='number') return t.createdAt;
+  return t.date?new Date(t.date+'T12:00:00').getTime():0;
+}
+// Estimated minutes spent: cluster entry timestamps into sessions (gap ≤30
+// min = same session), each session = span + 3 min for open/close.
+function estMinutes(msList){
+  const ts=msList.filter(Boolean).sort((a,b)=>a-b);
+  if(!ts.length) return 0;
+  let total=0,start=ts[0],prev=ts[0];
+  for(let i=1;i<=ts.length;i++){
+    if(i===ts.length||ts[i]-prev>30*60000){total+=(prev-start)/60000+3;start=ts[i];}
+    prev=ts[i];
+  }
+  return Math.round(total);
+}
+
 async function loadActivity(){
   const days=parseInt(document.getElementById('act-days')?.value||'7');
   const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
+
+  // ── A) Who's active — from the txn cache (user · shops · time spent) ──
+  try{
+    if(!_users.length){ try{ await loadUsers(); }catch(e){} }
+    await ensureTxCache();
+    const cutISO=localISO(new Date(Date.now()-days*86400000));
+    const txs=(loadCache(ADMIN_CACHE.txns)?.data||[]).filter(t=>(t.date||'')>=cutISO);
+    const byBiz={};
+    txs.forEach(t=>{const b=t.businessId;if(!b)return;(byBiz[b]=byBiz[b]||[]).push(t);});
+    const userByBiz={};
+    _users.forEach(u=>{userByBiz[u.businessId||u.uid||u.id]=u;});
+    const now=Date.now();
+    const rows=Object.entries(byBiz).map(([bid,list])=>{
+      const u=userByBiz[bid];
+      const lastMs=Math.max(...list.map(txMs));
+      const shopNames=[...new Set(list.map(t=>shopNameOf(u,t)))].filter(s=>s&&s!=='—');
+      return{u,bid,list,lastMs,shopNames,
+        online:now-lastMs<10*60000,
+        mins:estMinutes(list.map(txMs)),
+        daysActive:new Set(list.map(t=>t.date)).size};
+    }).sort((a,b)=>b.lastMs-a.lastMs);
+    const box=document.getElementById('act-usage');
+    box.innerHTML=rows.length?rows.map(r=>{
+      const nm=r.u&&r.u.name&&r.u.name!=='—'?r.u.name:(r.u?r.u.email:('Business '+r.bid.substring(0,10)+'…'));
+      const email=r.u?r.u.email:'—';
+      const ago=(ms=>{const m=Math.round((now-ms)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+'h ago':Math.round(m/1440)+'d ago';})(r.lastMs);
+      const hrs=r.mins>=60?(r.mins/60).toFixed(1)+' hrs':r.mins+' min';
+      return`<div class="grp" style="margin-bottom:8px">
+        <div class="grp-hd" style="cursor:default">
+          <div class="av" style="width:34px;height:34px;font-size:13px;${r.online?'background:var(--g1)':''}">${(nm||'?').substring(0,2).toUpperCase()}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm)} ${r.online?'<span class="badge active">🟢 ONLINE</span>':''}</div>
+            <div style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">🏪 ${esc(r.shopNames.slice(0,3).join(', ')||'—')}${r.shopNames.length>3?' +'+(r.shopNames.length-3):''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:11px;font-weight:700;color:${r.online?'var(--g1)':'var(--text)'}">${r.online?'active now':ago}</div>
+            <div style="font-size:9px;color:var(--muted)">⏱ ≈${hrs} · ${r.list.length} entries · ${r.daysActive}d</div>
+          </div>
+        </div>
+      </div>`;
+    }).join(''):'<div class="tbl-empty">No usage in this period</div>';
+  }catch(e){
+    console.error('act-usage:',e);
+    const box=document.getElementById('act-usage');
+    if(box) box.innerHTML='<div class="tbl-empty">Error: '+esc(e.message)+'</div>';
+  }
+
+  // ── B) Audit event feed (login/save/edit events from the web app) ──
   try{
     const snap=await DB.collection('audit').where('at','>',firebase.firestore.Timestamp.fromDate(cutoff)).orderBy('at','desc').limit(200).get();
     _audits=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -1839,7 +1750,10 @@ async function loadActivity(){
         </div>
         <div class="feed-time">${fmtTime(a.at)}</div>
       </div>`).join('');
-  }catch(e){console.error('loadActivity:',e);document.getElementById('activity-feed').innerHTML='<div class="tbl-empty">Error loading activity</div>';}
+  }catch(e){
+    console.error('loadActivity:',e);
+    document.getElementById('activity-feed').innerHTML='<div class="tbl-empty">No events readable yet — deploy the latest firestore.rules (audit collection rule) in Firebase Console.<br><span style="font-size:9px">'+esc(e.message||'')+'</span></div>';
+  }
 }
 
 // ════════════════════════════════════════
@@ -1941,7 +1855,7 @@ async function expandDeletion(i){
         <thead><tr><th>Date</th><th>Shop</th><th>Type</th><th>Desc</th><th>Amount</th></tr></thead>
         <tbody>${txns.slice(0,60).map(t=>`<tr>
           <td style="font-family:var(--mono);font-size:10px">${t.date||'—'}</td>
-          <td style="font-size:10px">${esc(t.shop||'—')}</td>
+          <td style="font-size:10px">${esc(c.shops?.[t.shop]?.name||t.shop||'—')}</td>
           <td style="font-size:10px">${t.type||'—'}</td>
           <td style="font-size:10px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--tamil)">${esc(t.desc||'—')}</td>
           <td style="font-family:var(--mono);font-weight:700;color:${t.type==='sales'?'var(--g1)':'var(--red)'}">₹${fmt(t.amount||0)}</td>

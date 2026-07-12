@@ -122,6 +122,16 @@ service cloud.firestore {
       );
     }
 
+    // Audit log — the web app writes login/save/edit events here and the
+    // admin Activity Log reads them. There was NO rule for this collection,
+    // so every write/read was silently rejected and the admin page showed
+    // "Error loading activity" (no match = deny).
+    match /audit/{docId} {
+      allow create: if request.auth != null;
+      allow read: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow update, delete: if isAdmin();
+    }
+
     // Billing anomalies — write-only audit log from BillingService when a
     // restored/purchased Play Billing purchase is tagged for a different
     // Firebase user than whoever is logged in (cross-account leak guard).
