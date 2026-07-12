@@ -274,6 +274,13 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         <div class="acard-body" id="biz-dist"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
       </div>
 
+      <!-- Install health / churn (usage-based) -->
+      <div class="acard">
+        <div class="acard-hd"><span><span class="hd-icon">📉</span>Install Health / Churn</span></div>
+        <div class="acard-body" id="churn-body"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+        <div style="padding:0 16px 12px;font-size:10px;color:var(--muted)">Google never reports uninstalls to apps — exact install/uninstall counts live in <b>Play Console → Statistics</b>. These buckets are measured from real usage: "Dormant 30d+" and "Never used" are the users who most likely uninstalled.</div>
+      </div>
+
       <!-- Recent Signups -->
       <div class="acard">
         <div class="acard-hd"><span><span class="hd-icon">🆕</span>Recent Signups</span></div>
@@ -397,7 +404,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <!-- ═══ DELETIONS (soft-deleted accounts: 30-day grace window) ═══ -->
     <div class="section" id="tab-deletions">
       <div style="background:var(--yellowl);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:var(--yellow)">
-        ⚠️ Deletion works as a 30-day grace window: data stays intact until the purge date, so everything below is fully viewable. Use <b>📦 Archive</b> to keep a snapshot (name, shops, txn summary + recent entries) that survives the final purge. Keeping archives of deleted accounts must be reflected in your privacy policy — set a retention limit.
+        ⚠️ <b>How this stays privacy-policy compliant (§10.3):</b> during the 30-day grace window the data is legitimately retained and fully viewable below. When the grace period ends, press <b>⚡ Purge</b> — the panel first writes an <b>anonymised</b> archive (business records + txn summary under the business id, <u>name & email stripped</u>, per the policy's legal-retention clause) and then permanently deletes ALL live data for that business. The bare login e-mail in Firebase Authentication can't be removed from a browser panel — it holds zero data after purge; full removal needs the future server hook.
       </div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
         <button class="refresh-btn" onclick="loadDeletions()"><span id="del-spin">↻</span> Refresh</button>
@@ -1411,6 +1418,46 @@ function updateTierChips(){
   set('tc-monthly',_users.filter(u=>u.tier==='monthly').length);
   set('tc-yearly',_users.filter(u=>u.tier==='yearly').length);
   set('tc-lifetime',_users.filter(u=>u.tier==='lifetime').length);
+  renderChurn();
+}
+
+// ── INSTALL HEALTH / CHURN — usage buckets from the 90-day txn cache ──
+// Each user lands in exactly one bucket by their latest entry date:
+//   New ≤7d joined & no entries yet · Active ≤7d · Cooling 8–30d ·
+//   Dormant 30d+ (likely uninstalled) · Never used (0 entries at all).
+function renderChurn(){
+  const el=document.getElementById('churn-body'); if(!el) return;
+  if(!Object.keys(_bizStats).length) buildBizStats();
+  const today=new Date(); today.setHours(0,0,0,0);
+  const b={fresh:[],active:[],cooling:[],dormant:[],never:[]};
+  _users.forEach(u=>{
+    const st=_bizStats[u.businessId||u.uid||u.id];
+    if(!st){
+      const jMs=tsOf(u);
+      const jDays=jMs?Math.round((Date.now()-jMs)/86400000):999;
+      (jDays<=7?b.fresh:b.never).push(u);
+      return;
+    }
+    const days=Math.round((today-new Date(st.last))/86400000);
+    if(days<=7) b.active.push(u);
+    else if(days<=30) b.cooling.push(u);
+    else b.dormant.push(u);
+  });
+  const CH=[
+    ['fresh','🆕 New (≤7d, no entries yet)','var(--blue)'],
+    ['active','✅ Active (used in last 7d)','var(--g1)'],
+    ['cooling','🌙 Cooling (8–30d silent)','var(--yellow)'],
+    ['dormant','📉 Dormant 30d+ — likely uninstalled','var(--red)'],
+    ['never','🚫 Never used — installed, 0 entries','var(--red)'],
+  ];
+  el.innerHTML=CH.map(([k,lbl,col])=>`
+    <div class="stat-row" style="cursor:pointer" onclick="var l=document.getElementById('churn-l-${k}');l.style.display=l.style.display==='block'?'none':'block'">
+      <div class="stat-lbl">${lbl}</div>
+      <div class="stat-val" style="color:${col};width:auto">${b[k].length} <span style="font-size:9px;color:var(--muted)">(${_users.length?Math.round(b[k].length/_users.length*100):0}%) ▼</span></div>
+    </div>
+    <div id="churn-l-${k}" style="display:none;padding:4px 0 8px">
+      ${b[k].length?b[k].map(u=>`<div style="font-size:11px;padding:3px 0;color:var(--muted)"><b style="color:var(--text)">${esc(u.name!=='—'?u.name:(u.email||'—'))}</b> · ${esc(u.email||'—')}</div>`).join(''):'<div style="font-size:11px;color:var(--muted)">none</div>'}
+    </div>`).join('');
 }
 
 // ════════════════════════════════════════
@@ -1816,15 +1863,18 @@ async function loadDeletions(){
       const nm=u&&u.name!=='—'?u.name:(u?u.email:('Business '+c.bid.substring(0,10)+'…'));
       const email=u?u.email:'—';
       const shops=c.shops?Object.values(c.shops):[];
-      return`<div class="grp">
+      const schedMs=c.deletionScheduledAt?.toDate?c.deletionScheduledAt.toDate().getTime():(c.deletionScheduledAt?.seconds?c.deletionScheduledAt.seconds*1000:0);
+      const overdue=schedMs&&schedMs<Date.now();
+      return`<div class="grp" ${overdue?'style="border-color:var(--red)"':''}>
         <div class="grp-hd" onclick="expandDeletion(${i})">
           <div class="av" style="width:34px;height:34px;font-size:13px;background:var(--red)">${(nm||'?').substring(0,2).toUpperCase()}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:700">${esc(nm)}</div>
+            <div style="font-size:13px;font-weight:700">${esc(nm)} ${overdue?'<span class="badge expired">GRACE OVER — PURGE DUE</span>':''}</div>
             <div style="font-size:10px;color:var(--muted)">${esc(email)}</div>
             <div style="font-size:9px;color:var(--red);margin-top:2px">Requested ${fmtDate(c.deletionRequestedAt)} · purge after ${fmtDate(c.deletionScheduledAt)}</div>
           </div>
           <button class="refresh-btn" onclick="event.stopPropagation();archiveDeletion(${i},this)" style="flex-shrink:0">📦 Archive</button>
+          <button class="refresh-btn" onclick="event.stopPropagation();purgeDeletion(${i},this)" style="flex-shrink:0;color:var(--red);border-color:var(--red)">⚡ Purge</button>
           <span style="font-size:11px;color:var(--muted)">▼</span>
         </div>
         <div class="grp-body" id="del-b-${i}" style="padding:10px 14px">
@@ -1845,8 +1895,8 @@ async function loadDeletions(){
     document.getElementById('del-archived').innerHTML=arch.length?arch.map(x=>`
       <div class="stat-row" style="align-items:flex-start">
         <div style="flex:1">
-          <div style="font-size:12px;font-weight:700">${esc(x.name||'—')} <span style="font-size:10px;color:var(--muted)">${esc(x.email||'')}</span></div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">${(x.shops?Object.values(x.shops).map(s=>esc(s.name||'')).join(', '):'—')}</div>
+          <div style="font-size:12px;font-weight:700">${x.anonymised?'🔒 Anonymised record':esc(x.name||'—')} <span style="font-size:10px;color:var(--muted)">${x.anonymised?('biz '+esc((x.businessId||'').substring(0,10))+'…'):esc(x.email||'')}</span></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${x.anonymised?((x.shopCount||0)+' shop(s) · '+esc(x.bizType||'')):(x.shops?Object.values(x.shops).map(s=>esc(s.name||'')).join(', '):'—')}</div>
           <div style="font-size:10px;color:var(--muted)">${x.txnSummary?`${x.txnSummary.count} entries · sales ₹${fmt(x.txnSummary.sales)} · expense ₹${fmt(x.txnSummary.expense)} (${x.txnSummary.firstDate||'—'} → ${x.txnSummary.lastDate||'—'})`:''}</div>
         </div>
         <div style="font-size:9px;color:var(--muted);flex-shrink:0">archived ${fmtDate(x.archivedAt)}</div>
@@ -1940,6 +1990,76 @@ async function archiveDeletion(i,btn){
   }catch(e){
     if(btn){btn.textContent='📦 Archive';btn.disabled=false;}
     alert('Archive failed: '+e.message+'\n(Have you deployed the latest firestore.rules?)');
+  }
+}
+
+// Helper for purgeDeletion: delete every doc in `coll` where field==bid,
+// in batches of 300, looping until the query returns nothing (Firestore
+// batch limit is 500). Returns how many docs were deleted.
+async function _purgeWhere(coll,field,bid){
+  let total=0;
+  for(;;){
+    const snap=await DB.collection(coll).where(field,'==',bid).limit(300).get();
+    if(snap.empty) break;
+    const batch=DB.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+    total+=snap.size;
+    if(snap.size<300) break;
+  }
+  return total;
+}
+
+// ⚡ Final purge — run once the grace period is over. Privacy policy §10.3
+// promises: personal data deleted within 30 days, financial records retained
+// ANONYMISED (7-year legal/audit window). So the purge first overwrites the
+// deleted_accounts snapshot with an anonymised one — no name, no email, no
+// shop names, no descriptions (they can contain people's names), just
+// date/type/amount — replacing any earlier 📦 Archive that still carried
+// identity. Then it hard-deletes every live document for the business.
+async function purgeDeletion(i,btn){
+  const c=_delPending[i]; if(!c) return;
+  const userByBiz={};
+  _users.forEach(u=>{userByBiz[u.businessId||u.uid||u.id]=u;});
+  const u=userByBiz[c.bid]||{};
+  const who=(u.name&&u.name!=='—')?u.name:(u.email||('Business '+c.bid.substring(0,12)+'…'));
+  if(!confirm(`⚡ PERMANENTLY purge "${who}"?\n\nThis will:\n1. Save an ANONYMISED archive (name/email/descriptions stripped — privacy §10.3)\n2. Delete ALL live data: transactions, suppliers, bills, finance, construction, attendance, staff, config\n\nThis cannot be undone.`)) return;
+  if(!confirm('Final confirmation — purge now?')) return;
+  if(btn){btn.textContent='⏳ purging…';btn.disabled=true;}
+  try{
+    // 1) Anonymised snapshot (overwrites any identified archive for this bid)
+    const txns=await _txnsForBiz(c.bid);
+    const sales=txns.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const exp=txns.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const dates=txns.map(t=>t.date).filter(Boolean).sort();
+    await DB.collection('deleted_accounts').doc(c.bid).set({
+      businessId:c.bid, anonymised:true,
+      tier:u.tier||'free', bizType:u.bizType||c.bizType||'other',
+      shopCount:c.shops?Object.keys(c.shops).length:0,
+      deletionRequestedAt:c.deletionRequestedAt||null,
+      deletionScheduledAt:c.deletionScheduledAt||null,
+      txnSummary:{count:txns.length,sales,expense:exp,firstDate:dates[0]||null,lastDate:dates[dates.length-1]||null},
+      txns:txns.slice(0,200).map(t=>({d:t.date||'',t:t.type||'',a:t.amount||0})),
+      archivedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      purgedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      purgedBy:_adminUser?.email||''
+    });
+    // 2) Hard-delete every live collection belonging to this business
+    let n=0;
+    const colls=['transactions','supplier_bills','suppliers','fc_members','fc_payments','fc_chits','construction_projects','construction_entries','attendance','staff'];
+    for(const coll of colls){
+      n+=await _purgeWhere(coll,'businessId',c.bid);
+    }
+    // Owner's own staff profile (docId == uid == businessId) — usually already
+    // caught by the businessId sweep above; delete defensively (no-op if gone).
+    try{ await DB.collection('staff').doc(c.bid).delete(); }catch(e){}
+    // Config doc last — deleting it removes the account from the pending list.
+    await DB.collection('config').doc(c.bid).delete(); n++;
+    toast(`⚡ Purged ${n} documents · anonymised archive kept`);
+    loadDeletions();
+  }catch(e){
+    if(btn){btn.textContent='⚡ Purge';btn.disabled=false;}
+    alert('Purge failed: '+e.message+'\n(Have you deployed the latest firestore.rules?)');
   }
 }
 
