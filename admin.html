@@ -152,9 +152,45 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 .plan-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .plan-card{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
 .plan-card.pro-plan{border-color:var(--blue)}
+.plan-card.yr-plan{border-color:var(--purple)}
+.plan-card.lt-plan{border-color:var(--yellow)}
 .plan-nm{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
 .plan-count{font-size:32px;font-weight:800;font-family:var(--mono)}
 .plan-rev{font-size:11px;color:var(--g1);margin-top:4px;font-weight:600}
+
+/* ── TIER CHIPS (overview) ── */
+.tier-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}
+.tier-chips::-webkit-scrollbar{display:none}
+.tchip{flex-shrink:0;display:flex;flex-direction:column;gap:2px;min-width:96px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 14px;cursor:pointer;transition:all .2s}
+.tchip:hover{border-color:var(--blue);transform:translateY(-1px)}
+.tchip .tc-count{font-size:20px;font-weight:800;font-family:var(--mono)}
+.tchip .tc-lbl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+.tchip.t-total .tc-count{color:var(--text)}
+.tchip.t-free .tc-count{color:var(--muted)}
+.tchip.t-monthly .tc-count{color:var(--blue)}
+.tchip.t-yearly .tc-count{color:var(--purple)}
+.tchip.t-lifetime .tc-count{color:var(--yellow)}
+
+/* ── USERS FILTER CHIPS ── */
+.fchips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;scrollbar-width:none}
+.fchips::-webkit-scrollbar{display:none}
+.fchip{flex-shrink:0;padding:6px 13px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--soft);color:var(--muted);white-space:nowrap;transition:all .2s}
+.fchip.on{background:var(--bluel);border-color:var(--blue);color:#a5b4fc}
+
+/* ── TIER BADGES ── */
+.badge.monthly{background:var(--bluel);color:#818cf8;border:1px solid var(--blue)}
+.badge.yearly{background:var(--purplel);color:#c084fc;border:1px solid var(--purple)}
+.badge.lifetime{background:var(--yellowl);color:var(--yellow);border:1px solid rgba(245,158,11,.4)}
+.badge.expired{background:var(--redl);color:#fb7185;border:1px solid rgba(244,63,94,.4)}
+
+/* ── SHOP GROUPS (grouped by user) ── */
+.grp{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.grp-hd{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.grp-body{display:none;border-top:1px solid var(--border)}
+.shop-row{border-bottom:1px solid var(--border)}
+.shop-row:last-child{border-bottom:none}
+.shop-row-hd{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+.shop-row-body{display:none;background:var(--bg);padding:10px 14px;border-top:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -197,7 +233,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
   <!-- NAV TABS -->
   <div class="nav-tabs">
     <div class="ntab on" onclick="showTab('overview',this)">📊 Overview</div>
-    <div class="ntab" onclick="showTab('users',this)">👥 Users</div>
+    <div class="ntab" id="ntab-users" onclick="showTab('users',this)">👥 Users</div>
     <div class="ntab" onclick="showTab('shops',this)">🏪 Shops</div>
     <div class="ntab" onclick="showTab('transactions',this)">💰 Transactions</div>
     <div class="ntab" onclick="showTab('revenue',this)">📈 Revenue</div>
@@ -211,6 +247,14 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 
     <!-- ═══ OVERVIEW ═══ -->
     <div class="section on" id="tab-overview">
+      <!-- Tier chips — tap any to open Users tab pre-filtered to that tier -->
+      <div class="tier-chips" id="tier-chips">
+        <div class="tchip t-total" onclick="goUsersFiltered('all')"><div class="tc-count" id="tc-total">—</div><div class="tc-lbl">Total Users</div></div>
+        <div class="tchip t-free" onclick="goUsersFiltered('free')"><div class="tc-count" id="tc-free">—</div><div class="tc-lbl">Free Tier</div></div>
+        <div class="tchip t-monthly" onclick="goUsersFiltered('monthly')"><div class="tc-count" id="tc-monthly">—</div><div class="tc-lbl">⭐ Pro Monthly</div></div>
+        <div class="tchip t-yearly" onclick="goUsersFiltered('yearly')"><div class="tc-count" id="tc-yearly">—</div><div class="tc-lbl">💜 Yearly</div></div>
+        <div class="tchip t-lifetime" onclick="goUsersFiltered('lifetime')"><div class="tc-count" id="tc-lifetime">—</div><div class="tc-lbl">👑 Lifetime</div></div>
+      </div>
       <div id="kpi-grid" class="kpi-grid">
         <div class="kpi-card k-green"><div class="kpi-icon">👥</div><div class="kpi-val" id="kpi-users">—</div><div class="kpi-lbl">Total Users</div><div class="kpi-sub up" id="kpi-users-sub"></div></div>
         <div class="kpi-card k-blue"><div class="kpi-icon">🏪</div><div class="kpi-val" id="kpi-shops">—</div><div class="kpi-lbl">Total Shops</div><div class="kpi-sub" id="kpi-shops-sub"></div></div>
@@ -239,6 +283,17 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <!-- ═══ USERS ═══ -->
     <div class="section" id="tab-users">
       <div class="search-box"><span style="color:var(--muted);font-size:14px">🔍</span><input type="text" placeholder="Search by name or email..." id="user-search" oninput="filterUsers()"></div>
+      <!-- Filters: Recent/Old are sort orders; the rest filter by plan tier -->
+      <div class="fchips" id="user-fchips">
+        <div class="fchip on" data-f="all" onclick="setUserFilter('all',this)">All</div>
+        <div class="fchip" data-f="recent" onclick="setUserFilter('recent',this)">🆕 Recent</div>
+        <div class="fchip" data-f="old" onclick="setUserFilter('old',this)">📜 Old</div>
+        <div class="fchip" data-f="monthly" onclick="setUserFilter('monthly',this)">⭐ Pro</div>
+        <div class="fchip" data-f="yearly" onclick="setUserFilter('yearly',this)">💜 Yearly</div>
+        <div class="fchip" data-f="lifetime" onclick="setUserFilter('lifetime',this)">👑 Lifetime</div>
+        <div class="fchip" data-f="expired" onclick="setUserFilter('expired',this)">⏳ Expired</div>
+        <div class="fchip" data-f="free" onclick="setUserFilter('free',this)">Free</div>
+      </div>
       <div class="acard">
         <div class="acard-hd">
           <span><span class="hd-icon">👥</span>All Users <span id="user-count-lbl" style="font-size:11px;color:var(--muted);font-weight:500"></span></span>
@@ -253,19 +308,16 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       </div>
     </div>
 
-    <!-- ═══ SHOPS ═══ -->
+    <!-- ═══ SHOPS (grouped by user → shops → tap shop for txn summary) ═══ -->
     <div class="section" id="tab-shops">
       <div class="search-box"><span style="color:var(--muted);font-size:14px">🔍</span><input type="text" placeholder="Search shop name or owner..." id="shop-search" oninput="filterShops()"></div>
       <div class="acard">
         <div class="acard-hd">
-          <span><span class="hd-icon">🏪</span>All Shops <span id="shop-count-lbl" style="font-size:11px;color:var(--muted);font-weight:500"></span></span>
+          <span><span class="hd-icon">🏪</span>Shops by User <span id="shop-count-lbl" style="font-size:11px;color:var(--muted);font-weight:500"></span></span>
           <button class="refresh-btn" onclick="loadShops()"><span id="shp-spin">↻</span> Refresh</button>
         </div>
-        <div class="tbl-wrap">
-          <table class="atbl">
-            <thead><tr><th>#</th><th>Shop</th><th>Type</th><th>Owner</th><th>GST</th><th>Entries</th><th>Sales</th><th>Created</th></tr></thead>
-            <tbody id="shops-tbody"><tr><td colspan="8" class="tbl-empty loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></td></tr></tbody>
-          </table>
+        <div class="acard-body" id="shops-groups" style="padding:10px">
+          <div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>
         </div>
       </div>
     </div>
@@ -295,26 +347,51 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 
     <!-- ═══ REVENUE ═══ -->
     <div class="section" id="tab-revenue">
+      <!-- Tier cards -->
       <div class="plan-compare">
         <div class="plan-card"><div class="plan-nm">Free Users</div><div class="plan-count" id="rev-free-count" style="color:var(--muted)">—</div><div class="plan-rev">₹0/month</div></div>
-        <div class="plan-card pro-plan"><div class="plan-nm">Pro Users ⭐</div><div class="plan-count" id="rev-pro-count" style="color:var(--blue)">—</div><div class="plan-rev" id="rev-mrr">₹0/month</div></div>
+        <div class="plan-card pro-plan"><div class="plan-nm">Pro Monthly ⭐</div><div class="plan-count" id="rev-monthly-count" style="color:var(--blue)">—</div><div class="plan-rev" id="rev-monthly-rev">₹0/month</div></div>
+        <div class="plan-card yr-plan"><div class="plan-nm">Yearly 💜</div><div class="plan-count" id="rev-yearly-count" style="color:var(--purple)">—</div><div class="plan-rev" id="rev-yearly-rev">₹0/year</div></div>
+        <div class="plan-card lt-plan"><div class="plan-nm">Lifetime 👑</div><div class="plan-count" id="rev-lifetime-count" style="color:var(--yellow)">—</div><div class="plan-rev" id="rev-lifetime-rev">₹0 one-time</div></div>
       </div>
+
+      <!-- Payment status -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px">
+        <div class="kpi-card k-green" style="padding:12px"><div class="kpi-lbl">✅ Completed Payments</div><div class="kpi-val" id="rev-paid-count" style="font-size:22px;color:var(--g1)">—</div><div class="kpi-sub" id="rev-paid-sub"></div></div>
+        <div class="kpi-card k-yellow" style="padding:12px"><div class="kpi-lbl">🔄 Renewal Due (7d)</div><div class="kpi-val" id="rev-renew-count" style="font-size:22px;color:var(--yellow)">—</div><div class="kpi-sub">subscriptions expiring soon</div></div>
+        <div class="kpi-card k-red" style="padding:12px"><div class="kpi-lbl">⏳ Expired / Not Renewed</div><div class="kpi-val" id="rev-expired-count" style="font-size:22px;color:var(--red)">—</div><div class="kpi-sub">lapsed = effectively cancelled</div></div>
+        <div class="kpi-card k-purple" style="padding:12px"><div class="kpi-lbl">🎟 Via Promo (free grant)</div><div class="kpi-val" id="rev-promo-count" style="font-size:22px;color:var(--purple)">—</div><div class="kpi-sub">not counted in revenue</div></div>
+      </div>
+
+      <div style="background:var(--bluel);border:1px solid var(--blue);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:#93c5fd">
+        ℹ️ <b>Pending payments</b> & instant cancellation events live in Google Play (need RTDN server hookup — not connected yet). Here: <b>Expired</b> = subscription passed its end date without a new grant = not renewed/cancelled.
+      </div>
+
       <div class="acard">
         <div class="acard-hd"><span><span class="hd-icon">📈</span>Revenue Metrics</span></div>
         <div class="acard-body" id="rev-metrics"></div>
       </div>
+
+      <!-- All payments / subscriptions table -->
+      <div class="acard" style="margin-top:12px">
+        <div class="acard-hd"><span><span class="hd-icon">💳</span>Payments & Subscriptions</span></div>
+        <div class="tbl-wrap">
+          <table class="atbl">
+            <thead><tr><th>User</th><th>Plan</th><th>Source</th><th>Paid/Granted</th><th>Status</th><th>Amount</th></tr></thead>
+            <tbody id="pro-users-tbody"><tr><td colspan="6" class="tbl-empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Billing anomalies (cross-account restore attempts) -->
+      <div class="acard" style="margin-top:12px">
+        <div class="acard-hd"><span><span class="hd-icon">⚠️</span>Billing Anomalies</span></div>
+        <div class="acard-body" id="rev-anomalies"><div class="tbl-empty">—</div></div>
+      </div>
+
       <div class="acard" style="margin-top:12px">
         <div class="acard-hd"><span><span class="hd-icon">📊</span>Monthly Signups Trend</span></div>
         <div class="acard-body" id="signup-trend"></div>
-      </div>
-      <div class="acard" style="margin-top:12px">
-        <div class="acard-hd"><span><span class="hd-icon">⭐</span>Pro Users List</span></div>
-        <div class="tbl-wrap">
-          <table class="atbl">
-            <thead><tr><th>User</th><th>Email</th><th>Plan Since</th><th>Monthly Rev</th></tr></thead>
-            <tbody id="pro-users-tbody"><tr><td colspan="4" class="tbl-empty">Loading...</td></tr></tbody>
-          </table>
-        </div>
       </div>
     </div>
 
@@ -491,6 +568,58 @@ const fmtTime=ts=>{if(!ts)return'—';const d=ts?.toDate?ts.toDate():new Date(ts
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const BIZ_ICONS={vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',other:'🏪'};
 
+// ── PLAN TIER ENGINE ─────────────────────────────────────────────────────
+// The app writes pro:true + planType('monthly'|'yearly'|'lifetime'|'pro') +
+// proExpiry to staff/{uid}. proExpiry can be a Firestore Timestamp (app,
+// Play Billing), a plain millis number (web promo redemption), or absent
+// (lifetime). The old admin code checked u.plan==='pro' — a field nothing
+// writes — which is why Pro always showed 0.
+function expiryDate(u){
+  const e=u.proExpiry;
+  if(!e) return null;
+  if(e.toDate) return e.toDate();
+  if(typeof e==='number') return new Date(e);
+  if(e.seconds) return new Date(e.seconds*1000);
+  return null;
+}
+function userTier(u){
+  if(u.pro!==true) return 'free';
+  const pt=String(u.planType||'pro').toLowerCase();
+  if(pt==='lifetime') return 'lifetime';
+  const exp=expiryDate(u);
+  if(exp&&exp<new Date()) return 'expired';
+  if(pt==='yearly') return 'yearly';
+  return 'monthly'; // 'monthly' or legacy generic 'pro'
+}
+const TIER_BADGE={
+  free:['free','FREE'], monthly:['monthly','⭐ PRO'], yearly:['yearly','💜 YEARLY'],
+  lifetime:['lifetime','👑 LIFETIME'], expired:['expired','⏳ EXPIRED']
+};
+function tierBadge(u){
+  const t=TIER_BADGE[u.tier||'free']||TIER_BADGE.free;
+  return `<span class="badge ${t[0]}">${t[1]}</span>`;
+}
+// 'play' = real money via Google Play, 'razorpay' = web payment,
+// 'promo' = free promo grant, '' = unknown/legacy manual grant.
+function paySource(u){
+  const s=String(u.proSource||'');
+  if(s.startsWith('play_billing')) return 'play';
+  if(s.startsWith('promo')) return 'promo';
+  if(u.lastPaymentId) return 'razorpay';
+  return '';
+}
+const SRC_LABEL={play:'▶️ Play Billing',promo:'🎟 Promo code',razorpay:'💳 Razorpay',['']:'—'};
+const PLAN_PRICE={monthly:199,yearly:999,lifetime:1999};
+
+// Tiny toast (was called by the CSV export but never defined — ReferenceError)
+function toast(msg){
+  const t=document.createElement('div');
+  t.textContent=msg;
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:12px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.4)';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+
 // ════════════════════════════════════════
 // AUTH
 // ════════════════════════════════════════
@@ -621,11 +750,15 @@ async function downloadAllCache(){
 }
 
 async function downloadUsersCache(){
-  const snap=await DB.collection('users').limit(500).get();
-  const data=snap.docs.map(d=>({id:d.id,...d.data()}));
+  // Customers-tab cache. Reads 'staff' (the real profiles collection —
+  // 'users' is empty in this project). Must NOT overwrite _users, which is
+  // the staff+config merge the Users/Overview/Revenue tabs run on — the old
+  // code clobbered it with the empty 'users' collection, blanking those tabs.
+  const snap=await DB.collection('staff').limit(500).get();
+  const data=snap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(s=>!s.role||['owner','Owner','admin','OWNER'].includes(s.role));
   saveCache(ADMIN_CACHE.users,data);
-  _users=data;
-  renderUsers(_users);
+  _custAll=data;
   updateCacheStats();
   return data;
 }
@@ -763,8 +896,8 @@ function renderCustomers(users,txns){
   const activeToday=new Set(txns.filter(t=>t.date===today).map(t=>t.businessId||t.userId)).size;
 
   document.getElementById('cust-total').textContent=users.length;
-  document.getElementById('cust-pro').textContent=users.filter(u=>u.plan==='pro').length;
-  document.getElementById('cust-free').textContent=users.filter(u=>u.plan!=='pro').length;
+  document.getElementById('cust-pro').textContent=users.filter(u=>userTier(u)!=='free'&&userTier(u)!=='expired').length;
+  document.getElementById('cust-free').textContent=users.filter(u=>userTier(u)==='free'||userTier(u)==='expired').length;
   document.getElementById('cust-txns').textContent=fmt(txns.length);
 
   const tbody=document.getElementById('cust-tbody');
@@ -776,7 +909,7 @@ function renderCustomers(users,txns){
     const lastActive=userTxns.length?[...new Set(userTxns.map(t=>t.date))].sort().pop():'—';
     const shopCount=u.shops?Object.keys(u.shops).length:(u.shopCount||0);
     const isActiveToday=userTxns.some(t=>t.date===today);
-    const isPro=u.plan==='pro';
+    const isPro=userTier(u)!=='free'&&userTier(u)!=='expired';
 
     return`<tr>
       <td>
@@ -841,7 +974,7 @@ function viewCustDetail(idx){
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
       <div class="stat-row"><div class="stat-lbl">Email</div><div>${esc(u.email||'—')}</div></div>
-      <div class="stat-row"><div class="stat-lbl">Plan</div><div>${u.plan==='pro'?'⭐ Pro':'Free'}</div></div>
+      <div class="stat-row"><div class="stat-lbl">Plan</div><div>${TIER_BADGE[userTier(u)][1]}</div></div>
       <div class="stat-row"><div class="stat-lbl">Business Type</div><div>${esc(u.bizType||'—')}</div></div>
       <div class="stat-row"><div class="stat-lbl">Joined</div><div>${fmtDate(u.createdAt)}</div></div>
       <div class="stat-row"><div class="stat-lbl">Last Active</div><div>${lastActive}</div></div>
@@ -901,7 +1034,7 @@ function downloadCsvCustomers(){
     const ut=txns.filter(t=>t.businessId===uid||t.userId===uid);
     const sales=ut.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
     const last=ut.length?[...new Set(ut.map(t=>t.date))].sort().pop():'';
-    rows.push([u.name||'',u.email||'',u.plan||'free',u.shops?Object.keys(u.shops).length:0,ut.length,sales,last,fmtDate(u.createdAt)]);
+    rows.push([u.name||'',u.email||'',userTier(u),u.shops?Object.keys(u.shops).length:0,ut.length,sales,last,fmtDate(u.createdAt)]);
   });
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');
@@ -979,7 +1112,14 @@ async function loadUsers(){
         name:s.name||s.displayName||'—',
         email:s.email||'—',
         role:s.role||'owner',
-        plan:cfg.plan||s.plan||'free',
+        // Real plan fields (written by app billing / promo / trial flows)
+        pro:s.pro===true,
+        planType:s.planType||null,
+        proExpiry:s.proExpiry||null,
+        proSource:s.proSource||'',
+        billingGrantedAt:s.billingGrantedAt||null,
+        promoRedeemedAt:s.promoRedeemedAt||null,
+        lastPaymentId:s.lastPaymentId||null,
         bizType:cfg.bizType||s.bizType||'other',
         shops:cfg.shops||{},
         shopCount:cfg.shops?Object.keys(cfg.shops).length:0,
@@ -988,6 +1128,7 @@ async function loadUsers(){
         businessId:s.businessId||uid
       };
     });
+    _users.forEach(u=>{u.tier=userTier(u);});
 
     // If still empty, show all config owners
     if(!_users.length){
@@ -1007,18 +1148,24 @@ async function loadUsers(){
       }).filter(u=>u.shopCount>0);
     }
 
-    renderUsers(_users);
+    applyUserFilters();
     const lbl=document.getElementById('user-count-lbl');
     if(lbl) lbl.textContent='('+_users.length+' total)';
     const kpiU=document.getElementById('kpi-users');
     if(kpiU) kpiU.textContent=_users.length;
-    const pro=_users.filter(u=>u.plan==='pro').length;
+    // Paid tiers (tier engine — NOT the never-written u.plan field)
+    const nMonthly=_users.filter(u=>u.tier==='monthly').length;
+    const nYearly=_users.filter(u=>u.tier==='yearly').length;
+    const nLifetime=_users.filter(u=>u.tier==='lifetime').length;
+    const paid=nMonthly+nYearly+nLifetime;
+    const mrr=nMonthly*199+Math.round(nYearly*999/12);
     const kpiP=document.getElementById('kpi-pro');
-    if(kpiP) kpiP.textContent=pro;
+    if(kpiP) kpiP.textContent=paid;
     const kpiRS=document.getElementById('kpi-rev-sub');
-    if(kpiRS) kpiRS.textContent='₹'+(pro*199)+'/month MRR';
+    if(kpiRS) kpiRS.textContent='₹'+fmt(mrr)+'/month MRR';
     const kpiM=document.getElementById('kpi-mrr');
-    if(kpiM) kpiM.textContent='₹'+fmt(pro*199);
+    if(kpiM) kpiM.textContent='₹'+fmt(mrr);
+    updateTierChips();
     const today=new Date();today.setHours(0,0,0,0);
     const ts=_users.filter(u=>{const d=u.createdAt?.toDate?.();return d&&d>=today;}).length;
     const kpiUS=document.getElementById('kpi-users-sub');
@@ -1032,10 +1179,15 @@ async function loadUsers(){
   if(spin) spin.classList.remove('spinning');
 }
 
+// The list passed here may be filtered/sorted — keep our own reference so
+// expandUser(i) always resolves to the ROW that was clicked, not _users[i].
+let _renderedUsers=[];
 function renderUsers(users){
   const tb=document.getElementById('users-tbody');
   if(!tb) return;
+  _renderedUsers=users;
   if(!users.length){tb.innerHTML='<tr><td colspan="7" class="tbl-empty">No users found</td></tr>';return;}
+  const avColor={free:'var(--g1)',monthly:'var(--blue)',yearly:'var(--purple)',lifetime:'var(--yellow)',expired:'var(--red)'};
   tb.innerHTML=users.map((u,i)=>{
     const initials=(u.name||u.email||'?').substring(0,2).toUpperCase();
     const shopCount=u.shopCount||0;
@@ -1043,13 +1195,13 @@ function renderUsers(users){
     return`<tr style="cursor:pointer" onclick="expandUser(${i})">
       <td style="color:var(--muted);font-family:var(--mono);font-size:10px">${i+1}</td>
       <td><div style="display:flex;align-items:center;gap:8px">
-        <div class="av" style="background:${u.plan==='pro'?'var(--blue)':'var(--g1)'}">${initials}</div>
+        <div class="av" style="background:${avColor[u.tier]||'var(--g1)'}">${initials}</div>
         <div>
           <div style="font-size:12px;font-weight:700;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'—')}</div>
           <div style="font-size:10px;color:var(--muted)">${esc(u.email||'—')}</div>
         </div>
       </div></td>
-      <td><span class="badge ${u.plan==='pro'?'pro':'free'}">${u.plan==='pro'?'⭐ Pro':'Free'}</span></td>
+      <td>${tierBadge(u)}</td>
       <td>${BIZ_ICONS[u.bizType]||'🏪'} <span style="font-size:11px">${u.bizType||'—'}</span></td>
       <td style="font-family:var(--mono);font-size:12px;font-weight:700">${shopCount}</td>
       <td style="font-size:10px;color:var(--muted)">${fmtDate(u.createdAt)}</td>
@@ -1066,10 +1218,10 @@ function renderUsers(users){
 }
 
 async function expandUser(i){
-  const u=_users[i];
+  const u=_renderedUsers[i]||_users[i];
   const sid='user-exp-'+i;
   const row=document.getElementById(sid);
-  if(!row) return;
+  if(!row||!u) return;
   // Toggle
   if(row.style.display!=='none'){row.style.display='none';return;}
   row.style.display='table-row';
@@ -1081,11 +1233,22 @@ async function expandUser(i){
       .where('businessId','==',u.businessId||u.uid)
       .orderBy('date','desc').limit(100).get();
     const txns=txSnap.docs.map(d=>d.data());
-    const totalSales=txns.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
-    const totalExp=txns.filter(t=>t.type!=='sales').reduce((a,t)=>a+(t.amount||0),0);
+    const totalSales=txns.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const totalExp=txns.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
     const activeDays=new Set(txns.map(t=>t.date)).size;
-    const lastDate=txns.length?txns[0].date:'Never';
+    const lastDate=txns.length?txns[0].date:(u.lastActive?fmtDate(u.lastActive):'Never');
     const shops=u.shops?Object.entries(u.shops):[];
+    // Engagement proxy: the app doesn't record session durations, so
+    // "time spent" is approximated by days-with-entries out of days since
+    // joining — the honest measurable signal we have.
+    const joinedMs=tsOf(u);
+    const daysSinceJoin=joinedMs?Math.max(1,Math.round((Date.now()-joinedMs)/86400000)):null;
+    const engage=daysSinceJoin?`${activeDays} active days / ${daysSinceJoin} days since join`:activeDays+' active days';
+    const exp=expiryDate(u);
+    const planLine=u.tier==='free'?'Free plan':
+      u.tier==='lifetime'?'👑 Lifetime Pro (never expires)':
+      u.tier==='expired'?`⏳ Expired on ${exp?exp.toLocaleDateString('en-IN'):'—'} (not renewed)`:
+      `${u.tier==='yearly'?'💜 Yearly':'⭐ Monthly'} Pro — active till ${exp?exp.toLocaleDateString('en-IN'):'—'}`;
 
     body.innerHTML=`
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
@@ -1103,8 +1266,17 @@ async function expandUser(i){
         </div>
         <div style="text-align:center;background:var(--card);border-radius:8px;padding:8px;border:1px solid var(--border)">
           <div style="font-size:14px;font-weight:800;color:var(--blue)">${activeDays}</div>
-          <div style="font-size:9px;color:var(--muted)">DAYS</div>
+          <div style="font-size:9px;color:var(--muted)">ACTIVE DAYS</div>
         </div>
+      </div>
+      <div style="display:flex;gap:8px;font-size:10px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="background:var(--soft);padding:4px 9px;border-radius:8px">📅 Joined: <b>${fmtDate(u.createdAt)}</b></span>
+        <span style="background:var(--soft);padding:4px 9px;border-radius:8px">⏰ Last seen: <b>${lastDate}</b></span>
+        <span style="background:var(--soft);padding:4px 9px;border-radius:8px">📈 Usage: <b>${engage}</b></span>
+      </div>
+      <div style="display:flex;gap:8px;font-size:10px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="background:var(--soft);padding:4px 9px;border-radius:8px">💳 ${planLine}</span>
+        ${u.proSource?`<span style="background:var(--soft);padding:4px 9px;border-radius:8px">🔗 ${SRC_LABEL[paySource(u)]||'—'}</span>`:''}
       </div>
       ${shops.length?`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">SHOPS</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
@@ -1112,8 +1284,6 @@ async function expandUser(i){
       </div>`:''}
       <div style="display:flex;gap:8px;font-size:10px;flex-wrap:wrap">
         <span style="background:var(--soft);padding:3px 8px;border-radius:8px">📧 ${esc(u.email)}</span>
-        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">📅 Joined: ${fmtDate(u.createdAt)}</span>
-        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">⏰ Last: ${lastDate}</span>
         <span style="background:var(--soft);padding:3px 8px;border-radius:8px">🏪 ${shops.length} shops</span>
       </div>`;
   }catch(e){
@@ -1129,17 +1299,48 @@ function renderRecentSignups(users){
     return`<tr>
       <td><div style="display:flex;align-items:center;gap:8px"><div class="av">${initials}</div><span style="font-size:12px;font-weight:600">${esc(u.name||'—')}</span></div></td>
       <td style="font-size:11px;color:var(--muted)">${esc(u.email||'—')}</td>
-      <td><span class="badge ${u.plan==='pro'?'pro':'free'}">${u.plan==='pro'?'⭐ Pro':'Free'}</span></td>
+      <td>${tierBadge(u)}</td>
       <td style="font-size:10px;color:var(--muted)">${fmtDate(u.createdAt)}</td>
     </tr>`;
   }).join('');
 }
 
-let _usersAll=[];
-function filterUsers(){
-  const q=document.getElementById('user-search').value.toLowerCase();
-  if(!q){renderUsers(_users);return;}
-  renderUsers(_users.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)));
+// ── USER FILTERS (search box + tier/sort chips, combined) ──
+let _userFilter='all';
+function tsOf(u){const c=u.createdAt;if(!c)return 0;if(c.toDate)return c.toDate().getTime();if(typeof c==='number')return c;if(c.seconds)return c.seconds*1000;return 0;}
+function applyUserFilters(){
+  const q=(document.getElementById('user-search')?.value||'').toLowerCase();
+  let list=q?_users.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)):[..._users];
+  switch(_userFilter){
+    case 'recent': list.sort((a,b)=>tsOf(b)-tsOf(a)); break;   // newest joined first
+    case 'old':    list.sort((a,b)=>tsOf(a)-tsOf(b)); break;   // oldest joined first
+    case 'all':    break;
+    default:       list=list.filter(u=>u.tier===_userFilter);  // tier filters
+  }
+  renderUsers(list);
+  const lbl=document.getElementById('user-count-lbl');
+  if(lbl) lbl.textContent='('+list.length+(_userFilter==='all'&&!q?' total':' shown')+')';
+}
+function filterUsers(){applyUserFilters();}
+function setUserFilter(f,el){
+  _userFilter=f;
+  document.querySelectorAll('#user-fchips .fchip').forEach(c=>c.classList.remove('on'));
+  if(el) el.classList.add('on');
+  else{const c=document.querySelector('#user-fchips .fchip[data-f="'+f+'"]');if(c)c.classList.add('on');}
+  applyUserFilters();
+}
+// Overview tier chip → open Users tab pre-filtered
+function goUsersFiltered(tier){
+  showTab('users',document.getElementById('ntab-users'));
+  setUserFilter(tier==='all'?'all':tier,null);
+}
+function updateTierChips(){
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('tc-total',_users.length);
+  set('tc-free',_users.filter(u=>u.tier==='free').length);
+  set('tc-monthly',_users.filter(u=>u.tier==='monthly').length);
+  set('tc-yearly',_users.filter(u=>u.tier==='yearly').length);
+  set('tc-lifetime',_users.filter(u=>u.tier==='lifetime').length);
 }
 
 // ════════════════════════════════════════
@@ -1177,68 +1378,96 @@ async function loadShops(){
   if(spin) spin.classList.remove('spinning');
 }
 
-function renderShops(shops){
-  const tb=document.getElementById('shops-tbody');
-  if(!tb) return;
-  if(!shops.length){tb.innerHTML='<tr><td colspan="6" class="tbl-empty">No shops found</td></tr>';return;}
-  tb.innerHTML=shops.map((s,i)=>{
-    const sid='shp-exp-'+i;
-    return`<tr style="cursor:pointer" onclick="expandShop(${i})">
-      <td style="color:var(--muted);font-size:10px">${i+1}</td>
-      <td><div style="display:flex;align-items:center;gap:7px">
-        <span style="font-size:18px">${s.icon}</span>
-        <span style="font-size:12px;font-weight:700">${esc(s.name)}</span>
-      </div></td>
-      <td style="font-size:11px">${BIZ_ICONS[s.bizType]||'🏪'} ${s.bizType||'—'}</td>
-      <td style="font-size:11px;color:var(--muted)">${esc(s.ownerEmail)}</td>
-      <td><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${s.gstOn?'var(--gl)':'var(--soft)'};color:${s.gstOn?'var(--g1)':'var(--muted)'}">${s.gstOn?'GST '+s.gstRate+'%':'NO GST'}</span></td>
-      <td style="text-align:center;font-size:12px;color:var(--muted)">▼</td>
-    </tr>
-    <tr id="${sid}" style="display:none">
-      <td colspan="6" style="padding:0;background:var(--bg)">
-        <div style="padding:12px 14px" id="${sid}-body">Loading...</div>
-      </td>
-    </tr>`;
+// ── SHOPS — grouped by USER: tap user → their shops with type;
+//    tap a shop → its transaction summary (from cache when available) ──
+function renderShops(shops){ renderShopGroups(shops); }
+
+function renderShopGroups(shops){
+  const cont=document.getElementById('shops-groups');
+  if(!cont) return;
+  if(!shops.length){cont.innerHTML='<div class="tbl-empty">No shops found</div>';return;}
+  // Group by business (owner)
+  const byBiz={};
+  shops.forEach(s=>{(byBiz[s.bizId]=byBiz[s.bizId]||[]).push(s);});
+  const userByBiz={};
+  _users.forEach(u=>{userByBiz[u.businessId||u.uid||u.id]=u;});
+
+  cont.innerHTML=Object.entries(byBiz).map(([bid,list],gi)=>{
+    const u=userByBiz[bid];
+    const nm=u&&u.name&&u.name!=='—'?u.name:(u?u.email:('Business '+bid.substring(0,8)+'…'));
+    const email=u?u.email:'—';
+    const initials=(nm||'?').substring(0,2).toUpperCase();
+    return`<div class="grp">
+      <div class="grp-hd" onclick="var b=document.getElementById('grp-b-${gi}');b.style.display=b.style.display==='block'?'none':'block'">
+        <div class="av" style="width:34px;height:34px;font-size:13px">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm)}</div>
+          <div style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email)}</div>
+        </div>
+        ${u?tierBadge(u):''}
+        <span style="font-size:11px;color:var(--muted);white-space:nowrap">${list.length} shop${list.length===1?'':'s'} ▼</span>
+      </div>
+      <div class="grp-body" id="grp-b-${gi}">
+        ${list.map((s,si)=>`<div class="shop-row">
+          <div class="shop-row-hd" onclick="expandShopRow('${gi}_${si}','${esc(s.bizId)}','${esc(s.shopId)}')">
+            <span style="font-size:18px">${s.icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:700">${esc(s.name)}</div>
+              <div style="font-size:10px;color:var(--muted)">${BIZ_ICONS[s.bizType]||'🏪'} ${esc(s.bizType||'—')}</div>
+            </div>
+            <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${s.gstOn?'rgba(16,185,129,.1)':'var(--soft)'};color:${s.gstOn?'var(--g1)':'var(--muted)'}">${s.gstOn?'GST '+s.gstRate+'%':'NO GST'}</span>
+            <span style="font-size:11px;color:var(--muted)">▼</span>
+          </div>
+          <div class="shop-row-body" id="shp-b-${gi}_${si}">Loading...</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
   }).join('');
 }
 
-async function expandShop(i){
-  const s=_shops[i];
-  const sid='shp-exp-'+i;
-  const row=document.getElementById(sid);
-  if(!row) return;
-  if(row.style.display!=='none'){row.style.display='none';return;}
-  row.style.display='table-row';
-  const body=document.getElementById(sid+'-body');
+async function expandShopRow(key,bizId,shopId){
+  const body=document.getElementById('shp-b-'+key);
+  if(!body) return;
+  if(body.style.display==='block'){body.style.display='none';return;}
+  body.style.display='block';
   try{
-    const txSnap=await DB.collection('transactions')
-      .where('businessId','==',s.bizId)
-      .where('shop','==',s.shopId)
-      .orderBy('date','desc').limit(50).get();
-    const txns=txSnap.docs.map(d=>d.data());
-    const totalSales=txns.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
-    const totalExp=txns.filter(t=>t.type!=='sales').reduce((a,t)=>a+(t.amount||0),0);
+    // Prefer the local cache (0 Firestore reads); fall back to a live query.
+    let txns=null, src='';
+    const cache=loadCache(ADMIN_CACHE.txns);
+    if(cache?.data?.length){
+      txns=cache.data.filter(t=>t.businessId===bizId&&t.shop===shopId);
+      src=' · cached (last 90d)';
+    }else{
+      const txSnap=await DB.collection('transactions')
+        .where('businessId','==',bizId)
+        .where('shop','==',shopId)
+        .orderBy('date','desc').limit(50).get();
+      txns=txSnap.docs.map(d=>d.data());
+      src=' · live (last 50)';
+    }
+    const totalSales=txns.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const totalExp=txns.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
+    const net=totalSales-totalExp;
     const activeDays=new Set(txns.map(t=>t.date)).size;
-    const last=txns.length?txns[0].date:'Never';
+    const last=txns.length?[...txns.map(t=>t.date)].sort().pop():'Never';
     body.innerHTML=`
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
         <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:var(--g1)">₹${fmt(totalSales)}</div><div style="font-size:9px;color:var(--muted)">SALES</div></div>
         <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:var(--red)">₹${fmt(totalExp)}</div><div style="font-size:9px;color:var(--muted)">EXPENSE</div></div>
-        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800">${txns.length}</div><div style="font-size:9px;color:var(--muted)">ENTRIES</div></div>
-        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:var(--blue)">${activeDays}</div><div style="font-size:9px;color:var(--muted)">DAYS</div></div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:${net>=0?'var(--g1)':'var(--red)'}">${net>=0?'+':'−'}₹${fmt(Math.abs(net))}</div><div style="font-size:9px;color:var(--muted)">NET</div></div>
+        <div style="text-align:center;background:var(--card);border-radius:8px;padding:7px;border:1px solid var(--border)"><div style="font-size:13px;font-weight:800;color:var(--blue)">${txns.length}</div><div style="font-size:9px;color:var(--muted)">ENTRIES</div></div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:10px">
-        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">Owner: ${esc(s.ownerEmail)}</span>
-        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">Last entry: ${last}</span>
-        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">Created: ${fmtDate(s.createdAt)}</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">🗓 ${activeDays} active days</span>
+        <span style="background:var(--soft);padding:3px 8px;border-radius:8px">⏰ Last entry: ${last}${src}</span>
       </div>`;
   }catch(e){body.innerHTML='<div style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</div>';}
 }
 
 function filterShops(){
   const q=(document.getElementById('shop-search')?.value||'').toLowerCase();
-  if(!q){renderShops(_shops);return;}
-  renderShops(_shops.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.ownerEmail||'').toLowerCase().includes(q)));
+  if(!q){renderShopGroups(_shops);return;}
+  renderShopGroups(_shops.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.ownerEmail||'').toLowerCase().includes(q)));
 }
 
 // ════════════════════════════════════════
@@ -1300,10 +1529,12 @@ async function loadOverview(){
       const bt=data.bizType||'other';
       typeCount[bt]=(typeCount[bt]||0)+1;
     });
-    // Today active: users with lastActive today
-    const uSnap=await DB.collection('users').where('lastActiveDate','==',today).get();
-    activeToday=uSnap.size;
-    document.getElementById('kpi-today').textContent=activeToday||'—';
+    // Today active: distinct businesses that made an entry today.
+    // (The old code queried the 'users' collection, which is empty in this
+    // project — profiles live in 'staff' — so this always showed "—".)
+    const tSnap=await DB.collection('transactions').where('date','==',today).limit(500).get();
+    activeToday=new Set(tSnap.docs.map(d=>d.data().businessId).filter(Boolean)).size;
+    document.getElementById('kpi-today').textContent=activeToday||'0';
 
     // Business type distribution chart
     const total=Object.values(typeCount).reduce((a,b)=>a+b,0)||1;
@@ -1325,23 +1556,84 @@ async function loadOverview(){
 // REVENUE
 // ════════════════════════════════════════
 async function loadRevenue(){
-  const freeCount=_users.filter(u=>u.plan!=='pro').length;
-  const proCount=_users.filter(u=>u.plan==='pro').length;
-  const mrr=proCount*199;
-  document.getElementById('rev-free-count').textContent=freeCount;
-  document.getElementById('rev-pro-count').textContent=proCount;
-  document.getElementById('rev-mrr').textContent='₹'+fmt(mrr)+'/month';
+  if(!_users.length) await loadUsers();
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+
+  // Tier buckets (tier engine, not the never-written u.plan field)
+  const byTier={free:[],monthly:[],yearly:[],lifetime:[],expired:[]};
+  _users.forEach(u=>{(byTier[u.tier]||byTier.free).push(u);});
+
+  // Revenue counts ONLY real payments (Play Billing / Razorpay).
+  // Promo-code grants unlock Pro but bring ₹0 — shown separately.
+  const paidOf=list=>list.filter(u=>paySource(u)==='play'||paySource(u)==='razorpay');
+  const paidMonthly=paidOf(byTier.monthly), paidYearly=paidOf(byTier.yearly), paidLifetime=paidOf(byTier.lifetime);
+  const promoUsers=[...byTier.monthly,...byTier.yearly,...byTier.lifetime].filter(u=>paySource(u)==='promo');
+
+  set('rev-free-count',byTier.free.length);
+  set('rev-monthly-count',byTier.monthly.length);
+  set('rev-monthly-rev','₹'+fmt(paidMonthly.length*199)+'/month');
+  set('rev-yearly-count',byTier.yearly.length);
+  set('rev-yearly-rev','₹'+fmt(paidYearly.length*999)+'/year');
+  set('rev-lifetime-count',byTier.lifetime.length);
+  set('rev-lifetime-rev','₹'+fmt(paidLifetime.length*1999)+' one-time');
+
+  // Payment status cards
+  const now=Date.now(), in7d=now+7*86400000;
+  const activeSubs=[...byTier.monthly,...byTier.yearly];
+  const renewDue=activeSubs.filter(u=>{const e=expiryDate(u);return e&&e.getTime()>now&&e.getTime()<=in7d;});
+  const completedPays=[...paidMonthly,...paidYearly,...paidLifetime];
+  set('rev-paid-count',completedPays.length);
+  const paidSub=document.getElementById('rev-paid-sub');
+  if(paidSub) paidSub.textContent='₹'+fmt(paidMonthly.length*199+paidYearly.length*999+paidLifetime.length*1999)+' collected';
+  set('rev-renew-count',renewDue.length);
+  set('rev-expired-count',byTier.expired.length);
+  set('rev-promo-count',promoUsers.length);
 
   // Metrics
-  const convRate=_users.length?((proCount/_users.length)*100).toFixed(1):'0';
-  const arr=mrr*12;
+  const mrr=paidMonthly.length*199+Math.round(paidYearly.length*999/12);
+  const paidCount=completedPays.length;
+  const convRate=_users.length?((paidCount/_users.length)*100).toFixed(1):'0';
   document.getElementById('rev-metrics').innerHTML=`
-    <div class="stat-row"><div class="stat-lbl">Monthly Recurring Revenue</div><div class="stat-val" style="color:var(--g1);width:auto">₹${fmt(mrr)}</div></div>
-    <div class="stat-row"><div class="stat-lbl">Annual Run Rate (ARR)</div><div class="stat-val" style="color:var(--g1);width:auto">₹${fmt(arr)}</div></div>
-    <div class="stat-row"><div class="stat-lbl">Free → Pro Conversion Rate</div><div class="stat-val" style="color:var(--blue);width:auto">${convRate}%</div></div>
+    <div class="stat-row"><div class="stat-lbl">Monthly Recurring Revenue (paid subs)</div><div class="stat-val" style="color:var(--g1);width:auto">₹${fmt(mrr)}</div></div>
+    <div class="stat-row"><div class="stat-lbl">Annual Run Rate (ARR)</div><div class="stat-val" style="color:var(--g1);width:auto">₹${fmt(mrr*12)}</div></div>
+    <div class="stat-row"><div class="stat-lbl">Lifetime revenue (one-time)</div><div class="stat-val" style="color:var(--yellow);width:auto">₹${fmt(paidLifetime.length*1999)}</div></div>
+    <div class="stat-row"><div class="stat-lbl">Free → Paid Conversion Rate</div><div class="stat-val" style="color:var(--blue);width:auto">${convRate}%</div></div>
     <div class="stat-row"><div class="stat-lbl">Avg Revenue Per User (ARPU)</div><div class="stat-val" style="color:var(--purple);width:auto">₹${_users.length?fmt(mrr/_users.length):0}</div></div>
     <div class="stat-row"><div class="stat-lbl">Total Users</div><div class="stat-val" style="width:auto">${_users.length}</div></div>
-    <div class="stat-row"><div class="stat-lbl">Pro Users</div><div class="stat-val" style="color:var(--blue);width:auto">${proCount}</div></div>`;
+    <div class="stat-row"><div class="stat-lbl">Paying Users / Promo-granted</div><div class="stat-val" style="color:var(--blue);width:auto">${paidCount} / ${promoUsers.length}</div></div>`;
+
+  // Payments & subscriptions table — everyone who ever held Pro
+  const holders=[...byTier.monthly,...byTier.yearly,...byTier.lifetime,...byTier.expired];
+  document.getElementById('pro-users-tbody').innerHTML=holders.length?holders.map(u=>{
+    const src=paySource(u);
+    const exp=expiryDate(u);
+    const granted=u.billingGrantedAt||u.promoRedeemedAt||u.createdAt;
+    const status=u.tier==='lifetime'?'<span class="badge lifetime">NEVER EXPIRES</span>':
+      u.tier==='expired'?`<span class="badge expired">EXPIRED ${exp?exp.toLocaleDateString('en-IN'):''}</span>`:
+      `<span class="badge active">ACTIVE till ${exp?exp.toLocaleDateString('en-IN'):'—'}</span>`;
+    const amt=src==='promo'?'₹0 (promo)':'₹'+(PLAN_PRICE[u.tier==='expired'?String(u.planType||'monthly').toLowerCase():u.tier]||199);
+    return`<tr>
+      <td><div style="display:flex;align-items:center;gap:7px"><div class="av" style="width:26px;height:26px;font-size:10px">${(u.name||'?').substring(0,2).toUpperCase()}</div><div><div style="font-size:12px;font-weight:600">${esc(u.name||'—')}</div><div style="font-size:9px;color:var(--muted)">${esc(u.email||'—')}</div></div></div></td>
+      <td>${tierBadge(u)}</td>
+      <td style="font-size:11px">${SRC_LABEL[src]||'—'}</td>
+      <td style="font-size:10px;color:var(--muted)">${fmtDate(granted)}</td>
+      <td>${status}</td>
+      <td style="font-family:var(--mono);font-weight:700;color:${src==='promo'?'var(--muted)':'var(--g1)'}">${amt}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="6" class="tbl-empty">No paid/pro users yet</td></tr>';
+
+  // Billing anomalies (cross-account restore guard writes these)
+  try{
+    const aSnap=await DB.collection('billing_anomalies').orderBy('detectedAt','desc').limit(30).get();
+    const arr=aSnap.docs.map(d=>d.data());
+    document.getElementById('rev-anomalies').innerHTML=arr.length?arr.map(a=>`
+      <div class="stat-row">
+        <div class="stat-lbl" style="font-size:11px">⚠️ ${esc(a.productId||'—')} — purchase of <span style="font-family:var(--mono)">${esc((a.purchaseOwnerUid||'').substring(0,8))}…</span> restored while <span style="font-family:var(--mono)">${esc((a.loggedInUid||'').substring(0,8))}…</span> logged in</div>
+        <div style="font-size:10px;color:var(--muted)">${fmtDate(a.detectedAt)}</div>
+      </div>`).join(''):'<div class="tbl-empty">✅ No anomalies recorded</div>';
+  }catch(e){
+    document.getElementById('rev-anomalies').innerHTML='<div class="tbl-empty">— (collection not readable yet: deploy latest firestore.rules)</div>';
+  }
 
   // Monthly signup trend
   const monthMap={};
@@ -1360,15 +1652,6 @@ async function loadRevenue(){
     <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
       ${months.map(([m])=>`<span style="flex:1;text-align:center">${m.substring(5)}</span>`).join('')}
     </div>`:'<div class="tbl-empty">Not enough data yet</div>';
-
-  // Pro users table
-  const proUsers=_users.filter(u=>u.plan==='pro');
-  document.getElementById('pro-users-tbody').innerHTML=proUsers.length?proUsers.map(u=>`<tr>
-    <td><div class="av" style="display:inline-flex">${(u.name||'?').substring(0,2).toUpperCase()}</div> <span style="font-size:12px;margin-left:6px">${esc(u.name||'—')}</span></td>
-    <td style="font-size:11px;color:var(--muted)">${esc(u.email||'—')}</td>
-    <td style="font-size:11px;color:var(--muted)">${fmtDate(u.planSince||u.updatedAt)}</td>
-    <td style="font-family:var(--mono);font-weight:700;color:var(--g1)">₹199</td>
-  </tr>`).join(''):'<tr><td colspan="4" class="tbl-empty">No Pro users yet</td></tr>';
 }
 
 // ════════════════════════════════════════
