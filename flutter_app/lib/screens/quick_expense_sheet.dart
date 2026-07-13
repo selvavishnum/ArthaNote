@@ -216,8 +216,13 @@ class _QuickExpenseSheetState extends State<_QuickExpenseSheet> {
         if (widget.imagePath != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
+            // cacheHeight downsamples at decode time — the shared GPay/
+            // PhonePe screenshot arrives full-resolution (often 1080×2400+),
+            // and decoding it whole just for a 110dp-tall preview is what
+            // trips Android's "BitmapFactory without downsampling" warning.
             child: Image.file(File(widget.imagePath!),
                 height: 110, width: double.infinity, fit: BoxFit.cover,
+                cacheHeight: 330,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink()),
           ),
         const SizedBox(height: 14),
