@@ -450,8 +450,12 @@ class _ScanTabState extends State<ScanTab> {
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: Stack(children: [
+                        // cacheWidth caps the decoded bitmap — the preview
+                        // card never renders wider than the screen, so
+                        // decoding beyond ~1080px is pure wasted memory.
                         Image.file(_image!, fit: BoxFit.cover,
-                            width: double.infinity, height: double.infinity),
+                            width: double.infinity, height: double.infinity,
+                            cacheWidth: 1080),
                         Positioned(
                           bottom: 8, right: 8,
                           child: Container(
