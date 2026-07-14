@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Facebook SDK — app events / install attribution -->
+    <string name="facebook_app_id">819117511132777</string>
+    <string name="fb_login_protocol_scheme">fb819117511132777</string>
+    <!-- REQUIRED by Facebook SDK v13+ (App Dashboard → Settings → Advanced →
+         Security → Client token). If ever blanked, the SDK stays fully
+         disabled (see MyApp.kt) so the app can never crash over it. -->
+    <string name="facebook_client_token">c5f5545482eac5f9bfce2de378f5777b</string>
+</resources>
