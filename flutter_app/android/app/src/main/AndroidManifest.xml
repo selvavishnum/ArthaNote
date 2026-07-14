@@ -30,7 +30,7 @@
 
     <application
         android:label="Artha Note"
-        android:name="${applicationName}"
+        android:name=".MyApp"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"
         android:extractNativeLibs="false"
@@ -73,6 +73,22 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
+        <!-- Facebook SDK — app events / install attribution for FB Ads.
+             Auto-init is OFF here; MyApp turns the SDK on only when
+             facebook_client_token is filled in (SDK v13+ requires a client
+             token — flushing events without one crashes the app). -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id"/>
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token"/>
+        <meta-data
+            android:name="com.facebook.sdk.AutoInitEnabled"
+            android:value="false"/>
+        <meta-data
+            android:name="com.facebook.sdk.AutoLogAppEventsEnabled"
+            android:value="false"/>
         <!-- Required for share_plus file sharing -->
         <provider
             android:name="androidx.core.content.FileProvider"

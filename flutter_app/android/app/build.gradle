@@ -121,4 +121,7 @@ dependencies {
     implementation "androidx.activity:activity-ktx:1.9.3"
     // Explicit 16KB-aligned MLKit prebuilts (fixes libbarhopper_v3.so, libimage_processing_util_jni.so)
     implementation 'com.google.mlkit:barcode-scanning:17.3.0'
+    // Facebook SDK core — app events / install attribution for FB Ads.
+    // facebook-core is the events-only artifact (no Login/Share UI bloat).
+    implementation 'com.facebook.android:facebook-core:latest.release'
 }
