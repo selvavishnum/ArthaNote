@@ -237,6 +237,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <div class="ntab" onclick="showTab('shops',this)">🏪 Shops</div>
     <div class="ntab" onclick="showTab('transactions',this)">💰 Transactions</div>
     <div class="ntab" onclick="showTab('revenue',this)">📈 Revenue</div>
+    <div class="ntab" onclick="showTab('promos',this)">🎟 Promo Codes</div>
     <div class="ntab" onclick="showTab('deletions',this)">🗑 Deletions</div>
     <div class="ntab" onclick="showTab('activity',this)">🔍 Activity Log</div>
     <div class="ntab" onclick="showTab('attendance',this)">📋 Attendance</div>
@@ -407,6 +408,50 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       <div class="acard" style="margin-top:12px">
         <div class="acard-hd"><span><span class="hd-icon">📊</span>Monthly Signups Trend</span></div>
         <div class="acard-body" id="signup-trend"></div>
+      </div>
+    </div>
+
+    <!-- ═══ PROMO CODES ═══ -->
+    <div class="section" id="tab-promos">
+      <!-- Create form -->
+      <div class="acard">
+        <div class="acard-hd"><span><span class="hd-icon">➕</span>Create Promo Code</span></div>
+        <div class="acard-body" style="padding:14px 16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Code (A-Z, 0-9)</label>
+              <input type="text" id="pc-code" placeholder="e.g. DIWALI2026" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono)">
+            </div>
+            <div>
+              <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Plan</label>
+              <select id="pc-plan" onchange="promoPlanChanged()" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px">
+                <option value="monthly">Monthly Pro (30 days)</option>
+                <option value="yearly">Yearly Pro (365 days)</option>
+                <option value="lifetime">Lifetime Pro</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Duration (days, 0 = lifetime)</label>
+              <input type="number" id="pc-days" value="30" min="0" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px">
+            </div>
+            <div>
+              <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Max Uses (0 = unlimited)</label>
+              <input type="number" id="pc-max" value="1" min="0" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px">
+            </div>
+            <div style="grid-column:1/-1">
+              <label style="display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Redeem-by Date (optional — code stops working after this)</label>
+              <input type="date" id="pc-expiry" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px">
+            </div>
+          </div>
+          <button class="refresh-btn" style="width:100%;padding:11px;font-size:13px;justify-content:center;background:var(--g1);color:#fff;border-color:var(--g1)" onclick="createPromo()" id="pc-create-btn">🎟 Create Code</button>
+          <div id="pc-msg" style="font-size:11px;margin-top:8px;min-height:14px"></div>
+        </div>
+      </div>
+
+      <!-- Codes list -->
+      <div class="acard" style="margin-top:12px">
+        <div class="acard-hd"><span><span class="hd-icon">🎟</span>All Promo Codes</span><button class="refresh-btn" onclick="loadPromos()">↻ Refresh</button></div>
+        <div class="acard-body" id="promo-list"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
       </div>
     </div>
 
@@ -645,10 +690,150 @@ function showTab(id,el){
   if(id==='shops'&&!_shops.length) loadShops();
   if(id==='transactions') loadTransactions();
   if(id==='revenue') loadRevenue();
+  if(id==='promos') loadPromos();
   if(id==='activity') loadActivity();
   if(id==='deletions') loadDeletions();
   if(id==='attendance'){initAttTab();}
   if(id==='cache'){updateCacheStats();}
+}
+
+// ════════════════════════════════════════
+// PROMO CODES — create / disable / usage
+// ════════════════════════════════════════
+let _promos=[],_promoOpen=null;
+
+async function loadPromos(){
+  const el=document.getElementById('promo-list');
+  el.innerHTML='<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  try{
+    const snap=await DB.collection('promo_codes').get();
+    _promos=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // newest first (createdAt may be missing on hand-made docs)
+    _promos.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    renderPromos();
+  }catch(e){
+    el.innerHTML='<div class="tbl-empty">Error: '+esc(String(e.message||e).substring(0,120))+'</div>';
+  }
+}
+
+function promoStatus(p){
+  if(p.active===false) return {lbl:'OFF',col:'var(--muted)'};
+  if(p.expiresAt&&p.expiresAt.toDate&&p.expiresAt.toDate()<new Date()) return {lbl:'EXPIRED',col:'var(--yellow)'};
+  const used=Number(p.usedCount)||(Array.isArray(p.usedBy)?p.usedBy.length:0);
+  const max=Number(p.maxUses)||0;
+  if(max>0&&used>=max) return {lbl:'FULL',col:'var(--red)'};
+  return {lbl:'ACTIVE',col:'var(--g1)'};
+}
+
+function promoPlanLabel(p){
+  const pt=(p.planType||'pro').toLowerCase();
+  const d=Number(p.durationDays)||0;
+  if(pt==='lifetime'||d<=0) return '♾ Lifetime';
+  if(pt==='yearly') return '📅 Yearly ('+d+'d)';
+  if(pt==='monthly') return '📅 Monthly ('+d+'d)';
+  return pt+' ('+d+'d)';
+}
+
+// Resolve a redeemer UID to a name/email using the loaded (or cached) users list
+function promoUserLabel(uid){
+  let list=_users;
+  if(!list.length){
+    try{ list=JSON.parse(localStorage.getItem(ADMIN_CACHE.users)||'[]'); }catch(e){ list=[]; }
+  }
+  const u=list.find(x=>x.uid===uid||x.id===uid);
+  return u?((u.name&&u.name!=='—'?u.name:'')+(u.email&&u.email!=='—'?' · '+u.email:'')||uid):uid.substring(0,10)+'…';
+}
+
+function renderPromos(){
+  const el=document.getElementById('promo-list');
+  if(!_promos.length){ el.innerHTML='<div class="tbl-empty">No promo codes yet — create your first one above</div>'; return; }
+  el.innerHTML=`<div class="tbl-wrap"><table class="atbl">
+    <thead><tr><th>Code</th><th>Plan</th><th>Used</th><th>Redeem by</th><th>Status</th><th></th></tr></thead>
+    <tbody>${_promos.map(p=>{
+      const st=promoStatus(p);
+      const used=Number(p.usedCount)||(Array.isArray(p.usedBy)?p.usedBy.length:0);
+      const max=Number(p.maxUses)||0;
+      const exp=p.expiresAt&&p.expiresAt.toDate?p.expiresAt.toDate().toLocaleDateString('en-GB'):'—';
+      const open=_promoOpen===p.id;
+      const usedBy=Array.isArray(p.usedBy)?p.usedBy:[];
+      return `<tr style="cursor:pointer" onclick="togglePromoRow('${esc(p.id)}')">
+        <td style="font-family:var(--mono);font-weight:700;letter-spacing:.5px">${esc(p.id)}</td>
+        <td style="font-size:11px">${promoPlanLabel(p)}</td>
+        <td style="font-family:var(--mono)">${used}/${max>0?max:'∞'}</td>
+        <td style="font-size:11px;color:var(--muted)">${exp}</td>
+        <td><span style="font-size:10px;font-weight:700;color:${st.col};border:1px solid ${st.col};border-radius:6px;padding:2px 7px">${st.lbl}</span></td>
+        <td style="white-space:nowrap" onclick="event.stopPropagation()">
+          <button class="refresh-btn" style="padding:4px 9px;font-size:11px" onclick="togglePromoActive('${esc(p.id)}',${p.active===false})">${p.active===false?'▶️ Enable':'⏸ Disable'}</button>
+          <button class="refresh-btn" style="padding:4px 9px;font-size:11px;color:var(--red);border-color:var(--red)" onclick="deletePromo('${esc(p.id)}')">🗑</button>
+        </td>
+      </tr>
+      ${open?`<tr><td colspan="6" style="background:var(--soft);padding:10px 14px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">👥 Redeemed by (${usedBy.length})</div>
+        ${usedBy.length?usedBy.map(u=>`<div style="font-size:11px;padding:3px 0;border-bottom:1px dashed var(--border)">${esc(promoUserLabel(u))}</div>`).join(''):'<div style="font-size:11px;color:var(--muted)">Nobody yet</div>'}
+      </td></tr>`:''}`;
+    }).join('')}</tbody></table></div>
+    <div style="padding:8px 14px;font-size:10px;color:var(--muted)">Tap a row to see who redeemed it · Disable stops NEW redemptions (already-granted Pro stays)</div>`;
+}
+
+function togglePromoRow(id){ _promoOpen=_promoOpen===id?null:id; renderPromos(); }
+
+function promoPlanChanged(){
+  const plan=document.getElementById('pc-plan').value;
+  document.getElementById('pc-days').value=plan==='lifetime'?0:plan==='yearly'?365:30;
+}
+
+async function createPromo(){
+  const msg=document.getElementById('pc-msg');
+  const setMsg=(t,c)=>{msg.textContent=t;msg.style.color=c;};
+  const code=(document.getElementById('pc-code').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  if(!/^[A-Z0-9_-]{3,24}$/.test(code)){ setMsg('Code must be 3–24 chars: A-Z, 0-9, - or _','var(--red)'); return; }
+  const plan=document.getElementById('pc-plan').value;
+  const days=Math.max(0,parseInt(document.getElementById('pc-days').value)||0);
+  const maxUses=Math.max(0,parseInt(document.getElementById('pc-max').value)||0);
+  const expiry=document.getElementById('pc-expiry').value;
+  const btn=document.getElementById('pc-create-btn');
+  btn.disabled=true; setMsg('⏳ Creating…','var(--muted)');
+  try{
+    const ref=DB.collection('promo_codes').doc(code);
+    const existing=await ref.get();
+    if(existing.exists){ setMsg('⛔ Code "'+code+'" already exists','var(--red)'); btn.disabled=false; return; }
+    const doc={
+      active:true,
+      planType:plan,
+      durationDays:plan==='lifetime'?0:days,
+      maxUses, usedCount:0, usedBy:[],
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy:_adminUser?.email||''
+    };
+    if(expiry) doc.expiresAt=firebase.firestore.Timestamp.fromDate(new Date(expiry+'T23:59:59'));
+    await ref.set(doc);
+    setMsg('✅ Code '+code+' created!','var(--g1)');
+    document.getElementById('pc-code').value='';
+    toast('🎟 '+code+' ready to share');
+    loadPromos();
+  }catch(e){ setMsg('Error: '+String(e.message||e).substring(0,120),'var(--red)'); }
+  btn.disabled=false;
+}
+
+async function togglePromoActive(id,enable){
+  try{
+    await DB.collection('promo_codes').doc(id).update({active:enable});
+    const p=_promos.find(x=>x.id===id); if(p)p.active=enable;
+    renderPromos();
+    toast(enable?'▶️ '+id+' enabled':'⏸ '+id+' disabled');
+  }catch(e){ toast('Error: '+String(e.message||e).substring(0,80)); }
+}
+
+async function deletePromo(id){
+  const p=_promos.find(x=>x.id===id);
+  const used=Number(p?.usedCount)||(Array.isArray(p?.usedBy)?p.usedBy.length:0);
+  if(!confirm('Delete code "'+id+'"?'+(used?'\n'+used+' user(s) already redeemed it — their Pro stays, only the code is removed.':'')))return;
+  try{
+    await DB.collection('promo_codes').doc(id).delete();
+    _promos=_promos.filter(x=>x.id!==id);
+    renderPromos();
+    toast('🗑 '+id+' deleted');
+  }catch(e){ toast('Error: '+String(e.message||e).substring(0,80)); }
 }
 
 // ════════════════════════════════════════
