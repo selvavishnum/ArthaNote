@@ -74,8 +74,28 @@ service cloud.firestore {
       allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
     }
 
-    // Supplier bills
+    // Supplier bills (Flutter app collection)
     match /supplier_bills/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    // Supplier bills (WEBSITE collection — index.html writes to 'sup_bills',
+    // not 'supplier_bills'; without this rule every website bill/payment
+    // write would be denied under these rules)
+    match /sup_bills/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    // Stock register (website Suppliers → 📦 Stock) — product items and the
+    // FIFO in/out movement log
+    match /stock_items/{docId} {
+      allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+    }
+
+    match /stock_moves/{docId} {
       allow read, update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
       allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
     }

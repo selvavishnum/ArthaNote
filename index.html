@@ -1345,6 +1345,13 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
 
   <!-- ── SUPPLIER ── -->
   <div class="pane" id="pane-sup">
+    <!-- Suppliers / Stock sub-tabs -->
+    <div class="dtabs" id="sup-sub-tabs" style="margin-bottom:10px">
+      <div class="dtab on" onclick="setSupTab('sup',this)">&#127991;&#65039; Suppliers</div>
+      <div class="dtab" onclick="setSupTab('stock',this)">&#128230; Stock</div>
+    </div>
+
+    <div id="sup-main">
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <button class="btn G sm" style="flex:1;margin-top:0" onclick="openM('add-sup-modal')">+ Add Supplier</button>
       <button class="btn B sm" style="flex:1;margin-top:0" onclick="openAddBill()">&#128203; Bill/Payment</button>
@@ -1361,6 +1368,19 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
       <div class="fr"><div class="fg"><label>From</label><input type="date" id="sup-from" onchange="renderSups()"></div><div class="fg"><label>To</label><input type="date" id="sup-to" onchange="renderSups()"></div></div>
     </div>
     <div id="sup-list"></div>
+    </div><!-- /sup-main -->
+
+    <!-- ── STOCK REGISTER (sub-tab) ── -->
+    <div id="stock-main" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn G sm" style="flex:1;margin-top:0" onclick="openStockIn('')">&#128230; Stock In (Order)</button>
+        <button class="btn B sm" style="flex:1;margin-top:0" onclick="openStockOut('')">&#10134; Stock Out (Sale)</button>
+        <button class="btn S sm" style="margin-top:0" onclick="openStockItem('')">+ Item</button>
+      </div>
+      <div id="stock-summary"></div>
+      <div id="stock-list"></div>
+      <div class="card" style="margin-top:10px"><div class="chd">&#128337; Recent Stock Entries</div><div id="stock-recent"></div></div>
+    </div><!-- /stock-main -->
   </div>
 
   <!-- ── REPORTS ── -->
@@ -1407,6 +1427,13 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
     <!-- 5. EXPENSE BREAKDOWN -->
     <div class="rpt-section" id="rpt-expense">
       <div class="card"><div class="chd">&#128184; Expense Breakdown</div><div id="rpt-expense-body"></div></div>
+    </div>
+    <!-- 5b. STOCK REPORT -->
+    <div class="rpt-section" id="rpt-stock">
+      <div class="card"><div class="chd">&#128230; Stock Summary</div><div id="rpt-stock-body"></div></div>
+      <div class="card"><div class="chd">&#128293; High Sales Products</div><div id="rpt-stock-high"></div></div>
+      <div class="card"><div class="chd">&#128203; FIFO Batch Details</div><div id="rpt-stock-fifo"></div></div>
+      <div class="card"><div class="chd">&#9203; Old Stock (Aging)</div><div id="rpt-stock-old"></div></div>
     </div>
     <!-- 6. PAYMENT REPORT -->
     <div class="rpt-section" id="rpt-payment">
@@ -2047,6 +2074,41 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
   </div>
 </div>
 
+<!-- STOCK ITEM MODAL (add/edit) -->
+<div class="mover" id="stock-item-modal">
+  <div class="modal">
+    <div class="mhd"><span id="sk-title">Add Stock Item</span> <button class="mclose" onclick="closeM('stock-item-modal')">&#10005;</button></div>
+    <input type="hidden" id="sk-id">
+    <div class="fr full"><div class="fg"><label>Item Name</label><input type="text" id="sk-name" placeholder="e.g. Marie Biscuit 5/-"></div></div>
+    <div class="fr"><div class="fg"><label>Code (optional)</label><input type="text" id="sk-code" placeholder="e.g. SB013"></div><div class="fg"><label>Unit</label><select id="sk-unit"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="litre">Litre</option><option value="pack">Pack</option><option value="bag">Bag</option></select></div></div>
+    <div class="fr"><div class="fg"><label>Shop</label><select id="sk-shop"></select></div><div class="fg"><label>Low-stock Alert (qty)</label><input type="number" id="sk-low" placeholder="e.g. 5"></div></div>
+    <button class="btn G" onclick="saveStockItem()">&#10003; Save Item</button>
+    <button class="btn R" id="sk-del" style="display:none" onclick="deleteStockItem()">&#128465;&#65039; Delete Item</button>
+  </div>
+</div>
+
+<!-- STOCK IN MODAL (purchase / order from supplier) -->
+<div class="mover" id="stock-in-modal">
+  <div class="modal">
+    <div class="mhd">&#128230; Stock In (Purchase / Order) <button class="mclose" onclick="closeM('stock-in-modal')">&#10005;</button></div>
+    <div class="fr"><div class="fg"><label>Date</label><input type="date" id="si-date"></div><div class="fg"><label>Item</label><select id="si-item"></select></div></div>
+    <div class="fr"><div class="fg"><label>Quantity</label><input type="number" id="si-qty" placeholder="0"></div><div class="fg"><label>Rate / unit (&#8377;)</label><input type="number" id="si-rate" placeholder="0.00"></div></div>
+    <div class="fr"><div class="fg"><label>Supplier (optional)</label><select id="si-sup"></select></div><div class="fg"><label>Bill Ref</label><input type="text" id="si-ref" placeholder="Optional"></div></div>
+    <button class="btn G" onclick="saveStockIn()">&#10003; Add Stock</button>
+  </div>
+</div>
+
+<!-- STOCK OUT MODAL (sale) -->
+<div class="mover" id="stock-out-modal">
+  <div class="modal">
+    <div class="mhd">&#10134; Stock Out (Sale) <button class="mclose" onclick="closeM('stock-out-modal')">&#10005;</button></div>
+    <div class="fr"><div class="fg"><label>Date</label><input type="date" id="so-date"></div><div class="fg"><label>Item</label><select id="so-item" onchange="updSoBal()"></select></div></div>
+    <div id="so-bal" style="font-size:12px;color:var(--muted);margin:0 0 10px;font-weight:600"></div>
+    <div class="fr"><div class="fg"><label>Quantity Sold</label><input type="number" id="so-qty" placeholder="0"></div><div class="fg"><label>Note</label><input type="text" id="so-note" placeholder="Optional"></div></div>
+    <button class="btn B" onclick="saveStockOut()">&#10003; Save Stock Out</button>
+  </div>
+</div>
+
 <div class="mover" id="edit-modal">
   <div class="modal">
     <div class="mhd">Edit Entry <button class="mclose" onclick="closeM('edit-modal')">&#10005;</button></div>
@@ -2101,6 +2163,7 @@ let ME=null;
 let SHOPS=JSON.parse(localStorage.getItem('slv_shops')||JSON.stringify(DS));
 let CATS=JSON.parse(localStorage.getItem('slv_cats')||JSON.stringify(DC));
 let TXS=[],SUPS=[],BILLS=[],_unsubs=[];
+let STOCK_ITEMS=[],STOCK_MOVES=[]; // stock register — items + FIFO in/out movement log
 // Android app stores type='sale'; website uses type='sales'. Normalize on load.
 function _normType(t){return t.type==='sale'?{...t,type:'sales'}:t;}
 function _normDate(t){
@@ -2403,7 +2466,7 @@ function exportCSVBackup(){
 }
 function clearLocalCache(){
   if(!confirm('Clear local cache? App will reload fresh data from Firebase on next open.')) return;
-  ['kp_txs_cache','kp_sups_cache','kp_bills_cache','kp_cache_ts','kp_cfg_cache'].forEach(k=>localStorage.removeItem(k));
+  ['kp_txs_cache','kp_sups_cache','kp_bills_cache','kp_stock_cache','kp_cache_ts','kp_cfg_cache'].forEach(k=>localStorage.removeItem(k));
   toast('✅ Local cache cleared. Restart the app to reload.');
 }
 function setAttTab(tab){
@@ -4131,6 +4194,7 @@ let _txLoaded=false;
 const CACHE_KEY_TXS='kp_txs_cache';
 const CACHE_KEY_SUPS='kp_sups_cache';
 const CACHE_KEY_BILLS='kp_bills_cache';
+const CACHE_KEY_STOCK='kp_stock_cache';
 const CACHE_KEY_TS='kp_cache_ts';
 
 function saveCacheLocal(){
@@ -4138,6 +4202,7 @@ function saveCacheLocal(){
     localStorage.setItem(CACHE_KEY_TXS, JSON.stringify(TXS));
     localStorage.setItem(CACHE_KEY_SUPS, JSON.stringify(SUPS));
     localStorage.setItem(CACHE_KEY_BILLS, JSON.stringify(BILLS));
+    localStorage.setItem(CACHE_KEY_STOCK, JSON.stringify({items:STOCK_ITEMS,moves:STOCK_MOVES}));
     localStorage.setItem(CACHE_KEY_TS, Date.now().toString());
   }catch(e){ console.warn('Cache save warn:',e); }
 }
@@ -4152,6 +4217,10 @@ function loadFromCache(){
     TXS=JSON.parse(txRaw).map(_norm);
     if(supRaw) SUPS=JSON.parse(supRaw);
     if(billRaw) BILLS=JSON.parse(billRaw);
+    try{
+      const stRaw=localStorage.getItem(CACHE_KEY_STOCK);
+      if(stRaw){ const st=JSON.parse(stRaw); STOCK_ITEMS=st.items||[]; STOCK_MOVES=st.moves||[]; }
+    }catch(e2){}
     const ageMin=Math.round((Date.now()-ts)/60000);
     console.log('📦 Cache loaded: TXS='+TXS.length+' SUPS='+SUPS.length+' BILLS='+BILLS.length+' ('+ageMin+'min old)');
     return true;
@@ -4233,6 +4302,16 @@ async function firstTimeSync(BID, attempt=1){
       BILLS=billSnap.docs.map(d=>({id:d.id,...d.data()}))
         .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
     }catch(e){ BILLS=[]; }
+
+    // Load stock register (items + FIFO movement log) — non-fatal
+    try{
+      const[sis,sms]=await Promise.all([
+        DB.collection('stock_items').where('businessId','==',BID).get(),
+        DB.collection('stock_moves').where('businessId','==',BID).get()
+      ]);
+      STOCK_ITEMS=sis.docs.map(d=>({id:d.id,...d.data()}));
+      STOCK_MOVES=sms.docs.map(d=>({id:d.id,...d.data()}));
+    }catch(e){ STOCK_ITEMS=[]; STOCK_MOVES=[]; }
 
     setStatus(`✅ All data loaded! ${TXS.length} entries`, 100);
     icon.textContent='✅';
@@ -4332,7 +4411,9 @@ async function silentCloudSync(BID){
     const results = await Promise.allSettled([
       txQ.get(),
       DB.collection('suppliers').where('businessId','==',BID).get(),
-      DB.collection('sup_bills').where('businessId','==',BID).get()
+      DB.collection('sup_bills').where('businessId','==',BID).get(),
+      DB.collection('stock_items').where('businessId','==',BID).get(),
+      DB.collection('stock_moves').where('businessId','==',BID).get()
     ]);
 
     let updated=false;
@@ -4379,6 +4460,10 @@ async function silentCloudSync(BID){
           .sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
       }catch(e2){}
     }
+
+    // Stock register
+    if(results[3].status==='fulfilled') STOCK_ITEMS=results[3].value.docs.map(d=>({id:d.id,...d.data()}));
+    if(results[4].status==='fulfilled') STOCK_MOVES=results[4].value.docs.map(d=>({id:d.id,...d.data()}));
 
     // Save whatever we got to cache
     saveCacheLocal();
@@ -6355,6 +6440,7 @@ function filterBillsByDate(bills){
 }
 
 function renderSups(){
+  renderStock(); // stock sub-tab refreshes wherever supplier data does
   const list=document.getElementById('sup-list'); if(!list)return;
   const show=_shop==='all'?SUPS:SUPS.filter(s=>s.shop===_shop);
   if(!show.length){list.innerHTML='<div class="empty">No suppliers — click "+ Add Supplier" to add</div>';return;}
@@ -6526,6 +6612,330 @@ async function saveBill(){
 }
 
 // ════════════════════════════════════════
+// STOCK REGISTER — items, FIFO batches, in/out, reports
+// ════════════════════════════════════════
+let _supTab='sup';
+function setSupTab(t,el){
+  _supTab=t;
+  document.querySelectorAll('#sup-sub-tabs .dtab').forEach(b=>b.classList.remove('on'));
+  if(el) el.classList.add('on');
+  const sm=document.getElementById('sup-main'),km=document.getElementById('stock-main');
+  if(sm) sm.style.display=t==='sup'?'block':'none';
+  if(km) km.style.display=t==='stock'?'block':'none';
+  if(t==='stock') renderStock();
+}
+
+// FIFO engine: replay all moves oldest-first. 'in' creates a batch;
+// 'out' consumes from the oldest batch that still has quantity left.
+function stockFifo(itemId){
+  const moves=STOCK_MOVES.filter(m=>m.itemId===itemId).slice()
+    .sort((a,b)=>(a.date||'')===(b.date||'')
+      ?(a.createdMs||0)-(b.createdMs||0)
+      :((a.date||'')<(b.date||'')?-1:1));
+  const batches=[]; let inQty=0,outQty=0;
+  moves.forEach(m=>{
+    const q=Number(m.qty)||0;
+    if(m.type==='in'){
+      inQty+=q;
+      batches.push({date:m.date||'',qty:q,left:q,rate:Number(m.rate)||0,sup:m.supplierName||''});
+    }else{
+      outQty+=q; let need=q;
+      for(const b of batches){ if(need<=0)break; const take=Math.min(b.left,need); b.left-=take; need-=take; }
+    }
+  });
+  const value=batches.reduce((s,b)=>s+b.left*b.rate,0);
+  return {batches,inQty,outQty,balance:inQty-outQty,value};
+}
+
+function stockItemsForShop(){
+  return _shop==='all'?STOCK_ITEMS:STOCK_ITEMS.filter(i=>i.shop===_shop);
+}
+
+function renderStock(){
+  const list=document.getElementById('stock-list'); if(!list)return;
+  const items=stockItemsForShop();
+  let totVal=0,lowCount=0;
+  const rows=items.map(it=>{
+    const f=stockFifo(it.id);
+    totVal+=f.value;
+    const low=(it.lowQty>0)&&f.balance<=it.lowQty;
+    if(low)lowCount++;
+    return {it,f,low};
+  });
+  const sm=document.getElementById('stock-summary');
+  if(sm) sm.innerHTML=`<div class="sup3" style="margin-bottom:10px">
+    <div class="sup3i"><div class="sup3l">Items</div><div class="sup3v">${items.length}</div></div>
+    <div class="sup3i"><div class="sup3l">Stock Value</div><div class="sup3v cg">&#8377;${fmt(totVal)}</div></div>
+    <div class="sup3i"><div class="sup3l">Low Stock</div><div class="sup3v ${lowCount?'cr':''}">${lowCount}</div></div>
+  </div>`;
+  if(!rows.length){
+    list.innerHTML='<div class="empty">No stock items yet — tap "+ Item" to add your first product</div>';
+  }else{
+    rows.sort((a,b)=>(b.low?1:0)-(a.low?1:0)||String(a.it.name).localeCompare(String(b.it.name)));
+    list.innerHTML=rows.map(({it,f,low})=>`
+    <div class="supc">
+      <div class="suph">
+        <div>
+          <div class="supname">${esc(it.name)}${it.code?` <span style="font-size:10px;color:var(--blue);background:var(--bl);padding:1px 6px;border-radius:6px">${esc(it.code)}</span>`:''}${low?' <span class="rb critical">LOW</span>':''}</div>
+          <div class="supshop">${SHOPS[it.shop]?.icon||''} ${esc(SHOPS[it.shop]?.name||'')} &middot; ${esc(it.unit||'pcs')}</div>
+        </div>
+        <div style="text-align:right">
+          <span style="font-family:var(--mono);font-size:20px;font-weight:800;color:${low?'var(--red)':f.balance>0?'var(--green)':'var(--muted)'}">${fmt(f.balance)}</span>
+          <div style="font-size:10px;color:var(--muted)">Balance ${esc(it.unit||'pcs')}</div>
+        </div>
+      </div>
+      <div class="sup3">
+        <div class="sup3i"><div class="sup3l">Purchased</div><div class="sup3v cg">${fmt(f.inQty)}</div></div>
+        <div class="sup3i"><div class="sup3l">Sold</div><div class="sup3v cr">${fmt(f.outQty)}</div></div>
+        <div class="sup3i"><div class="sup3l">Value</div><div class="sup3v">&#8377;${fmt(f.value)}</div></div>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:10px">
+        <button class="btn G sm" style="flex:1;margin-top:0" onclick="openStockIn('${it.id}')">&#128230; In</button>
+        <button class="btn B sm" style="flex:1;margin-top:0" onclick="openStockOut('${it.id}')">&#10134; Out</button>
+        <button class="btn S sm" style="margin-top:0" onclick="openStockItem('${it.id}')">&#9999;&#65039;</button>
+      </div>
+    </div>`).join('');
+  }
+  renderStockRecent();
+}
+
+function renderStockRecent(){
+  const el=document.getElementById('stock-recent'); if(!el)return;
+  const shopMoves=_shop==='all'?STOCK_MOVES:STOCK_MOVES.filter(m=>m.shop===_shop);
+  const recent=shopMoves.slice()
+    .sort((a,b)=>(b.date||'')===(a.date||'')?(b.createdMs||0)-(a.createdMs||0):((b.date||'')>(a.date||'')?1:-1))
+    .slice(0,10);
+  if(!recent.length){ el.innerHTML='<div class="empty" style="font-size:12px">No stock entries yet</div>'; return; }
+  el.innerHTML=recent.map(m=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;gap:6px">
+      <div style="min-width:0;flex:1">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="color:var(--muted);font-family:var(--mono);font-size:10px;flex-shrink:0">${esc(m.date||'')}</span>
+          <span style="font-size:11px">${m.type==='in'?'&#128230; In':'&#10134; Out'} &middot; ${esc(m.itemName||'')}</span>
+        </div>
+        ${m.supplierName?`<div style="font-size:10px;color:var(--muted)">from ${esc(m.supplierName)}</div>`:''}${m.note?`<div style="font-size:10px;color:var(--muted)">${esc(m.note)}</div>`:''}
+      </div>
+      <span style="font-family:var(--mono);font-weight:700;font-size:13px;color:${m.type==='in'?'var(--green)':'var(--red)'}">${m.type==='in'?'+':'-'}${fmt(m.qty)}</span>
+      ${m.type==='in'&&m.rate?`<span style="font-size:10px;color:var(--muted)">@&#8377;${m.rate}</span>`:''}
+      <button onclick="deleteStockMove('${m.id}')" style="background:var(--soft);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0">&#128465;</button>
+    </div>`).join('');
+}
+
+// ── Stock item CRUD ──
+function buildStockShopSel(selId,cur){
+  const el=document.getElementById(selId); if(!el)return;
+  const def=cur||(_shop!=='all'?_shop:Object.keys(SHOPS)[0]);
+  el.innerHTML=Object.entries(SHOPS).map(([k,s])=>`<option value="${k}"${def===k?' selected':''}>${s.icon} ${esc(s.name)}</option>`).join('');
+}
+function buildStockItemSel(selId,cur){
+  const el=document.getElementById(selId); if(!el)return;
+  el.innerHTML=stockItemsForShop().map(i=>`<option value="${i.id}"${cur===i.id?' selected':''}>${esc(i.name)}${i.code?' ('+esc(i.code)+')':''}</option>`).join('');
+}
+function openStockItem(id){
+  const it=id?STOCK_ITEMS.find(x=>x.id===id):null;
+  document.getElementById('sk-id').value=it?it.id:'';
+  document.getElementById('sk-name').value=it?it.name:'';
+  document.getElementById('sk-code').value=it?(it.code||''):'';
+  document.getElementById('sk-unit').value=it?(it.unit||'pcs'):'pcs';
+  document.getElementById('sk-low').value=it?(it.lowQty||''):'';
+  buildStockShopSel('sk-shop',it?it.shop:'');
+  document.getElementById('sk-del').style.display=it?'block':'none';
+  document.getElementById('sk-title').textContent=it?'Edit Stock Item':'Add Stock Item';
+  openM('stock-item-modal');
+}
+async function saveStockItem(){
+  const id=v('sk-id'),name=v('sk-name').trim();
+  if(!name){toast('Enter item name','warn');return;}
+  const BID=ME.businessId||ME.uid;
+  const data={name,code:v('sk-code').trim(),unit:v('sk-unit'),shop:v('sk-shop'),lowQty:parseFloat(v('sk-low'))||0};
+  try{
+    if(id){
+      await DB.collection('stock_items').doc(id).update({...data,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      const i=STOCK_ITEMS.findIndex(x=>x.id===id);
+      if(i!==-1)STOCK_ITEMS[i]={...STOCK_ITEMS[i],...data};
+    }else{
+      const ref=await DB.collection('stock_items').add({businessId:BID,userId:ME.uid,...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      STOCK_ITEMS.push({id:ref.id,businessId:BID,...data});
+    }
+    saveCacheLocal(); closeM('stock-item-modal'); renderStock(); toast('✅ Item saved!');
+  }catch(e){toast('Error: '+esc(e.message||'unknown'),'bad');}
+}
+async function deleteStockItem(){
+  const id=v('sk-id'); const it=STOCK_ITEMS.find(x=>x.id===id); if(!it)return;
+  if(!confirm('Delete "'+it.name+'"?\nAll its stock in/out entries will also be deleted.'))return;
+  try{
+    await DB.collection('stock_items').doc(id).delete();
+    const mv=await DB.collection('stock_moves').where('itemId','==',id).get();
+    const batch=DB.batch(); mv.docs.forEach(d=>batch.delete(d.ref)); await batch.commit();
+    STOCK_ITEMS=STOCK_ITEMS.filter(x=>x.id!==id);
+    STOCK_MOVES=STOCK_MOVES.filter(m=>m.itemId!==id);
+    saveCacheLocal(); closeM('stock-item-modal'); renderStock(); toast('Item deleted');
+  }catch(e){toast('Error: '+esc(e.message||'unknown'),'bad');}
+}
+
+// ── Stock in (purchase / order from supplier) ──
+function openStockIn(itemId){
+  if(!STOCK_ITEMS.length){toast('Add a stock item first (+ Item)','warn');openStockItem('');return;}
+  document.getElementById('si-date').value=tod();
+  buildStockItemSel('si-item',itemId);
+  const ss=document.getElementById('si-sup');
+  if(ss) ss.innerHTML='<option value="">— No supplier —</option>'+SUPS.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+  ['si-qty','si-rate','si-ref'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  openM('stock-in-modal');
+}
+async function saveStockIn(){
+  const itemId=v('si-item'); const it=STOCK_ITEMS.find(x=>x.id===itemId);
+  const qty=parseFloat(v('si-qty'))||0, rate=parseFloat(v('si-rate'))||0, date=v('si-date');
+  if(!it){toast('Pick an item','warn');return;}
+  if(qty<=0||!date){toast('Enter date and quantity','warn');return;}
+  const supEl=document.getElementById('si-sup');
+  const supId=supEl?.value||'', supName=supEl?.options[supEl.selectedIndex]?.dataset.name||'';
+  const BID=ME.businessId||ME.uid;
+  const doc={businessId:BID,userId:ME.uid,itemId,itemName:it.name,shop:it.shop||'',type:'in',qty,rate,
+    supplierId:supId,supplierName:supName,ref:v('si-ref'),note:'',date,by:ME.name||'',
+    createdMs:Date.now(),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{
+    const ref=await DB.collection('stock_moves').add(doc);
+    STOCK_MOVES.push({...doc,id:ref.id,createdAt:null});
+    saveCacheLocal(); closeM('stock-in-modal'); renderStock();
+    toast('✅ Stock in: '+fmt(qty)+' '+(it.unit||''));
+  }catch(e){toast('Error: '+esc(e.message||'unknown'),'bad');}
+}
+
+// ── Stock out (sale) ──
+function openStockOut(itemId){
+  if(!STOCK_ITEMS.length){toast('Add a stock item first (+ Item)','warn');openStockItem('');return;}
+  document.getElementById('so-date').value=tod();
+  buildStockItemSel('so-item',itemId);
+  ['so-qty','so-note'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  updSoBal();
+  openM('stock-out-modal');
+}
+function updSoBal(){
+  const el=document.getElementById('so-bal'); if(!el)return;
+  const it=STOCK_ITEMS.find(x=>x.id===v('so-item'));
+  if(it){ const f=stockFifo(it.id); el.innerHTML='Available: <b>'+fmt(f.balance)+' '+esc(it.unit||'')+'</b>'; }
+  else el.textContent='';
+}
+async function saveStockOut(){
+  const itemId=v('so-item'); const it=STOCK_ITEMS.find(x=>x.id===itemId);
+  const qty=parseFloat(v('so-qty'))||0, date=v('so-date');
+  if(!it){toast('Pick an item','warn');return;}
+  if(qty<=0||!date){toast('Enter date and quantity','warn');return;}
+  const f=stockFifo(itemId);
+  if(qty>f.balance&&!confirm('Only '+fmt(f.balance)+' '+(it.unit||'')+' in stock. Save anyway?'))return;
+  const BID=ME.businessId||ME.uid;
+  const doc={businessId:BID,userId:ME.uid,itemId,itemName:it.name,shop:it.shop||'',type:'out',qty,rate:0,
+    supplierId:'',supplierName:'',ref:'',note:v('so-note'),date,by:ME.name||'',
+    createdMs:Date.now(),createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{
+    const ref=await DB.collection('stock_moves').add(doc);
+    STOCK_MOVES.push({...doc,id:ref.id,createdAt:null});
+    saveCacheLocal(); closeM('stock-out-modal'); renderStock();
+    toast('✅ Stock out: '+fmt(qty)+' '+(it.unit||''));
+  }catch(e){toast('Error: '+esc(e.message||'unknown'),'bad');}
+}
+async function deleteStockMove(id){
+  if(!confirm('Delete this stock entry? Balance will be recalculated.'))return;
+  try{
+    await DB.collection('stock_moves').doc(id).delete();
+    STOCK_MOVES=STOCK_MOVES.filter(m=>m.id!==id);
+    saveCacheLocal(); renderStock(); toast('Entry deleted');
+  }catch(e){toast('Error: '+esc(e.message||'unknown'),'bad');}
+}
+
+// ── Stock report (Reports tab → 📦 Stock) ──
+function renderStockReport(){
+  const body=document.getElementById('rpt-stock-body'); if(!body)return;
+  const items=stockItemsForShop();
+  const setEmpty=(id,msg)=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class="empty" style="font-size:12px">'+msg+'</div>';};
+  if(!items.length){
+    body.innerHTML='<div class="empty" style="font-size:12px">No stock items yet. Add them in Suppliers &rarr; &#128230; Stock.</div>';
+    setEmpty('rpt-stock-high','No data'); setEmpty('rpt-stock-fifo','No data'); setEmpty('rpt-stock-old','No data');
+    return;
+  }
+  const ff=getRptFilter();
+  const inShop=m=>_shop==='all'||m.shop===_shop;
+  const periodMoves=STOCK_MOVES.filter(m=>inShop(m)&&ff(m));
+  const pin=periodMoves.filter(m=>m.type==='in'),pout=periodMoves.filter(m=>m.type==='out');
+  const pinQty=pin.reduce((s,m)=>s+(Number(m.qty)||0),0);
+  const pinVal=pin.reduce((s,m)=>s+(Number(m.qty)||0)*(Number(m.rate)||0),0);
+  const poutQty=pout.reduce((s,m)=>s+(Number(m.qty)||0),0);
+
+  // 1. Summary + item-wise balance
+  let totVal=0;
+  const rows=items.map(it=>{const f=stockFifo(it.id);totVal+=f.value;return{it,f};});
+  const lows=rows.filter(r=>(r.it.lowQty>0)&&r.f.balance<=r.it.lowQty);
+  body.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px">
+      <div style="background:var(--soft);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Items</div><div style="font-size:20px;font-weight:800">${items.length}</div></div>
+      <div style="background:var(--soft);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Stock Value (FIFO)</div><div style="font-size:20px;font-weight:800;color:var(--green)">&#8377;${fmt(totVal)}</div></div>
+      <div style="background:var(--soft);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Purchased (period)</div><div style="font-size:16px;font-weight:800">${fmt(pinQty)} <span style="font-size:11px;color:var(--muted);font-weight:600">&#8377;${fmt(pinVal)}</span></div></div>
+      <div style="background:var(--soft);border-radius:10px;padding:10px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Sold (period)</div><div style="font-size:16px;font-weight:800;color:var(--red)">${fmt(poutQty)}</div></div>
+    </div>
+    ${lows.length?`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:var(--red);margin-bottom:10px">&#128680; Low stock: ${lows.map(r=>esc(r.it.name)+' ('+fmt(r.f.balance)+')').join(', ')} — reorder soon</div>`:''}
+    <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;padding-bottom:4px;border-bottom:1px solid var(--border)">
+      <span style="flex:1">ITEM</span><span style="width:52px;text-align:right">IN</span><span style="width:52px;text-align:right">OUT</span><span style="width:60px;text-align:right">BALANCE</span>
+    </div>
+    ${rows.map(({it,f})=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.name)}</span>
+      <span style="width:52px;text-align:right;color:var(--green)">${fmt(f.inQty)}</span>
+      <span style="width:52px;text-align:right;color:var(--red)">${fmt(f.outQty)}</span>
+      <span style="width:60px;text-align:right;font-weight:800">${fmt(f.balance)}</span>
+    </div>`).join('')}`;
+
+  // 2. High sales products (period)
+  const hs={};
+  pout.forEach(m=>{const k=m.itemId;hs[k]=hs[k]||{name:m.itemName||'?',qty:0,n:0};hs[k].qty+=(Number(m.qty)||0);hs[k].n++;});
+  const top=Object.values(hs).sort((a,b)=>b.qty-a.qty).slice(0,10);
+  const maxQ=top.length?top[0].qty:1;
+  document.getElementById('rpt-stock-high').innerHTML=top.length?top.map((t,i)=>`
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span>${i<3?['&#129351;','&#129352;','&#129353;'][i]:(i+1)+'.'} ${esc(t.name)}</span><b>${fmt(t.qty)} sold &middot; ${t.n}x</b>
+      </div>
+      <div style="height:6px;background:var(--soft);border-radius:4px"><div style="height:6px;width:${Math.max(4,Math.round((t.qty/maxQ)*100))}%;background:var(--green);border-radius:4px"></div></div>
+    </div>`).join(''):'<div class="empty" style="font-size:12px">No stock-out entries in this period</div>';
+
+  // 3. FIFO batch details (current remaining batches, oldest first)
+  const fifoRows=rows.filter(r=>r.f.batches.some(b=>b.left>0));
+  document.getElementById('rpt-stock-fifo').innerHTML=fifoRows.length?
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Next sale goes out from the OLDEST batch first (First In, First Out).</div>'+
+    fifoRows.map(({it,f})=>`
+    <div style="margin-bottom:12px">
+      <div style="font-weight:800;font-size:13px;margin-bottom:4px">${esc(it.name)} <span style="font-weight:500;color:var(--muted);font-size:11px">&middot; balance ${fmt(f.balance)} ${esc(it.unit||'')}</span></div>
+      ${f.batches.filter(b=>b.left>0).map((b,bi)=>`
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:4px 0;border-bottom:1px dashed var(--border)">
+          <span style="font-weight:700;color:var(--blue);flex-shrink:0">${bi===0?'&#9193; NEXT':'#'+(bi+1)}</span>
+          <span style="color:var(--muted);font-family:var(--mono)">${esc(b.date)||'—'}</span>
+          <span style="flex:1;color:var(--muted)">${b.sup?esc(b.sup):''}</span>
+          <span>${fmt(b.left)}/${fmt(b.qty)} left</span>
+          ${b.rate?`<span style="color:var(--muted)">@&#8377;${b.rate}</span>`:''}
+          <span style="font-weight:700;width:64px;text-align:right">&#8377;${fmt(b.left*b.rate)}</span>
+        </div>`).join('')}
+    </div>`).join(''):'<div class="empty" style="font-size:12px">No stock batches remaining</div>';
+
+  // 4. Old stock (batches lying 30+ days)
+  const now=Date.now(); const old=[];
+  rows.forEach(({it,f})=>f.batches.forEach(b=>{
+    if(b.left<=0||!b.date)return;
+    const age=Math.floor((now-new Date(b.date+'T00:00:00').getTime())/86400000);
+    if(age>=30) old.push({name:it.name,unit:it.unit||'',date:b.date,age,left:b.left,val:b.left*b.rate});
+  }));
+  old.sort((a,b)=>b.age-a.age);
+  document.getElementById('rpt-stock-old').innerHTML=old.length?
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Stock lying unsold 30+ days — run an offer/discount to clear before it expires.</div>'+
+    old.map(o=>{
+      const c=o.age>=90?'var(--red)':o.age>=60?'#d97706':'#b45309';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);gap:8px">
+        <div style="flex:1;min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.name)}</div><div style="font-size:10px;color:var(--muted)">${esc(o.date)} &middot; ${fmt(o.left)} ${esc(o.unit)} left</div></div>
+        <span style="font-weight:800;color:${c};flex-shrink:0">${o.age} days</span>
+        <span style="width:64px;text-align:right;font-weight:700;flex-shrink:0">&#8377;${fmt(o.val)}</span>
+      </div>`;}).join('')
+    :'<div class="empty" style="font-size:12px">&#9989; No old stock — everything is moving!</div>';
+}
+
+// ════════════════════════════════════════
 // REPORTS — FULL MIS / CFO REPORT ENGINE
 // ════════════════════════════════════════
 let _rptDate='week';
@@ -6536,6 +6946,7 @@ const RPT_SECTIONS=[
   {id:'weekly',label:'📆 Weekly'},
   {id:'monthly',label:'📈 Monthly'},
   {id:'expense',label:'💸 Expense'},
+  {id:'stock',label:'📦 Stock'},
   {id:'credit',label:'💳 Credit'},
   {id:'salary',label:'👤 Salary'},
   {id:'staff',label:'⚡ Staff Efficiency'},
@@ -6964,6 +7375,7 @@ function renderReports(){
   if(Object.keys(SHOPS).length<5) actions.push({title:'Expansion Readiness',desc:'Document SOPs from your best shop. Standardized process = faster scaling to new locations.'});
   document.getElementById('rpt-actions-body').innerHTML=actions.map((a,i)=>`<div class="action-item"><b>${i+1}. ${a.title}</b><div style="color:var(--muted);margin-top:3px">${a.desc}</div></div>`).join('');
 
+  renderStockReport();
   renderAiReport();
   loadAudit(); updAI();
 }
