@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#FF6B00">
+<title>Sobisco Stock Register</title>
+<style>
+  :root{
+    --orange:#FF6B00; --orange-dark:#E85D00; --blue:#0B5FA5; --blue-soft:#EAF3FB;
+    --ink:#1A2230; --muted:#6B7686; --line:#E7EAF0; --bg:#F4F6F9; --card:#FFFFFF;
+    --green:#1B7A45; --red:#C63A2E; --amber:#B8791A;
+    --shadow:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.4; padding-bottom:88px;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* Header */
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(135deg,var(--orange),var(--orange-dark));
+    color:#fff; padding:14px 16px 16px; box-shadow:0 2px 10px rgba(232,93,0,.25);
+  }
+  .h-title{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;letter-spacing:.2px}
+  .h-sub{font-size:11px;opacity:.9;margin-top:2px}
+  .totals{display:flex;gap:10px;margin-top:12px}
+  .total-card{
+    flex:1;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);
+    border-radius:12px;padding:10px 12px;backdrop-filter:blur(2px);
+  }
+  .total-card .n{font-size:22px;font-weight:800;line-height:1}
+  .total-card .l{font-size:10px;text-transform:uppercase;letter-spacing:.6px;opacity:.9;margin-top:4px}
+  /* Search */
+  .searchwrap{padding:12px 16px 4px;position:sticky;top:0;z-index:10}
+  .searchbar{position:relative}
+  .searchbar input{
+    width:100%;padding:12px 14px 12px 40px;border:1.5px solid var(--line);border-radius:12px;
+    font-size:15px;background:var(--card);box-shadow:var(--shadow);outline:none;
+  }
+  .searchbar input:focus{border-color:var(--orange)}
+  .searchbar .ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px}
+  .clearbtn{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;
+    color:var(--muted);font-size:20px;padding:6px 8px;cursor:pointer;display:none}
+  /* List */
+  .list{padding:8px 12px 4px;display:flex;flex-direction:column;gap:10px}
+  .count-note{padding:2px 6px 8px;font-size:12px;color:var(--muted)}
+  .card{
+    background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);
+    border:1px solid var(--line);display:flex;flex-direction:column;gap:8px;
+  }
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .code{font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-soft);
+    padding:2px 7px;border-radius:6px;letter-spacing:.4px}
+  .pname{font-size:14px;font-weight:700;margin-top:5px}
+  .conv{font-size:11px;color:var(--muted);margin-top:2px}
+  .stock{display:flex;gap:8px;align-items:stretch;margin-top:2px}
+  .pill{
+    flex:1;text-align:center;padding:8px 4px;border-radius:10px;border:1px solid var(--line);
+  }
+  .pill.boxes{background:#FFF4EC;border-color:#FFD9BE}
+  .pill.chains{background:var(--blue-soft);border-color:#CFE3F5}
+  .pill .n{font-size:19px;font-weight:800;line-height:1}
+  .pill.boxes .n{color:var(--orange-dark)}
+  .pill.chains .n{color:var(--blue)}
+  .pill .l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:3px}
+  .low{outline:2px solid var(--red);outline-offset:1px}
+  .card .actions{display:flex;gap:8px}
+  .btn{
+    border:none;border-radius:10px;font-size:13px;font-weight:700;padding:11px 12px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:6px;flex:1;
+  }
+  .btn.primary{background:var(--orange);color:#fff}
+  .btn.primary:active{background:var(--orange-dark)}
+  .btn.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}
+  .btn.ghost:active{background:var(--blue-soft)}
+  .badge-out{display:inline-block;font-size:10px;font-weight:700;color:var(--red);
+    background:#FCE9E7;border-radius:6px;padding:2px 6px}
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(16,24,40,.55);z-index:50;display:none;
+    align-items:flex-end;justify-content:center}
+  .overlay.show{display:flex}
+  .sheet{
+    background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px 22px;
+    max-height:92vh;overflow-y:auto;animation:slideUp .22s ease;
+  }
+  @keyframes slideUp{from{transform:translateY(40px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .grip{width:40px;height:4px;background:var(--line);border-radius:99px;margin:0 auto 12px}
+  .m-code{font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-soft);padding:2px 8px;border-radius:6px;display:inline-block}
+  .m-name{font-size:17px;font-weight:800;margin:8px 0 2px}
+  .m-conv{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .m-current{display:flex;gap:8px;margin-bottom:14px}
+  .tabs{display:flex;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:14px;gap:4px}
+  .tab{flex:1;text-align:center;padding:10px;border-radius:9px;font-size:13px;font-weight:700;
+    color:var(--muted);cursor:pointer;border:none;background:none}
+  .tab.active-out{background:var(--orange);color:#fff}
+  .tab.active-in{background:var(--green);color:#fff}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}
+  .field input{width:100%;padding:14px;border:1.5px solid var(--line);border-radius:11px;font-size:18px;
+    text-align:center;font-weight:700;outline:none}
+  .field input:focus{border-color:var(--orange)}
+  .autobreak{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
+    background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+  .autobreak input{width:18px;height:18px;accent-color:var(--orange)}
+  .m-actions{display:flex;gap:10px;margin-top:4px}
+  .m-actions .btn{padding:14px}
+  .btn.cancel{background:#F0F2F5;color:var(--ink);flex:.8}
+  .btn.save-out{background:var(--orange);color:#fff}
+  .btn.save-in{background:var(--green);color:#fff}
+  .hist{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+  .hist h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .hrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .hrow:last-child{border-bottom:none}
+  .htype{font-weight:700;font-size:11px;padding:2px 7px;border-radius:6px}
+  .htype.out{color:var(--red);background:#FCE9E7}
+  .htype.in{color:var(--green);background:#E7F4EC}
+  .hdate{color:var(--muted);font-size:11px}
+  .hbal{font-weight:700}
+  .undo{border:none;background:none;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;padding:4px}
+  .hist-empty{font-size:12px;color:var(--muted);padding:6px 0}
+  /* Footer bar */
+  .footbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    padding:10px 12px;display:flex;gap:8px;z-index:30;box-shadow:0 -2px 10px rgba(16,24,40,.05)}
+  .footbar .btn{padding:13px}
+  .btn.share{background:var(--blue);color:#fff}
+  .btn.reset{background:#fff;color:var(--muted);border:1.5px solid var(--line);flex:.5}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px}
+  .fab{position:fixed;right:16px;bottom:78px;z-index:40;width:56px;height:56px;border-radius:50%;
+    border:none;background:var(--green);color:#fff;font-size:30px;line-height:1;font-weight:400;
+    box-shadow:0 4px 14px rgba(27,122,69,.4);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .fab:active{background:#15633a}
+  .badge-custom{display:inline-block;font-size:10px;font-weight:700;color:var(--green);
+    background:#E7F4EC;border-radius:6px;padding:2px 6px;margin-left:4px}
+  .del-link{border:none;background:none;color:var(--red);font-size:12px;font-weight:700;
+    cursor:pointer;padding:8px 0;margin-top:12px;width:100%;text-align:center;
+    border-top:1px solid var(--line)}
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:99px;font-size:13px;font-weight:600;
+    opacity:0;transition:.25s;z-index:60;pointer-events:none;max-width:90%;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--red)}
+  .toast.ok{background:var(--green)}
+  /* Addon: Quick Reorder */
+  .btn.addon{background:var(--amber);color:#fff;flex:.6}
+  .btn.addon:active{background:#9d6817}
+  .reorder-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .reorder-preset{
+    padding:12px;border:1.5px solid var(--line);border-radius:10px;cursor:pointer;
+    text-align:center;background:var(--bg);transition:.15s
+  }
+  .reorder-preset:active{background:#FFE8CC;border-color:var(--orange)}
+  .reorder-preset .pcode{font-size:12px;font-weight:700;color:var(--blue)}
+  .reorder-preset .pamt{font-size:18px;font-weight:800;color:var(--orange-dark);margin-top:4px}
+  .reorder-preset .plbl{font-size:10px;color:var(--muted);text-transform:uppercase;margin-top:4px}
+  .addon-badge{display:inline-block;font-size:9px;font-weight:700;color:#fff;
+    background:var(--amber);border-radius:4px;padding:1px 5px;margin-left:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-title">📦 Sobisco Stock Register</div>
+  <div class="h-sub">Opening stock as of 9 July 2026 · Shivam Pharma</div>
+  <div class="totals">
+    <div class="total-card"><div class="n" id="totBoxes">0</div><div class="l">Total Boxes</div></div>
+    <div class="total-card"><div class="n" id="totChains">0</div><div class="l">Total Chains</div></div>
+    <div class="total-card"><div class="n" id="totValue" style="font-size:17px">₹0</div><div class="l">Value at cost</div></div>
+  </div>
+</header>
+
+<div class="searchwrap">
+  <div class="searchbar">
+    <span class="ic">🔍</span>
+    <input id="search" type="text" placeholder="Search by code or name…" autocomplete="off">
+    <button class="clearbtn" id="clearBtn" aria-label="Clear">×</button>
+  </div>
+</div>
+
+<div class="count-note" id="countNote"></div>
+<div class="list" id="list"></div>
+
+<div class="footbar">
+  <button class="btn share" onclick="shareReport()">📤 Share</button>
+  <button class="btn" style="background:var(--green);color:#fff" onclick="openCSV()">📊 CSV</button>
+  <button class="btn addon" id="addonBtn" style="display:none" onclick="openReorder()">⚡ Reorder</button>
+  <button class="btn reset" onclick="resetData()">Reset</button>
+</div>
+
+<!-- Update Modal -->
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet">
+    <div class="grip"></div>
+    <span class="m-code" id="mCode"></span>
+    <div class="m-name" id="mName"></div>
+    <div class="m-conv" id="mConv"></div>
+    <div class="m-current">
+      <div class="pill boxes"><div class="n" id="mCurBoxes">0</div><div class="l">Boxes now</div></div>
+      <div class="pill chains"><div class="n" id="mCurChains">0</div><div class="l">Chains now</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab" id="tabOut" onclick="setMode('out')">➖ Stock Out (Sale)</button>
+      <button class="tab" id="tabIn" onclick="setMode('in')">➕ Stock In (Received)</button>
+    </div>
+
+    <div class="field">
+      <label id="lblDate">Date (change for a previous day)</label>
+      <input id="inDate" type="date">
+    </div>
+    <div class="field">
+      <label id="lblBoxes">Boxes</label>
+      <input id="inBoxes" type="number" inputmode="numeric" min="0" placeholder="0">
+    </div>
+    <div class="field">
+      <label id="lblChains">Chains (loose strips)</label>
+      <input id="inChains" type="number" inputmode="numeric" min="0" placeholder="0">
+    </div>
+
+    <div class="autobreak" id="autoBreakWrap">
+      <input type="checkbox" id="autoBreak" checked>
+      <label for="autoBreak" style="margin:0;color:var(--ink);font-weight:600">Auto-break a box when loose chains run out</label>
+    </div>
+
+    <div class="m-actions">
+      <button class="btn cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn save-out" id="saveBtn" onclick="commit()">Update Stock</button>
+    </div>
+
+    <div class="hist">
+      <h4>Recent transactions</h4>
+      <div id="histList"></div>
+    </div>
+    <button id="delBtn" class="del-link" onclick="deleteProduct()">🗑 Delete this product</button>
+    <button id="delCancel" class="del-link" style="display:none;border-top:none;color:var(--muted)" onclick="resetDelete()">Cancel delete</button>
+  </div>
+</div>
+
+<!-- Add Product floating button -->
+<button class="fab" id="fab" onclick="openAdd()" aria-label="Add new product">＋</button>
+
+<!-- Add Product Modal -->
+<div class="overlay" id="addOverlay">
+  <div class="sheet" id="addSheet">
+    <div class="grip"></div>
+    <div class="m-name" style="margin-top:0">➕ Add New Product</div>
+    <div class="m-conv">New products are kept safe when you tap Reset.</div>
+
+    <div class="field">
+      <label>Product Code *</label>
+      <input id="aCode" type="text" placeholder="e.g. SB999" autocomplete="off" style="text-align:left;font-size:15px;text-transform:uppercase">
+    </div>
+    <div class="field">
+      <label>Product Name *</label>
+      <input id="aName" type="text" placeholder="e.g. CREAM BISCUIT 10/-" autocomplete="off" style="text-align:left;font-size:15px">
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1"><label>Chains / Box</label><input id="aChain" type="number" inputmode="numeric" min="1" placeholder="12"></div>
+      <div class="field" style="flex:1"><label>Pieces / Box (optional)</label><input id="aPcs" type="number" inputmode="numeric" min="0" placeholder="= chains"></div>
+    </div>
+    <div class="field">
+      <label>Basic Rate per Box (₹, before GST)</label>
+      <input id="aRate" type="number" inputmode="decimal" min="0" placeholder="0.00">
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1"><label>Opening Boxes</label><input id="aBoxes" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+      <div class="field" style="flex:1"><label>Opening Chains</label><input id="aChains" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+    </div>
+
+    <div class="m-actions">
+      <button class="btn cancel" onclick="closeAdd()">Cancel</button>
+      <button class="btn save-in" onclick="addProduct()">Add Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV Import / Export Modal -->
+<div class="overlay" id="csvOverlay">
+  <div class="sheet">
+    <div class="grip"></div>
+    <div class="m-name" style="margin-top:0">📊 CSV Import / Export</div>
+
+    <button class="btn" style="background:var(--blue);color:#fff;width:100%;margin-bottom:16px" onclick="exportCSV()">📥 Download purchase &amp; sale log</button>
+
+    <div class="m-conv" style="border-top:1px solid var(--line);padding-top:14px;color:var(--ink);font-weight:700">⬆️ Bulk purchase / sale</div>
+    <div class="m-conv" style="margin-bottom:8px">Format: <b>Code,Boxes,Chains,Mode</b><br>Mode = <b>purchase</b> (adds) or <b>sale</b> (subtracts). Blank = purchase.</div>
+    <pre style="background:var(--bg);border-radius:8px;padding:10px;font-size:12px;overflow-x:auto;margin:0 0 12px">Code,Boxes,Chains,Mode
+SB013,5,0,purchase
+SB039,0,3,sale</pre>
+
+    <div class="field">
+      <label>Date for all rows (blank = today)</label>
+      <input id="csvDate" type="date">
+    </div>
+    <div class="field">
+      <label>Pick a .csv file</label>
+      <input id="csvFile" type="file" accept=".csv,text/csv" style="text-align:left;font-size:13px;padding:10px">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="btn ghost" style="flex:1;font-size:12px;padding:9px" onclick="loadCurrentStock()">✏️ Load current stock</button>
+      <button class="btn" style="flex:1;font-size:12px;padding:9px;background:#F0F2F5;color:var(--ink)" onclick="clearCSV()">🗑 Clear</button>
+    </div>
+    <div class="field">
+      <label>…or paste rows here</label>
+      <textarea id="csvText" rows="5" placeholder="SB013,5,0,purchase&#10;SB039,0,3,sale" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:11px;font-size:14px;font-family:monospace;outline:none"></textarea>
+    </div>
+    <div id="csvResult" style="font-size:13px;margin-bottom:8px"></div>
+
+    <div class="m-actions">
+      <button class="btn cancel" onclick="closeCSV()">Close</button>
+      <button class="btn save-in" onclick="applyCSV()">Apply Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Reorder Modal (Web-only Addon) -->
+<div class="overlay" id="reorderOverlay">
+  <div class="sheet">
+    <div class="grip"></div>
+    <div class="m-name" style="margin-top:0">⚡ Quick Reorder <span class="addon-badge">WEB</span></div>
+    <div class="m-conv">Fast-add stock for top-selling items. Tap a preset or customize below.</div>
+
+    <div style="margin-bottom:14px">
+      <h4 style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:0 0 10px">Top Items</h4>
+      <div class="reorder-grid" id="reorderPresets"></div>
+    </div>
+
+    <div class="field">
+      <label>Or select product</label>
+      <select id="reorderCode" style="width:100%;padding:14px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;outline:none">
+        <option value="">— Pick a product —</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1"><label>Boxes</label><input id="reorderBoxes" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+      <div class="field" style="flex:1"><label>Chains</label><input id="reorderChains" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+    </div>
+
+    <div class="m-actions">
+      <button class="btn cancel" onclick="closeReorder()">Close</button>
+      <button class="btn save-in" onclick="applyReorder()">Add Stock</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- Seed data (9 July 2026, Shivam Pharma) ---------- */
+// basicRate = purchase rate per BOX before GST (₹). GST is 5%. Landed cost/box = basicRate * 1.05.
+// pcsPerBox = individual retail pieces in one box.
+const SEED = [
+  { code:"SB013", name:"MARIE BISCUITS 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:1,  openingChains:0 },
+  { code:"SB026", name:"DOUBLE TREAT BISCUITS 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:15, openingChains:0 },
+  { code:"SB035", name:"PUFF LEMON 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:5,  openingChains:0 },
+  { code:"SB037", name:"PUFF CHOCOLATE VAN 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:8,  openingChains:0 },
+  { code:"SB039", name:"PUFF STRAWBERRY 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:35, openingChains:0 },
+  { code:"SB041", name:"PUFF CHOCOLATE 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:10, openingChains:0 },
+  { code:"SB043", name:"PUFF OR/OR 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:8,  openingChains:0 },
+  { code:"SB062", name:"COCONUT CRUNCH 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:2,  openingChains:0 },
+  { code:"SB075", name:"CHOCO FILLED COOKIES 150/-", chainPerBox:6, basicRate:647.12, pcsPerBox:6, openingBoxes:20, openingChains:0 },
+  { code:"SB103", name:"CAKE SWISSROL CHO/VAN 10/-", chainPerBox:6, basicRate:517.69, pcsPerBox:6, openingBoxes:25, openingChains:0 },
+  { code:"SB104", name:"CAKE SWISSROL VAN/STW 10/-", chainPerBox:6, basicRate:517.69, pcsPerBox:6, openingBoxes:10, openingChains:0 },
+  { code:"SB129", name:"CAKE SWISSROL PINEAPPLE 10/-", chainPerBox:6, basicRate:517.69, pcsPerBox:6, openingBoxes:5, openingChains:0 },
+  { code:"SB105", name:"CAKE DESIRE CHOCO/VAN 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:20, openingChains:0 },
+  { code:"SB106", name:"CAKE DESIRE CHOCO/CHOCHO 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:45, openingChains:0 },
+  { code:"SB107", name:"CAKE DESIRE ORANGE 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:10, openingChains:0 },
+  { code:"SB108", name:"CAKE DESIRE VAN/STR 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:25, openingChains:0 },
+  { code:"SB109", name:"CAKE DESIRE VANILLA 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:10, openingChains:0 },
+  { code:"SB110", name:"CAKE DESIRE MANGO 5/-", chainPerBox:12, basicRate:534.05, pcsPerBox:144, openingBoxes:10, openingChains:0 },
+  { code:"SB112", name:"SLICE CAKE CHOCO 10/-", chainPerBox:8, basicRate:517.69, pcsPerBox:72, openingBoxes:10, openingChains:0 },
+  { code:"SB113", name:"SLICE CAKE ASSORTED 10/-", chainPerBox:8, basicRate:517.69, pcsPerBox:72, openingBoxes:25, openingChains:0 },
+  { code:"SB133", name:"VEG DONUT CHOCO 20/-", chainPerBox:4, basicRate:575.23, pcsPerBox:4, openingBoxes:2, openingChains:0 },
+  { code:"SB134", name:"VEG DONUT STRAW 20/-", chainPerBox:4, basicRate:575.23, pcsPerBox:4, openingBoxes:2, openingChains:0 },
+  { code:"SB201", name:"ELAICHI TOAST 10/-", chainPerBox:40, basicRate:305.79, pcsPerBox:40, openingBoxes:30, openingChains:0 },
+  { code:"SB301", name:"YUMYUM NOODLES 5/-", chainPerBox:12, basicRate:495.90, pcsPerBox:144, openingBoxes:12, openingChains:0 },
+  { code:"SB303", name:"YUMYUM NOODLES 10/-", chainPerBox:12, basicRate:490.45, pcsPerBox:72, openingBoxes:10, openingChains:0 }
+];
+const GST_RATE = 0.05;
+function costPerBox(p){ return (p.basicRate||0) * (1+GST_RATE); }        // landed cost incl GST
+function productValue(p){                                                 // ₹ value of current stock
+  const perChain = p.chainPerBox ? costPerBox(p)/p.chainPerBox : 0;
+  return p.boxes*costPerBox(p) + p.chains*perChain;
+}
+function fmt(n){ return '₹'+Math.round(n).toLocaleString('en-IN'); }
+function pcsPerChain(p){ return (p.chainPerBox && p.pcsPerBox) ? Math.round(p.pcsPerBox/p.chainPerBox) : (p.pcsPerBox||0); }
+
+/* ---------- Safe storage (localStorage, in-memory fallback) ---------- */
+const KEY = "sobisco_stock_v1";
+let memStore = {};
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return memStore[k] ?? null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ memStore[k]=v; } }
+};
+
+/* ---------- State ---------- */
+let state = load();
+
+function freshFromSeed(){
+  return SEED.map(p => ({
+    code:p.code, name:p.name, chainPerBox:p.chainPerBox,
+    basicRate:p.basicRate, pcsPerBox:p.pcsPerBox,
+    boxes:p.openingBoxes, chains:p.openingChains, history:[]
+  }));
+}
+function load(){
+  const raw = store.get(KEY);
+  if(!raw){ const s = freshFromSeed(); persist(s); return s; }
+  let saved;
+  try{ saved = JSON.parse(raw); }catch(e){ saved = freshFromSeed(); }
+  const seedByCode = Object.fromEntries(SEED.map(p=>[p.code,p]));
+  const byCode = Object.fromEntries(saved.map(p=>[p.code,p]));
+  let changed = 0;
+  // Backfill cost/pieces onto older saved records that predate pricing
+  saved.forEach(p=>{
+    const sp = seedByCode[p.code];
+    if(sp){
+      if(p.basicRate==null){ p.basicRate = sp.basicRate; changed++; }
+      if(p.pcsPerBox==null){ p.pcsPerBox = sp.pcsPerBox; changed++; }
+    }
+  });
+  // Merge: add any NEW seed products that aren't in saved data (keeps existing counts)
+  SEED.forEach(sp=>{
+    if(!byCode[sp.code]){
+      saved.push({code:sp.code,name:sp.name,chainPerBox:sp.chainPerBox,
+        basicRate:sp.basicRate,pcsPerBox:sp.pcsPerBox,
+        boxes:sp.openingBoxes,chains:sp.openingChains,history:[]});
+      changed++;
+    }
+  });
+  if(changed) persist(saved);
+  // One-time data corrections for existing saved copies
+  const MIG_KEY = "sobisco_mig_v2";
+  if(!store.get(MIG_KEY)){
+    let migrated = false;
+    const et = saved.find(p=>p.code==="SB201");
+    if(et && et.chainPerBox===1){ et.chainPerBox = 40; migrated = true; }  // Elaichi Toast: 40 packets/box
+    store.set(MIG_KEY,"1");
+    if(migrated) persist(saved);
+  }
+  const MIG_KEY3 = "sobisco_mig_v3";
+  if(!store.get(MIG_KEY3)){
+    let m3 = false;
+    const ck = saved.find(p=>p.code==="SB075");
+    if(ck && ck.chainPerBox===1){ ck.chainPerBox = 6; m3 = true; }   // Choco Filled Cookies: 6 packs/box
+    store.set(MIG_KEY3,"1");
+    if(m3) persist(saved);
+  }
+  const MIG_KEY4 = "sobisco_mig_v4";
+  if(!store.get(MIG_KEY4)){
+    let m4 = false;
+    const fix = (code,ch,pcs)=>{
+      const p = saved.find(x=>x.code===code); if(!p) return;
+      if(p.chainPerBox!==ch){ p.chainPerBox=ch; m4=true; }
+      if(pcs!=null && p.pcsPerBox!==pcs){ p.pcsPerBox=pcs; m4=true; }
+    };
+    fix("SB301",144,144);  // Yum Yum 5/-
+    fix("SB303",72,72);    // Yum Yum 10/-
+    fix("SB112",72,72);    // Slice Cake Choco
+    fix("SB113",72,72);    // Slice Cake Assorted
+    fix("SB133",40,40);    // Veg Donut Choco (invoice said 4, real 40)
+    fix("SB134",40,40);    // Veg Donut Straw
+    store.set(MIG_KEY4,"1");
+    if(m4) persist(saved);
+  }
+  const MIG_KEY5 = "sobisco_mig_v5";
+  if(!store.get(MIG_KEY5)){
+    let m5 = false;
+    const p = saved.find(x=>x.code==="SB303");
+    if(p && p.chainPerBox!==8){ p.chainPerBox=8; m5=true; }   // Yum Yum 10/-: 8 chains x 9pcs
+    store.set(MIG_KEY5,"1");
+    if(m5) persist(saved);
+  }
+  const MIG_KEY6 = "sobisco_mig_v6";
+  if(!store.get(MIG_KEY6)){
+    let m6 = false;
+    const p = saved.find(x=>x.code==="SB303");
+    if(p && p.chainPerBox!==12){ p.chainPerBox=12; m6=true; }   // Yum Yum 10/-: 12 chains x 6pcs
+    store.set(MIG_KEY6,"1");
+    if(m6) persist(saved);
+  }
+  const MIG_KEY7 = "sobisco_mig_v7";
+  if(!store.get(MIG_KEY7)){
+    let m7 = false;
+    const fx = (code,ch)=>{ const p=saved.find(x=>x.code===code); if(p && p.chainPerBox!==ch){ p.chainPerBox=ch; m7=true; } };
+    fx("SB112",8);   // Slice Cake Choco: 8 strips/box
+    fx("SB113",8);   // Slice Cake Assorted: 8 strips/box
+    fx("SB301",12);  // Yum Yum 5/-: 12 strips/box
+    store.set(MIG_KEY7,"1");
+    if(m7) persist(saved);
+  }
+  const MIG_KEY8 = "sobisco_mig_v8";
+  if(!store.get(MIG_KEY8)){
+    let m8 = false;
+    ["SB103","SB104","SB129"].forEach(code=>{     // Swissrolls: 8 strips x 9 = 72 pcs/box
+      const p=saved.find(x=>x.code===code);
+      if(p){ if(p.chainPerBox!==8){p.chainPerBox=8;m8=true;} if(p.pcsPerBox!==72){p.pcsPerBox=72;m8=true;} }
+    });
+    store.set(MIG_KEY8,"1");
+    if(m8) persist(saved);
+  }
+  const MIG_KEY9 = "sobisco_mig_v9";
+  if(!store.get(MIG_KEY9)){
+    let m9 = false;
+    ["SB133","SB134"].forEach(code=>{     // Donuts: 4 packs/box (sold by pack)
+      const p=saved.find(x=>x.code===code);
+      if(p){ if(p.chainPerBox!==4){p.chainPerBox=4;m9=true;} if(p.pcsPerBox!==4){p.pcsPerBox=4;m9=true;} }
+    });
+    store.set(MIG_KEY9,"1");
+    if(m9) persist(saved);
+  }
+  const MIG_KEY10 = "sobisco_mig_v10";
+  if(!store.get(MIG_KEY10)){
+    let m10 = false;
+    ["SB103","SB104","SB129"].forEach(code=>{     // Swissrolls: 6 packs/box (sold by pack)
+      const p=saved.find(x=>x.code===code);
+      if(p){ if(p.chainPerBox!==6){p.chainPerBox=6;m10=true;} if(p.pcsPerBox!==6){p.pcsPerBox=6;m10=true;} }
+    });
+    store.set(MIG_KEY10,"1");
+    if(m10) persist(saved);
+  }
+  return saved;
+}
+function persist(s){ store.set(KEY, JSON.stringify(s||state)); }
+
+/* ---------- Rendering ---------- */
+let modalCode = null, mode = "out", pendingUndo = null;
+
+function render(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const list = document.getElementById("list");
+  document.getElementById("clearBtn").style.display = q ? "block" : "none";
+
+  let tb=0, tc=0, tv=0;
+  state.forEach(p=>{ tb+=p.boxes; tc+=p.chains; tv+=productValue(p); });
+  document.getElementById("totBoxes").textContent = tb;
+  document.getElementById("totChains").textContent = tc;
+  document.getElementById("totValue").textContent = fmt(tv);
+
+  const filtered = state.filter(p =>
+    !q || p.code.toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
+
+  document.getElementById("countNote").textContent =
+    q ? `${filtered.length} of ${state.length} products` : `${state.length} products`;
+
+  if(filtered.length===0){
+    list.innerHTML = `<div class="empty">No product matches "<b>${escapeHtml(q)}</b>".<br>Try the code (e.g. SB039) or a name.</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p=>{
+    const out = p.boxes===0 && p.chains===0;
+    const low = !out && p.boxes<=2 && p.chains===0;
+    return `
+    <div class="card">
+      <div class="card-top">
+        <div>
+          <span class="code">${p.code}</span>${p.custom?'<span class="badge-custom">NEW</span>':''}
+          <div class="pname">${escapeHtml(p.name)}</div>
+          <div class="conv">1 Box = ${p.chainPerBox} ${p.chainPerBox===1?'unit':'Chains'}${p.chainPerBox>1 && pcsPerChain(p)>1?` · ${pcsPerChain(p)} pcs/chain`:''} · ${p.pcsPerBox} pcs/box · ${fmt(costPerBox(p))}/box</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          ${out?'<span class="badge-out">OUT OF STOCK</span>':`<div style="font-size:15px;font-weight:800;color:var(--green)">${fmt(productValue(p))}</div><div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">at cost</div>`}
+        </div>
+      </div>
+      <div class="stock">
+        <div class="pill boxes ${low?'low':''}"><div class="n">${p.boxes}</div><div class="l">Boxes</div></div>
+        <div class="pill chains"><div class="n">${p.chains}</div><div class="l">Chains</div></div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" onclick="openModal('${p.code}','in')">➕ Stock In</button>
+        <button class="btn primary" onclick="openModal('${p.code}','out')">➖ Sale / Out</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function find(code){ return state.find(p=>p.code===code); }
+
+/* ---------- Modal ---------- */
+function openModal(code, m){
+  modalCode = code; 
+  const p = find(code);
+  document.getElementById("mCode").textContent = p.code;
+  document.getElementById("mName").textContent = p.name;
+  document.getElementById("mConv").textContent = `1 Box = ${p.chainPerBox} ${p.chainPerBox===1?'unit':'Chains'}${p.chainPerBox>1 && pcsPerChain(p)>1?` · ${pcsPerChain(p)} pcs/chain`:''} · ${p.pcsPerBox} pcs/box`;
+  document.getElementById("inBoxes").value = "";
+  document.getElementById("inChains").value = "";
+  const di = document.getElementById("inDate");
+  const t = new Date();
+  const iso = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  di.value = iso; di.max = iso;
+  setMode(m||"out");
+  pendingUndo = null;
+  resetDelete();
+  renderCurrent();
+  renderHistory();
+  document.getElementById("overlay").classList.add("show");
+}
+function renderCurrent(){
+  const p = find(modalCode);
+  document.getElementById("mCurBoxes").textContent = p.boxes;
+  document.getElementById("mCurChains").textContent = p.chains;
+}
+function setMode(m){
+  mode = m;
+  const out = m==="out";
+  document.getElementById("tabOut").className = "tab" + (out?" active-out":"");
+  document.getElementById("tabIn").className  = "tab" + (!out?" active-in":"");
+  document.getElementById("lblBoxes").textContent = out ? "Boxes Out (sold)" : "Boxes In (received)";
+  document.getElementById("lblChains").textContent = out ? "Chains Out (loose sold)" : "Chains In (received)";
+  document.getElementById("autoBreakWrap").style.display = out ? "flex" : "none";
+  const save = document.getElementById("saveBtn");
+  save.textContent = out ? "Update Stock" : "Add Stock";
+  save.className = "btn " + (out ? "save-out" : "save-in");
+}
+function closeModal(){ document.getElementById("overlay").classList.remove("show"); modalCode=null; resetDelete(); }
+
+function commit(){
+  const p = find(modalCode);
+  const b = parseInt(document.getElementById("inBoxes").value)||0;
+  const c = parseInt(document.getElementById("inChains").value)||0;
+  if(b<0||c<0){ toast("Enter valid numbers","err"); return; }
+  if(b===0 && c===0){ toast("Enter boxes or chains first","err"); return; }
+  const beforeB = p.boxes, beforeC = p.chains;   // snapshot for accurate undo
+  const dateStr = document.getElementById("inDate").value;
+  const ts = dateStr ? new Date(dateStr+"T12:00:00").getTime() : Date.now();
+
+  if(mode==="in"){
+    p.boxes += b; p.chains += c;
+    logTx(p,"in",b,c,p.boxes-beforeB,p.chains-beforeC,ts);
+    toast(`Added ${b} box, ${c} chain`,"ok");
+  } else {
+    // Boxes out
+    if(b > p.boxes){ toast(`Only ${p.boxes} boxes available!`,"err"); return; }
+    // Chains out — with optional auto-break
+    let newBoxes = p.boxes - b;
+    let newChains = p.chains;
+    if(c>0){
+      if(newChains >= c){
+        newChains -= c;
+      } else {
+        const autoBreak = document.getElementById("autoBreak").checked;
+        if(!autoBreak){ toast(`Only ${newChains} loose chains. Turn on auto-break or send full boxes.`,"err"); return; }
+        const need = c - newChains;
+        const boxesToBreak = Math.ceil(need / p.chainPerBox);
+        if(boxesToBreak > newBoxes){
+          toast(`Not enough stock (even after breaking boxes)!`,"err"); return;
+        }
+        newBoxes -= boxesToBreak;
+        newChains = newChains + boxesToBreak*p.chainPerBox - c;
+      }
+    }
+    p.boxes = newBoxes; p.chains = newChains;
+    logTx(p,"out",b,c,p.boxes-beforeB,p.chains-beforeC,ts);
+    toast(`Sold ${b} box, ${c} chain`,"ok");
+  }
+  persist();
+  renderCurrent(); renderHistory(); render();
+  document.getElementById("inBoxes").value=""; document.getElementById("inChains").value="";
+}
+
+function logTx(p,type,b,c,deltaB,deltaC,ts){
+  p.history.unshift({
+    t: ts || Date.now(), type, b, c,
+    dB: deltaB, dC: deltaC,               // actual box/chain change (for accurate undo)
+    bal:`${p.boxes}B | ${p.chains}Ch`
+  });
+  p.history.sort((a,b)=>b.t-a.t);         // keep newest first even for back-dated entries
+  if(p.history.length>50) p.history.length=50;
+}
+
+function askUndo(idx){ pendingUndo = idx; renderHistory(); }
+function cancelUndo(){ pendingUndo = null; renderHistory(); }
+
+function undoTx(idx){
+  const p = find(modalCode);
+  const tx = p.history[idx];
+  if(!tx){ pendingUndo=null; renderHistory(); return; }
+  if(tx.dB!=null && tx.dC!=null){
+    // Reverse the exact change that was applied (correct even when a box was broken)
+    p.boxes -= tx.dB; p.chains -= tx.dC;
+  } else {
+    // Old entry saved before delta tracking — approximate reversal
+    if(tx.type==="out"){ p.boxes += tx.b; p.chains += tx.c; }
+    else { p.boxes -= tx.b; p.chains -= tx.c; }
+  }
+  if(p.boxes<0) p.boxes=0;
+  if(p.chains<0) p.chains=0;
+  p.history.splice(idx,1);
+  pendingUndo = null;
+  persist();
+  renderCurrent(); renderHistory(); render();
+  toast(`Undone → ${p.boxes} box | ${p.chains} chain`,"ok");
+}
+
+function renderHistory(){
+  const p = find(modalCode);
+  const el = document.getElementById("histList");
+  if(!p.history.length){ el.innerHTML = `<div class="hist-empty">No transactions yet.</div>`; return; }
+  el.innerHTML = p.history.slice(0,5).map((h,i)=>{
+    const d = new Date(h.t);
+    const dt = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+
+               d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const label = h.type==="out" ? "OUT" : "IN";
+    const parts = [];
+    if(h.b) parts.push(`${h.b} box`);
+    if(h.c) parts.push(`${h.c} chain`);
+    const btns = (i===pendingUndo)
+      ? `<span style="display:flex;gap:4px">
+           <button class="undo" style="color:#fff;background:var(--red);border-radius:6px;padding:6px 9px" onclick="undoTx(${i})">Confirm</button>
+           <button class="undo" style="color:var(--muted)" onclick="cancelUndo()">Cancel</button>
+         </span>`
+      : `<button class="undo" onclick="askUndo(${i})">Undo</button>`;
+    return `
+    <div class="hrow">
+      <div>
+        <span class="htype ${h.type}">${label}</span>
+        <span style="margin-left:6px">${parts.join(' + ')||'-'}</span>
+        <div class="hdate">${dt} · → ${h.bal}</div>
+      </div>
+      ${btns}
+    </div>`;
+  }).join("");
+}
+
+/* ---------- Share ---------- */
+function shareReport(){
+  const d = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  let tb=0,tc=0,tv=0;
+  let lines = state.map(p=>{ tb+=p.boxes; tc+=p.chains; tv+=productValue(p);
+    return `${p.code} ${p.name}\n   ${p.boxes} Box | ${p.chains} Chain | ${fmt(productValue(p))}`;
+  });
+  const txt =
+`📦 SOBISCO STOCK REPORT
+📅 ${d}
+━━━━━━━━━━━━━━━━━━
+${lines.join('\n')}
+━━━━━━━━━━━━━━━━━━
+TOTAL: ${tb} Boxes | ${tc} Chains
+VALUE (at cost, incl GST): ${fmt(tv)}
+${state.length} products`;
+
+  if(navigator.share){
+    navigator.share({title:"Sobisco Stock Report", text:txt})
+      .catch(()=>copyText(txt));
+  } else {
+    copyText(txt);
+  }
+}
+function copyText(txt){
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(txt).then(()=>toast("Report copied to clipboard","ok"))
+      .catch(()=>fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta);
+  ta.select(); try{ document.execCommand("copy"); toast("Report copied","ok"); }
+  catch(e){ toast("Copy failed","err"); } document.body.removeChild(ta);
+}
+
+/* ---------- CSV export of all purchases & sales ---------- */
+function csvCell(v){ v=String(v==null?"":v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function exportCSV(){
+  // Gather every logged purchase (in) and sale (out) across all products
+  const all = [];
+  state.forEach(p=>(p.history||[]).forEach(h=>all.push({p,h})));
+  if(all.length===0){ toast("No purchases or sales logged yet","err"); return; }
+  all.sort((a,b)=>b.h.t - a.h.t);
+
+  let totIn=0, totOut=0;
+  const header = ["Date","Time","Code","Product","Type","Boxes","Chains","Value (Rs)","Balance after"];
+  const rows = [header];
+  all.forEach(({p,h})=>{
+    const d = new Date(h.t);
+    const date = d.toLocaleDateString('en-GB');
+    const time = d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const type = h.type==='in' ? "Purchase" : "Sale";
+    const perChain = p.chainPerBox ? costPerBox(p)/p.chainPerBox : 0;
+    const val = (h.b||0)*costPerBox(p) + (h.c||0)*perChain;
+    if(h.type==='in') totIn+=val; else totOut+=val;
+    rows.push([date,time,p.code,p.name,type,h.b||0,h.c||0,val.toFixed(2),h.bal||""]);
+  });
+  rows.push([]);
+  rows.push(["","","","","TOTAL PURCHASES (Rs)","","","",totIn.toFixed(2)]);
+  rows.push(["","","","","TOTAL SALES at cost (Rs)","","","",totOut.toFixed(2)]);
+
+  const csv = rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const fname = "sobisco_purchase_sale_"+new Date().toISOString().slice(0,10)+".csv";
+  try{
+    const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    toast(`CSV downloaded (${all.length} entries)`,"ok");
+  }catch(e){
+    copyText(csv);
+    toast("Download blocked — CSV copied to clipboard","ok");
+  }
+}
+
+/* ---------- CSV modal (import + export) ---------- */
+function openCSV(){
+  document.getElementById("csvText").value = "";
+  document.getElementById("csvFile").value = "";
+  document.getElementById("csvResult").innerHTML = "";
+  const cd = document.getElementById("csvDate");
+  const t = new Date();
+  cd.value = "";
+  cd.max = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  document.getElementById("csvOverlay").classList.add("show");
+}
+function closeCSV(){ document.getElementById("csvOverlay").classList.remove("show"); }
+
+function loadCurrentStock(){
+  const rows = ["Code,Boxes,Chains,Mode"];
+  state.forEach(p=>rows.push(`${p.code},${p.boxes},${p.chains},set`));
+  document.getElementById("csvText").value = rows.join("\n");
+  document.getElementById("csvResult").innerHTML =
+    `<span style="color:var(--muted)">Loaded ${state.length} products in <b>set</b> mode. Edit the numbers, then Apply to overwrite.</span>`;
+  toast("Current stock loaded — edit & Apply","ok");
+}
+function clearCSV(){
+  document.getElementById("csvText").value = "";
+  document.getElementById("csvFile").value = "";
+  document.getElementById("csvResult").innerHTML = "";
+  toast("Cleared","ok");
+}
+
+function applyCSV(){
+  const raw = document.getElementById("csvText").value.trim();
+  if(!raw){ toast("Paste rows or choose a file first","err"); return; }
+  const lines = raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+  const dateStr = document.getElementById("csvDate").value;
+  const ts = dateStr ? new Date(dateStr+"T12:00:00").getTime() : Date.now();   // one date for all rows
+  let updated=0; const notFound=[]; const errors=[];
+  lines.forEach((line,idx)=>{
+    const cols = line.split(",").map(c=>c.trim());
+    if(idx===0 && /code/i.test(cols[0])) return;          // skip header row
+    const code = (cols[0]||"").toUpperCase();
+    if(!code) return;
+    const p = find(code);
+    if(!p){ notFound.push(code); return; }
+    const boxes = parseInt(cols[1])||0;
+    const chains = parseInt(cols[2])||0;
+    let mode = (cols[3]||"purchase").toLowerCase();
+    const b0=p.boxes, c0=p.chains;
+
+    if(mode==="sale" || mode==="minus" || mode==="out"){
+      // Subtract, breaking a box when loose chains run short (same as a normal sale)
+      let nb=p.boxes, nc=p.chains;
+      if(boxes>nb){ errors.push(`${code} (only ${nb} boxes)`); return; }
+      nb-=boxes;
+      if(chains>0){
+        if(nc>=chains){ nc-=chains; }
+        else {
+          const brk=Math.ceil((chains-nc)/p.chainPerBox);
+          if(brk>nb){ errors.push(`${code} (not enough for ${chains} chains)`); return; }
+          nb-=brk; nc=nc+brk*p.chainPerBox-chains;
+        }
+      }
+      p.boxes=nb; p.chains=nc;
+    } else if(mode==="set"){
+      p.boxes=boxes; p.chains=chains;
+    } else {
+      // purchase / add (default)
+      p.boxes+=boxes; p.chains+=chains;
+    }
+    if(p.boxes<0) p.boxes=0; if(p.chains<0) p.chains=0;
+    const dB=p.boxes-b0, dC=p.chains-c0;
+    if(dB!==0 || dC!==0){
+      p.history.unshift({ t:ts, type:(dB+dC>=0?"in":"out"),
+        b:Math.abs(dB), c:Math.abs(dC), dB, dC, bal:`${p.boxes}B | ${p.chains}Ch` });
+      p.history.sort((a,b)=>b.t-a.t);
+      if(p.history.length>50) p.history.length=50;
+    }
+    updated++;
+  });
+  persist(); render();
+  let msg = `<span style="color:var(--green);font-weight:700">✓ ${updated} row${updated!==1?'s':''} applied.</span>`;
+  if(notFound.length) msg += `<br><span style="color:var(--red)">Code not found: ${notFound.join(", ")}</span>`;
+  if(errors.length) msg += `<br><span style="color:var(--red)">Not enough stock: ${errors.join("; ")}</span>`;
+  document.getElementById("csvResult").innerHTML = msg;
+  toast(`${updated} applied`,"ok");
+}
+
+/* ---------- Reset ---------- */
+function resetData(){
+  if(!confirm("Reset ALL stock back to opening values?\nThis erases every sale and stock-in you recorded. Your custom-added products are kept, but their counts also reset to opening. Cannot be undone.")) return;
+  if(!confirm("Are you sure? All transaction history will be lost.")) return;
+  const customs = state.filter(p=>p.custom).map(c=>({
+    code:c.code, name:c.name, chainPerBox:c.chainPerBox, basicRate:c.basicRate,
+    pcsPerBox:c.pcsPerBox, boxes:c.openBoxes||0, chains:c.openChains||0, history:[], custom:true,
+    openBoxes:c.openBoxes||0, openChains:c.openChains||0
+  }));
+  state = freshFromSeed().concat(customs);
+  persist(); render(); toast("Reset to opening stock","ok");
+}
+
+/* ---------- Add / Delete product ---------- */
+function openAdd(){
+  ["aCode","aName","aChain","aPcs","aRate","aBoxes","aChains"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("addOverlay").classList.add("show");
+  setTimeout(()=>document.getElementById("aCode").focus(),100);
+}
+function closeAdd(){ document.getElementById("addOverlay").classList.remove("show"); }
+
+function addProduct(){
+  const code = document.getElementById("aCode").value.trim().toUpperCase();
+  const name = document.getElementById("aName").value.trim();
+  if(!code){ toast("Enter a product code","err"); return; }
+  if(!name){ toast("Enter a product name","err"); return; }
+  if(find(code)){ toast(`Code ${code} already exists`,"err"); return; }
+
+  const chainPerBox = Math.max(1, parseInt(document.getElementById("aChain").value)||1);
+  let   pcsPerBox   = parseInt(document.getElementById("aPcs").value)||0;
+  if(pcsPerBox <= 0) pcsPerBox = chainPerBox;   // pieces optional: default to 1 piece per chain
+  const basicRate   = parseFloat(document.getElementById("aRate").value)||0;
+  const boxes       = parseInt(document.getElementById("aBoxes").value)||0;
+  const chains      = parseInt(document.getElementById("aChains").value)||0;
+
+  state.push({
+    code, name, chainPerBox, basicRate, pcsPerBox,
+    boxes, chains, history:[], custom:true, openBoxes:boxes, openChains:chains
+  });
+  persist(); render(); closeAdd();
+  toast(`Added ${code}`,"ok");
+}
+
+let deleteTaps = 0;
+function resetDelete(){
+  deleteTaps = 0;
+  const b = document.getElementById("delBtn");
+  const c = document.getElementById("delCancel");
+  if(b){ b.textContent = "🗑 Delete this product"; }
+  if(c){ c.style.display = "none"; }
+}
+function deleteProduct(){
+  const p = find(modalCode); if(!p) return;
+  deleteTaps++;
+  const remaining = 5 - deleteTaps;
+  const b = document.getElementById("delBtn");
+  const c = document.getElementById("delCancel");
+  if(remaining > 0){
+    b.textContent = `⚠️ Tap ${remaining} more time${remaining>1?'s':''} to delete ${p.code}`;
+    if(c) c.style.display = "block";
+    return;
+  }
+  const code = p.code;
+  state = state.filter(x=>x.code!==code);
+  deleteTaps = 0;
+  persist(); closeModal(); render();
+  toast(`Deleted ${code}`,"ok");
+}
+
+/* ---------- Quick Reorder Addon (Web-only) ---------- */
+function isWebUser(){
+  // Web-only: hide inside app WebViews (Flutter/Cordova/RN), show in real browsers.
+  // Android Chrome UA has no "wv" token; embedded WebViews do.
+  const ua = navigator.userAgent;
+  const inApp = window.cordova || window.ReactNativeWebView ||
+                window.flutter_inappwebview || /\bwv\b/.test(ua);
+  return !inApp;
+}
+function initAddonButton(){
+  const btn = document.getElementById("addonBtn");
+  if(isWebUser()){ btn.style.display = "flex"; }
+}
+function openReorder(){
+  const presets = [
+    {code:"SB026", name:"DOUBLE TREAT 5/-", boxes:5, chains:0},
+    {code:"SB039", name:"PUFF STRAWBERRY 5/-", boxes:5, chains:0},
+    {code:"SB106", name:"CAKE DESIRE CHOCHO 5/-", boxes:3, chains:0},
+    {code:"SB108", name:"CAKE DESIRE VAN/STR 5/-", boxes:3, chains:0},
+  ];
+  const presetsEl = document.getElementById("reorderPresets");
+  presetsEl.innerHTML = presets.map(p=>`
+    <div class="reorder-preset" onclick="quickAddReorder('${p.code}',${p.boxes},${p.chains})">
+      <div class="pcode">${p.code}</div>
+      <div class="pamt">${p.boxes}</div>
+      <div class="plbl">box${p.boxes>1?'es':''}</div>
+    </div>
+  `).join("");
+
+  const sel = document.getElementById("reorderCode");
+  sel.innerHTML = '<option value="">— Pick a product —</option>' +
+    state.map(p=>`<option value="${p.code}">${p.code} ${p.name}</option>`).join("");
+
+  document.getElementById("reorderBoxes").value = "";
+  document.getElementById("reorderChains").value = "";
+  document.getElementById("reorderOverlay").classList.add("show");
+}
+function closeReorder(){
+  document.getElementById("reorderOverlay").classList.remove("show");
+}
+function quickAddReorder(code,boxes,chains){
+  const p = find(code);
+  if(!p){ toast("Product not found","err"); return; }
+  const before = {b:p.boxes, c:p.chains};
+  p.boxes += boxes;
+  p.chains += chains;
+  logTx(p,"in",boxes,chains,p.boxes-before.b,p.chains-before.c,Date.now());
+  persist(); render(); closeReorder();
+  toast(`Added ${boxes} box to ${p.code}`,"ok");
+}
+function applyReorder(){
+  const code = document.getElementById("reorderCode").value;
+  const boxes = parseInt(document.getElementById("reorderBoxes").value)||0;
+  const chains = parseInt(document.getElementById("reorderChains").value)||0;
+  if(!code){ toast("Pick a product","err"); return; }
+  if(boxes===0 && chains===0){ toast("Enter quantity","err"); return; }
+  quickAddReorder(code,boxes,chains);
+}
+
+/* ---------- Utils ---------- */
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+let toastTimer;
+function toast(msg,type){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show "+(type||"");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{t.className="toast "+(type||"");},2000);
+}
+
+/* ---------- Wire up ---------- */
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  document.getElementById("search").value=""; render(); document.getElementById("search").focus();
+});
+document.getElementById("overlay").addEventListener("click", e=>{
+  if(e.target.id==="overlay") closeModal();
+});
+document.getElementById("addOverlay").addEventListener("click", e=>{
+  if(e.target.id==="addOverlay") closeAdd();
+});
+document.getElementById("csvOverlay").addEventListener("click", e=>{
+  if(e.target.id==="csvOverlay") closeCSV();
+});
+document.getElementById("csvFile").addEventListener("change", e=>{
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{ document.getElementById("csvText").value = r.result; toast("File loaded — tap Apply","ok"); };
+  r.onerror = ()=>toast("Could not read file","err");
+  r.readAsText(f);
+});
+document.getElementById("reorderOverlay").addEventListener("click", e=>{
+  if(e.target.id==="reorderOverlay") closeReorder();
+});
+render();
+initAddonButton();
+</script>
+</body>
+</html>
