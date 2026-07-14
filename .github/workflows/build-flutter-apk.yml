@@ -2,7 +2,7 @@ name: Build Flutter APK
 
 on:
   push:
-    branches: [main, claude/setup-claude-context-ZYkcp]  # TEMP: verify FB SDK build, revert to main-only before merge
+    branches: [main]
     paths:
       - 'flutter_app/**'
   workflow_dispatch:
