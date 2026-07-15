@@ -238,6 +238,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <div class="ntab" onclick="showTab('transactions',this)">💰 Transactions</div>
     <div class="ntab" onclick="showTab('revenue',this)">📈 Revenue</div>
     <div class="ntab" onclick="showTab('promos',this)">🎟 Promo Codes</div>
+    <div class="ntab" onclick="showTab('security',this)">🛡 Security</div>
     <div class="ntab" onclick="showTab('deletions',this)">🗑 Deletions</div>
     <div class="ntab" onclick="showTab('activity',this)">🔍 Activity Log</div>
     <div class="ntab" onclick="showTab('attendance',this)">📋 Attendance</div>
@@ -452,6 +453,57 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       <div class="acard" style="margin-top:12px">
         <div class="acard-hd"><span><span class="hd-icon">🎟</span>All Promo Codes</span><button class="refresh-btn" onclick="loadPromos()">↻ Refresh</button></div>
         <div class="acard-body" id="promo-list"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+      </div>
+    </div>
+
+    <!-- ═══ SECURITY ═══ -->
+    <div class="section" id="tab-security">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <button class="refresh-btn" onclick="loadSecurity()">↻ Scan Now</button>
+        <div id="sec-scanned" style="font-size:11px;color:var(--muted);margin-left:auto"></div>
+      </div>
+
+      <!-- Verdict banner -->
+      <div id="sec-verdict" style="border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:13px;font-weight:700;display:none"></div>
+
+      <!-- Suspicious activity feed -->
+      <div class="acard">
+        <div class="acard-hd"><span><span class="hd-icon">🚨</span>Suspicious Activity (last 30 days)</span></div>
+        <div class="acard-body" id="sec-suspicious"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+      </div>
+
+      <!-- New accounts -->
+      <div class="acard" style="margin-top:10px">
+        <div class="acard-hd"><span><span class="hd-icon">👤</span>New Accounts (last 14 days) — recognise them all?</span></div>
+        <div class="acard-body" id="sec-newusers"><div class="tbl-empty">—</div></div>
+      </div>
+
+      <!-- Activity trend -->
+      <div class="acard" style="margin-top:10px">
+        <div class="acard-hd"><span><span class="hd-icon">📊</span>App Activity Trend (events/day, 14 days)</span></div>
+        <div class="acard-body" id="sec-trend" style="padding:14px 16px"><div class="tbl-empty">—</div></div>
+        <div style="padding:0 16px 12px;font-size:10px;color:var(--muted)">
+          📌 Exact Firestore read-quota graph is only in the
+          <a href="https://console.firebase.google.com/project/selva-ledger/firestore/usage" target="_blank" style="color:var(--blue)">Firebase Console → Usage</a>.
+          Rule of thumb: reads spiking while this activity trend stays flat = possible scraping.
+        </div>
+      </div>
+
+      <!-- Billing anomalies -->
+      <div class="acard" style="margin-top:10px">
+        <div class="acard-hd"><span><span class="hd-icon">💳</span>Billing Anomalies (cross-account purchase attempts)</span></div>
+        <div class="acard-body" id="sec-billing"><div class="tbl-empty">—</div></div>
+      </div>
+
+      <!-- Checklist -->
+      <div class="acard" style="margin-top:10px">
+        <div class="acard-hd"><span><span class="hd-icon">✅</span>Security Checklist (do once, manually)</span></div>
+        <div class="acard-body" style="padding:12px 16px;font-size:12px;line-height:2">
+          🔐 Google account <b>2-Step Verification</b> ON — your admin login IS the master key<br>
+          🚫 Firebase Console → Authentication → Settings → <b>Email enumeration protection</b> ON<br>
+          📜 Latest <b>firestore.rules</b> published in Console (businessId-scoped, no catch-all allow)<br>
+          🔔 <a href="https://console.firebase.google.com/project/selva-ledger/firestore/usage" target="_blank" style="color:var(--blue)">Console Usage page</a> — glance weekly; unexplained read spikes = investigate here
+        </div>
       </div>
     </div>
 
@@ -691,10 +743,147 @@ function showTab(id,el){
   if(id==='transactions') loadTransactions();
   if(id==='revenue') loadRevenue();
   if(id==='promos') loadPromos();
+  if(id==='security') loadSecurity();
   if(id==='activity') loadActivity();
   if(id==='deletions') loadDeletions();
   if(id==='attendance'){initAttTab();}
   if(id==='cache'){updateCacheStats();}
+}
+
+// ════════════════════════════════════════
+// SECURITY — suspicious-activity scanner
+// ════════════════════════════════════════
+function secUserName(uid,by){
+  if(by&&by!=='user') return by;
+  const u=_users.find(x=>x.uid===uid||x.id===uid);
+  return u?(u.name!=='—'?u.name:u.email):String(uid||'unknown').substring(0,10)+'…';
+}
+
+async function loadSecurity(){
+  const sus=document.getElementById('sec-suspicious');
+  sus.innerHTML='<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  if(!_users.length){ try{ await loadUsers(); }catch(e){} }
+
+  // ── 1. Pull last 30 days of audit events ──
+  let events=[];
+  try{
+    const cutoff=new Date(Date.now()-30*24*3600*1000);
+    const snap=await DB.collection('audit')
+      .where('at','>',firebase.firestore.Timestamp.fromDate(cutoff))
+      .orderBy('at','desc').limit(500).get();
+    events=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(e=>e.at&&e.at.toDate).map(e=>({...e,t:e.at.toDate()}));
+  }catch(e){
+    sus.innerHTML='<div class="tbl-empty">Audit events not readable — publish the latest firestore.rules first.<br><span style="font-size:9px">'+esc(e.message||'')+'</span></div>';
+  }
+  document.getElementById('sec-scanned').textContent=events.length+' events scanned';
+
+  const findings=[];
+
+  // ── 2. Night-time activity (00:00–05:00 local) ──
+  const night=events.filter(e=>{const h=e.t.getHours();return h>=0&&h<5;});
+  const nightByUser={};
+  night.forEach(e=>{const k=e.userId||'?';nightByUser[k]=nightByUser[k]||[];nightByUser[k].push(e);});
+  Object.entries(nightByUser).forEach(([uid,evs])=>{
+    findings.push({sev:evs.length>10?'high':'low',icon:'🌙',
+      title:'Night activity — '+esc(secUserName(uid,evs[0].by)),
+      sub:evs.length+' event'+(evs.length>1?'s':'')+' between 12am–5am · last: '+evs[0].t.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' · '+esc(evs[0].action||'')});
+  });
+
+  // ── 3. Rapid bursts — same user ≥8 events inside 10 minutes ──
+  const byUser={};
+  events.slice().sort((a,b)=>a.t-b.t).forEach(e=>{const k=e.userId||'?';byUser[k]=byUser[k]||[];byUser[k].push(e);});
+  Object.entries(byUser).forEach(([uid,evs])=>{
+    let best=0,bestAt=null,bestDel=0;
+    for(let i=0;i<evs.length;i++){
+      let j=i,dels=0;
+      while(j<evs.length&&evs[j].t-evs[i].t<=10*60*1000){ if(String(evs[j].action||'').includes('delete'))dels++; j++; }
+      if(j-i>best){best=j-i;bestAt=evs[i].t;bestDel=dels;}
+    }
+    if(best>=8) findings.push({sev:bestDel>=3?'high':'med',icon:bestDel>=3?'🗑':'⚡',
+      title:(bestDel>=3?'Bulk DELETE burst — ':'Rapid activity burst — ')+esc(secUserName(uid,evs[0].by)),
+      sub:best+' events in 10 min'+(bestDel?' ('+bestDel+' deletes)':'')+' starting '+bestAt.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})});
+  });
+
+  // ── 4. Any delete actions at all (last 30d) ──
+  const dels=events.filter(e=>String(e.action||'').includes('delete'));
+  if(dels.length>=5) findings.push({sev:'med',icon:'🗑',title:dels.length+' delete events in 30 days',
+    sub:'Latest: '+esc(dels[0].desc||dels[0].action||'')+' by '+esc(secUserName(dels[0].userId,dels[0].by))});
+
+  findings.sort((a,b)=>({high:0,med:1,low:2}[a.sev]-{high:0,med:1,low:2}[b.sev]));
+  const sevCol={high:'var(--red)',med:'var(--yellow)',low:'var(--muted)'};
+  sus.innerHTML=findings.length?findings.map(f=>`
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:9px 16px;border-bottom:1px solid var(--border)">
+      <div style="font-size:18px">${f.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700">${f.title}</div>
+        <div style="font-size:11px;color:var(--muted)">${f.sub}</div>
+      </div>
+      <span style="font-size:9px;font-weight:800;color:${sevCol[f.sev]};border:1px solid ${sevCol[f.sev]};border-radius:6px;padding:2px 7px;text-transform:uppercase;flex-shrink:0">${f.sev}</span>
+    </div>`).join('')
+    :'<div style="padding:16px;font-size:12px;color:var(--g1)">✅ Nothing suspicious in the last 30 days of app events</div>';
+
+  // ── 5. Verdict banner ──
+  const high=findings.filter(f=>f.sev==='high').length;
+  const vb=document.getElementById('sec-verdict');
+  vb.style.display='block';
+  if(high){ vb.style.background='rgba(244,63,94,.12)'; vb.style.border='1px solid var(--red)'; vb.style.color='var(--red)';
+    vb.textContent='🚨 '+high+' high-severity signal'+(high>1?'s':'')+' — review the feed below. If you don\'t recognise the user/time, change your Google password + check Firebase Console → Authentication.'; }
+  else if(findings.length){ vb.style.background='rgba(245,158,11,.1)'; vb.style.border='1px solid var(--yellow)'; vb.style.color='var(--yellow)';
+    vb.textContent='⚠️ '+findings.length+' signal'+(findings.length>1?'s':'')+' worth a glance — most are usually you or your staff working odd hours.'; }
+  else{ vb.style.background='rgba(16,185,129,.1)'; vb.style.border='1px solid var(--g1)'; vb.style.color='var(--g1)';
+    vb.textContent='✅ All clear — no attack patterns detected in app activity.'; }
+
+  // ── 6. New accounts (last 14 days) ──
+  const nu=document.getElementById('sec-newusers');
+  const since=Date.now()-14*24*3600*1000;
+  const toMs=v=>v?.toDate?v.toDate().getTime():(typeof v==='number'?v:(v?new Date(v).getTime():0));
+  const fresh=_users.filter(u=>toMs(u.createdAt)>=since)
+    .sort((a,b)=>toMs(b.createdAt)-toMs(a.createdAt));
+  nu.innerHTML=fresh.length?fresh.map(u=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px;gap:8px">
+      <div style="min-width:0;flex:1"><b>${esc(u.name)}</b> <span style="color:var(--muted)">· ${esc(u.email)}</span></div>
+      <span style="color:var(--muted);font-size:11px;flex-shrink:0">${new Date(toMs(u.createdAt)).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</span>
+    </div>`).join('')
+    :'<div class="tbl-empty">No new signups in the last 14 days</div>';
+
+  // ── 7. Activity trend (events/day, 14 days) + spike check ──
+  const tr=document.getElementById('sec-trend');
+  const days=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(Date.now()-i*24*3600*1000);
+    const key=d.toDateString();
+    days.push({lbl:d.getDate(),n:events.filter(e=>e.t.toDateString()===key).length});
+  }
+  const mx=Math.max(1,...days.map(d=>d.n));
+  const prevAvg=days.slice(0,13).reduce((s,d)=>s+d.n,0)/13;
+  const today=days[13].n;
+  const spike=prevAvg>=1&&today>prevAvg*3;
+  tr.innerHTML=`
+    <div style="display:flex;align-items:flex-end;gap:4px;height:70px">
+      ${days.map((d,i)=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+        <div style="width:100%;height:${Math.max(3,Math.round(d.n/mx*58))}px;background:${i===13&&spike?'var(--red)':'var(--g1)'};border-radius:3px 3px 0 0;opacity:${i===13?1:.65}"></div>
+        <div style="font-size:8px;color:var(--muted)">${d.lbl}</div>
+      </div>`).join('')}
+    </div>
+    ${spike?'<div style="margin-top:8px;font-size:11px;color:var(--red);font-weight:700">🚨 Today is '+Math.round(today/prevAvg)+'x the 2-week average — check who\'s doing it in the Activity Log tab</div>'
+           :'<div style="margin-top:8px;font-size:11px;color:var(--muted)">Today: '+today+' events · 2-week avg: '+prevAvg.toFixed(1)+'/day</div>'}`;
+
+  // ── 8. Billing anomalies ──
+  const bl=document.getElementById('sec-billing');
+  try{
+    const snap=await DB.collection('billing_anomalies').orderBy('at','desc').limit(20).get()
+      .catch(()=>DB.collection('billing_anomalies').limit(20).get());
+    const rows=snap.docs.map(d=>d.data());
+    bl.innerHTML=rows.length?rows.map(r=>`
+      <div style="padding:8px 16px;border-bottom:1px solid var(--border);font-size:11px">
+        <b style="color:var(--yellow)">⚠️ ${esc(r.type||'purchase mismatch')}</b>
+        <span style="color:var(--muted)"> · purchase tagged for ${esc(String(r.purchaseUid||r.expectedUid||'?').substring(0,10))}… but signed in as ${esc(String(r.currentUid||r.actualUid||'?').substring(0,10))}…</span>
+      </div>`).join('')
+      :'<div style="padding:14px 16px;font-size:12px;color:var(--g1)">✅ No cross-account purchase attempts logged</div>';
+  }catch(e){
+    bl.innerHTML='<div class="tbl-empty">Not readable: '+esc(String(e.message||'').substring(0,80))+'</div>';
+  }
 }
 
 // ════════════════════════════════════════
