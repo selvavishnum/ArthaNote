@@ -12,12 +12,12 @@ import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 ///   - One-time (non-consumable) product id `arthanote_lifetime` → ₹1999
 ///
 /// Deliberately THREE separate flat products rather than one subscription
-/// with multiple "base plans" — the base-plan/offer-selection API
-/// (GooglePlayPurchaseParam.offerToken) only landed in
-/// in_app_purchase_android 0.4.0+2, which requires Flutter >=3.27 / Dart
-/// SDK ^3.6.0, newer than this project's pinned Flutter (3.24.5). Three
-/// flat products work with the older, already-verified plugin version and
-/// need no offer-token/base-plan lookup at all — simpler and more robust.
+/// with multiple "base plans" — flat products need no offer-token/base-plan
+/// lookup at all, simpler and more robust. (Historical note: this layout was
+/// originally forced by the old in_app_purchase_android 0.3.x pin; the
+/// project has since moved to 0.4.x / Play Billing Library 7 + Flutter 3.27
+/// for the Play Console billing mandate, and the flat products still work
+/// unchanged.)
 ///
 /// NOTE ON SECURITY — same client-trust model as promo_service.dart: there is
 /// no backend yet to verify a purchase token server-side via the Play
