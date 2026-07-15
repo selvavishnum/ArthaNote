@@ -2,7 +2,7 @@ name: Build Flutter APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/setup-claude-context-ZYkcp]  # TEMP: verify Billing 7 build, revert before merge
     paths:
       - 'flutter_app/**'
   workflow_dispatch:
@@ -28,7 +28,9 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
+          # 3.27+ (Dart 3.6) required by in_app_purchase_android 0.4.x,
+          # which carries Play Billing Library 7 (Play Console mandate)
+          flutter-version: '3.27.4'
           channel: stable
           cache: true
 
