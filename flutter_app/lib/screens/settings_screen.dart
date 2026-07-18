@@ -953,8 +953,8 @@ class _ShopNamesSheetState extends State<_ShopNamesSheet> {
   void _addShop() {
     // Pro gate — free tier (after the trial) is limited to 1 business shop.
     if (!widget.p.canAddShop) {
-      Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const UpgradeScreen()));
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const UpgradeScreen(source: 'add-shop')));
       return;
     }
     final name = _newNameCtrl.text.trim();
@@ -4012,8 +4012,8 @@ class _StaffAccessSheetState extends State<_StaffAccessSheet> {
       final grants = await _auth.staffAccessStream(widget.p.businessId).first;
       if (grants.length >= widget.p.maxStaff) {
         if (mounted) {
-          Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const UpgradeScreen()));
+          Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const UpgradeScreen(source: 'staff-limit')));
         }
         return;
       }

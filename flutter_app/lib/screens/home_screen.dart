@@ -649,8 +649,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         : 'Upgrade now to keep all features without interruption.';
 
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const UpgradeScreen())),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const UpgradeScreen(source: 'trial-banner'))),
       child: Container(
         width: double.infinity,
         margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),

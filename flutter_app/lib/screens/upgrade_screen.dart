@@ -1,9 +1,38 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme.dart';
 import '../providers/app_provider.dart';
 import '../services/billing_service.dart';
 import '../widgets/promo_dialog.dart';
+
+/// Purchase-intent signal for the admin "💎 Ready to Pay" list — same event
+/// the website logs. Throttled to one audit write per source per day so a
+/// user reopening the paywall never burns Firestore quota. Fire-and-forget:
+/// never throws, never blocks the UI. Skipped in guest mode (no uid).
+Future<void> logPaywallView(BuildContext context, String source) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'pw_${source.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (prefs.getString(key) == today) return;
+    await prefs.setString(key, today);
+    if (!context.mounted) return;
+    final p = context.read<AppProvider>();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty || p.businessId.isEmpty) return;
+    await FirebaseFirestore.instance.collection('audit').add({
+      'businessId': p.businessId,
+      'userId': uid,
+      'by': 'app-user',
+      'action': 'paywall_view',
+      'desc': source,
+      'at': FieldValue.serverTimestamp(),
+    });
+  } catch (_) {}
+}
 
 /// Full-screen "this is a Pro feature" placeholder shown in place of a gated
 /// screen's content when the user is on the free tier (trial ended). Tapping
@@ -45,7 +74,7 @@ class ProLockView extends StatelessWidget {
               height: 50,
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const UpgradeScreen())),
+                    builder: (_) => UpgradeScreen(source: feature))),
                 icon: const Icon(Icons.workspace_premium_rounded),
                 label: const Text('Upgrade to Pro',
                     style: TextStyle(fontWeight: FontWeight.w800)),
@@ -75,7 +104,10 @@ class UpgradeScreen extends StatefulWidget {
   /// Called when the user taps Subscribe, overriding the default
   /// [BillingService] purchase flow. Receives the plan id.
   final Future<void> Function(String planId)? onSubscribe;
-  const UpgradeScreen({super.key, this.onSubscribe});
+
+  /// Which lock/banner brought the user here — logged as purchase intent.
+  final String source;
+  const UpgradeScreen({super.key, this.onSubscribe, this.source = 'direct'});
 
   @override
   State<UpgradeScreen> createState() => _UpgradeScreenState();
@@ -84,6 +116,14 @@ class UpgradeScreen extends StatefulWidget {
 class _UpgradeScreenState extends State<UpgradeScreen> {
   String _selected = 'yearly'; // default-highlight the best-value plan
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) logPaywallView(context, widget.source);
+    });
+  }
 
   static const _plans = [
     _Plan('monthly', 'Monthly', '₹199', '/month', null, false),
