@@ -3793,6 +3793,24 @@ function isProUser(){ return !!(ME&&ME.pro) || (ME&&ME.email===OWNER_EMAIL); }
 function openPaywall(reason){
   document.getElementById('pw-reason').textContent=reason||'Unlock all features';
   document.getElementById('paywall-modal').classList.add('on');
+  logPaywallView(reason||'unknown');
+}
+// Purchase-intent signal for the admin "💎 Ready to Pay" list. Throttled to
+// one audit write per reason per day so a user tapping the same lock over
+// and over doesn't burn quota.
+function logPaywallView(reason){
+  try{
+    if(!ME||!DB) return;
+    const key='kp_pw_'+reason.replace(/[^a-z0-9]/gi,'_').substring(0,40);
+    const today=tod();
+    if(localStorage.getItem(key)===today) return;
+    localStorage.setItem(key,today);
+    DB.collection('audit').add({
+      businessId:ME.businessId||ME.uid, userId:ME.uid, by:ME.name||'user',
+      action:'paywall_view', desc:reason.substring(0,120),
+      at:firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(()=>{});
+  }catch(e){}
 }
 async function startProPayment(){
   // Razorpay key to be configured when live account is ready
