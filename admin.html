@@ -370,6 +370,13 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 
     <!-- ═══ REVENUE ═══ -->
     <div class="section" id="tab-revenue">
+      <!-- Ready-to-pay hot leads (usage + paywall-intent scoring) -->
+      <div class="acard" style="border-top:3px solid var(--gold)">
+        <div class="acard-hd"><span><span class="hd-icon">💎</span>Ready to Pay — hot leads</span><span id="hot-count" style="font-size:11px;color:var(--muted);font-family:var(--sans)"></span></div>
+        <div class="acard-body" id="rev-hotleads"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+        <div style="padding:0 16px 12px;font-size:10px;color:var(--muted)">Score = daily habit (streak/active) + volume (entries/shops) + 🔒 paywall taps (purchase intent, logged by the website) + past Pro. Call or WhatsApp the 💎 users first — a personal message with a promo code converts best at this scale.</div>
+      </div>
+
       <!-- Tier cards -->
       <div class="plan-compare">
         <div class="plan-card"><div class="plan-nm">Free Users</div><div class="plan-count" id="rev-free-count" style="color:var(--muted)">—</div><div class="plan-rev">₹0/month</div></div>
@@ -1361,6 +1368,7 @@ async function loadUsers(){
         id:s.docId, uid,
         name:s.name||s.displayName||'—',
         email:s.email||'—',
+        phone:s.phone||'',
         role:s.role||'owner',
         // Real plan fields (written by app billing / promo / trial flows)
         pro:s.pro===true,
@@ -1949,6 +1957,68 @@ async function loadOverview(){
   spin.classList.remove('spinning');
 }
 
+// ── 💎 READY TO PAY — scores free/expired users on usage habit + volume +
+//    paywall-tap intent (logged by the website) + past-Pro status ──
+async function renderHotLeads(){
+  const el=document.getElementById('rev-hotleads'); if(!el) return;
+  try{
+    if(!Object.keys(_bizStats).length){ await ensureTxCache(); buildBizStats(); }
+    // Paywall taps in the last 30 days (website logs action:'paywall_view')
+    const pwByUser={};
+    try{
+      const cutoff=new Date(Date.now()-30*86400000);
+      const snap=await DB.collection('audit')
+        .where('at','>',firebase.firestore.Timestamp.fromDate(cutoff))
+        .orderBy('at','desc').limit(400).get();
+      snap.docs.map(d=>d.data()).filter(a=>a.action==='paywall_view').forEach(a=>{
+        const k=a.userId||'?';
+        pwByUser[k]=pwByUser[k]||{n:0,last:''};
+        pwByUser[k].n++;
+        if(!pwByUser[k].last&&a.desc) pwByUser[k].last=a.desc;
+      });
+    }catch(e){}
+
+    const now=Date.now();
+    const leads=_users.filter(u=>u.tier==='free'||u.tier==='expired').map(u=>{
+      const st=_bizStats[u.businessId||u.uid||u.id];
+      const streak=st?calcStreak(st.dates):0;
+      const daysSince=st?Math.round((now-new Date(st.last+'T00:00:00').getTime())/86400000):999;
+      const activeDays=st?st.dates.size:0;
+      const pw=pwByUser[u.uid]||pwByUser[u.id];
+      let score=0; const why=[];
+      if(daysSince<=7){score+=3;why.push('🟢 active '+(daysSince<=1?'today':daysSince+'d ago'));}
+      if(streak>=7){score+=2;why.push('🔥 '+streak+'-day streak');}
+      else if(streak>=3){score+=1;why.push('📈 '+streak+'-day streak');}
+      if(activeDays>=30){score+=2;why.push('📒 '+activeDays+' active days (90d)');}
+      else if(activeDays>=10){score+=1;why.push('📒 '+activeDays+' active days');}
+      if((u.shopCount||0)>=2){score+=1;why.push('🏪 '+u.shopCount+' shops');}
+      if(pw){score+=pw.n>=3?4:3;why.push('🔒 paywall ×'+pw.n+(pw.last?' — '+pw.last.substring(0,32):''));}
+      if(u.tier==='expired'){score+=2;why.push('⏳ had Pro before');}
+      return {u,score,why};
+    }).filter(l=>l.score>=3).sort((a,b)=>b.score-a.score).slice(0,15);
+
+    const hc=document.getElementById('hot-count');
+    if(hc) hc.textContent=leads.length?leads.length+' lead'+(leads.length>1?'s':''):'';
+    el.innerHTML=leads.length?leads.map(({u,score,why})=>{
+      const hot=score>=6;
+      const ph=String(u.phone||'').replace(/\D/g,'').slice(-10);
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:18px">${hot?'💎':'🔥'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700">${esc(u.name!=='—'?u.name:(u.email||''))} <span style="font-weight:400;color:var(--muted);font-size:11px">· ${esc(u.email||'')}</span>
+            ${ph.length===10?` <a href="https://wa.me/91${ph}?text=${encodeURIComponent('Vanakkam! ArthaNote-la neenga daily entries podureenga paathen 🙏 Pro features try panna oru promo code tharatuma?')}" target="_blank" style="font-size:10px;color:var(--g1);text-decoration:none;font-weight:700">📱 WhatsApp</a>`:''}
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${why.join(' · ')}</div>
+        </div>
+        <span style="font-family:var(--mono);font-weight:800;font-size:14px;color:${hot?'var(--gold)':'var(--yellow)'};flex-shrink:0" title="lead score">${score}</span>
+      </div>`;
+    }).join('')
+      :'<div class="tbl-empty">No hot leads yet — they appear when free users build daily streaks or tap Pro 🔒 locks on the website</div>';
+  }catch(e){
+    el.innerHTML='<div class="tbl-empty">Error: '+esc(String(e.message||'').substring(0,100))+'</div>';
+  }
+}
+
 // ════════════════════════════════════════
 // REVENUE
 // ════════════════════════════════════════
@@ -1985,6 +2055,7 @@ async function loadRevenue(){
   set('rev-renew-count',renewDue.length);
   set('rev-expired-count',byTier.expired.length);
   set('rev-promo-count',promoUsers.length);
+  renderHotLeads(); // 💎 Ready to Pay — async, renders independently
 
   // Metrics
   const mrr=paidMonthly.length*199+Math.round(paidYearly.length*999/12);
