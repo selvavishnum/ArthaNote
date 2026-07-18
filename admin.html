@@ -5,33 +5,37 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>கணக்கபிள்ளை — Super Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&family=Noto+Sans+Tamil:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
+/* ═══ SERIF LEDGER THEME — matches the website (index.html) ═══ */
 :root{
-  --bg:#0a0a0f;--card:#13131a;--card2:#1a1a24;--border:#2a2a38;
-  --text:#f1f0ff;--muted:#6b6b8a;--soft:#1e1e2e;
-  --g1:#10b981;--g2:#34d399;--g3:#6ee7b7;
-  --blue:#6366f1;--bluel:#1e1b4b;
-  --red:#f43f5e;--redl:#2d0a16;
-  --yellow:#f59e0b;--yellowl:#2d1f00;
-  --purple:#a855f7;--purplel:#2d1b4e;
-  --sans:'DM Sans',sans-serif;
+  --bg:#f0f4f8;--card:#ffffff;--card2:#f7fafc;--border:#e2e8f0;
+  --text:#0f172a;--muted:#64748b;--soft:#f7fafc;
+  --g1:#059669;--g2:#10b981;--g3:#34d399;
+  --blue:#2563eb;--bluel:#dbeafe;
+  --red:#dc2626;--redl:#fee2e2;
+  --yellow:#d97706;--yellowl:#fef3c7;
+  --purple:#7c3aed;--purplel:#ede9fe;
+  --gold:#a16207;--gold-soft:#fef3c7;
+  --sans:'Plus Jakarta Sans',sans-serif;
+  --serif:'Playfair Display',Georgia,'Times New Roman',serif;
   --mono:'JetBrains Mono',monospace;
-  --tamil:'Noto Sans Tamil','DM Sans',sans-serif;
+  --tamil:'Noto Sans Tamil','Plus Jakarta Sans',sans-serif;
+  --sh:0 1px 4px rgba(0,0,0,.07);--sh2:0 8px 32px rgba(0,0,0,.13);
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
 
-/* ── GRID BG ── */
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(99,102,241,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+/* ── LEDGER-PAPER BG — faint ruled lines like an account book ── */
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(5,150,105,.055) 1px,transparent 1px);background-size:100% 34px;pointer-events:none;z-index:0}
 
 /* ── LOGIN ── */
 #login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:100;background:var(--bg)}
-.login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 28px;width:340px;text-align:center;box-shadow:0 0 60px rgba(99,102,241,.1)}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 28px;width:340px;text-align:center;box-shadow:var(--sh2);border-top:4px solid var(--g1)}
 .login-logo{font-size:44px;margin-bottom:12px}
 .login-title{font-family:var(--tamil);font-size:22px;font-weight:800;color:var(--text);margin-bottom:4px}
 .login-sub{font-size:12px;color:var(--muted);margin-bottom:24px}
@@ -42,10 +46,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 
 /* ── TOPBAR ── */
 #admin-app{display:none;position:relative;z-index:1}
-.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50;backdrop-filter:blur(12px)}
+.topbar{background:var(--card);border-bottom:2px solid var(--g1);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50;backdrop-filter:blur(12px)}
 .top-brand{display:flex;align-items:center;gap:10px}
 .top-logo{font-size:22px}
 .top-name{font-family:var(--tamil);font-size:16px;font-weight:800;color:var(--text)}
+.top-tagline{font-family:var(--serif);font-style:italic;font-size:10px;color:var(--gold)}
 .top-tag{font-size:9px;font-weight:700;background:var(--blue);color:#fff;padding:2px 8px;border-radius:10px;letter-spacing:.5px}
 .top-right{display:flex;align-items:center;gap:10px}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--g1);animation:pulse3 2s infinite;flex-shrink:0}
@@ -70,7 +75,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 /* ── KPI GRID ── */
 .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
 @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}
-.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden;box-shadow:var(--sh)}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .kpi-card.k-green::before{background:linear-gradient(90deg,var(--g1),var(--g2))}
 .kpi-card.k-blue::before{background:linear-gradient(90deg,var(--blue),#818cf8)}
@@ -84,8 +89,8 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 .kpi-sub.up{color:var(--g1)}.kpi-sub.dn{color:var(--red)}
 
 /* ── CARDS ── */
-.acard{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden}
-.acard-hd{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700}
+.acard{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden;box-shadow:var(--sh)}
+.acard-hd{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:700;font-family:var(--serif);letter-spacing:.2px}
 .acard-hd .hd-icon{font-size:16px;margin-right:8px}
 .acard-body{padding:14px 16px}
 
@@ -94,13 +99,13 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 .atbl th{padding:8px 10px;text-align:left;font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);white-space:nowrap}
 .atbl td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle}
 .atbl tr:last-child td{border:none}
-.atbl tr:hover td{background:rgba(255,255,255,.02)}
+.atbl tr:hover td{background:rgba(5,150,105,.045)}
 .tbl-wrap{overflow-x:auto;max-height:460px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .tbl-empty{text-align:center;padding:28px;color:var(--muted);font-size:12px}
 
 /* ── BADGES ── */
 .badge{font-size:9px;font-weight:800;padding:3px 8px;border-radius:10px;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap}
-.badge.pro{background:var(--bluel);color:#818cf8;border:1px solid var(--blue)}
+.badge.pro{background:var(--bluel);color:var(--blue);border:1px solid var(--blue)}
 .badge.free{background:var(--soft);color:var(--muted);border:1px solid var(--border)}
 .badge.active{background:rgba(16,185,129,.1);color:var(--g1);border:1px solid rgba(16,185,129,.3)}
 .badge.inactive{background:var(--soft);color:var(--muted);border:1px solid var(--border)}
@@ -175,13 +180,13 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 .fchips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;scrollbar-width:none}
 .fchips::-webkit-scrollbar{display:none}
 .fchip{flex-shrink:0;padding:6px 13px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--soft);color:var(--muted);white-space:nowrap;transition:all .2s}
-.fchip.on{background:var(--bluel);border-color:var(--blue);color:#a5b4fc}
+.fchip.on{background:var(--bluel);border-color:var(--blue);color:var(--blue)}
 
 /* ── TIER BADGES ── */
-.badge.monthly{background:var(--bluel);color:#818cf8;border:1px solid var(--blue)}
-.badge.yearly{background:var(--purplel);color:#c084fc;border:1px solid var(--purple)}
+.badge.monthly{background:var(--bluel);color:var(--blue);border:1px solid var(--blue)}
+.badge.yearly{background:var(--purplel);color:var(--purple);border:1px solid var(--purple)}
 .badge.lifetime{background:var(--yellowl);color:var(--yellow);border:1px solid rgba(245,158,11,.4)}
-.badge.expired{background:var(--redl);color:#fb7185;border:1px solid rgba(244,63,94,.4)}
+.badge.expired{background:var(--redl);color:var(--red);border:1px solid rgba(220,38,38,.4)}
 
 /* ── SHOP GROUPS (grouped by user) ── */
 .grp{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden}
@@ -221,6 +226,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
           <div class="top-name">கணக்கபிள்ளை</div>
           <div class="top-tag">SUPER ADMIN</div>
         </div>
+        <div class="top-tagline">ArthaNote · Ledger Admin</div>
       </div>
     </div>
     <div class="top-right">
@@ -271,7 +277,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
 
       <!-- Business Type Breakdown -->
       <div class="acard">
-        <div class="acard-hd"><span><span class="hd-icon">🏬</span>Business Type Distribution</span><button class="refresh-btn" onclick="loadOverview()"><span id="ov-spin">↻</span> Refresh</button></div>
+        <div class="acard-hd"><span><span class="hd-icon">🏬</span>Business Type Distribution</span><button class="refresh-btn" onclick="loadAll(true)"><span id="ov-spin">↻</span> Refresh All</button></div>
         <div class="acard-body" id="biz-dist"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
       </div>
 
@@ -380,7 +386,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         <div class="kpi-card k-purple" style="padding:12px"><div class="kpi-lbl">🎟 Via Promo (free grant)</div><div class="kpi-val" id="rev-promo-count" style="font-size:22px;color:var(--purple)">—</div><div class="kpi-sub">not counted in revenue</div></div>
       </div>
 
-      <div style="background:var(--bluel);border:1px solid var(--blue);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:#93c5fd">
+      <div style="background:var(--bluel);border:1px solid var(--blue);border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:var(--blue)">
         ℹ️ <b>Pending payments</b> & instant cancellation events live in Google Play (need RTDN server hookup — not connected yet). Here: <b>Expired</b> = subscription passed its end date without a new grant = not renewed/cancelled.
       </div>
 
@@ -583,7 +589,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       <div class="acard">
         <div class="acard-hd"><span>💾 Data Cache Manager</span></div>
         <div class="acard-body">
-          <div style="background:var(--bluel);border:1px solid var(--blue);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#93c5fd">
+          <div style="background:var(--bluel);border:1px solid var(--blue);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--blue)">
             📌 Download once → View unlimited times → <b>0 Firestore reads!</b><br>
             Data saved in browser localStorage. Clear to re-download fresh data.
           </div>
@@ -679,7 +685,7 @@ const PLAN_PRICE={monthly:199,yearly:999,lifetime:1999};
 function toast(msg){
   const t=document.createElement('div');
   t.textContent=msg;
-  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:12px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.4)';
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:12px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.15)';
   document.body.appendChild(t);
   setTimeout(()=>t.remove(),2500);
 }
@@ -738,8 +744,9 @@ function showTab(id,el){
   document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
   document.getElementById('tab-'+id)?.classList.add('on');
   el.classList.add('on');
-  if(id==='users'&&!_users.length) loadUsers();
-  if(id==='shops'&&!_shops.length) loadShops();
+  if(id==='overview') loadAll();               // TTL-aware — cheap when cache is fresh
+  if(id==='users') loadUsers();                // always refresh: new signups must show
+  if(id==='shops') loadShops();
   if(id==='transactions') loadTransactions();
   if(id==='revenue') loadRevenue();
   if(id==='promos') loadPromos();
@@ -1274,18 +1281,23 @@ window.addEventListener('DOMContentLoaded',()=>{
 // ════════════════════════════════════════
 // LOAD ALL (overview)
 // ════════════════════════════════════════
-async function loadAll(){
+async function loadAll(force){
   // Txn cache first: joined-date fallback, last-seen and streaks in the
   // Users table are all computed from it (one bounded download, then 0 reads).
-  await ensureTxCache();
+  await ensureTxCache(force);
   buildBizStats();
   await Promise.all([loadUsers(),loadOverview()]);
 }
 
 // ── PER-BUSINESS ACTIVITY STATS (from the 90-day txn cache) ──
 let _bizStats={};
-async function ensureTxCache(){
-  if(loadCache(ADMIN_CACHE.txns)?.data?.length) return;
+async function ensureTxCache(force){
+  // 6-hour TTL: the old early-return NEVER refreshed this cache, so joined*
+  // dates, last-seen, streaks and the churn buckets froze at whatever day
+  // the admin first opened the panel.
+  const c=loadCache(ADMIN_CACHE.txns);
+  const fresh=c?.data?.length&&(Date.now()-(c.ts||0))<6*3600*1000;
+  if(fresh&&!force) return;
   try{ await downloadTxCache(); }catch(e){ console.warn('txn cache dl:',e); }
 }
 function buildBizStats(){
@@ -1405,7 +1417,9 @@ async function loadUsers(){
     if(kpiM) kpiM.textContent='₹'+fmt(mrr);
     updateTierChips();
     const today=new Date();today.setHours(0,0,0,0);
-    const ts=_users.filter(u=>{const d=u.createdAt?.toDate?.();return d&&d>=today;}).length;
+    // joinMsOf handles Timestamp / millis / string createdAt + first-entry
+    // fallback — the old toDate?.()-only check silently missed millis dates
+    const ts=_users.filter(u=>joinMsOf(u)>=today.getTime()).length;
     const kpiUS=document.getElementById('kpi-users-sub');
     if(kpiUS) kpiUS.textContent=ts?'+'+ts+' today':'';
     // Sort by real join time (signup date, else first-entry date) so the
@@ -1665,6 +1679,7 @@ function renderChurn(){
     ['dormant','📉 Dormant 30d+ — likely uninstalled','var(--red)'],
     ['never','🚫 Never used — installed, 0 entries','var(--red)'],
   ];
+  const age=cacheAge(ADMIN_CACHE.txns);
   el.innerHTML=CH.map(([k,lbl,col])=>`
     <div class="stat-row" style="cursor:pointer" onclick="var l=document.getElementById('churn-l-${k}');l.style.display=l.style.display==='block'?'none':'block'">
       <div class="stat-lbl">${lbl}</div>
@@ -1672,7 +1687,8 @@ function renderChurn(){
     </div>
     <div id="churn-l-${k}" style="display:none;padding:4px 0 8px">
       ${b[k].length?b[k].map(u=>`<div style="font-size:11px;padding:3px 0;color:var(--muted)"><b style="color:var(--text)">${esc(u.name!=='—'?u.name:(u.email||'—'))}</b> · ${esc(u.email||'—')}</div>`).join(''):'<div style="font-size:11px;color:var(--muted)">none</div>'}
-    </div>`).join('');
+    </div>`).join('')
+    +`<div style="font-size:10px;color:var(--muted);padding-top:8px">🕒 Entry data updated <b>${age||'never'}</b> — auto-refreshes every 6h · tap <b>↻ Refresh All</b> above for live now</div>`;
 }
 
 // ════════════════════════════════════════
@@ -1811,7 +1827,10 @@ async function loadTransactions(){
     const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
     const cutoffStr=cutoff.toISOString().split('T')[0];
     const snap=await DB.collection('transactions').where('date','>=',cutoffStr).orderBy('date','desc').limit(500).get();
-    _txns=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Normalise the Android app's type:'sale' to the website's 'sales' —
+    // without this every app sale was counted as an EXPENSE in the KPIs
+    // below and invisible to the "Sales" type filter.
+    _txns=snap.docs.map(d=>({id:d.id,...d.data()})).map(t=>t.type==='sale'?{...t,type:'sales'}:t);
     // Update summary KPIs
     const totalSales=_txns.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
     const totalExp=_txns.filter(t=>t.type!=='sales').reduce((a,t)=>a+(t.amount||0),0);
@@ -1900,7 +1919,8 @@ async function loadOverview(){
     const snap=await DB.collection('config').get();
     const typeCount={};
     let activeToday=0;
-    const today=new Date().toISOString().split('T')[0];
+    // localISO, not toISOString(): UTC "today" is yesterday until 5:30am IST
+    const today=localISO(new Date());
     snap.docs.forEach(d=>{
       const data=d.data();
       const bt=data.bizType||'other';
