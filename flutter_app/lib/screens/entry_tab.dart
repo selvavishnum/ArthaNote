@@ -602,7 +602,8 @@ class _EntryTabState extends State<EntryTab> {
                     // trial) is sent to the paywall instead.
                     if (!p.canUseCustomEntry) {
                       Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => const UpgradeScreen()));
+                          builder: (_) =>
+                              const UpgradeScreen(source: 'custom-entry')));
                       return;
                     }
                     final ctrl = TextEditingController();
