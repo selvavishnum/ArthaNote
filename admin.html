@@ -374,7 +374,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       <div class="acard" style="border-top:3px solid var(--gold)">
         <div class="acard-hd"><span><span class="hd-icon">💎</span>Ready to Pay — hot leads</span><span id="hot-count" style="font-size:11px;color:var(--muted);font-family:var(--sans)"></span></div>
         <div class="acard-body" id="rev-hotleads"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
-        <div style="padding:0 16px 12px;font-size:10px;color:var(--muted)">Score = daily habit (streak/active) + volume (entries/shops) + 🔒 paywall taps (purchase intent, logged by the website) + past Pro. Call or WhatsApp the 💎 users first — a personal message with a promo code converts best at this scale.</div>
+        <div style="padding:0 16px 12px;font-size:10px;color:var(--muted)">Score = daily habit (streak/active) + volume (entries/shops) + 🔒 paywall taps (purchase intent, logged by website + app) + past Pro.</div>
       </div>
 
       <!-- Tier cards -->
@@ -1368,7 +1368,6 @@ async function loadUsers(){
         id:s.docId, uid,
         name:s.name||s.displayName||'—',
         email:s.email||'—',
-        phone:s.phone||'',
         role:s.role||'owner',
         // Real plan fields (written by app billing / promo / trial flows)
         pro:s.pro===true,
@@ -2001,13 +2000,10 @@ async function renderHotLeads(){
     if(hc) hc.textContent=leads.length?leads.length+' lead'+(leads.length>1?'s':''):'';
     el.innerHTML=leads.length?leads.map(({u,score,why})=>{
       const hot=score>=6;
-      const ph=String(u.phone||'').replace(/\D/g,'').slice(-10);
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border)">
         <div style="font-size:18px">${hot?'💎':'🔥'}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:700">${esc(u.name!=='—'?u.name:(u.email||''))} <span style="font-weight:400;color:var(--muted);font-size:11px">· ${esc(u.email||'')}</span>
-            ${ph.length===10?` <a href="https://wa.me/91${ph}?text=${encodeURIComponent('Vanakkam! ArthaNote-la neenga daily entries podureenga paathen 🙏 Pro features try panna oru promo code tharatuma?')}" target="_blank" style="font-size:10px;color:var(--g1);text-decoration:none;font-weight:700">📱 WhatsApp</a>`:''}
-          </div>
+          <div style="font-size:12px;font-weight:700">${esc(u.name!=='—'?u.name:(u.email||''))} <span style="font-weight:400;color:var(--muted);font-size:11px">· ${esc(u.email||'')}</span></div>
           <div style="font-size:10px;color:var(--muted);margin-top:2px">${why.join(' · ')}</div>
         </div>
         <span style="font-family:var(--mono);font-weight:800;font-size:14px;color:${hot?'var(--gold)':'var(--yellow)'};flex-shrink:0" title="lead score">${score}</span>
