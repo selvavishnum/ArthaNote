@@ -1293,17 +1293,18 @@ async function loadAll(force){
   // Users table are all computed from it (one bounded download, then 0 reads).
   await ensureTxCache(force);
   buildBizStats();
-  await Promise.all([loadUsers(),loadOverview()]);
+  await Promise.all([loadUsers(force),loadOverview(force)]);
 }
 
 // ── PER-BUSINESS ACTIVITY STATS (from the 90-day txn cache) ──
 let _bizStats={};
 async function ensureTxCache(force){
-  // 6-hour TTL: the old early-return NEVER refreshed this cache, so joined*
-  // dates, last-seen, streaks and the churn buckets froze at whatever day
-  // the admin first opened the panel.
+  // 24-hour TTL (same once-a-day model as the Flutter admin's 23h sync):
+  // one bounded download per day keeps joined*/last-seen/streak/churn data
+  // fresh enough while costing ~1k reads a DAY instead of per session.
+  // ↻ Refresh All (force) bypasses it for a live pull any time.
   const c=loadCache(ADMIN_CACHE.txns);
-  const fresh=c?.data?.length&&(Date.now()-(c.ts||0))<6*3600*1000;
+  const fresh=c?.data?.length&&(Date.now()-(c.ts||0))<24*3600*1000;
   if(fresh&&!force) return;
   try{ await downloadTxCache(); }catch(e){ console.warn('txn cache dl:',e); }
 }
@@ -1338,7 +1339,11 @@ function activePct30(dates){
 // ════════════════════════════════════════
 // USERS — reads from staff + config collections
 // ════════════════════════════════════════
-async function loadUsers(){
+let _lastUsersFetch=0;
+async function loadUsers(force){
+  // 3-minute guard: hopping between tabs re-renders from memory instead of
+  // re-buying the same ~400 staff+config reads on every single click.
+  if(!force&&_users.length&&Date.now()-_lastUsersFetch<3*60*1000){ applyUserFilters(); return; }
   const spin=document.getElementById('usr-spin');
   if(spin) spin.classList.add('spinning');
   const tb=document.getElementById('users-tbody');
@@ -1405,6 +1410,7 @@ async function loadUsers(){
       }).filter(u=>u.shopCount>0);
     }
 
+    _lastUsersFetch=Date.now();
     applyUserFilters();
     const lbl=document.getElementById('user-count-lbl');
     if(lbl) lbl.textContent='('+_users.length+' total)';
@@ -1695,7 +1701,7 @@ function renderChurn(){
     <div id="churn-l-${k}" style="display:none;padding:4px 0 8px">
       ${b[k].length?b[k].map(u=>`<div style="font-size:11px;padding:3px 0;color:var(--muted)"><b style="color:var(--text)">${esc(u.name!=='—'?u.name:(u.email||'—'))}</b> · ${esc(u.email||'—')}</div>`).join(''):'<div style="font-size:11px;color:var(--muted)">none</div>'}
     </div>`).join('')
-    +`<div style="font-size:10px;color:var(--muted);padding-top:8px">🕒 Entry data updated <b>${age||'never'}</b> — auto-refreshes every 6h · tap <b>↻ Refresh All</b> above for live now</div>`;
+    +`<div style="font-size:10px;color:var(--muted);padding-top:8px">🕒 Entry data updated <b>${age||'never'}</b> — auto-refreshes once a day · tap <b>↻ Refresh All</b> above for live now</div>`;
 }
 
 // ════════════════════════════════════════
@@ -1918,7 +1924,11 @@ async function renderTxnGroups(txns){
 // ════════════════════════════════════════
 // OVERVIEW
 // ════════════════════════════════════════
-async function loadOverview(){
+let _lastOvFetch=0;
+async function loadOverview(force){
+  // Same 3-minute guard as loadUsers — the config-collection scan plus the
+  // today-active query cost ~300-600 reads per call.
+  if(!force&&Date.now()-_lastOvFetch<3*60*1000) return;
   const spin=document.getElementById('ov-spin');
   spin.classList.add('spinning');
   try{
@@ -1952,6 +1962,7 @@ async function loadOverview(){
         <div class="stat-val" style="color:${colors[i%colors.length]}">${count} <span style="font-size:9px;color:var(--muted)">(${(count/total*100).toFixed(0)}%)</span></div>
       </div>`).join('')||'<div class="tbl-empty">No data yet</div>';
 
+    _lastOvFetch=Date.now();
   }catch(e){console.error('loadOverview:',e);}
   spin.classList.remove('spinning');
 }
