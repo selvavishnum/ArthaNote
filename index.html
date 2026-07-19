@@ -1377,6 +1377,10 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
         <button class="btn B sm" style="flex:1;margin-top:0" onclick="openStockOut('')">&#10134; Stock Out (Sale)</button>
         <button class="btn S sm" style="margin-top:0" onclick="openStockItem('')">+ Item</button>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn S sm" style="flex:1;margin-top:0" onclick="openStockCsv()">&#11014;&#65039; Import CSV</button>
+        <button class="btn S sm" style="flex:1;margin-top:0" onclick="exportStockCSV()">&#11015;&#65039; Export CSV</button>
+      </div>
       <div id="stock-summary"></div>
       <div id="stock-list"></div>
       <div class="card" style="margin-top:10px"><div class="chd">&#128337; Recent Stock Entries</div><div id="stock-recent"></div></div>
@@ -2080,8 +2084,9 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
     <div class="mhd"><span id="sk-title">Add Stock Item</span> <button class="mclose" onclick="closeM('stock-item-modal')">&#10005;</button></div>
     <input type="hidden" id="sk-id">
     <div class="fr full"><div class="fg"><label>Item Name</label><input type="text" id="sk-name" placeholder="e.g. Marie Biscuit 5/-"></div></div>
-    <div class="fr"><div class="fg"><label>Code (optional)</label><input type="text" id="sk-code" placeholder="e.g. SB013"></div><div class="fg"><label>Unit</label><select id="sk-unit"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="litre">Litre</option><option value="pack">Pack</option><option value="bag">Bag</option></select></div></div>
-    <div class="fr"><div class="fg"><label>Shop</label><select id="sk-shop"></select></div><div class="fg"><label>Low-stock Alert (qty)</label><input type="number" id="sk-low" placeholder="e.g. 5"></div></div>
+    <div class="fr"><div class="fg"><label>Code / SKU (optional)</label><input type="text" id="sk-code" placeholder="e.g. SB013"></div><div class="fg"><label>Unit</label><select id="sk-unit"><option value="pcs">Pcs</option><option value="box">Box</option><option value="kg">Kg</option><option value="litre">Litre</option><option value="pack">Pack</option><option value="bag">Bag</option></select></div></div>
+    <div class="fr"><div class="fg"><label>Price / unit (&#8377;)</label><input type="number" id="sk-price" placeholder="0.00"></div><div class="fg"><label>Low-stock Alert (qty)</label><input type="number" id="sk-low" placeholder="e.g. 5"></div></div>
+    <div class="fr full"><div class="fg"><label>Shop</label><select id="sk-shop"></select></div></div>
     <button class="btn G" onclick="saveStockItem()">&#10003; Save Item</button>
     <button class="btn R" id="sk-del" style="display:none" onclick="deleteStockItem()">&#128465;&#65039; Delete Item</button>
   </div>
@@ -2091,7 +2096,7 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
 <div class="mover" id="stock-in-modal">
   <div class="modal">
     <div class="mhd">&#128230; Stock In (Purchase / Order) <button class="mclose" onclick="closeM('stock-in-modal')">&#10005;</button></div>
-    <div class="fr"><div class="fg"><label>Date</label><input type="date" id="si-date"></div><div class="fg"><label>Item</label><select id="si-item"></select></div></div>
+    <div class="fr"><div class="fg"><label>Date</label><input type="date" id="si-date"></div><div class="fg"><label>Item</label><select id="si-item" onchange="prefillSiRate()"></select></div></div>
     <div class="fr"><div class="fg"><label>Quantity</label><input type="number" id="si-qty" placeholder="0"></div><div class="fg"><label>Rate / unit (&#8377;)</label><input type="number" id="si-rate" placeholder="0.00"></div></div>
     <div class="fr"><div class="fg"><label>Supplier (optional)</label><select id="si-sup"></select></div><div class="fg"><label>Bill Ref</label><input type="text" id="si-ref" placeholder="Optional"></div></div>
     <button class="btn G" onclick="saveStockIn()">&#10003; Add Stock</button>
@@ -2106,6 +2111,23 @@ input:focus,select:focus,textarea:focus,.dinp:focus,.lfg input:focus,.ob-input:f
     <div id="so-bal" style="font-size:12px;color:var(--muted);margin:0 0 10px;font-weight:600"></div>
     <div class="fr"><div class="fg"><label>Quantity Sold</label><input type="number" id="so-qty" placeholder="0"></div><div class="fg"><label>Note</label><input type="text" id="so-note" placeholder="Optional"></div></div>
     <button class="btn B" onclick="saveStockOut()">&#10003; Save Stock Out</button>
+  </div>
+</div>
+
+<!-- STOCK CSV IMPORT MODAL -->
+<div class="mover" id="stock-csv-modal">
+  <div class="modal">
+    <div class="mhd">&#11014;&#65039; Import Stock from CSV <button class="mclose" onclick="closeM('stock-csv-modal')">&#10005;</button></div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">
+      Upload a CSV with columns: <b>SKU, Name, Price, Unit, AddQty, LowQty</b>.<br>
+      &bull; Rows are matched to existing items by <b>SKU</b> (then by name) &mdash; matched items get updated, new ones get created.<br>
+      &bull; <b>AddQty</b> &gt; 0 adds a Stock-In entry (opening stock / restock) at the given price. Leave it blank to update the catalog only.
+    </div>
+    <div class="fr full"><div class="fg"><label>Import into Shop</label><select id="sc-shop" onchange="previewStockCsv()"></select></div></div>
+    <div class="fr full"><div class="fg"><label>CSV File</label><input type="file" id="sc-file" accept=".csv,text/csv" onchange="previewStockCsv()"></div></div>
+    <div style="margin-bottom:10px"><a href="javascript:void(0)" onclick="downloadStockCsvTemplate()" style="font-size:12px;color:var(--blue);font-weight:700">&#11015;&#65039; Download sample template</a></div>
+    <div id="sc-preview"></div>
+    <button class="btn G" id="sc-confirm" style="display:none" onclick="confirmStockCsv()">&#10003; Import Now</button>
   </div>
 </div>
 
@@ -6695,7 +6717,7 @@ function renderStock(){
       <div class="suph">
         <div>
           <div class="supname">${esc(it.name)}${it.code?` <span style="font-size:10px;color:var(--blue);background:var(--bl);padding:1px 6px;border-radius:6px">${esc(it.code)}</span>`:''}${low?' <span class="rb critical">LOW</span>':''}</div>
-          <div class="supshop">${SHOPS[it.shop]?.icon||''} ${esc(SHOPS[it.shop]?.name||'')} &middot; ${esc(it.unit||'pcs')}</div>
+          <div class="supshop">${SHOPS[it.shop]?.icon||''} ${esc(SHOPS[it.shop]?.name||'')} &middot; ${esc(it.unit||'pcs')}${it.price>0?` &middot; &#8377;${fmt(it.price)}/${esc(it.unit||'pcs')}`:''}</div>
         </div>
         <div style="text-align:right">
           <span style="font-family:var(--mono);font-size:20px;font-weight:800;color:${low?'var(--red)':f.balance>0?'var(--green)':'var(--muted)'}">${fmt(f.balance)}</span>
@@ -6755,6 +6777,7 @@ function openStockItem(id){
   document.getElementById('sk-name').value=it?it.name:'';
   document.getElementById('sk-code').value=it?(it.code||''):'';
   document.getElementById('sk-unit').value=it?(it.unit||'pcs'):'pcs';
+  document.getElementById('sk-price').value=it?(it.price||''):'';
   document.getElementById('sk-low').value=it?(it.lowQty||''):'';
   buildStockShopSel('sk-shop',it?it.shop:'');
   document.getElementById('sk-del').style.display=it?'block':'none';
@@ -6765,7 +6788,7 @@ async function saveStockItem(){
   const id=v('sk-id'),name=v('sk-name').trim();
   if(!name){toast('Enter item name','warn');return;}
   const BID=ME.businessId||ME.uid;
-  const data={name,code:v('sk-code').trim(),unit:v('sk-unit'),shop:v('sk-shop'),lowQty:parseFloat(v('sk-low'))||0};
+  const data={name,code:v('sk-code').trim(),unit:v('sk-unit'),shop:v('sk-shop'),price:parseFloat(v('sk-price'))||0,lowQty:parseFloat(v('sk-low'))||0};
   try{
     if(id){
       await DB.collection('stock_items').doc(id).update({...data,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
@@ -6799,7 +6822,14 @@ function openStockIn(itemId){
   const ss=document.getElementById('si-sup');
   if(ss) ss.innerHTML='<option value="">— No supplier —</option>'+SUPS.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('');
   ['si-qty','si-rate','si-ref'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  prefillSiRate();
   openM('stock-in-modal');
+}
+// Prefill rate from the item's saved price (still editable)
+function prefillSiRate(){
+  const it=STOCK_ITEMS.find(x=>x.id===v('si-item'));
+  const el=document.getElementById('si-rate');
+  if(el&&it&&it.price>0) el.value=it.price;
 }
 async function saveStockIn(){
   const itemId=v('si-item'); const it=STOCK_ITEMS.find(x=>x.id===itemId);
@@ -6860,6 +6890,198 @@ async function deleteStockMove(id){
     STOCK_MOVES=STOCK_MOVES.filter(m=>m.id!==id);
     saveCacheLocal(); renderStock(); toast('Entry deleted');
   }catch(e){toast('Error: '+esc(e.message||'unknown'),'bad');}
+}
+
+// ── Stock CSV import / export ──
+// Minimal RFC-4180 parser: handles quoted fields, embedded commas/newlines, "" escapes
+function parseCsvText(text){
+  const rows=[]; let row=[],cell='',inQ=false;
+  text=String(text||'').replace(/^﻿/,''); // strip BOM
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else inQ=false; }
+      else cell+=c;
+    }else if(c==='"') inQ=true;
+    else if(c===','){ row.push(cell); cell=''; }
+    else if(c==='\n'||c==='\r'){
+      if(c==='\r'&&text[i+1]==='\n') i++;
+      row.push(cell); cell='';
+      if(row.some(x=>x.trim()!=='')) rows.push(row);
+      row=[];
+    }
+    else cell+=c;
+  }
+  row.push(cell);
+  if(row.some(x=>x.trim()!=='')) rows.push(row);
+  return rows;
+}
+
+// Map header cells → known fields (case/space/punctuation-insensitive)
+const _SC_ALIASES={
+  code:['sku','code','skucode','itemcode','barcode'],
+  name:['name','item','itemname','product','productname'],
+  price:['price','rate','mrp','unitprice','sellingprice'],
+  qty:['addqty','qty','quantity','stock','openingstock','openingqty'],
+  unit:['unit','uom'],
+  lowQty:['lowqty','low','alert','lowstock','minqty']
+};
+function mapCsvHeader(cells){
+  const map={};
+  cells.forEach((h,i)=>{
+    const k=String(h||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    for(const[field,names]of Object.entries(_SC_ALIASES)){
+      if(names.includes(k)&&map[field]===undefined){ map[field]=i; break; }
+    }
+  });
+  return map;
+}
+
+function downloadStockCsvTemplate(){
+  const csv='﻿SKU,Name,Price,Unit,AddQty,LowQty\nSB013,"Marie Biscuit 5/-",5,pcs,100,20\nVEG01,Tomato,50,kg,25,5\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='stock-template.csv'; a.click();
+}
+
+function exportStockCSV(){
+  if(!isProUser()){ openPaywall('Stock CSV export is a Pro feature. Upgrade to bulk-manage your stock.'); return; }
+  const items=stockItemsForShop();
+  if(!items.length){ toast('No stock items to export','warn'); return; }
+  // First 6 columns match the import template — AddQty left blank so a
+  // re-import updates the catalog without double-counting stock
+  const rows=[['SKU','Name','Price','Unit','AddQty','LowQty','Balance','StockValue','Shop'],
+    ...items.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(it=>{
+      const f=stockFifo(it.id);
+      return [it.code||'',it.name||'',it.price||0,it.unit||'pcs','',it.lowQty||0,f.balance,Math.round(f.value),SHOPS[it.shop]?.name||it.shop||''];
+    })];
+  const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='stock-'+tod()+'.csv'; a.click();
+  toast('✅ '+items.length+' items exported');
+}
+
+let _scPlan=null;
+function openStockCsv(){
+  if(!isProUser()){ openPaywall('Stock CSV import is a Pro feature. Upgrade to bulk-update your stock.'); return; }
+  _scPlan=null;
+  buildStockShopSel('sc-shop','');
+  const f=document.getElementById('sc-file'); if(f)f.value='';
+  document.getElementById('sc-preview').innerHTML='';
+  document.getElementById('sc-confirm').style.display='none';
+  openM('stock-csv-modal');
+}
+
+async function previewStockCsv(){
+  _scPlan=null;
+  const pv=document.getElementById('sc-preview'),btn=document.getElementById('sc-confirm');
+  pv.innerHTML=''; btn.style.display='none';
+  const file=document.getElementById('sc-file')?.files?.[0];
+  if(!file)return;
+  let rows;
+  try{ rows=parseCsvText(await file.text()); }
+  catch(e){ pv.innerHTML='<div class="empty">Could not read file</div>'; return; }
+  if(rows.length<2){ pv.innerHTML='<div class="empty">File is empty — need a header row + data rows</div>'; return; }
+  const map=mapCsvHeader(rows[0]);
+  if(map.name===undefined){
+    pv.innerHTML='<div class="empty">Header row not recognised — need at least a <b>Name</b> column. Use the sample template.</div>';
+    return;
+  }
+  const dataRows=rows.slice(1);
+  if(dataRows.length>500){ pv.innerHTML='<div class="empty">Max 500 rows per import — split the file</div>'; return; }
+  const shop=v('sc-shop');
+  const cell=(r,f)=>map[f]===undefined?'':String(r[map[f]]||'').trim();
+  const shopItems=STOCK_ITEMS.filter(i=>i.shop===shop);
+  const plan={shop,create:[],update:[],moves:0,errors:[]};
+  const seen=new Set();
+  dataRows.forEach((r,idx)=>{
+    const line=idx+2;
+    const name=cell(r,'name'),code=cell(r,'code');
+    if(!name){ plan.errors.push('Row '+line+': missing name'); return; }
+    const key=(code||name).toLowerCase();
+    if(seen.has(key)){ plan.errors.push('Row '+line+': duplicate SKU/name "'+key+'" in file'); return; }
+    seen.add(key);
+    const priceRaw=cell(r,'price'),qtyRaw=cell(r,'qty'),lowRaw=cell(r,'lowQty');
+    const price=priceRaw===''?null:parseFloat(priceRaw);
+    const qty=qtyRaw===''?0:parseFloat(qtyRaw);
+    const lowQty=lowRaw===''?null:parseFloat(lowRaw);
+    if(price!==null&&(isNaN(price)||price<0)){ plan.errors.push('Row '+line+': bad price "'+priceRaw+'"'); return; }
+    if(isNaN(qty)||qty<0){ plan.errors.push('Row '+line+': bad qty "'+qtyRaw+'"'); return; }
+    if(lowQty!==null&&(isNaN(lowQty)||lowQty<0)){ plan.errors.push('Row '+line+': bad low-stock qty "'+lowRaw+'"'); return; }
+    const unit=cell(r,'unit').toLowerCase();
+    const existing=(code&&shopItems.find(i=>(i.code||'').toLowerCase()===code.toLowerCase()))
+      ||shopItems.find(i=>(i.name||'').toLowerCase()===name.toLowerCase());
+    const entry={name,code,price,qty,unit,lowQty,itemId:existing?existing.id:null};
+    if(existing) plan.update.push(entry); else plan.create.push(entry);
+    if(qty>0) plan.moves++;
+  });
+  const ok=plan.create.length+plan.update.length;
+  pv.innerHTML=`<div class="card" style="margin-bottom:10px">
+    <div style="font-size:13px;line-height:1.7">
+      &#128230; <b>${SHOPS[shop]?.name||shop}</b><br>
+      &#10133; New items: <b>${plan.create.length}</b><br>
+      &#128260; Updates (matched by SKU/name): <b>${plan.update.length}</b><br>
+      &#128230; Stock-In entries (AddQty &gt; 0): <b>${plan.moves}</b>
+      ${plan.errors.length?'<br>&#9888;&#65039; <b style="color:var(--red)">'+plan.errors.length+' skipped rows:</b><div style="font-size:11px;color:var(--red);max-height:90px;overflow:auto">'+plan.errors.map(esc).join('<br>')+'</div>':''}
+    </div>
+  </div>`;
+  if(ok){ _scPlan=plan; btn.style.display='block'; btn.textContent='✓ Import '+ok+' items'; }
+  else pv.innerHTML+='<div class="empty">Nothing importable</div>';
+}
+
+async function confirmStockCsv(){
+  const plan=_scPlan; if(!plan)return;
+  const btn=document.getElementById('sc-confirm');
+  btn.disabled=true; btn.textContent='Importing…';
+  const BID=ME.businessId||ME.uid, date=tod(), now=Date.now();
+  const newItems=[],newMoves=[],localUpd=[];
+  let batch=DB.batch(),ops=0;
+  const flush=async(force)=>{ if(ops>=400||(force&&ops>0)){ await batch.commit(); batch=DB.batch(); ops=0; } };
+  try{
+    const addMove=(itemId,e)=>{
+      const ref=DB.collection('stock_moves').doc();
+      const doc={businessId:BID,userId:ME.uid,itemId,itemName:e.name,shop:plan.shop,type:'in',
+        qty:e.qty,rate:e.price||0,supplierId:'',supplierName:'',ref:'',note:'CSV import',
+        date,by:ME.name||'',createdMs:now,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+      batch.set(ref,doc); ops++;
+      newMoves.push({...doc,id:ref.id,createdAt:null});
+    };
+    for(const e of plan.create){
+      const ref=DB.collection('stock_items').doc();
+      const data={businessId:BID,userId:ME.uid,name:e.name,code:e.code,unit:e.unit||'pcs',
+        shop:plan.shop,price:e.price||0,lowQty:e.lowQty||0,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+      batch.set(ref,data); ops++;
+      newItems.push({...data,id:ref.id,createdAt:null});
+      if(e.qty>0) addMove(ref.id,e);
+      await flush();
+    }
+    for(const e of plan.update){
+      const upd={name:e.name,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      if(e.code)upd.code=e.code;
+      if(e.unit)upd.unit=e.unit;
+      if(e.price!==null)upd.price=e.price;
+      if(e.lowQty!==null)upd.lowQty=e.lowQty;
+      // merge-set instead of update: survives a stale-cache item id without
+      // failing the whole batch
+      batch.set(DB.collection('stock_items').doc(e.itemId),upd,{merge:true}); ops++;
+      localUpd.push({id:e.itemId,upd});
+      if(e.qty>0) addMove(e.itemId,e);
+      await flush();
+    }
+    await flush(true);
+    // sync local state + cache
+    STOCK_ITEMS.push(...newItems);
+    localUpd.forEach(({id,upd})=>{
+      const i=STOCK_ITEMS.findIndex(x=>x.id===id);
+      if(i!==-1){ const{updatedAt,...rest}=upd; STOCK_ITEMS[i]={...STOCK_ITEMS[i],...rest}; }
+    });
+    STOCK_MOVES.push(...newMoves);
+    saveCacheLocal(); closeM('stock-csv-modal'); renderStock();
+    toast('✅ Imported: '+plan.create.length+' new, '+plan.update.length+' updated'+(plan.moves?', '+plan.moves+' stock-in':''));
+  }catch(e){ toast('Import failed: '+esc(e.message||'unknown'),'bad'); }
+  finally{ btn.disabled=false; btn.textContent='✓ Import Now'; }
 }
 
 // ── Stock report (Reports tab → 📦 Stock) ──
