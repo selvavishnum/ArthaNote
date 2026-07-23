@@ -642,6 +642,8 @@ let _adminUser=null;
 const fmt=n=>n>=10000000?(n/10000000).toFixed(1)+'Cr':n>=100000?(n/100000).toFixed(1)+'L':n>=1000?(n/1000).toFixed(1)+'K':Math.round(n||0).toLocaleString('en-IN');
 const fmtDate=ts=>{if(!ts)return'—';const d=ts?.toDate?ts.toDate():new Date(ts);return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'});};
 const fmtTime=ts=>{if(!ts)return'—';const d=ts?.toDate?ts.toDate():new Date(ts);const diff=Date.now()-d.getTime();if(diff<60000)return 'just now';if(diff<3600000)return Math.floor(diff/60000)+'m ago';if(diff<86400000)return Math.floor(diff/3600000)+'h ago';return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'});};
+// Full date + clock time (handles Timestamp / millis / {seconds} / ISO string)
+const fmtDateTime=ts=>{if(!ts)return'—';const ms=ts?.toDate?ts.toDate().getTime():typeof ts==='number'?ts:ts?.seconds?ts.seconds*1000:new Date(ts).getTime();if(!ms||isNaN(ms))return'—';return new Date(ms).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});};
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const BIZ_ICONS={vegetables:'🥬',grocery:'🛒',bakery:'🍞',tea:'☕',textile:'👕',hardware:'🔧',jewellery:'💍',other:'🏪'};
 
@@ -1602,7 +1604,7 @@ function renderRecentSignups(users){
       <td><div style="display:flex;align-items:center;gap:8px"><div class="av">${initials}</div><span style="font-size:12px;font-weight:600">${esc(u.name||'—')}</span></div></td>
       <td style="font-size:11px;color:var(--muted)">${esc(u.email||'—')}</td>
       <td>${tierBadge(u)}</td>
-      <td style="font-size:10px;color:var(--muted);white-space:nowrap">${joinedLabel(u)}</td>
+      <td style="font-size:10px;color:var(--muted);white-space:nowrap;line-height:1.4">${signupLabel(u)}</td>
     </tr>`;
   }).join('');
 }
@@ -1622,6 +1624,20 @@ function joinedLabel(u){
   if(u.createdAt) return fmtDate(u.createdAt);
   const st=_bizStats[u.businessId||u.uid||u.id];
   return st?.first?fmtDate(st.first)+'*':'—';
+}
+// Recent Signups label — real signup date+time when we have it (with a "5m
+// ago" relative line for fresh installs), else first-entry date (marked *).
+function signupLabel(u){
+  const ms=tsOf(u); // createdAt → ms (0 if the app never wrote a signup date)
+  if(ms){
+    const diff=Date.now()-ms;
+    const rel=diff<0?'':diff<60000?'just now':diff<3600000?Math.floor(diff/60000)+'m ago'
+      :diff<86400000?Math.floor(diff/3600000)+'h ago':diff<172800000?'yesterday':'';
+    const exact=fmtDateTime(ms);
+    return rel?`<b>${rel}</b><br><span style="opacity:.65">${exact}</span>`:exact;
+  }
+  const st=_bizStats[u.businessId||u.uid||u.id];
+  return st?.first?fmtDate(st.first)+'<span style="opacity:.6">*</span>':'—';
 }
 // Resolve a transaction's shop id (s1, s2…) to the owner's real shop name.
 function shopNameOf(u,t){
