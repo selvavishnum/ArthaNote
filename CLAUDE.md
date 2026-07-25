@@ -38,14 +38,31 @@ SaaS PWA for Tamil Nadu small retailers — digital ledger app
 - `attendance` — QR attendance records
 
 ## FIRESTORE RULES
-```
-rules_version = '2';
-service cloud.firestore { match /databases/{database}/documents {
-  match /{document=**} { allow read, write: if request.auth != null; }
-  match /attendance/{docId} { allow read, write: if true; }
-  match /staff/{docId} { allow read: if true; allow write: if request.auth != null; }
-}}
-```
+**Source of truth: `firestore.rules` (repo root).** Deployed via `firebase deploy
+--only firestore:rules` or pasted in Firebase Console → Firestore → Rules. GitHub
+Pages does NOT deploy rules — after editing the file you must deploy separately.
+
+Rules are **businessId-scoped** (NOT the old `if request.auth != null` free-for-all):
+- Helpers: `isAdmin()` (admin UID hardcoded), `myBusinessId()` (reads own staff
+  doc), `ownsBusiness(bid)` = `auth.uid == bid || myBusinessId() == bid`.
+- Every business collection — `config`, `transactions`, `suppliers`,
+  `sup_bills`/`supplier_bills`, `stock_items`, `stock_moves`, `fc_members`,
+  `fc_payments`, `fc_chits`, `construction_projects`, `construction_entries`,
+  `audit` — gates read/update/delete on `ownsBusiness(resource.data.businessId)`
+  and create on `ownsBusiness(request.resource.data.businessId)`. One business
+  CANNOT read or write another business's data.
+- `staff`: **read is public** (`if true`) — required because `attend.html` (QR,
+  no login) lists staff by businessId; write is locked so nobody can overwrite
+  another user's `businessId`/`uid` (the fields that grant data access).
+- `attendance`: **read+write public** (`if true`) — QR page has no login.
+- `promo_codes`: read if authed; redeem-update limited to `usedCount`/`usedBy`;
+  create/delete admin-only.
+- `deletion_requests`/`deleted_accounts`/`billing_anomalies`: admin-gated reads.
+
+⚠️ Known limitation (pending item): a Google-linked account gets a new auth UID
+whose profile lives on the original staff doc via `altUids` — `myBusinessId()`
+looks up `staff/{newUid}` which doesn't exist, so a linked user can be denied.
+Tied to the "link accounts" pending item below.
 
 ## KEY ARCHITECTURE DECISIONS
 1. **Cache-first**: localStorage → Firestore (never read on every login)
