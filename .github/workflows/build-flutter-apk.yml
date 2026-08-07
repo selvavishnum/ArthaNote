@@ -38,6 +38,10 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Clean pub cache (resolve transitive dep conflicts)
+        working-directory: flutter_app
+        run: flutter clean && rm -f pubspec.lock
+
       - name: Generate launcher icons
         working-directory: flutter_app/android/app/src/main/res
         run: |
