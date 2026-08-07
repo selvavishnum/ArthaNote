@@ -40,9 +40,10 @@ dependencies:
   local_auth: ^2.3.0
   crypto: ^3.0.3
   in_app_purchase: ^3.2.0
-  # 0.5.x ships Google Play Billing Library 8.0.0 — Play Console requires
-  # 8.0.0+ for all app updates from 31 Aug 2026 (needs Flutter 3.35.x, see CI).
-  in_app_purchase_android: ^0.5.0
+  # DIAGNOSTIC: Reverting to 0.4.0 (Billing 7) to test if 0.5.0 causes
+  # pub get failure. Builds #181–184 fail at dependency resolution even with
+  # old toolchain, suggesting 0.5.0 has incompatibility.
+  in_app_purchase_android: ^0.4.0
   flutter_local_notifications: ^17.2.0
   timezone: ^0.9.4
   flutter_timezone: ^4.1.1
