@@ -5,7 +5,10 @@ allprojects {
     }
 }
 
-ext.kotlin_version = '1.9.24'
+// Must match the "org.jetbrains.kotlin.android" plugin version in
+// settings.gradle — Flutter requires Kotlin >=2.0.0, and some plugins read
+// this legacy ext var directly instead of the declarative plugins block.
+ext.kotlin_version = '2.0.21'
 
 rootProject.buildDir = "../build"
 subprojects { project.buildDir = "${rootProject.buildDir}/${project.name}" }
