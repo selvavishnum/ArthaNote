@@ -1,11 +1,13 @@
 name: arthanote
 description: ArthaNote — Shop Ledger for Tamil Nadu retailers
 publish_to: 'none'
-version: 1.3.13+43
-# Release build: v1.3.13+43 — Google Play Billing Library 7 upgrade
-# (in_app_purchase_android 0.4.x + Flutter 3.27.4; Play Console mandates
-# Billing 7.0.0+ for all updates) + Facebook SDK app events (v42, never
-# uploaded to Play). On top of v1.3.12+42 (bitmap downsampling).
+version: 1.3.14+44
+# v1.3.14+44 — Billing Library 8 (Play Console requirement by 31 Aug 2026).
+# Downgrade test: Flutter 3.27.4 + AGP 8.6.1 + Gradle 8.7 (old toolchain).
+# Builds #181–183 failed at pub get with Flutter 3.35.1 + new toolchain.
+# Testing if in_app_purchase_android ^0.5.0 (Billing 8) works with stable
+# Flutter + older AGP/Gradle. targetSdk/compileSdk temporarily reverted to 35.
+# Once this build succeeds, incrementally upgrade toolchain + re-test.
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -38,8 +40,9 @@ dependencies:
   local_auth: ^2.3.0
   crypto: ^3.0.3
   in_app_purchase: ^3.2.0
-  # 0.4.x ships Google Play Billing Library 7.x — Play Console requires
-  # 7.0.0+ for all app updates (needs Flutter 3.27+/Dart 3.6+, see CI).
+  # DIAGNOSTIC: Reverting to 0.4.0 (Billing 7) to test if 0.5.0 causes
+  # pub get failure. Builds #181–184 fail at dependency resolution even with
+  # old toolchain, suggesting 0.5.0 has incompatibility.
   in_app_purchase_android: ^0.4.0
   flutter_local_notifications: ^17.2.0
   timezone: ^0.9.4

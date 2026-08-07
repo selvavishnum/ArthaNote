@@ -2,7 +2,10 @@ name: Build Flutter APK
 
 on:
   push:
-    branches: [main]
+    # TEMP: claude/setup-claude-context-ZYkcp added to verify the Billing 8 +
+    # target-API-36 toolchain build on the branch before promoting to main.
+    # Revert to [main] only once CI is green.
+    branches: [main, claude/setup-claude-context-ZYkcp]
     paths:
       - 'flutter_app/**'
   workflow_dispatch:
@@ -28,11 +31,17 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # 3.27+ (Dart 3.6) required by in_app_purchase_android 0.4.x,
-          # which carries Play Billing Library 7 (Play Console mandate)
+          # 3.27.4 (previous working version) — trying downgrade from 3.35.1
+          # which fails consistently at 'flutter pub get'. Build #180 succeeded
+          # with 3.27.4. Testing if targetSdk/compileSdk 36 + Billing 8 work
+          # with older Flutter/toolchain.
           flutter-version: '3.27.4'
           channel: stable
           cache: true
+
+      - name: Clean pub cache (resolve transitive dep conflicts)
+        working-directory: flutter_app
+        run: flutter clean && rm -f pubspec.lock
 
       - name: Generate launcher icons
         working-directory: flutter_app/android/app/src/main/res
