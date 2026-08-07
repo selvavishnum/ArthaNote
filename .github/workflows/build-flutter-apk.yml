@@ -2,7 +2,10 @@ name: Build Flutter APK
 
 on:
   push:
-    branches: [main]
+    # TEMP: claude/setup-claude-context-ZYkcp added to verify the Billing 8 +
+    # target-API-36 toolchain build on the branch before promoting to main.
+    # Revert to [main] only once CI is green.
+    branches: [main, claude/setup-claude-context-ZYkcp]
     paths:
       - 'flutter_app/**'
   workflow_dispatch:
@@ -28,9 +31,10 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # 3.27+ (Dart 3.6) required by in_app_purchase_android 0.4.x,
-          # which carries Play Billing Library 7 (Play Console mandate)
-          flutter-version: '3.27.4'
+          # 3.35.x required for compileSdk/targetSdk 36 (AGP 8.9.1 + Gradle
+          # 8.11.1) and in_app_purchase_android 0.5.x, which carries Play
+          # Billing Library 8 (Play Console mandates, both by 31 Aug 2026)
+          flutter-version: '3.35.1'
           channel: stable
           cache: true
 
