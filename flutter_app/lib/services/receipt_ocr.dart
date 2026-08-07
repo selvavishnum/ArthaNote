@@ -309,7 +309,9 @@ class ReceiptParser {
     if (RegExp(r'\d{1,2}:\d{2}').hasMatch(name)) return null;
     final low = name.toLowerCase();
     if (RegExp(r'\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)')
-        .hasMatch(low)) return null;
+        .hasMatch(low)) {
+      return null;
+    }
     if (RegExp(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}').hasMatch(name)) return null;
 
     // Phone numbers / ID-like strings (mostly digits).
