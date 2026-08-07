@@ -2,12 +2,12 @@ name: arthanote
 description: ArthaNote — Shop Ledger for Tamil Nadu retailers
 publish_to: 'none'
 version: 1.3.14+44
-# Release build: v1.3.14+44 — Google Play Billing Library 8 + target API 36.
-# Play Console mandates (both by 31 Aug 2026): Billing Library 8.0.0+ and
-# targetSdk 36 (Android 16). in_app_purchase_android 0.5.x ships Billing 8;
-# compileSdk/targetSdk 36 needs AGP 8.9.1 + Gradle 8.11.1 + Flutter 3.35.x.
-# On top of v1.3.13+43 (Billing 7 + FB SDK app events).
-# Rebuild #183: CI now cleans pub cache to resolve transitive deps.
+# v1.3.14+44 — Billing Library 8 (Play Console requirement by 31 Aug 2026).
+# Downgrade test: Flutter 3.27.4 + AGP 8.6.1 + Gradle 8.7 (old toolchain).
+# Builds #181–183 failed at pub get with Flutter 3.35.1 + new toolchain.
+# Testing if in_app_purchase_android ^0.5.0 (Billing 8) works with stable
+# Flutter + older AGP/Gradle. targetSdk/compileSdk temporarily reverted to 35.
+# Once this build succeeds, incrementally upgrade toolchain + re-test.
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

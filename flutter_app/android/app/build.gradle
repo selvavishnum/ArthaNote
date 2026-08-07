@@ -27,7 +27,7 @@ if (project.hasProperty('dart-defines')) {
 
 android {
     namespace "com.arthanote.app"
-    compileSdk 36
+    compileSdk 35
     ndkVersion "27.0.12077973"
 
     externalNativeBuild {
@@ -68,7 +68,7 @@ android {
     defaultConfig {
         applicationId dartDefines.getOrDefault('APP_ID', 'com.arthanote.app')
         minSdk 23
-        targetSdk 36
+        targetSdk 35
         versionCode appVersionCode
         versionName appVersionName
         multiDexEnabled true
