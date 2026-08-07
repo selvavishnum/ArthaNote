@@ -7,6 +7,7 @@ version: 1.3.14+44
 # targetSdk 36 (Android 16). in_app_purchase_android 0.5.x ships Billing 8;
 # compileSdk/targetSdk 36 needs AGP 8.9.1 + Gradle 8.11.1 + Flutter 3.35.x.
 # On top of v1.3.13+43 (Billing 7 + FB SDK app events).
+# Rebuild #183: CI now cleans pub cache to resolve transitive deps.
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
