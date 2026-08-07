@@ -38,7 +38,7 @@ dependencies:
   path_provider: ^2.1.5
   local_auth: ^2.3.0
   crypto: ^3.0.3
-  in_app_purchase: ^3.3.0
+  in_app_purchase: ^3.2.0
   # 0.5.x ships Google Play Billing Library 8.0.0 — Play Console requires
   # 8.0.0+ for all app updates from 31 Aug 2026 (needs Flutter 3.35.x, see CI).
   in_app_purchase_android: ^0.5.0
