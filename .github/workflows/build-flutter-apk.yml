@@ -31,11 +31,13 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # 3.27.4 (previous working version) — trying downgrade from 3.35.1
-          # which fails consistently at 'flutter pub get'. Build #180 succeeded
-          # with 3.27.4. Testing if targetSdk/compileSdk 36 + Billing 8 work
-          # with older Flutter/toolchain.
-          flutter-version: '3.27.4'
+          # No exact version pin: in_app_purchase 3.3.0 (parent of
+          # in_app_purchase_android 0.5.0 / Billing 8) declares
+          # environment: flutter ">=3.38.0" on pub.dev. Pinning 3.35.1 was
+          # the actual cause of builds #181-184 failing at pub get — the
+          # SDK floor wasn't met, so the resolver correctly refused to
+          # solve. 'channel: stable' always resolves to the current stable
+          # release, which satisfies the floor.
           channel: stable
           cache: true
 
