@@ -157,6 +157,15 @@ jobs:
           echo "========== LAST 60 LINES =========="
           tail -60 /tmp/flutter_build.log
 
+      - name: Upload build log artifact (always — for automated diagnosis)
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: flutter-build-log-${{ github.run_number }}
+          path: /tmp/flutter_build.log
+          retention-days: 7
+
       - name: Build release AAB (Play Store)
         working-directory: flutter_app
         run: flutter build appbundle --release
