@@ -58,7 +58,7 @@ jobs:
 
       - name: Ensure required Android SDK platforms are installed
         run: |
-          set -euxo pipefail
+          set -eu
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           SDKMANAGER=""
           for p in \
@@ -73,15 +73,25 @@ jobs:
           fi
           # Only compileSdk 36 — flutter_app/android/build.gradle now forces
           # compileSdkVersion 36 on every plugin subproject too, so nothing
-          # in the build should ever request platform 37 again. (We tried
-          # installing "platforms;android-37" defensively in build #189-190
-          # with a swallowed `|| true` — it doesn't exist as an installable
-          # SDK component yet, and the `|| true` silently masked that
-          # failure instead of surfacing it. Not repeating that mistake:
-          # only install what we actually need, and let failures here fail
-          # the job loudly.)
+          # in the build should ever request platform 37 again.
+          #
+          # GitHub Actions invokes 'run:' steps as 'bash -eo pipefail {0}' by
+          # default, so pipefail is ALREADY active here even without setting
+          # it ourselves. 'yes | sdkmanager' is a known bash footgun under
+          # pipefail — when sdkmanager finishes reading input and exits 0,
+          # 'yes' gets SIGPIPE and the pipeline reports THAT as the failure
+          # even though sdkmanager succeeded. Build #189/190 hid this behind
+          # a blanket '|| true' (which also hid the real android-37
+          # failure); build #191 removed the '|| true' and hit exactly this
+          # SIGPIPE noise instead. Turning pipefail off for these two lines
+          # is the actually-correct fix: with it off, a pipeline's exit
+          # status is just the LAST command's (sdkmanager's own, not
+          # yes's), so 'set -e' (still active) only aborts on a genuine
+          # sdkmanager failure.
+          set +o pipefail
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platform-tools"
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses || true
+          set -o pipefail
 
       - name: Generate launcher icons
         working-directory: flutter_app/android/app/src/main/res
