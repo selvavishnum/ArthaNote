@@ -390,15 +390,26 @@ class AdminService {
       final amt  = (data['amount'] as num?)?.toDouble() ?? 0;
       DateTime date;
       final dv = data['date'];
-      if (dv is Timestamp)      date = dv.toDate();
-      else if (dv is String)    date = DateTime.tryParse(dv) ?? now;
-      else                      date = now;
+      if (dv is Timestamp) {
+        date = dv.toDate();
+      } else if (dv is String) {
+        date = DateTime.tryParse(dv) ?? now;
+      } else {
+        date = now;
+      }
 
       final ds = DateFormat('yyyy-MM-dd').format(date);
       activeDaySet.add(ds);
-      if (lastActive == null || date.isAfter(lastActive)) lastActive = date;
-      if (t == 'sale' || t == 'sales') { totalSales += amt; daySales[ds] = (daySales[ds] ?? 0) + amt; }
-      if (t == 'expense') totalExpense += amt;
+      if (lastActive == null || date.isAfter(lastActive)) {
+        lastActive = date;
+      }
+      if (t == 'sale' || t == 'sales') {
+        totalSales += amt;
+        daySales[ds] = (daySales[ds] ?? 0) + amt;
+      }
+      if (t == 'expense') {
+        totalExpense += amt;
+      }
     }
 
     final last7 = List<double>.filled(7, 0);
