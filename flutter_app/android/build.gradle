@@ -26,17 +26,30 @@ subprojects { project.evaluationDependsOn(":app") }
 subprojects {
     plugins.withId("com.android.library") {
         android {
-            // Plugins that don't pin their own compileSdkVersion (e.g.
-            // receive_sharing_intent) inherit Flutter's internal default,
-            // which newer Flutter releases have bumped to 37 — a platform
-            // that isn't a real installable SDK component yet, failing
-            // Gradle with "Failed to find Platform SDK with path:
-            // platforms;android-37". Force every plugin subproject to the
-            // same compileSdk 36 our own app/build.gradle targets.
-            compileSdkVersion 36
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        // Plugins that don't pin their own compileSdkVersion (e.g.
+        // receive_sharing_intent) inherit Flutter's internal default, which
+        // newer Flutter releases have bumped to 37 — a platform that isn't
+        // a real installable SDK component yet, failing Gradle with
+        // "Failed to find Platform SDK with path: platforms;android-37".
+        //
+        // Setting compileSdkVersion inside the immediate plugins.withId
+        // block (as a first attempt did) did NOT work: that callback fires
+        // the instant the plugin applies, near the TOP of the plugin's own
+        // build.gradle — the REST of that file (further down, its own
+        // `android { compileSdkVersion flutter.compileSdkVersion }`) then
+        // runs afterward and overwrites it back to 37. Using afterEvaluate
+        // here is safe (unlike for :app elsewhere in this file) because
+        // this block only ever matches "com.android.library" plugins,
+        // never :app's "com.android.application" — so none of these
+        // subprojects are forced to evaluate early the way :app is.
+        project.afterEvaluate {
+            android {
+                compileSdkVersion 36
             }
         }
     }
