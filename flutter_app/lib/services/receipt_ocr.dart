@@ -182,7 +182,9 @@ class ReceiptParser {
       final prefixIsLetters =
           prefix.isNotEmpty && RegExp(r'^[A-Za-z]+$').hasMatch(prefix);
       if ((prefix.isEmpty || prefixIsLetters) &&
-          !RegExp(r'[.,]').hasMatch(numStr)) return;
+          !RegExp(r'[.,]').hasMatch(numStr)) {
+        return;
+      }
       final v = _parseMoney(numStr);
       if (v != null && v > 0 && v < 10000000) bare.add(v);
     }
