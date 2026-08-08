@@ -71,11 +71,16 @@ jobs:
             echo "::error::sdkmanager not found under $SDK_ROOT/cmdline-tools — GitHub's ubuntu-latest image layout may have changed"
             exit 1
           fi
-          # compileSdk 36 (our app) + 37 (defensive — some plugin subproject
-          # may still request it depending on the Flutter Gradle plugin's
-          # own internal default for whichever exact Flutter version is
-          # active).
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platforms;android-37" "platform-tools" || true
+          # Only compileSdk 36 — flutter_app/android/build.gradle now forces
+          # compileSdkVersion 36 on every plugin subproject too, so nothing
+          # in the build should ever request platform 37 again. (We tried
+          # installing "platforms;android-37" defensively in build #189-190
+          # with a swallowed `|| true` — it doesn't exist as an installable
+          # SDK component yet, and the `|| true` silently masked that
+          # failure instead of surfacing it. Not repeating that mistake:
+          # only install what we actually need, and let failures here fail
+          # the job loudly.)
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platform-tools"
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses || true
 
       - name: Generate launcher icons

@@ -26,6 +26,14 @@ subprojects { project.evaluationDependsOn(":app") }
 subprojects {
     plugins.withId("com.android.library") {
         android {
+            // Plugins that don't pin their own compileSdkVersion (e.g.
+            // receive_sharing_intent) inherit Flutter's internal default,
+            // which newer Flutter releases have bumped to 37 — a platform
+            // that isn't a real installable SDK component yet, failing
+            // Gradle with "Failed to find Platform SDK with path:
+            // platforms;android-37". Force every plugin subproject to the
+            // same compileSdk 36 our own app/build.gradle targets.
+            compileSdkVersion 36
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
