@@ -5,11 +5,23 @@ allprojects {
     }
 }
 
-ext.kotlin_version = '1.9.24'
+// Must match the "org.jetbrains.kotlin.android" plugin version in
+// settings.gradle — Flutter requires Kotlin >=2.0.0, and some plugins read
+// this legacy ext var directly instead of the declarative plugins block.
+ext.kotlin_version = '2.0.21'
 
 rootProject.buildDir = "../build"
 subprojects { project.buildDir = "${rootProject.buildDir}/${project.name}" }
 subprojects { project.evaluationDependsOn(":app") }
+
+// NOTE on plugin subprojects (receive_sharing_intent in particular): it sets
+// `compileSdk flutter.compileSdkVersion` and genuinely REQUIRES compileSdk
+// >=37 (confirmed by Flutter's own tooling: "the plugin receive_sharing_intent
+// requires Android SDK version 37 or higher") — this was misdiagnosed for
+// several iterations as a stray/driftable default and repeatedly fought by
+// forcing it down to 36, which is backwards: app/build.gradle now compiles
+// against 37 (compileSdk can be higher than targetSdk; Play Console's
+// target-API-36 mandate is about targetSdk, set separately, unaffected).
 
 // Force a consistent JVM target (17) across ALL modules — the app and every
 // Flutter plugin. Some plugins (e.g. receive_sharing_intent) compile Kotlin

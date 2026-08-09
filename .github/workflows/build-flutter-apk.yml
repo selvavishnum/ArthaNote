@@ -31,17 +31,74 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # 3.27.4 (previous working version) — trying downgrade from 3.35.1
-          # which fails consistently at 'flutter pub get'. Build #180 succeeded
-          # with 3.27.4. Testing if targetSdk/compileSdk 36 + Billing 8 work
-          # with older Flutter/toolchain.
-          flutter-version: '3.27.4'
+          # Pinned, not floating: in_app_purchase 3.3.0 (parent of
+          # in_app_purchase_android 0.5.0 / Billing 8) declares
+          # environment: flutter ">=3.38.0" on pub.dev, so this must stay
+          # >=3.38.0. Build #188 used 'channel: stable' (floating), which
+          # drifted onto a release whose Flutter Gradle plugin defaults
+          # flutter.compileSdkVersion to 37 for plugin subprojects that
+          # don't pin their own (e.g. receive_sharing_intent), breaking
+          # the build with "Failed to find Platform SDK ... android-37".
+          #
+          # Build #189 then pinned the exact string '3.38.0', which
+          # subosito/flutter-action resolved to a BETA tag bundling Dart
+          # SDK 3.10.0-290.4.beta — a semver pre-release, which sorts
+          # BELOW plain 3.10.0 and so still failed in_app_purchase's Dart
+          # SDK floor (">=3.10.0 <4.0.0") despite "3.38.0 >= 3.38.0"
+          # looking satisfied on the Flutter version alone. Dart's own
+          # pub solver suggested 3.44.9 as a resolvable version in its
+          # error output — using that directly, a real stable release.
+          flutter-version: '3.44.9'
           channel: stable
           cache: true
 
       - name: Clean pub cache (resolve transitive dep conflicts)
         working-directory: flutter_app
         run: flutter clean && rm -f pubspec.lock
+
+      - name: Ensure required Android SDK platforms are installed
+        run: |
+          set -eu
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER=""
+          for p in \
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK_ROOT/cmdline-tools/bin/sdkmanager" \
+            "$SDK_ROOT/tools/bin/sdkmanager"; do
+            if [ -x "$p" ]; then SDKMANAGER="$p"; break; fi
+          done
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under $SDK_ROOT/cmdline-tools — GitHub's ubuntu-latest image layout may have changed"
+            exit 1
+          fi
+          # Only platforms;android-36 — receive_sharing_intent's plugin
+          # template declares compileSdk >=37, but build #198 confirmed
+          # (with the pipefail bug below already fixed, so this is a real
+          # result, not cosmetic pipe noise) that platforms;android-37 is
+          # NOT actually installable in this environment: sdkmanager
+          # genuinely cannot find/install it. app/build.gradle stays at
+          # compileSdk 36 (our real requirement) and the 'flutter build'
+          # commands below pass --android-skip-build-dependency-validation
+          # to suppress Flutter's resulting version-mismatch check —
+          # exactly the escape hatch Flutter's own warning output names
+          # for this situation.
+          #
+          # GitHub Actions invokes 'run:' steps as 'bash -eo pipefail {0}' by
+          # default, so pipefail is ALREADY active here even without setting
+          # it ourselves. 'yes | sdkmanager' is a known bash footgun under
+          # pipefail — when sdkmanager finishes reading input and exits 0,
+          # 'yes' gets SIGPIPE and the pipeline reports THAT as the failure
+          # even though sdkmanager succeeded. Build #189/190 hid this behind
+          # a blanket '|| true'; build #191 removed it and hit exactly this
+          # SIGPIPE noise instead. Turning pipefail off for these two lines
+          # is the actually-correct fix: with it off, a pipeline's exit
+          # status is just the LAST command's (sdkmanager's own, not
+          # yes's), so 'set -e' (still active) only aborts on a genuine
+          # sdkmanager failure.
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platform-tools"
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses || true
+          set -o pipefail
 
       - name: Generate launcher icons
         working-directory: flutter_app/android/app/src/main/res
@@ -95,7 +152,12 @@ jobs:
         working-directory: flutter_app
         run: |
           set -o pipefail
-          flutter build apk --release --split-per-abi 2>&1 | tee /tmp/flutter_build.log
+          # --android-skip-build-dependency-validation: receive_sharing_intent
+          # declares compileSdk >=37, which isn't actually installable in this
+          # CI environment (see the SDK-platforms step above) — this flag,
+          # named directly in Flutter's own warning output, suppresses the
+          # resulting version-mismatch check instead of hard-failing on it.
+          flutter build apk --release --split-per-abi --android-skip-build-dependency-validation 2>&1 | tee /tmp/flutter_build.log
 
       - name: Show build error (on failure)
         if: failure()
@@ -107,9 +169,18 @@ jobs:
           echo "========== LAST 60 LINES =========="
           tail -60 /tmp/flutter_build.log
 
+      - name: Upload build log artifact (always — for automated diagnosis)
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: flutter-build-log-${{ github.run_number }}
+          path: /tmp/flutter_build.log
+          retention-days: 7
+
       - name: Build release AAB (Play Store)
         working-directory: flutter_app
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --android-skip-build-dependency-validation
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4

@@ -116,7 +116,7 @@ class _AdminActivityTabState extends State<AdminActivityTab> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         )],
@@ -125,7 +125,7 @@ class _AdminActivityTabState extends State<AdminActivityTab> {
                         Container(
                           width: 36, height: 36,
                           decoration: BoxDecoration(
-                            color: _typeColor(e.type).withOpacity(0.12),
+                            color: _typeColor(e.type).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(_typeIcon(e.type), color: _typeColor(e.type), size: 18),

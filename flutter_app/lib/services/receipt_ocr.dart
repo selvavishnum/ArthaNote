@@ -182,7 +182,9 @@ class ReceiptParser {
       final prefixIsLetters =
           prefix.isNotEmpty && RegExp(r'^[A-Za-z]+$').hasMatch(prefix);
       if ((prefix.isEmpty || prefixIsLetters) &&
-          !RegExp(r'[.,]').hasMatch(numStr)) return;
+          !RegExp(r'[.,]').hasMatch(numStr)) {
+        return;
+      }
       final v = _parseMoney(numStr);
       if (v != null && v > 0 && v < 10000000) bare.add(v);
     }
@@ -309,7 +311,9 @@ class ReceiptParser {
     if (RegExp(r'\d{1,2}:\d{2}').hasMatch(name)) return null;
     final low = name.toLowerCase();
     if (RegExp(r'\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)')
-        .hasMatch(low)) return null;
+        .hasMatch(low)) {
+      return null;
+    }
     if (RegExp(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}').hasMatch(name)) return null;
 
     // Phone numbers / ID-like strings (mostly digits).

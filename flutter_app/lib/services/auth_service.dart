@@ -174,7 +174,7 @@ class AuthService {
   /// and finally the Firebase Auth account. Uses batched writes (400 per batch)
   /// to handle large datasets without hitting Firestore limits.
   Future<void> deleteAccount(String businessId) async {
-    Future<void> _deleteQuery(Query<Map<String, dynamic>> q) async {
+    Future<void> deleteQuery(Query<Map<String, dynamic>> q) async {
       while (true) {
         final snap = await q.limit(400).get();
         if (snap.docs.isEmpty) break;
@@ -188,13 +188,13 @@ class AuthService {
 
     // Delete all business data in parallel
     await Future.wait([
-      _deleteQuery(_db.collection('transactions')
+      deleteQuery(_db.collection('transactions')
           .where('businessId', isEqualTo: businessId)),
-      _deleteQuery(_db.collection('supplier_bills')
+      deleteQuery(_db.collection('supplier_bills')
           .where('businessId', isEqualTo: businessId)),
-      _deleteQuery(_db.collection('suppliers')
+      deleteQuery(_db.collection('suppliers')
           .where('businessId', isEqualTo: businessId)),
-      _deleteQuery(_db.collection('staff')
+      deleteQuery(_db.collection('staff')
           .where('businessId', isEqualTo: businessId)),
     ]);
 
