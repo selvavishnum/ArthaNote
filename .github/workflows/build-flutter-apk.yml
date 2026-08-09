@@ -71,14 +71,17 @@ jobs:
             echo "::error::sdkmanager not found under $SDK_ROOT/cmdline-tools — GitHub's ubuntu-latest image layout may have changed"
             exit 1
           fi
-          # Both 36 (our app's own compileSdk floor / Play Console's
-          # targetSdk requirement) and 37 (receive_sharing_intent explicitly
-          # requires compileSdk >=37 per Flutter's own tooling warning — this
-          # was never actually a "platform doesn't exist" problem; that was
-          # a misdiagnosis made while builds #189-191 were also fighting an
-          # unrelated SIGPIPE/pipefail bug in this exact command, explained
-          # below, which made a real install failure indistinguishable from
-          # cosmetic pipe noise).
+          # Only platforms;android-36 — receive_sharing_intent's plugin
+          # template declares compileSdk >=37, but build #198 confirmed
+          # (with the pipefail bug below already fixed, so this is a real
+          # result, not cosmetic pipe noise) that platforms;android-37 is
+          # NOT actually installable in this environment: sdkmanager
+          # genuinely cannot find/install it. app/build.gradle stays at
+          # compileSdk 36 (our real requirement) and the 'flutter build'
+          # commands below pass --android-skip-build-dependency-validation
+          # to suppress Flutter's resulting version-mismatch check —
+          # exactly the escape hatch Flutter's own warning output names
+          # for this situation.
           #
           # GitHub Actions invokes 'run:' steps as 'bash -eo pipefail {0}' by
           # default, so pipefail is ALREADY active here even without setting
@@ -86,15 +89,14 @@ jobs:
           # pipefail — when sdkmanager finishes reading input and exits 0,
           # 'yes' gets SIGPIPE and the pipeline reports THAT as the failure
           # even though sdkmanager succeeded. Build #189/190 hid this behind
-          # a blanket '|| true' (which also hid the real android-37 install
-          # failure at the time); build #191 removed the '|| true' and hit
-          # exactly this SIGPIPE noise instead. Turning pipefail off for
-          # these two lines is the actually-correct fix: with it off, a
-          # pipeline's exit status is just the LAST command's (sdkmanager's
-          # own, not yes's), so 'set -e' (still active) only aborts on a
-          # genuine sdkmanager failure.
+          # a blanket '|| true'; build #191 removed it and hit exactly this
+          # SIGPIPE noise instead. Turning pipefail off for these two lines
+          # is the actually-correct fix: with it off, a pipeline's exit
+          # status is just the LAST command's (sdkmanager's own, not
+          # yes's), so 'set -e' (still active) only aborts on a genuine
+          # sdkmanager failure.
           set +o pipefail
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platforms;android-37" "platform-tools"
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platform-tools"
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses || true
           set -o pipefail
 
@@ -150,7 +152,12 @@ jobs:
         working-directory: flutter_app
         run: |
           set -o pipefail
-          flutter build apk --release --split-per-abi 2>&1 | tee /tmp/flutter_build.log
+          # --android-skip-build-dependency-validation: receive_sharing_intent
+          # declares compileSdk >=37, which isn't actually installable in this
+          # CI environment (see the SDK-platforms step above) — this flag,
+          # named directly in Flutter's own warning output, suppresses the
+          # resulting version-mismatch check instead of hard-failing on it.
+          flutter build apk --release --split-per-abi --android-skip-build-dependency-validation 2>&1 | tee /tmp/flutter_build.log
 
       - name: Show build error (on failure)
         if: failure()
@@ -173,7 +180,7 @@ jobs:
 
       - name: Build release AAB (Play Store)
         working-directory: flutter_app
-        run: flutter build appbundle --release
+        run: flutter build appbundle --release --android-skip-build-dependency-validation
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
