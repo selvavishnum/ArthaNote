@@ -2,10 +2,7 @@ name: Build Flutter APK
 
 on:
   push:
-    # TEMP: claude/setup-claude-context-ZYkcp added to verify the Billing 8 +
-    # target-API-36 toolchain build on the branch before promoting to main.
-    # Revert to [main] only once CI is green.
-    branches: [main, claude/setup-claude-context-ZYkcp]
+    branches: [main]
     paths:
       - 'flutter_app/**'
   workflow_dispatch:
