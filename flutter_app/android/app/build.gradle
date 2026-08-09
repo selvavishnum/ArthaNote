@@ -27,8 +27,17 @@ if (project.hasProperty('dart-defines')) {
 
 android {
     namespace "com.arthanote.app"
-    compileSdk 36
-    ndkVersion "27.0.12077973"
+    // 37, not 36: the receive_sharing_intent plugin explicitly requires
+    // compileSdk >=37 (confirmed by Flutter's own tooling warning: "the
+    // plugin receive_sharing_intent requires Android SDK version 37 or
+    // higher"). compileSdk can be higher than targetSdk — Play Console's
+    // target-API-36 mandate is about targetSdk (below), not compileSdk.
+    compileSdk 37
+    // 28.2.13676358, not 27.0.12077973: the 'jni' plugin (transitive,
+    // used by a Flutter plugin) requires this NDK version per the same
+    // Flutter tooling warning. NDK versions are backward compatible, so
+    // matching the highest requirement is correct and safe.
+    ndkVersion "28.2.13676358"
 
     externalNativeBuild {
         cmake {

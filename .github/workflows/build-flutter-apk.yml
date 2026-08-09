@@ -71,9 +71,14 @@ jobs:
             echo "::error::sdkmanager not found under $SDK_ROOT/cmdline-tools — GitHub's ubuntu-latest image layout may have changed"
             exit 1
           fi
-          # Only compileSdk 36 — flutter_app/android/build.gradle now forces
-          # compileSdkVersion 36 on every plugin subproject too, so nothing
-          # in the build should ever request platform 37 again.
+          # Both 36 (our app's own compileSdk floor / Play Console's
+          # targetSdk requirement) and 37 (receive_sharing_intent explicitly
+          # requires compileSdk >=37 per Flutter's own tooling warning — this
+          # was never actually a "platform doesn't exist" problem; that was
+          # a misdiagnosis made while builds #189-191 were also fighting an
+          # unrelated SIGPIPE/pipefail bug in this exact command, explained
+          # below, which made a real install failure indistinguishable from
+          # cosmetic pipe noise).
           #
           # GitHub Actions invokes 'run:' steps as 'bash -eo pipefail {0}' by
           # default, so pipefail is ALREADY active here even without setting
@@ -81,15 +86,15 @@ jobs:
           # pipefail — when sdkmanager finishes reading input and exits 0,
           # 'yes' gets SIGPIPE and the pipeline reports THAT as the failure
           # even though sdkmanager succeeded. Build #189/190 hid this behind
-          # a blanket '|| true' (which also hid the real android-37
-          # failure); build #191 removed the '|| true' and hit exactly this
-          # SIGPIPE noise instead. Turning pipefail off for these two lines
-          # is the actually-correct fix: with it off, a pipeline's exit
-          # status is just the LAST command's (sdkmanager's own, not
-          # yes's), so 'set -e' (still active) only aborts on a genuine
-          # sdkmanager failure.
+          # a blanket '|| true' (which also hid the real android-37 install
+          # failure at the time); build #191 removed the '|| true' and hit
+          # exactly this SIGPIPE noise instead. Turning pipefail off for
+          # these two lines is the actually-correct fix: with it off, a
+          # pipeline's exit status is just the LAST command's (sdkmanager's
+          # own, not yes's), so 'set -e' (still active) only aborts on a
+          # genuine sdkmanager failure.
           set +o pipefail
-          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platform-tools"
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-36" "platforms;android-37" "platform-tools"
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses || true
           set -o pipefail
 
@@ -135,25 +140,6 @@ jobs:
       - name: Get Flutter dependencies
         working-directory: flutter_app
         run: flutter pub get
-
-      - name: Pin flutter.compileSdkVersion for plugin subprojects
-        working-directory: flutter_app/android
-        run: |
-          # receive_sharing_intent, cloud_firestore, and any other plugin
-          # that reads `compileSdk flutter.compileSdkVersion` inherits this
-          # value from Flutter's own tooling default, which newer Flutter
-          # releases have bumped to 37 — a platform that isn't installable
-          # yet, failing Gradle with "Failed to find Platform SDK with
-          # path: platforms;android-37". Overriding it here, in
-          # local.properties (which 'flutter pub get' just (re)generated
-          # above), is the officially-supported mechanism: Flutter's
-          # tooling reads this BEFORE any subproject evaluates, so unlike
-          # the two build.gradle-side attempts that preceded this one
-          # (plugins.withId — too early; afterEvaluate — AGP explicitly
-          # rejects setting compileSdk that late), there's no evaluation-
-          # order race here at all.
-          echo "flutter.compileSdkVersion=36" >> local.properties
-          cat local.properties
 
       - name: Analyze (non-blocking)
         working-directory: flutter_app
