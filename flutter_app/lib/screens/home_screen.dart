@@ -429,7 +429,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF111827), // black square (Serif Ledger)
+                  color: kText, // warm-ink square (Pure Paper)
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
@@ -904,7 +904,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: () => Navigator.pop(ctx),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: kMuted,
-                  side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  side: const BorderSide(color: kBorder),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1002,8 +1002,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       },
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
-      selectedItemColor: const Color(0xFFA16207), // Serif Ledger gold accent
-      unselectedItemColor: const Color(0xFF9CA3AF),
+      selectedItemColor: kPrimary,
+      unselectedItemColor: kMuted,
       selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 10),
       unselectedLabelStyle: const TextStyle(fontSize: 10),
       elevation: 16,
@@ -1093,7 +1093,7 @@ class _QuickReportSheet extends StatelessWidget {
                 width: 36, height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(2)),
+                    color: kBorder, borderRadius: BorderRadius.circular(2)),
               ),
               Container(
                 color: kPrimary,
@@ -1139,9 +1139,9 @@ class _QuickReportSheet extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF9FAFB),
+                          color: kBg,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          border: Border.all(color: kBorder),
                         ),
                         child: Row(children: [
                           Text('$icon', style: const TextStyle(fontSize: 18)),
@@ -1258,13 +1258,13 @@ class _ShopChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: active
-            ? (isAllChip ? const Color(0xFF111827) : kPrimary)
+            ? (isAllChip ? kText : kPrimary)
             : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: active
-              ? (isAllChip ? const Color(0xFF111827) : kPrimary)
-              : const Color(0xFFE5E7EB),
+              ? (isAllChip ? kText : kPrimary)
+              : kBorder,
         ),
       ),
       child: Center(

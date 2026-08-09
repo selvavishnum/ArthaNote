@@ -75,6 +75,34 @@ class ConstructionEntry {
 
   bool get isIncome => type == 'client';
 
+  ConstructionEntry copyWith({
+    double? amount,
+    bool? gst,
+    double? gstAmount,
+    String? desc,
+    String? vendor,
+    bool? paidNow,
+    String? paymentMode,
+    DateTime? date,
+  }) =>
+      ConstructionEntry(
+        id:            id,
+        businessId:    businessId,
+        projectId:     projectId,
+        type:          type,
+        items:         items,
+        amount:        amount ?? this.amount,
+        gst:           gst ?? this.gst,
+        gstAmount:     gstAmount ?? this.gstAmount,
+        desc:          desc ?? this.desc,
+        vendor:        vendor ?? this.vendor,
+        paidNow:       paidNow ?? this.paidNow,
+        paymentMode:   paymentMode ?? this.paymentMode,
+        attachmentUrl: attachmentUrl,
+        date:          date ?? this.date,
+        createdAt:     createdAt,
+      );
+
   factory ConstructionEntry.fromFirestore(
       DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data()!;

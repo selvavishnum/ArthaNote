@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
-// ── Color palette (Serif Ledger — gold accent) ───────────────────────────────
-// kPrimary is the app-wide CHROME accent (buttons, tabs, nav, FAB, headers).
-// Serif Ledger uses gold. kSecondary (emerald) + kRed stay for money semantics.
-const kPrimary   = Color(0xFFA16207);   // gold (was deep forest green)
+// ── Color palette (Pure Paper — gold accent, ledger-ink reds) ────────────────
+// kPrimary is the app-wide CHROME accent (buttons, tabs, nav, FAB, headers) —
+// unchanged gold, carried over from Serif Ledger. kBg moved from a cool grey
+// to a warm paper off-white; kRed moved from a flat crimson to a brighter
+// "strawberry" red. kSecondary (emerald) stays for POSITIVE money.
+const kPrimary   = Color(0xFFA16207);   // gold — unchanged
 const kSecondary = Color(0xFF059669);   // emerald — POSITIVE money only
 const kAccent    = Color(0xFFA16207);   // gold — CTAs (unified with primary)
-const kRed       = Color(0xFFDC2626);   // NEGATIVE money
+const kRed       = Color(0xFFEF3355);   // strawberry red — NEGATIVE money
 const kAmber     = Color(0xFFF59E0B);
-const kBg        = Color(0xFFF3F4F6);
+const kChit      = Color(0xFF6D4C7D);   // plum — chit-fund module accent
+const kBg        = Color(0xFFF8F6F2);   // warm paper off-white
 const kCard      = Colors.white;
-const kText      = Color(0xFF111827);
-const kMuted     = Color(0xFF6B7280);
+const kText      = Color(0xFF262220);   // warm ink, not pure black
+const kMuted     = Color(0xFF8A8078);   // warm grey — paper shadow tone
+const kBorder    = Color(0xFFE8E2D8);   // warm hairline — replaces cool #E5E7EB
 const kSerif     = 'serif';             // Noto Serif on Android — premium headings
 
 // ── Shared decorations ───────────────────────────────────────────────────────
@@ -57,7 +61,7 @@ ThemeData appTheme() {
     onError: Colors.white,
     surface: Colors.white,
     onSurface: kText,
-    outline: const Color(0xFFE5E7EB),
+    outline: kBorder,
   );
 
   return ThemeData(
@@ -88,7 +92,7 @@ ThemeData appTheme() {
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Colors.white,
       selectedItemColor: kPrimary,
-      unselectedItemColor: Color(0xFF9CA3AF),
+      unselectedItemColor: kMuted,
       type: BottomNavigationBarType.fixed,
       elevation: 16,
       selectedLabelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
@@ -100,7 +104,7 @@ ThemeData appTheme() {
       style: ElevatedButton.styleFrom(
         backgroundColor: kAccent,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: const Color(0xFFE5E7EB),
+        disabledBackgroundColor: kBorder,
         disabledForegroundColor: kMuted,
         minimumSize: const Size(double.infinity, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -121,7 +125,7 @@ ThemeData appTheme() {
         foregroundColor: kPrimary,
         minimumSize: const Size(double.infinity, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        side: const BorderSide(color: kBorder),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
     ),
@@ -137,11 +141,11 @@ ThemeData appTheme() {
       fillColor: Colors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        borderSide: const BorderSide(color: kBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        borderSide: const BorderSide(color: kBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -174,7 +178,7 @@ ThemeData appTheme() {
     chipTheme: ChipThemeData(
       backgroundColor: Colors.white,
       selectedColor: kPrimary,
-      side: const BorderSide(color: Color(0xFFE5E7EB)),
+      side: const BorderSide(color: kBorder),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -212,7 +216,7 @@ ThemeData appTheme() {
 
     // ── Divider ──────────────────────────────────────────────────────────────
     dividerTheme: const DividerThemeData(
-      color: Color(0xFFF3F4F6),
+      color: kBorder,
       thickness: 1,
       space: 1,
     ),
@@ -254,7 +258,7 @@ ThemeData appTheme() {
 BoxDecoration kChipDecoration({required bool active, Color? color}) => BoxDecoration(
   color: active ? (color ?? kPrimary) : Colors.white,
   borderRadius: BorderRadius.circular(20),
-  border: Border.all(color: active ? (color ?? kPrimary) : const Color(0xFFE5E7EB)),
+  border: Border.all(color: active ? (color ?? kPrimary) : kBorder),
 );
 
 BoxDecoration kSurfaceDecoration({double radius = 16}) => BoxDecoration(

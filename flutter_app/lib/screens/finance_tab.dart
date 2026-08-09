@@ -458,7 +458,7 @@ class _MemberCard extends StatelessWidget {
 
   Color _groupColor(String group) {
     switch (group) {
-      case 'chit':    return const Color(0xFF7C3AED);
+      case 'chit':    return kChit;
       case 'both':    return kAccent;
       default:        return kPrimary;
     }
@@ -622,7 +622,7 @@ class _CollectionMemberRow extends StatelessWidget {
     required this.period,
   });
 
-  void _showRecordPaymentSheet(BuildContext context) {
+  void _showRecordPaymentSheet(BuildContext context, {FCPayment? edit}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -634,39 +634,7 @@ class _CollectionMemberRow extends StatelessWidget {
         businessId: businessId,
         member:     member,
         period:     period,
-      ),
-    );
-  }
-
-  void _showPaymentDetail(BuildContext context) {
-    final p = payment!;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Payment — ${member.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _DetailRow('Period', formatPeriodLabel(period, member.frequency)),
-            _DetailRow('Amount', _fmtAmt(p.amount)),
-            _DetailRow('Mode', p.mode.toUpperCase()),
-            if (p.note.isNotEmpty) _DetailRow('Note', p.note),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await svc.deletePayment(p.id);
-            },
-            style: TextButton.styleFrom(foregroundColor: kRed),
-            child: const Text('Delete'),
-          ),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close')),
-        ],
+        existingPayment: edit,
       ),
     );
   }
@@ -677,12 +645,17 @@ class _CollectionMemberRow extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: isPaid
+            ? () => _showRecordPaymentSheet(context, edit: payment)
+            : null,
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: (isPaid ? kSecondary : kRed).withOpacity(0.12),
+            backgroundColor: (isPaid ? kSecondary : kRed).withValues(alpha: 0.12),
             child: Text(
               member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
               style: TextStyle(
@@ -706,7 +679,7 @@ class _CollectionMemberRow extends StatelessWidget {
               ],
             ),
           ),
-          if (isPaid)
+          if (isPaid) ...[
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -716,24 +689,16 @@ class _CollectionMemberRow extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         fontSize: 12)),
                 const SizedBox(height: 4),
-                GestureDetector(
-                  onTap: () => _showPaymentDetail(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: kSecondary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('View',
-                        style: TextStyle(
-                            color: kSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                ),
+                Text('Tap to edit',
+                    style: TextStyle(
+                        color: kSecondary.withValues(alpha: 0.7),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600)),
               ],
-            )
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: kBorder, size: 20),
+          ]
           else
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -763,6 +728,7 @@ class _CollectionMemberRow extends StatelessWidget {
               ],
             ),
         ]),
+        ),
       ),
     );
   }
@@ -900,11 +866,11 @@ class _ChitCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF7C3AED).withOpacity(0.1),
+                    color: kChit.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.account_balance_wallet,
-                      size: 16, color: Color(0xFF7C3AED)),
+                      size: 16, color: kChit),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -974,9 +940,8 @@ class _ChitCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: chit.months > 0 ? curMo / chit.months : 0,
-                  backgroundColor: const Color(0xFFE5E7EB),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF7C3AED)),
+                  backgroundColor: kBorder,
+                  valueColor: const AlwaysStoppedAnimation<Color>(kChit),
                   minHeight: 6,
                 ),
               ),
@@ -990,7 +955,8 @@ class _ChitCard extends StatelessWidget {
                         fontSize: 12,
                         color: kMuted)),
                 const SizedBox(height: 6),
-                ...chit.prizes.map((pr) => _PrizeTile(prize: pr)),
+                for (var i = 0; i < chit.prizes.length; i++)
+                  _PrizeTile(chit: chit, svc: svc, index: i),
                 const SizedBox(height: 8),
               ],
 
@@ -1001,8 +967,8 @@ class _ChitCard extends StatelessWidget {
                   icon: const Icon(Icons.emoji_events_outlined, size: 16),
                   label: const Text("Record This Month's Prize"),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF7C3AED),
-                    side: const BorderSide(color: Color(0xFF7C3AED)),
+                    foregroundColor: kChit,
+                    side: const BorderSide(color: kChit),
                     minimumSize: const Size(0, 40),
                     textStyle: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w700),
@@ -1151,7 +1117,7 @@ class _AddMemberSheetState extends State<_AddMemberSheet> {
           _GroupChip(
             label: 'Chit',
             active: _group == 'chit',
-            color: const Color(0xFF7C3AED),
+            color: kChit,
             onTap: () => setState(() => _group = 'chit'),
           ),
           const SizedBox(width: 8),
@@ -1363,11 +1329,15 @@ class _RecordPaymentSheet extends StatefulWidget {
   final String    businessId;
   final FCMember  member;
   final String    period;
+  /// When set, the sheet edits this payment instead of recording a new one
+  /// — pre-filled fields, a Delete action, and an update instead of an add.
+  final FCPayment? existingPayment;
   const _RecordPaymentSheet({
     required this.svc,
     required this.businessId,
     required this.member,
     required this.period,
+    this.existingPayment,
   });
 
   @override
@@ -1376,15 +1346,19 @@ class _RecordPaymentSheet extends StatefulWidget {
 
 class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
   late final TextEditingController _amtCtrl;
-  final _noteCtrl = TextEditingController();
-  String _mode    = 'cash';
+  late final TextEditingController _noteCtrl;
+  late String _mode;
   bool   _saving  = false;
+  bool get _isEdit => widget.existingPayment != null;
 
   @override
   void initState() {
     super.initState();
+    final existing = widget.existingPayment;
     _amtCtrl = TextEditingController(
-        text: widget.member.amount.toStringAsFixed(0));
+        text: (existing?.amount ?? widget.member.amount).toStringAsFixed(0));
+    _noteCtrl = TextEditingController(text: existing?.note ?? '');
+    _mode = existing?.mode ?? 'cash';
   }
 
   @override
@@ -1410,7 +1384,10 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Record Payment — ${widget.member.name}',
+                Text(
+                    _isEdit
+                        ? 'Edit Payment — ${widget.member.name}'
+                        : 'Record Payment — ${widget.member.name}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w800, fontSize: 16)),
                 Text('Period: ${formatPeriodLabel(widget.period, widget.member.frequency)}',
@@ -1418,6 +1395,37 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
               ],
             ),
           ),
+          if (_isEdit)
+            TextButton.icon(
+              onPressed: _saving
+                  ? null
+                  : () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (dCtx) => AlertDialog(
+                          title: const Text('Delete payment?'),
+                          content: const Text(
+                              'This payment record will be permanently removed.'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(dCtx, false),
+                                child: const Text('Cancel')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(dCtx, true),
+                                child: const Text('Delete',
+                                    style: TextStyle(color: kRed))),
+                          ],
+                        ),
+                      );
+                      if (ok != true) return;
+                      setState(() => _saving = true);
+                      await widget.svc
+                          .deletePayment(widget.existingPayment!.id);
+                      if (mounted) Navigator.pop(context);
+                    },
+              icon: const Icon(Icons.delete_outline, size: 18, color: kRed),
+              label: const Text('Delete', style: TextStyle(color: kRed)),
+            ),
         ]),
         const SizedBox(height: 20),
         TextFormField(
@@ -1470,17 +1478,26 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
                         double.tryParse(_amtCtrl.text.trim());
                     if (amt == null || amt <= 0) return;
                     setState(() => _saving = true);
-                    await widget.svc.recordPayment(FCPayment(
-                      id:         '',
-                      businessId: widget.businessId,
-                      memberId:   widget.member.id,
-                      month:      widget.period.length == 7 ? widget.period : widget.period.substring(0, 7),
-                      period:     widget.period,
-                      amount:     amt,
-                      mode:       _mode,
-                      note:       _noteCtrl.text.trim(),
-                      createdAt:  DateTime.now(),
-                    ));
+                    if (_isEdit) {
+                      await widget.svc.updatePayment(
+                        widget.existingPayment!.id,
+                        amount: amt,
+                        mode: _mode,
+                        note: _noteCtrl.text.trim(),
+                      );
+                    } else {
+                      await widget.svc.recordPayment(FCPayment(
+                        id:         '',
+                        businessId: widget.businessId,
+                        memberId:   widget.member.id,
+                        month:      widget.period.length == 7 ? widget.period : widget.period.substring(0, 7),
+                        period:     widget.period,
+                        amount:     amt,
+                        mode:       _mode,
+                        note:       _noteCtrl.text.trim(),
+                        createdAt:  DateTime.now(),
+                      ));
+                    }
                     if (mounted) Navigator.pop(context);
                   },
             style: ElevatedButton.styleFrom(backgroundColor: kSecondary),
@@ -1490,8 +1507,8 @@ class _RecordPaymentSheetState extends State<_RecordPaymentSheet> {
                     height: 22,
                     child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2.5))
-                : const Text('Save Payment',
-                    style: TextStyle(color: Colors.white)),
+                : Text(_isEdit ? 'Save changes' : 'Save Payment',
+                    style: const TextStyle(color: Colors.white)),
           ),
         ),
       ]),
@@ -1539,13 +1556,13 @@ class _AddChitSheetState extends State<_AddChitSheet> {
         const Row(children: [
           _CircleIcon(
               icon: Icons.account_balance_wallet_outlined,
-              color: Color(0xFF7C3AED)),
+              color: kChit),
           SizedBox(width: 12),
           Text('New Chit Group',
               style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 18,
-                  color: Color(0xFF7C3AED))),
+                  color: kChit)),
         ]),
         const SizedBox(height: 20),
         TextFormField(
@@ -1623,7 +1640,7 @@ class _AddChitSheetState extends State<_AddChitSheet> {
               builder: (ctx, child) => Theme(
                 data: Theme.of(ctx).copyWith(
                   colorScheme:
-                      const ColorScheme.light(primary: Color(0xFF7C3AED)),
+                      const ColorScheme.light(primary: kChit),
                 ),
                 child: child!,
               ),
@@ -1683,8 +1700,7 @@ class _AddChitSheetState extends State<_AddChitSheet> {
                     ));
                     if (mounted) Navigator.pop(context);
                   },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED)),
+            style: ElevatedButton.styleFrom(backgroundColor: kChit),
             child: _saving
                 ? const SizedBox(
                     width: 22,
@@ -1705,17 +1721,22 @@ class _AddChitSheetState extends State<_AddChitSheet> {
 class _RecordPrizeSheet extends StatefulWidget {
   final FCChit    chit;
   final FcService svc;
-  const _RecordPrizeSheet({required this.chit, required this.svc});
+  /// When set, edits chit.prizes[editIndex] instead of recording a new one
+  /// — pre-filled fields, a Delete action, and a full-array rewrite instead
+  /// of an arrayUnion add (prizes have no unique id to target directly).
+  final int? editIndex;
+  const _RecordPrizeSheet({required this.chit, required this.svc, this.editIndex});
 
   @override
   State<_RecordPrizeSheet> createState() => _RecordPrizeSheetState();
 }
 
 class _RecordPrizeSheetState extends State<_RecordPrizeSheet> {
-  final _winnerCtrl = TextEditingController();
+  late final TextEditingController _winnerCtrl;
   late final TextEditingController _amtCtrl;
-  String _month  = _nowYYYYMM();
+  late String _month;
   bool   _saving = false;
+  bool get _isEdit => widget.editIndex != null;
 
   String _prevMonth(String m) => prevPeriod(m, 'monthly');
   String _nextMonth(String m) => nextPeriod(m, 'monthly');
@@ -1723,9 +1744,16 @@ class _RecordPrizeSheetState extends State<_RecordPrizeSheet> {
   @override
   void initState() {
     super.initState();
+    final editIndex = widget.editIndex;
+    final existing =
+        editIndex != null ? widget.chit.prizes[editIndex] : null;
     final defaultAmt = widget.chit.memberCount * widget.chit.amount;
-    _amtCtrl =
-        TextEditingController(text: defaultAmt.toStringAsFixed(0));
+    _winnerCtrl = TextEditingController(
+        text: existing?['winnerName'] as String? ?? '');
+    _amtCtrl = TextEditingController(
+        text: ((existing?['amount'] as num?)?.toDouble() ?? defaultAmt)
+            .toStringAsFixed(0));
+    _month = existing?['month'] as String? ?? _nowYYYYMM();
   }
 
   @override
@@ -1743,16 +1771,51 @@ class _RecordPrizeSheetState extends State<_RecordPrizeSheet> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const _SheetHandle(),
         const SizedBox(height: 16),
-        const Row(children: [
-          _CircleIcon(
+        Row(children: [
+          const _CircleIcon(
               icon: Icons.emoji_events_outlined,
-              color: Color(0xFF7C3AED)),
-          SizedBox(width: 12),
-          Text('Record Prize',
-              style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18,
-                  color: Color(0xFF7C3AED))),
+              color: kChit),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(_isEdit ? 'Edit Prize' : 'Record Prize',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: kChit)),
+          ),
+          if (_isEdit)
+            TextButton.icon(
+              onPressed: _saving
+                  ? null
+                  : () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (dCtx) => AlertDialog(
+                          title: const Text('Delete prize?'),
+                          content: const Text(
+                              'This prize record will be permanently removed.'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(dCtx, false),
+                                child: const Text('Cancel')),
+                            TextButton(
+                                onPressed: () => Navigator.pop(dCtx, true),
+                                child: const Text('Delete',
+                                    style: TextStyle(color: kRed))),
+                          ],
+                        ),
+                      );
+                      if (ok != true) return;
+                      setState(() => _saving = true);
+                      final newPrizes = [...widget.chit.prizes]
+                        ..removeAt(widget.editIndex!);
+                      await widget.svc
+                          .replaceChitPrizes(widget.chit.id, newPrizes);
+                      if (mounted) Navigator.pop(context);
+                    },
+              icon: const Icon(Icons.delete_outline, size: 18, color: kRed),
+              label: const Text('Delete', style: TextStyle(color: kRed)),
+            ),
         ]),
         const SizedBox(height: 20),
         TextFormField(
@@ -1791,23 +1854,30 @@ class _RecordPrizeSheetState extends State<_RecordPrizeSheet> {
                     final amt =
                         double.tryParse(_amtCtrl.text.trim()) ?? 0;
                     setState(() => _saving = true);
-                    await widget.svc.recordChitPrize(widget.chit.id, {
+                    final prize = {
                       'month':      _month,
                       'winnerName': _winnerCtrl.text.trim(),
                       'amount':     amt,
-                    });
+                    };
+                    if (_isEdit) {
+                      final newPrizes = [...widget.chit.prizes];
+                      newPrizes[widget.editIndex!] = prize;
+                      await widget.svc
+                          .replaceChitPrizes(widget.chit.id, newPrizes);
+                    } else {
+                      await widget.svc.recordChitPrize(widget.chit.id, prize);
+                    }
                     if (mounted) Navigator.pop(context);
                   },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C3AED)),
+            style: ElevatedButton.styleFrom(backgroundColor: kChit),
             child: _saving
                 ? const SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2.5))
-                : const Text('Save Prize',
-                    style: TextStyle(color: Colors.white)),
+                : Text(_isEdit ? 'Save changes' : 'Save Prize',
+                    style: const TextStyle(color: Colors.white)),
           ),
         ),
       ]),
@@ -2336,45 +2406,63 @@ class _PaymentHistoryTile extends StatelessWidget {
 }
 
 class _PrizeTile extends StatelessWidget {
-  final Map<String, dynamic> prize;
-  const _PrizeTile({required this.prize});
+  final FCChit    chit;
+  final FcService svc;
+  final int       index;
+  const _PrizeTile(
+      {required this.chit, required this.svc, required this.index});
 
   @override
   Widget build(BuildContext context) {
+    final prize  = chit.prizes[index];
     final month  = prize['month']      as String? ?? '';
     final winner = prize['winnerName'] as String? ?? '';
     final amount = (prize['amount']    as num?)?.toDouble() ?? 0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF7C3AED).withOpacity(0.05),
+    return Material(
+      color: kChit.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
         borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(children: [
-        const Text('🏆', style: TextStyle(fontSize: 14)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(winner,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, fontSize: 12)),
-              Text(month,
-                  style: const TextStyle(
-                      color: kMuted, fontSize: 10)),
-            ],
-          ),
+        onTap: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          builder: (ctx) =>
+              _RecordPrizeSheet(chit: chit, svc: svc, editIndex: index),
         ),
-        Text(_fmtAmt(amount),
-            style: const TextStyle(
-                color: Color(0xFF7C3AED),
-                fontWeight: FontWeight.w700,
-                fontSize: 12)),
-      ]),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 4),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(children: [
+            const Text('🏆', style: TextStyle(fontSize: 14)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(winner,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 12)),
+                  Text(month,
+                      style: const TextStyle(
+                          color: kMuted, fontSize: 10)),
+                ],
+              ),
+            ),
+            Text(_fmtAmt(amount),
+                style: const TextStyle(
+                    color: kChit,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12)),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: kBorder, size: 18),
+          ]),
+        ),
+      ),
     );
   }
 }
@@ -2386,7 +2474,7 @@ class _GroupBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = group == 'chit'
-        ? const Color(0xFF7C3AED)
+        ? kChit
         : group == 'both'
             ? kAccent
             : kPrimary;
@@ -2503,27 +2591,6 @@ class _ChitDivider extends StatelessWidget {
     height: 28,
     color: const Color(0xFFE5E7EB),
     margin: const EdgeInsets.symmetric(horizontal: 6),
-  );
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(children: [
-      Text('$label: ',
-          style: const TextStyle(
-              color: kMuted,
-              fontWeight: FontWeight.w600,
-              fontSize: 13)),
-      Text(value,
-          style: const TextStyle(
-              fontWeight: FontWeight.w700, fontSize: 13)),
-    ]),
   );
 }
 
