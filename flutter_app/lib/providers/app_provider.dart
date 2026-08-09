@@ -348,10 +348,33 @@ class AppProvider extends ChangeNotifier {
     if (isCashier && staffShop.isNotEmpty && _shops.containsKey(staffShop)) {
       _selectedShop = staffShop;
     }
+    _cacheIdentityForNotifications();
     notifyListeners();
 
     // Non-blocking — loads txns in background (fast file read + optional daily sync)
     _loadTxns();
+  }
+
+  /// Caches businessId + a default shop id/name to SharedPreferences so
+  /// out-of-widget-tree code (ReminderService's notification-tap handlers,
+  /// which have no BuildContext and no access to this live provider
+  /// instance) can still identify which business/shop to write an
+  /// auto-created ledger entry to, or which attendance records to read.
+  /// Best-effort and fire-and-forget — failures are silently ignored,
+  /// matching the existing SharedPreferences usage pattern in this file.
+  Future<void> _cacheIdentityForNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('kp_notif_business_id', _businessId);
+      if (_shops.isNotEmpty) {
+        final defaultShop = _shops.values.first;
+        await prefs.setString('kp_notif_shop_id', defaultShop.id);
+        await prefs.setString('kp_notif_shop_name', defaultShop.name);
+      } else {
+        await prefs.remove('kp_notif_shop_id');
+        await prefs.remove('kp_notif_shop_name');
+      }
+    } catch (_) {}
   }
 
   /// If the owner created a staff-access grant for this account's VERIFIED
@@ -996,6 +1019,7 @@ class AppProvider extends ChangeNotifier {
         }
       } catch (_) {}
 
+      _cacheIdentityForNotifications();
       notifyListeners();
       _loadTxns();
     } else {
@@ -1025,6 +1049,7 @@ class AppProvider extends ChangeNotifier {
       _employerCats       = {};
       _employerTxns       = [];
 
+      _cacheIdentityForNotifications();
       notifyListeners();
       _startLiveSync();
     }

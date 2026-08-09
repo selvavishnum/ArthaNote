@@ -5,6 +5,7 @@ import '../l10n.dart';
 import '../models/txn.dart';
 import '../models/currency.dart';
 import '../providers/app_provider.dart';
+import '../services/reminder_service.dart';
 import 'shop_detail_screen.dart';
 
 // ── Serif Ledger design tokens (concept #10) ──────────────────────────────────
@@ -118,6 +119,10 @@ class _DashboardTabState extends State<DashboardTab> {
       }
     }
     final totNet = totSales - totExp - totPay;
+    // Entry streak — always computed from the FULL history (all, not the
+    // period-filtered txns above), since the streak tracks daily habit
+    // regardless of which period filter is currently selected.
+    final streak = ReminderService.computeStreak(all.map((t) => t.date));
 
     // (AI Missing-Entry alert moved OFF the dashboard → now a single-line
     // suggestion at the top of the Ledger page.)
@@ -133,7 +138,10 @@ class _DashboardTabState extends State<DashboardTab> {
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
         children: [
           // ── Date filter (underline tabs) ─────────────────────────────────
-          _periodTabs(),
+          Row(children: [
+            Expanded(child: _periodTabs()),
+            if (streak >= 2) _StreakBadge(streak: streak),
+          ]),
           const SizedBox(height: 16),
 
           // ── Net Balance hero ─────────────────────────────────────────────
@@ -236,6 +244,26 @@ class _DashboardTabState extends State<DashboardTab> {
     );
   }
 
+}
+
+// ── Entry streak badge ──────────────────────────────────────────────────────
+class _StreakBadge extends StatelessWidget {
+  final int streak;
+  const _StreakBadge({required this.streak});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(left: 8, bottom: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+      color: kAmber.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: kAmber.withValues(alpha: 0.4)),
+    ),
+    child: Text('🔥 $streak',
+        style: const TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w800, color: kAmber)),
+  );
 }
 
 // ── Net Balance hero ──────────────────────────────────────────────────────────

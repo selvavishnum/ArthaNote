@@ -163,6 +163,10 @@ class _EntryTabState extends State<EntryTab> {
         await _db.addTxn(txn);
       }
       _snack('Entry saved');
+      // Fire-and-forget: logs this save's time (for the daily reminder's
+      // personal-time detection) and refreshes today's streak in the
+      // scheduled notification — never blocks the UI on it.
+      _reminderSvc.recordEntrySaved();
       // Teach the AI about this entry before resetting
       _ai.learn(description, savedType, savedDesc);
       _reset(p);

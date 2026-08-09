@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'theme.dart';
+import 'navigation.dart';
 import 'providers/app_provider.dart';
 import 'screens/splash_screen.dart';
 import 'services/reminder_service.dart';
@@ -53,18 +54,31 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Init reminder notifications
-  await ReminderService().init();
-  await ReminderService().requestPermission();
-  // Daily nudge to record entries (replaces the dashboard "no entries" banner)
-  await ReminderService().scheduleDailyEntryReminder();
-
-  // Enable Firestore offline persistence with unlimited cache
-  // This makes all reads instant on re-open — no network round-trip needed
+  // Enable Firestore offline persistence with unlimited cache. Must happen
+  // before ANY other Firestore operation — Firestore throws if .settings is
+  // assigned after the first read/write — which is why this now sits above
+  // ReminderService's fire-and-forget calls below (they do Firestore reads
+  // of their own for streak/attendance detection, and being unawaited,
+  // relying on their async timing to stay "naturally" after this line would
+  // be a fragile assumption rather than a guarantee).
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
     cacheSizeBytes:     Settings.CACHE_SIZE_UNLIMITED,
   );
+
+  // Init reminder notifications
+  await ReminderService().init();
+  await ReminderService().requestPermission();
+  // Daily nudge to record entries (replaces the dashboard "no entries"
+  // banner) — personalizes timing/text from the retailer's own streak and
+  // recent activity, which now involves a Firestore read, so this and the
+  // attendance reminder below are fire-and-forget rather than awaited, to
+  // keep first paint fast regardless of query latency.
+  ReminderService().scheduleDailyEntryReminder();
+  // Daily nudge at the staff's usual check-in time, with a QR-scan action —
+  // no-ops silently until there's enough attendance history to detect a
+  // usual time.
+  ReminderService().scheduleAttendanceReminder();
 
   final appProvider = AppProvider();
   // Fire-and-forget: Billing availability check + product query shouldn't
@@ -86,6 +100,7 @@ class ArthaNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: navigatorKey,
     title: 'ArthaNote',
     debugShowCheckedModeBanner: false,
     theme: appTheme(),
