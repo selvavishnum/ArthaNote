@@ -14,6 +14,21 @@ rootProject.buildDir = "../build"
 subprojects { project.buildDir = "${rootProject.buildDir}/${project.name}" }
 subprojects { project.evaluationDependsOn(":app") }
 
+// NOTE on plugin subprojects (receive_sharing_intent, cloud_firestore, ...):
+// they set `compileSdk flutter.compileSdkVersion`, a Flutter-tooling default
+// that newer Flutter releases bumped to 37 (not yet installable), breaking
+// the build. Two attempts to override it from HERE both failed on real
+// Gradle/AGP constraints: setting it inside plugins.withId("com.android.
+// library") fires too EARLY (before the plugin's own build.gradle finishes
+// configuring, so its own `compileSdk flutter.compileSdkVersion` line runs
+// afterward and wins); wrapping it in afterEvaluate fires too LATE (AGP
+// explicitly throws "It is too late to set compileSdk — It has already been
+// read to configure this project" once a project has started evaluating).
+// The actually-correct fix lives in CI (.github/workflows/build-flutter-apk.
+// yml): flutter.compileSdkVersion is overridable via android/local.properties,
+// read by Flutter's tooling BEFORE any subproject evaluates — no race either
+// way.
+
 // Force a consistent JVM target (17) across ALL modules — the app and every
 // Flutter plugin. Some plugins (e.g. receive_sharing_intent) compile Kotlin
 // at 17 but leave Java at 1.8, which the Kotlin 2.x Gradle plugin rejects with
@@ -29,27 +44,6 @@ subprojects {
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
-            }
-        }
-        // Plugins that don't pin their own compileSdkVersion (e.g.
-        // receive_sharing_intent) inherit Flutter's internal default, which
-        // newer Flutter releases have bumped to 37 — a platform that isn't
-        // a real installable SDK component yet, failing Gradle with
-        // "Failed to find Platform SDK with path: platforms;android-37".
-        //
-        // Setting compileSdkVersion inside the immediate plugins.withId
-        // block (as a first attempt did) did NOT work: that callback fires
-        // the instant the plugin applies, near the TOP of the plugin's own
-        // build.gradle — the REST of that file (further down, its own
-        // `android { compileSdkVersion flutter.compileSdkVersion }`) then
-        // runs afterward and overwrites it back to 37. Using afterEvaluate
-        // here is safe (unlike for :app elsewhere in this file) because
-        // this block only ever matches "com.android.library" plugins,
-        // never :app's "com.android.application" — so none of these
-        // subprojects are forced to evaluate early the way :app is.
-        project.afterEvaluate {
-            android {
-                compileSdkVersion 36
             }
         }
     }

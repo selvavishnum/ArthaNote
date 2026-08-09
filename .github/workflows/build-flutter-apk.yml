@@ -136,6 +136,25 @@ jobs:
         working-directory: flutter_app
         run: flutter pub get
 
+      - name: Pin flutter.compileSdkVersion for plugin subprojects
+        working-directory: flutter_app/android
+        run: |
+          # receive_sharing_intent, cloud_firestore, and any other plugin
+          # that reads `compileSdk flutter.compileSdkVersion` inherits this
+          # value from Flutter's own tooling default, which newer Flutter
+          # releases have bumped to 37 — a platform that isn't installable
+          # yet, failing Gradle with "Failed to find Platform SDK with
+          # path: platforms;android-37". Overriding it here, in
+          # local.properties (which 'flutter pub get' just (re)generated
+          # above), is the officially-supported mechanism: Flutter's
+          # tooling reads this BEFORE any subproject evaluates, so unlike
+          # the two build.gradle-side attempts that preceded this one
+          # (plugins.withId — too early; afterEvaluate — AGP explicitly
+          # rejects setting compileSdk that late), there's no evaluation-
+          # order race here at all.
+          echo "flutter.compileSdkVersion=36" >> local.properties
+          cat local.properties
+
       - name: Analyze (non-blocking)
         working-directory: flutter_app
         continue-on-error: true
