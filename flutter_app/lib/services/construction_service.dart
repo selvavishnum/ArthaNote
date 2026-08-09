@@ -66,6 +66,9 @@ class ConstructionService {
     await _db.collection('construction_entries').doc(id).set(e.toFirestore());
   }
 
+  Future<void> updateEntry(ConstructionEntry e) =>
+      _db.collection('construction_entries').doc(e.id).update(e.toFirestore());
+
   Future<void> deleteEntry(String id) =>
       _db.collection('construction_entries').doc(id).delete();
 

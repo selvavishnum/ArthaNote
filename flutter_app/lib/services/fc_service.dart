@@ -137,6 +137,18 @@ class FcService {
     await _db.collection('fc_payments').add(p.toFirestore());
   }
 
+  /// Updates only the editable fields — not a full toFirestore() overwrite,
+  /// since that always stamps createdAt with FieldValue.serverTimestamp()
+  /// and would wrongly reset the original record time on every edit.
+  Future<void> updatePayment(String id,
+      {required double amount, required String mode, required String note}) async {
+    await _db.collection('fc_payments').doc(id).update({
+      'amount': amount,
+      'mode':   mode,
+      'note':   note,
+    });
+  }
+
   Future<void> deletePayment(String id) async {
     await _db.collection('fc_payments').doc(id).delete();
   }
@@ -167,5 +179,14 @@ class FcService {
     await _db.collection('fc_chits').doc(chitId).update({
       'prizes': FieldValue.arrayUnion([prize]),
     });
+  }
+
+  /// Prizes have no unique id (just {month, winnerName, amount} maps inside
+  /// the chit doc's `prizes` array), so editing or deleting one means
+  /// reconstructing the full array with that entry replaced/removed and
+  /// writing it back whole — the caller builds the new list.
+  Future<void> replaceChitPrizes(
+      String chitId, List<Map<String, dynamic>> prizes) async {
+    await _db.collection('fc_chits').doc(chitId).update({'prizes': prizes});
   }
 }

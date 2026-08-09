@@ -487,54 +487,63 @@ class _LedgerTab extends StatelessWidget {
       itemBuilder: (_, i) {
         final e = entries[i];
         final income = e.isIncome;
-        return Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
+        return Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
             borderRadius: BorderRadius.circular(14),
-            boxShadow: kCardShadow,
-          ),
-          child: Row(children: [
-            Container(
-              width: 40,
-              height: 40,
+            onTap: () => _editEntrySheet(context, svc, e),
+            child: Container(
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: (income ? kSecondary : kRed).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: kCardShadow,
               ),
-              child: Icon(income ? Icons.south_west : Icons.north_east,
-                  color: income ? kSecondary : kRed, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    e.desc.isNotEmpty
-                        ? e.desc
-                        : (e.vendor.isNotEmpty
-                            ? e.vendor
-                            : _capitalise(e.type)),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14),
+              child: Row(children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: (income ? kSecondary : kRed).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${_capitalise(e.type)} · ${e.paidNow ? _capitalise(e.paymentMode) : 'On credit'} · ${DateFormat('d MMM').format(e.date)}',
-                    style: const TextStyle(color: kMuted, fontSize: 11),
+                  child: Icon(income ? Icons.south_west : Icons.north_east,
+                      color: income ? kSecondary : kRed, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        e.desc.isNotEmpty
+                            ? e.desc
+                            : (e.vendor.isNotEmpty
+                                ? e.vendor
+                                : _capitalise(e.type)),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_capitalise(e.type)} · ${e.paidNow ? _capitalise(e.paymentMode) : 'On credit'} · ${DateFormat('d MMM').format(e.date)}',
+                        style: const TextStyle(color: kMuted, fontSize: 11),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                Text(
+                  '${income ? '+' : '−'} ${rupee(e.amount)}',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: income ? kSecondary : kRed),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, color: kBorder, size: 20),
+              ]),
             ),
-            Text(
-              '${income ? '+' : '−'} ${rupee(e.amount)}',
-              style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: income ? kSecondary : kRed),
-            ),
-          ]),
+          ),
         );
       },
     );
@@ -981,6 +990,223 @@ void _addEntrySheet(
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2.5))
                     : const Text('Save entry',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Edits an existing ledger entry's amount/desc/vendor/date/payment status,
+/// with a Delete action inside the same sheet. Material line-item detail
+/// (added via _addEntrySheet) isn't rebuilt here — the bill total (`amount`)
+/// is edited directly, same as labour/contractor/client entries.
+void _editEntrySheet(
+    BuildContext context, ConstructionService svc, ConstructionEntry entry) {
+  bool paidNow = entry.paidNow;
+  String payMode = entry.paymentMode;
+  DateTime date = entry.date;
+  final descCtrl = TextEditingController(text: entry.desc);
+  final vendorCtrl = TextEditingController(text: entry.vendor);
+  final amountCtrl =
+      TextEditingController(text: entry.amount.toStringAsFixed(0));
+  bool saving = false;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setSt) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 16, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Text('Edit ${_capitalise(entry.type)} entry',
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final ok = await showDialog<bool>(
+                          context: ctx,
+                          builder: (dCtx) => AlertDialog(
+                            title: const Text('Delete entry?'),
+                            content: const Text(
+                                'This ledger entry will be permanently removed.'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(dCtx, false),
+                                  child: const Text('Cancel')),
+                              TextButton(
+                                  onPressed: () => Navigator.pop(dCtx, true),
+                                  child: const Text('Delete',
+                                      style: TextStyle(color: kRed))),
+                            ],
+                          ),
+                        );
+                        if (ok != true) return;
+                        setSt(() => saving = true);
+                        try {
+                          await svc.deleteEntry(entry.id);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        } catch (e) {
+                          setSt(() => saving = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                content: Text('Failed: $e'),
+                                backgroundColor: kRed));
+                          }
+                        }
+                      },
+                icon: const Icon(Icons.delete_outline, size: 18, color: kRed),
+                label: const Text('Delete', style: TextStyle(color: kRed)),
+              ),
+              IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close)),
+            ]),
+            const SizedBox(height: 8),
+            _field(
+                entry.type == 'client' ? 'Amount received (₹)' : 'Amount (₹)',
+                amountCtrl,
+                hint: '0',
+                number: true),
+            const SizedBox(height: 14),
+            _field('Description', descCtrl, hint: 'Bill reference (optional)'),
+            const SizedBox(height: 14),
+            _field('Vendor / Party', vendorCtrl, hint: 'Who was it paid to?'),
+            const SizedBox(height: 14),
+
+            InkWell(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: ctx,
+                  initialDate: date,
+                  firstDate: DateTime(DateTime.now().year - 5),
+                  lastDate: DateTime(DateTime.now().year + 2),
+                );
+                if (picked != null) setSt(() => date = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kBorder),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.calendar_today_outlined,
+                      size: 18, color: kPrimary),
+                  const SizedBox(width: 10),
+                  Text(DateFormat('dd/MM/yyyy').format(date),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            Row(children: [
+              Expanded(
+                child: _toggle('Paid now', paidNow, kSecondary,
+                    () => setSt(() => paidNow = true)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _toggle('On credit', !paidNow, kAmber,
+                    () => setSt(() => paidNow = false)),
+              ),
+            ]),
+            if (paidNow) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _kPayModes
+                    .map((m) => GestureDetector(
+                          onTap: () => setSt(() => payMode = m),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: payMode == m ? kPrimary : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color:
+                                      payMode == m ? kPrimary : kBorder),
+                            ),
+                            child: Text(_capitalise(m),
+                                style: TextStyle(
+                                    color: payMode == m
+                                        ? Colors.white
+                                        : kText,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final base =
+                            double.tryParse(amountCtrl.text.trim()) ?? 0;
+                        if (base <= 0) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                              content: Text('Enter a valid amount'),
+                              backgroundColor: kRed));
+                          return;
+                        }
+                        setSt(() => saving = true);
+                        try {
+                          await svc.updateEntry(entry.copyWith(
+                            amount: entry.gst ? base * 1.18 : base,
+                            gstAmount: entry.gst ? base * 0.18 : 0,
+                            desc: descCtrl.text.trim(),
+                            vendor: vendorCtrl.text.trim(),
+                            paidNow: paidNow,
+                            paymentMode: payMode,
+                            date: date,
+                          ));
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        } catch (e) {
+                          setSt(() => saving = false);
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                content: Text('Failed: $e'),
+                                backgroundColor: kRed));
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+                child: saving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5))
+                    : const Text('Save changes',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800)),
               ),

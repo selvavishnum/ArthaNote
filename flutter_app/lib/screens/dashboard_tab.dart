@@ -333,7 +333,7 @@ class _LxShopRow extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 2),
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+            border: Border(bottom: BorderSide(color: kBorder)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
