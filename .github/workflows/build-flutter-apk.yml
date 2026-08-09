@@ -71,17 +71,11 @@ jobs:
             echo "::error::sdkmanager not found under $SDK_ROOT/cmdline-tools — GitHub's ubuntu-latest image layout may have changed"
             exit 1
           fi
-          # Only platforms;android-36 — receive_sharing_intent's plugin
-          # template declares compileSdk >=37, but build #198 confirmed
-          # (with the pipefail bug below already fixed, so this is a real
-          # result, not cosmetic pipe noise) that platforms;android-37 is
-          # NOT actually installable in this environment: sdkmanager
-          # genuinely cannot find/install it. app/build.gradle stays at
-          # compileSdk 36 (our real requirement) and the 'flutter build'
-          # commands below pass --android-skip-build-dependency-validation
-          # to suppress Flutter's resulting version-mismatch check —
-          # exactly the escape hatch Flutter's own warning output names
-          # for this situation.
+          # Only platforms;android-36 — that's our real requirement (Play
+          # Console's target/compile API 36 mandate). receive_sharing_intent
+          # 1.9.0 bumped its own plugin module to compileSdk 37, which isn't
+          # installable here; fixed by pinning that dependency below 1.9.0 in
+          # pubspec.yaml instead of chasing an unpublished/unneeded platform.
           #
           # GitHub Actions invokes 'run:' steps as 'bash -eo pipefail {0}' by
           # default, so pipefail is ALREADY active here even without setting
@@ -152,12 +146,7 @@ jobs:
         working-directory: flutter_app
         run: |
           set -o pipefail
-          # --android-skip-build-dependency-validation: receive_sharing_intent
-          # declares compileSdk >=37, which isn't actually installable in this
-          # CI environment (see the SDK-platforms step above) — this flag,
-          # named directly in Flutter's own warning output, suppresses the
-          # resulting version-mismatch check instead of hard-failing on it.
-          flutter build apk --release --split-per-abi --android-skip-build-dependency-validation 2>&1 | tee /tmp/flutter_build.log
+          flutter build apk --release --split-per-abi 2>&1 | tee /tmp/flutter_build.log
 
       - name: Show build error (on failure)
         if: failure()
@@ -180,7 +169,7 @@ jobs:
 
       - name: Build release AAB (Play Store)
         working-directory: flutter_app
-        run: flutter build appbundle --release --android-skip-build-dependency-validation
+        run: flutter build appbundle --release
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4

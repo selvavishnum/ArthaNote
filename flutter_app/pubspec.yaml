@@ -39,7 +39,12 @@ dependencies:
   url_launcher: ^6.3.0
   qr_flutter: ^4.1.0
   share_plus: ^10.0.0
-  receive_sharing_intent: ^1.8.0
+  # Pinned below 1.9.0: that release bumped this plugin's own compileSdk to
+  # 37 (pub.dev changelog), which isn't an installable SDK platform on
+  # today's tooling/CI (Play Console's mandate is target/compile API 36 —
+  # see version note above — not 37). ^1.8.0 alone would still resolve to
+  # 1.9.0 since caret allows any 1.x, so cap it explicitly at <1.9.0.
+  receive_sharing_intent: ">=1.8.0 <1.9.0"
   google_mlkit_text_recognition: ^0.13.0
   file_picker: ^8.0.0
   path_provider: ^2.1.5
