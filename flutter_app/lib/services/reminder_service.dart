@@ -568,14 +568,42 @@ class ReminderService {
     );
   }
 
-  /// Detects the staff's usual daily attendance check-in time from the last
-  /// 21 days of 'in'-type attendance records (see qr_scan_screen.dart),
-  /// and schedules a daily notification at that time with a "📷 Scan QR"
-  /// action that opens the QR scanner directly (see _openQrScanner). Needs
-  /// at least 3 data points before trusting a "usual time" — skips
-  /// scheduling entirely otherwise, rather than guessing off one noisy
-  /// early sample.
+  /// Detects the staff's usual daily check-in AND check-out times from
+  /// attendance history (see qr_scan_screen.dart, which writes 'in'/'out'/
+  /// 'rest'/'back' records) and schedules a daily notification at each,
+  /// with a "📷 Scan QR" action that opens the QR scanner directly (see
+  /// _openQrScanner). The two run independently — a business with a
+  /// reliable morning check-in but inconsistent leaving time (or vice
+  /// versa) still gets whichever one has enough data.
   Future<void> scheduleAttendanceReminder() async {
+    await _scheduleAttendanceTypeReminder(
+      type: 'in',
+      notifId: 900002,
+      title: 'Mark today\'s attendance 📷',
+      body: 'Your usual check-in time — tap to scan the QR code.',
+    );
+    await _scheduleAttendanceTypeReminder(
+      type: 'out',
+      notifId: 900003,
+      title: 'Time to check out? 👋',
+      body: 'Your usual leaving time — tap to scan the QR code.',
+    );
+  }
+
+  /// Shared implementation for both the check-in and check-out attendance
+  /// reminders — detects the usual time for the given attendance `type`
+  /// from the last 21 days of matching records, and schedules a daily
+  /// notification at that time. Needs at least 3 data points before
+  /// trusting a "usual time" — skips scheduling entirely otherwise, rather
+  /// than guessing off one noisy early sample. Both types share the same
+  /// Firestore composite index (businessId + type + timeRaw) since it's
+  /// keyed on the field, not a specific 'in'/'out' value.
+  Future<void> _scheduleAttendanceTypeReminder({
+    required String type,
+    required int notifId,
+    required String title,
+    required String body,
+  }) async {
     if (!_notifReady) return;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -586,7 +614,7 @@ class ReminderService {
       final snap = await FirebaseFirestore.instance
           .collection('attendance')
           .where('businessId', isEqualTo: businessId)
-          .where('type', isEqualTo: 'in')
+          .where('type', isEqualTo: type)
           .orderBy('timeRaw', descending: true)
           .limit(60)
           .get();
@@ -611,14 +639,14 @@ class ReminderService {
       if (target.isBefore(now)) target = target.add(const Duration(days: 1));
 
       await _notif.zonedSchedule(
-        900002,
-        'Mark today\'s attendance 📷',
-        'Your usual check-in time — tap to scan the QR code.',
+        notifId,
+        title,
+        body,
         tz.TZDateTime.from(target, tz.local),
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'attendance_reminder', 'Attendance Reminder',
-            channelDescription: 'Daily nudge at your usual staff check-in time',
+            channelDescription: 'Daily nudge at your usual staff check-in/out time',
             importance: Importance.high,
             priority: Priority.high,
             actions: [
