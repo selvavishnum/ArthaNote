@@ -637,6 +637,10 @@ const ADMIN_EMAILS=['selvavishnu.m@gmail.com'];
 // ── CACHE ──
 let _users=[],_shops=[],_txns=[],_audits=[];
 let _adminUser=null;
+// True when the staff read hit fetchAllDocs' runaway guard, i.e. the user
+// count on screen is a floor, not the real total. Surfaced in the UI so a
+// truncated number is never mistaken for an accurate one.
+let _usersTruncated=false;
 
 // ── HELPERS ──
 const fmt=n=>n>=10000000?(n/10000000).toFixed(1)+'Cr':n>=100000?(n/100000).toFixed(1)+'L':n>=1000?(n/1000).toFixed(1)+'K':Math.round(n||0).toLocaleString('en-IN');
@@ -1054,6 +1058,45 @@ function saveCache(key,data){ try{localStorage.setItem(key,JSON.stringify({data,
 function loadCache(key){ try{const r=localStorage.getItem(key);return r?JSON.parse(r):null;}catch(e){return null;} }
 function clearCache(key){ localStorage.removeItem(key); }
 
+// ── Full-collection reader (cursor pagination) ──────────────────────────────
+// A plain .limit(N) silently truncates: Firestore returns the first N docs in
+// document-ID order, so once the collection outgrows N the panel reports a
+// number that is not just stale but structurally wrong — and gives no hint
+// that it truncated. That is exactly what capped TOTAL USERS at 168 (a
+// limit(200) on 'staff', minus employee-role docs) while the real signup
+// count was far higher.
+//
+// This walks the whole collection in ID order using startAfter, so counts are
+// real. hardCap is a runaway guard (this project has hit Firestore quota
+// before); when it trips we surface `truncated:true` instead of quietly
+// under-reporting, so the UI can say so out loud.
+async function fetchAllDocs(collectionName,{pageSize=500,hardCap=20000}={}){
+  const out=[];
+  let cursor=null, truncated=false;
+  const byId=firebase.firestore.FieldPath.documentId();
+  while(true){
+    let q=DB.collection(collectionName).orderBy(byId).limit(pageSize);
+    if(cursor) q=q.startAfter(cursor);
+    const snap=await q.get();
+    if(snap.empty) break;
+    snap.docs.forEach(d=>out.push({docId:d.id,...d.data()}));
+    if(out.length>=hardCap){ truncated=true; break; }
+    if(snap.docs.length<pageSize) break;      // last page
+    cursor=snap.docs[snap.docs.length-1];
+  }
+  return {docs:out,truncated};
+}
+
+// Owner-account test. Employees (cashier/manager/staff) are intentionally not
+// counted as accounts. Case/whitespace are normalised because a single doc
+// written as 'Owner ' or 'ADMIN' used to be dropped silently by an
+// exact-string match, quietly shrinking the user count.
+const OWNER_ROLES=['owner','admin'];
+function isOwnerAccount(s){
+  const role=(s.role==null?'':String(s.role)).trim().toLowerCase();
+  return role===''||OWNER_ROLES.includes(role);
+}
+
 function cacheAge(key){
   const r=loadCache(key);
   if(!r) return null;
@@ -1122,20 +1165,43 @@ async function downloadUsersCache(){
   // 'users' is empty in this project). Must NOT overwrite _users, which is
   // the staff+config merge the Users/Overview/Revenue tabs run on — the old
   // code clobbered it with the empty 'users' collection, blanking those tabs.
-  const snap=await DB.collection('staff').limit(500).get();
-  const data=snap.docs.map(d=>({id:d.id,...d.data()}))
-    .filter(s=>!s.role||['owner','Owner','admin','OWNER'].includes(s.role));
+  const {docs}=await fetchAllDocs('staff');
+  const data=docs.filter(isOwnerAccount).map(s=>({id:s.docId,...s}));
   saveCache(ADMIN_CACHE.users,data);
   _custAll=data;
   updateCacheStats();
   return data;
 }
 
+// Activity feed behind _bizStats (last-active, entry counts, churn buckets).
+// Paginated rather than a flat limit(1000): with hundreds of businesses, a
+// 1000-doc slice ordered by date is consumed by the few busiest accounts, so
+// every quieter business looked like it had zero entries and got bucketed as
+// "never used" — inflating that number badly. hardCap still bounds the read
+// (Firestore quota has bitten this project before) but now we record when it
+// trips so the churn UI can say the data is partial instead of implying a
+// user is dead.
+let _txCacheTruncated=false;
 async function downloadTxCache(){
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()-90);
-  const snap=await DB.collection('transactions').where('date','>=',cutoff.toISOString().split('T')[0]).orderBy('date','desc').limit(1000).get();
-  const data=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const cutoffStr=cutoff.toISOString().split('T')[0];
+  const data=[];
+  let cursor=null; _txCacheTruncated=false;
+  while(true){
+    let q=DB.collection('transactions')
+      .where('date','>=',cutoffStr)
+      .orderBy('date','desc')
+      .limit(1000);
+    if(cursor) q=q.startAfter(cursor);
+    const snap=await q.get();
+    if(snap.empty) break;
+    snap.docs.forEach(d=>data.push({id:d.id,...d.data()}));
+    if(data.length>=15000){ _txCacheTruncated=true; break; }
+    if(snap.docs.length<1000) break;
+    cursor=snap.docs[snap.docs.length-1];
+  }
   saveCache(ADMIN_CACHE.txns,data);
+  try{ localStorage.setItem('adm_c_txns_trunc',_txCacheTruncated?'1':'0'); }catch(e){}
   updateCacheStats();
   return data;
 }
@@ -1351,21 +1417,25 @@ async function loadUsers(force){
   const tb=document.getElementById('users-tbody');
   if(tb) tb.innerHTML='<tr><td colspan="7" class="tbl-empty">Loading...</td></tr>';
   try{
-    // Strategy: load from staff (no role filter) + enrich from config
-    const [staffSnap, configSnap]=await Promise.all([
-      DB.collection('staff').limit(200).get(),
-      DB.collection('config').limit(200).get()
+    // Strategy: load from staff (no role filter) + enrich from config.
+    // Both are read in FULL via cursor pagination — the old limit(200) on
+    // each was a hard ceiling that capped TOTAL USERS at 168 no matter how
+    // many people had actually signed up, and capped the config enrichment
+    // so even visible users could lose their shopCount/bizType.
+    const [staffRes, configRes]=await Promise.all([
+      fetchAllDocs('staff'),
+      fetchAllDocs('config')
     ]);
+    const staffDocs=staffRes.docs, configDocs=configRes.docs;
+    _usersTruncated=staffRes.truncated;
 
     // Build config map by doc id
     const cfgMap={};
-    configSnap.docs.forEach(d=>{ cfgMap[d.id]=d.data(); });
+    configDocs.forEach(d=>{ cfgMap[d.docId]=d; });
 
-    // Filter owner-type users (role = owner / Owner / admin, or no role = owner by default)
-    const ownerRoles=['owner','Owner','admin','OWNER'];
-    const ownerStaff=staffSnap.docs
-      .map(d=>({docId:d.id,...d.data()}))
-      .filter(s=>!s.role||ownerRoles.includes(s.role));
+    // Owner accounts only — employees (cashier/manager) are staff members of
+    // an existing account, not separate signups.
+    const ownerStaff=staffDocs.filter(isOwnerAccount);
 
     // Merge with config
     _users=ownerStaff.map(s=>{
@@ -1396,10 +1466,9 @@ async function loadUsers(force){
 
     // If still empty, show all config owners
     if(!_users.length){
-      _users=configSnap.docs.map(d=>{
-        const cfg=d.data();
+      _users=configDocs.map(cfg=>{
         return {
-          id:d.id, uid:d.id,
+          id:cfg.docId, uid:cfg.docId,
           name:cfg.ownerName||'—',
           email:cfg.ownerEmail||'—',
           role:'owner', plan:cfg.plan||'free',
@@ -1407,17 +1476,46 @@ async function loadUsers(force){
           shops:cfg.shops||{},
           shopCount:cfg.shops?Object.keys(cfg.shops).length:0,
           createdAt:cfg.createdAt,
-          businessId:d.id
+          businessId:cfg.docId
         };
       }).filter(u=>u.shopCount>0);
     }
 
+    // Overview's Total Shops / Transactions cards used to sit on a literal
+    // "—" until the operator happened to open the Shops and Transactions
+    // tabs, because loadAll() never invoked their loaders. Fill them here
+    // from data this function already has in hand (all config docs + the
+    // existing txn cache) rather than firing additional Firestore reads
+    // just to populate two numbers.
+    try{
+      const totalShops=configDocs.reduce((n,cfg)=>
+        n+(cfg.shops?Object.keys(cfg.shops).length:0),0);
+      const ks=document.getElementById('kpi-shops');
+      if(ks) ks.textContent=fmt(totalShops);
+      const ksSub=document.getElementById('kpi-shops-sub');
+      if(ksSub) ksSub.textContent=_users.length+' businesses';
+      const kt=document.getElementById('kpi-txns');
+      const txCache=loadCache(ADMIN_CACHE.txns);
+      // Truncation is read from storage, not the in-memory flag: on a page
+      // load served entirely from cache, downloadTxCache never runs and the
+      // in-memory flag would read false even for a cache that WAS capped.
+      const txPartial=(()=>{ try{ return localStorage.getItem('adm_c_txns_trunc')==='1'; }catch(e){ return false; } })();
+      if(kt&&txCache?.data){
+        kt.textContent=fmt(txCache.data.length)+(txPartial?'+':'');
+        const ktSub=document.getElementById('kpi-txns-sub');
+        // Say what this number is. It is the 90-day cache size, not an
+        // all-time transaction total — labelling it plainly stops it being
+        // read as lifetime volume.
+        if(ktSub) ktSub.textContent='last 90 days'+(txPartial?' (capped)':'');
+      }
+    }catch(e){ console.warn('overview kpi fill:',e); }
+
     _lastUsersFetch=Date.now();
     applyUserFilters();
     const lbl=document.getElementById('user-count-lbl');
-    if(lbl) lbl.textContent='('+_users.length+' total)';
+    if(lbl) lbl.textContent='('+_users.length+(_usersTruncated?'+ shown — read cap hit':' total')+')';
     const kpiU=document.getElementById('kpi-users');
-    if(kpiU) kpiU.textContent=_users.length;
+    if(kpiU) kpiU.textContent=_users.length+(_usersTruncated?'+':'');
     // Paid tiers (tier engine — NOT the never-written u.plan field)
     const nMonthly=_users.filter(u=>u.tier==='monthly').length;
     const nYearly=_users.filter(u=>u.tier==='yearly').length;
@@ -1701,12 +1799,18 @@ function renderChurn(){
     else if(days<=30) b.cooling.push(u);
     else b.dormant.push(u);
   });
+  // When the entry cache was capped, "no entry found" no longer proves "no
+  // entry exists" — so the zero-activity bucket is relabelled to say what it
+  // actually measured rather than asserting the user never used the app.
+  const partial=(()=>{ try{ return localStorage.getItem('adm_c_txns_trunc')==='1'; }catch(e){ return false; } })();
   const CH=[
     ['fresh','🆕 New (≤7d, no entries yet)','var(--blue)'],
     ['active','✅ Active (used in last 7d)','var(--g1)'],
     ['cooling','🌙 Cooling (8–30d silent)','var(--yellow)'],
     ['dormant','📉 Dormant 30d+ — likely uninstalled','var(--red)'],
-    ['never','🚫 Never used — installed, 0 entries','var(--red)'],
+    ['never', partial
+      ? '🚫 No entry found in cached window (data partial)'
+      : '🚫 Never used — installed, 0 entries','var(--red)'],
   ];
   const age=cacheAge(ADMIN_CACHE.txns);
   el.innerHTML=CH.map(([k,lbl,col])=>`
@@ -1717,7 +1821,8 @@ function renderChurn(){
     <div id="churn-l-${k}" style="display:none;padding:4px 0 8px">
       ${b[k].length?b[k].map(u=>`<div style="font-size:11px;padding:3px 0;color:var(--muted)"><b style="color:var(--text)">${esc(u.name!=='—'?u.name:(u.email||'—'))}</b> · ${esc(u.email||'—')}</div>`).join(''):'<div style="font-size:11px;color:var(--muted)">none</div>'}
     </div>`).join('')
-    +`<div style="font-size:10px;color:var(--muted);padding-top:8px">🕒 Entry data updated <b>${age||'never'}</b> — auto-refreshes once a day · tap <b>↻ Refresh All</b> above for live now</div>`;
+    +`<div style="font-size:10px;color:var(--muted);padding-top:8px">🕒 Entry data updated <b>${age||'never'}</b> — auto-refreshes once a day · tap <b>↻ Refresh All</b> above for live now</div>`
+    +(partial?`<div style="font-size:10px;color:var(--red);padding-top:4px">⚠️ Entry cache hit its size limit — the zero-activity bucket may include users who <b>did</b> make entries outside the cached window. Counts above are a floor, not exact.</div>`:'');
 }
 
 // ════════════════════════════════════════
