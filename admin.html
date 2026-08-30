@@ -288,6 +288,24 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         <div style="padding:0 16px 12px;font-size:10px;color:var(--muted)">Google never reports uninstalls to apps — exact install/uninstall counts live in <b>Play Console → Statistics</b>. These buckets are measured from real usage: "Dormant 30d+" and "Never used" are the users who most likely uninstalled.</div>
       </div>
 
+      <!-- Play Console reconciliation (manual — see note) -->
+      <div class="acard">
+        <div class="acard-hd"><span><span class="hd-icon">▶️</span>Play Store Installs / Uninstalls</span><button class="refresh-btn" onclick="var f=document.getElementById('play-form');f.style.display=f.style.display==='block'?'none':'block'">✏️ Update</button></div>
+        <div class="acard-body" id="play-body"><div class="tbl-empty">Not entered yet — tap ✏️ Update</div></div>
+        <div id="play-form" style="display:none;padding:0 16px 14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">Total installs</div><input type="number" id="play-inst" placeholder="387" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-family:var(--mono)"></div>
+            <div><div style="font-size:10px;color:var(--muted);margin-bottom:3px">Total uninstalls</div><input type="number" id="play-unin" placeholder="0" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;font-family:var(--mono)"></div>
+          </div>
+          <div style="margin-bottom:8px"><div style="font-size:10px;color:var(--muted);margin-bottom:3px">Play Console reporting date</div><input type="date" id="play-asof" style="width:100%;background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px"></div>
+          <button class="refresh-btn" style="width:100%;padding:11px;justify-content:center;background:var(--g1);color:#fff;border-color:var(--g1)" onclick="savePlayStats()">💾 Save</button>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5">
+            Read these off <b>Play Console → Statistics</b> (or Google Ads for ad-driven installs). They have to be typed in by hand: this admin page is a
+            <b>public static file</b>, so a Play Developer API key placed in it would be readable by anyone who views the page source. Numbers are stored in this browser only.
+          </div>
+        </div>
+      </div>
+
       <!-- Recent Signups -->
       <div class="acard">
         <div class="acard-hd"><span><span class="hd-icon">🆕</span>Recent Signups</span></div>
@@ -309,6 +327,12 @@ main{padding:16px;max-width:1100px;margin:0 auto}
       <div class="fchips" id="user-fchips">
         <div class="fchip on" data-f="all" onclick="setUserFilter('all',this)">All</div>
         <div class="fchip" data-f="recent" onclick="setUserFilter('recent',this)">🆕 Recent</div>
+        <div class="fchip" data-f="live" onclick="setUserFilter('live',this)">🟢 Active (≤7d)</div>
+        <div class="fchip" data-f="top" onclick="setUserFilter('top',this)">🏆 Top users</div>
+        <div class="fchip" data-f="streak" onclick="setUserFilter('streak',this)">🔥 Streak</div>
+        <div class="fchip" data-f="dormant" onclick="setUserFilter('dormant',this)">📉 Dormant 30d+</div>
+        <div class="fchip" data-f="unused" onclick="setUserFilter('unused',this)">💤 Never used</div>
+        <div class="fchip" data-f="paid" onclick="setUserFilter('paid',this)">💰 Paid</div>
         <div class="fchip" data-f="old" onclick="setUserFilter('old',this)">📜 Old</div>
         <div class="fchip" data-f="monthly" onclick="setUserFilter('monthly',this)">⭐ Pro</div>
         <div class="fchip" data-f="yearly" onclick="setUserFilter('yearly',this)">💜 Yearly</div>
@@ -337,6 +361,16 @@ main{padding:16px;max-width:1100px;margin:0 auto}
     <!-- ═══ SHOPS (grouped by user → shops → tap shop for txn summary) ═══ -->
     <div class="section" id="tab-shops">
       <div class="search-box"><span style="color:var(--muted);font-size:14px">🔍</span><input type="text" placeholder="Search shop name or owner..." id="shop-search" oninput="filterShops()"></div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <select id="shop-cat-f" onchange="filterShops()" style="background:var(--soft);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;font-family:var(--sans);flex:1;min-width:150px"><option value="">All categories</option></select>
+      </div>
+      <div class="fchips" id="shop-fchips">
+        <div class="fchip on" data-f="all" onclick="setShopFilter('all',this)">All</div>
+        <div class="fchip" data-f="live" onclick="setShopFilter('live',this)">🟢 Live (≤7d)</div>
+        <div class="fchip" data-f="active" onclick="setShopFilter('active',this)">🏆 Most active</div>
+        <div class="fchip" data-f="recent" onclick="setShopFilter('recent',this)">🆕 Recent</div>
+        <div class="fchip" data-f="idle" onclick="setShopFilter('idle',this)">💤 No entries</div>
+      </div>
       <div class="acard">
         <div class="acard-hd">
           <span><span class="hd-icon">🏪</span>Shops by User <span id="shop-count-lbl" style="font-size:11px;color:var(--muted);font-weight:500"></span></span>
@@ -361,7 +395,7 @@ main{padding:16px;max-width:1100px;margin:0 auto}
         <div class="kpi-card k-blue" style="padding:12px"><div class="kpi-lbl">Net Profit</div><div class="kpi-val" id="txn-net" style="font-size:18px">₹0</div></div>
       </div>
       <div class="acard">
-        <div class="acard-hd"><span><span class="hd-icon">💰</span>Transactions by User — tap a user to expand</span></div>
+        <div class="acard-hd"><span><span class="hd-icon">💰</span>Transactions by User — tap a user to expand <span id="txn-count-lbl" style="font-size:11px;color:var(--muted);font-weight:500"></span></span></div>
         <div class="acard-body" id="txn-groups" style="padding:10px">
           <div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>
         </div>
@@ -1381,10 +1415,11 @@ function buildBizStats(){
   const cache=loadCache(ADMIN_CACHE.txns);
   (cache?.data||[]).forEach(t=>{
     const b=t.businessId; if(!b||!t.date) return;
-    const s=_bizStats[b]=_bizStats[b]||{first:t.date,last:t.date,dates:new Set()};
+    const s=_bizStats[b]=_bizStats[b]||{first:t.date,last:t.date,dates:new Set(),n:0};
     if(t.date<s.first)s.first=t.date;
     if(t.date>s.last)s.last=t.date;
     s.dates.add(t.date);
+    s.n++;   // total entries, distinct from dates.size (= active days)
   });
 }
 const localISO=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -1572,7 +1607,11 @@ function renderUsers(users){
     const lastSeen=st?.last?fmtDate(st.last):(u.lastActive?fmtDate(u.lastActive):'—');
     const streak=st?calcStreak(st.dates):0;
     const pct=st?activePct30(st.dates):0;
-    const streakLine=st?`<div style="font-size:9px;color:${streak>0?'var(--yellow)':'var(--muted)'};margin-top:1px">🔥 ${streak}d streak · ${pct}% (30d)</div>`:'';
+    // Entry count is shown alongside the streak so the "🏆 Top users" filter
+    // (which ranks on it) is legible in the row it sorted.
+    const streakLine=st
+      ?`<div style="font-size:9px;color:${streak>0?'var(--yellow)':'var(--muted)'};margin-top:1px">🔥 ${streak}d streak · ${uEntries(u)} entries / ${uActiveDays(u)}d · ${pct}% (30d)</div>`
+      :`<div style="font-size:9px;color:var(--muted);margin-top:1px">💤 no entries in 90d</div>`;
     return`<tr style="cursor:pointer" onclick="expandUser(${i})">
       <td style="color:var(--muted);font-family:var(--mono);font-size:10px">${i+1}</td>
       <td><div style="display:flex;align-items:center;gap:8px">
@@ -1741,18 +1780,46 @@ function signupLabel(u){
 function shopNameOf(u,t){
   return u?.shops?.[t.shop]?.name || t.shopName || t.shop || '—';
 }
+// Engagement helpers — all read the same 90-day txn cache _bizStats is built
+// from, so no extra Firestore reads for any of these filters.
+function uStat(u){ return _bizStats[u.businessId||u.uid||u.id]; }
+function uEntries(u){ const s=uStat(u); return s?(s.n||0):0; }
+function uActiveDays(u){ const s=uStat(u); return s?s.dates.size:0; }
+function uStreak(u){ const s=uStat(u); return s?calcStreak(s.dates):0; }
+function uDaysSince(u){
+  const s=uStat(u);
+  if(!s?.last) return Infinity;
+  return Math.round((Date.now()-new Date(s.last+'T00:00:00').getTime())/86400000);
+}
 function applyUserFilters(){
+  // Every engagement filter below reads _bizStats. If it were still empty
+  // (loadUsers can run on its own via showTab, without loadAll's warm-up),
+  // "Never used" would match every single user and "Top"/"Streak" would come
+  // back blank — a wrong answer that looks like a working filter.
+  if(!Object.keys(_bizStats).length) buildBizStats();
   const q=(document.getElementById('user-search')?.value||'').toLowerCase();
   let list=q?_users.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)):[..._users];
   switch(_userFilter){
     case 'recent': list.sort((a,b)=>joinMsOf(b)-joinMsOf(a)); break;   // newest joined first
     case 'old':    list.sort((a,b)=>joinMsOf(a)-joinMsOf(b)); break;   // oldest joined first
+    // Engagement views. "Never used" is the closest signal this panel has to
+    // an uninstall: Google never reports uninstalls to an app, so a user with
+    // zero entries in the cached window is the best available proxy — it is
+    // deliberately NOT labelled "uninstalled", because it isn't the same thing.
+    case 'live':   list=list.filter(u=>uDaysSince(u)<=7).sort((a,b)=>uDaysSince(a)-uDaysSince(b)); break;
+    case 'top':    list=list.filter(u=>uEntries(u)>0).sort((a,b)=>uEntries(b)-uEntries(a)); break;
+    case 'streak': list=list.filter(u=>uStreak(u)>=2).sort((a,b)=>uStreak(b)-uStreak(a)); break;
+    case 'unused': list=list.filter(u=>uEntries(u)===0); break;
+    case 'dormant':list=list.filter(u=>{const d=uDaysSince(u);return d>30&&d!==Infinity;}).sort((a,b)=>uDaysSince(b)-uDaysSince(a)); break;
+    case 'paid':   list=list.filter(u=>u.tier==='monthly'||u.tier==='yearly'||u.tier==='lifetime'); break;
     case 'all':    break;
     default:       list=list.filter(u=>u.tier===_userFilter);  // tier filters
   }
   renderUsers(list);
   const lbl=document.getElementById('user-count-lbl');
-  if(lbl) lbl.textContent='('+list.length+(_userFilter==='all'&&!q?' total':' shown')+')';
+  if(lbl) lbl.textContent='('+list.length+(_userFilter==='all'&&!q
+    ?(_usersTruncated?'+ shown — read cap hit':' total')
+    :' shown of '+_users.length)+')';
 }
 function filterUsers(){applyUserFilters();}
 function setUserFilter(f,el){
@@ -1775,6 +1842,56 @@ function updateTierChips(){
   set('tc-yearly',_users.filter(u=>u.tier==='yearly').length);
   set('tc-lifetime',_users.filter(u=>u.tier==='lifetime').length);
   renderChurn();
+  renderPlayStats();   // reconciliation depends on _users.length
+}
+
+// ── PLAY STORE FIGURES (manually entered) ──────────────────────────────────
+// Google does not expose install/uninstall counts to an app, and the Play
+// Developer API needs a service-account key. This page is served as a public
+// static file, so embedding such a key would publish it. The honest option is
+// therefore a manual entry that the panel then reconciles against Firestore —
+// which is also the only place the three different numbers (Play installs,
+// Firebase Auth accounts, Firestore owner docs) can be compared side by side.
+const PLAY_KEY='adm_play_stats';
+function loadPlayStats(){ try{ return JSON.parse(localStorage.getItem(PLAY_KEY)||'null'); }catch(e){ return null; } }
+function savePlayStats(){
+  const inst=parseInt(document.getElementById('play-inst')?.value||'',10);
+  const unin=parseInt(document.getElementById('play-unin')?.value||'',10);
+  const asOf=document.getElementById('play-asof')?.value||'';
+  if(!Number.isFinite(inst)||inst<0){ alert('Enter the total install count from Play Console.'); return; }
+  const data={installs:inst,uninstalls:Number.isFinite(unin)&&unin>=0?unin:0,asOf,savedAt:Date.now()};
+  try{ localStorage.setItem(PLAY_KEY,JSON.stringify(data)); }catch(e){ alert('Could not save: '+e.message); return; }
+  const f=document.getElementById('play-form'); if(f) f.style.display='none';
+  renderPlayStats();
+  toast('▶️ Play Store figures saved');
+}
+function renderPlayStats(){
+  const el=document.getElementById('play-body'); if(!el) return;
+  const p=loadPlayStats();
+  const fi=document.getElementById('play-inst'), fu=document.getElementById('play-unin'), fa=document.getElementById('play-asof');
+  if(p){ if(fi)fi.value=p.installs; if(fu)fu.value=p.uninstalls; if(fa&&p.asOf)fa.value=p.asOf; }
+  if(!p){ el.innerHTML='<div class="tbl-empty">Not entered yet — tap ✏️ Update</div>'; return; }
+  const active=p.installs-p.uninstalls;
+  const uninPct=p.installs?Math.round(p.uninstalls/p.installs*100):0;
+  const signups=_users.length;
+  // Registered vs installed: every signup needs an install, but an install
+  // does NOT need a signup (guest mode never writes to Firestore), so this
+  // ratio is always ≤100% and the gap is real, not a bug in either number.
+  const regPct=p.installs?Math.round(signups/p.installs*100):0;
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+      <div class="kpi-card k-blue" style="padding:11px"><div class="kpi-lbl">Installs</div><div class="kpi-val" style="font-size:20px;color:var(--blue)">${fmt(p.installs)}</div></div>
+      <div class="kpi-card k-red" style="padding:11px"><div class="kpi-lbl">Uninstalls</div><div class="kpi-val" style="font-size:20px;color:var(--red)">${fmt(p.uninstalls)}</div><div class="kpi-sub">${uninPct}% of installs</div></div>
+      <div class="kpi-card k-green" style="padding:11px"><div class="kpi-lbl">Still installed</div><div class="kpi-val" style="font-size:20px;color:var(--g1)">${fmt(active)}</div></div>
+    </div>
+    <div class="stat-row"><div class="stat-lbl">Registered accounts in Firestore</div><div class="stat-val" style="width:auto">${signups}</div></div>
+    <div class="stat-row"><div class="stat-lbl">Install → signup conversion</div><div class="stat-val" style="color:var(--blue);width:auto">${regPct}%</div></div>
+    <div class="stat-row"><div class="stat-lbl">Installed but never registered</div><div class="stat-val" style="color:var(--yellow);width:auto">${Math.max(active-signups,0)}</div></div>
+    <div style="font-size:10px;color:var(--muted);padding-top:8px;line-height:1.5">
+      Entered by hand from Play Console${p.asOf?' as of <b>'+esc(p.asOf)+'</b>':''} · saved ${fmtTime(p.savedAt)}.<br>
+      These three counts never match exactly and are not meant to: <b>installs</b> count devices (incl. re-installs and users who never opened the app),
+      <b>Firebase Auth</b> counts anyone who ever signed in, and the number above counts owner profiles in Firestore. Guest-mode users write nothing to Firestore at all.
+    </div>`;
 }
 
 // ── INSTALL HEALTH / CHURN — usage buckets from the 90-day txn cache ──
@@ -1853,17 +1970,16 @@ async function loadShops(){
     if(ks) ks.textContent=_shops.length;
     const ksub=document.getElementById('kpi-shops-sub');
     if(ksub) ksub.textContent=_users.length+' businesses';
-    renderShops(_shops);
-    const lbl=document.getElementById('shop-count-lbl');
-    if(lbl) lbl.textContent='('+_shops.length+' total)';
+    await ensureTxCache();      // shop activity stats read from this cache
+    buildShopStats();
+    fillShopCategories();
+    filterShops();              // honours whatever chip/category is selected
   }catch(e){console.error('loadShops:',e);}
   if(spin) spin.classList.remove('spinning');
 }
 
 // ── SHOPS — grouped by USER: tap user → their shops with type;
 //    tap a shop → its transaction summary (from cache when available) ──
-function renderShops(shops){ renderShopGroups(shops); }
-
 function renderShopGroups(shops){
   const cont=document.getElementById('shops-groups');
   if(!cont) return;
@@ -1890,18 +2006,25 @@ function renderShopGroups(shops){
         <span style="font-size:11px;color:var(--muted);white-space:nowrap">${list.length} shop${list.length===1?'':'s'} ▼</span>
       </div>
       <div class="grp-body" id="grp-b-${gi}">
-        ${list.map((s,si)=>`<div class="shop-row">
+        ${list.map((s,si)=>{
+          const st=shopStat(s);
+          const d=shopDaysSince(s);
+          const live=d<=7;
+          const usage=st.n?`<span style="color:${live?'var(--g1)':'var(--muted)'}">${live?'🟢':'⚪'} ${st.n} entries · ${st.dates.size}d · last ${d<=0?'today':d===1?'yesterday':d+'d ago'}</span>`
+                          :'<span style="color:var(--muted)">⚪ no entries (90d)</span>';
+          return`<div class="shop-row">
           <div class="shop-row-hd" onclick="expandShopRow('${gi}_${si}','${esc(s.bizId)}','${esc(s.shopId)}')">
             <span style="font-size:18px">${s.icon}</span>
             <div style="flex:1;min-width:0">
               <div style="font-size:12px;font-weight:700">${esc(s.name)}</div>
               <div style="font-size:10px;color:var(--muted)">${BIZ_ICONS[s.bizType]||'🏪'} ${esc(s.bizType||'—')}</div>
+              <div style="font-size:9px;margin-top:1px">${usage}</div>
             </div>
             <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${s.gstOn?'rgba(16,185,129,.1)':'var(--soft)'};color:${s.gstOn?'var(--g1)':'var(--muted)'}">${s.gstOn?'GST '+s.gstRate+'%':'NO GST'}</span>
             <span style="font-size:11px;color:var(--muted)">▼</span>
           </div>
           <div class="shop-row-body" id="shp-b-${gi}_${si}">Loading...</div>
-        </div>`).join('')}
+        </div>`;}).join('')}
       </div>
     </div>`;
   }).join('');
@@ -1946,25 +2069,122 @@ async function expandShopRow(key,bizId,shopId){
   }catch(e){body.innerHTML='<div style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</div>';}
 }
 
+// ── SHOP ACTIVITY STATS (from the same 90-day txn cache the rest uses) ──
+// Keyed "bizId|shopId" so two businesses can both have a shop called "s1".
+let _shopStats={};
+function buildShopStats(){
+  _shopStats={};
+  (loadCache(ADMIN_CACHE.txns)?.data||[]).forEach(t=>{
+    if(!t.businessId||!t.shop||!t.date) return;
+    const k=t.businessId+'|'+t.shop;
+    const s=_shopStats[k]=_shopStats[k]||{n:0,last:'',dates:new Set()};
+    s.n++;
+    s.dates.add(t.date);
+    if(t.date>s.last) s.last=t.date;
+  });
+}
+function shopStat(s){ return _shopStats[s.bizId+'|'+s.shopId]||{n:0,last:'',dates:new Set()}; }
+function shopDaysSince(s){
+  const st=shopStat(s);
+  if(!st.last) return Infinity;
+  return Math.round((Date.now()-new Date(st.last+'T00:00:00').getTime())/86400000);
+}
+
+let _shopFilter='all';
+function setShopFilter(f,el){
+  _shopFilter=f;
+  document.querySelectorAll('#shop-fchips .fchip').forEach(c=>c.classList.remove('on'));
+  if(el) el.classList.add('on');
+  filterShops();
+}
 function filterShops(){
+  if(!Object.keys(_shopStats).length) buildShopStats();
   const q=(document.getElementById('shop-search')?.value||'').toLowerCase();
-  if(!q){renderShopGroups(_shops);return;}
-  renderShopGroups(_shops.filter(s=>(s.name||'').toLowerCase().includes(q)||(s.ownerEmail||'').toLowerCase().includes(q)));
+  const cat=document.getElementById('shop-cat-f')?.value||'';
+  let list=_shops.filter(s=>{
+    if(cat&&(s.bizType||'other')!==cat) return false;
+    if(!q) return true;
+    return (s.name||'').toLowerCase().includes(q)||(s.ownerEmail||'').toLowerCase().includes(q);
+  });
+  switch(_shopFilter){
+    case 'live':   list=list.filter(s=>shopDaysSince(s)<=7); break;
+    case 'active': list=list.filter(s=>shopStat(s).n>0).sort((a,b)=>shopStat(b).n-shopStat(a).n); break;
+    case 'recent': list=[...list].sort((a,b)=>{
+                     const am=a.createdAt?.toDate?a.createdAt.toDate().getTime():(a.createdAt?.seconds?a.createdAt.seconds*1000:0);
+                     const bm=b.createdAt?.toDate?b.createdAt.toDate().getTime():(b.createdAt?.seconds?b.createdAt.seconds*1000:0);
+                     return bm-am;
+                   }); break;
+    case 'idle':   list=list.filter(s=>shopStat(s).n===0); break;
+  }
+  renderShopGroups(list);
+  const lbl=document.getElementById('shop-count-lbl');
+  if(lbl) lbl.textContent='('+list.length+(_shopFilter==='all'&&!q&&!cat?' total':' shown of '+_shops.length)+')';
+}
+// Fill the category dropdown from the business types actually present, so it
+// never offers a type nobody uses (or hides one this project later adds).
+function fillShopCategories(){
+  const sel=document.getElementById('shop-cat-f'); if(!sel) return;
+  const keep=sel.value;
+  const types=[...new Set(_shops.map(s=>s.bizType||'other'))].sort();
+  sel.innerHTML='<option value="">All categories</option>'
+    +types.map(t=>`<option value="${esc(t)}">${BIZ_ICONS[t]||'🏪'} ${esc(t)}</option>`).join('');
+  if(types.includes(keep)) sel.value=keep;
 }
 
 // ════════════════════════════════════════
 // TRANSACTIONS
 // ════════════════════════════════════════
+let _txnsTruncated=false;
 async function loadTransactions(){
+  const g=document.getElementById('txn-groups');
+  if(g) g.innerHTML='<div class="tbl-empty">Loading…</div>';
   try{
     const days=parseInt(document.getElementById('txn-filter-days')?.value||'30');
-    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
-    const cutoffStr=cutoff.toISOString().split('T')[0];
-    const snap=await DB.collection('transactions').where('date','>=',cutoffStr).orderBy('date','desc').limit(500).get();
+    // 999 is the "All time" option — it must mean no date filter at all.
+    // Previously it just asked for entries newer than (today − 999 days),
+    // which the flat limit(500) below then threw away anyway.
+    const allTime=days>=999;
+    const cutoffStr=allTime?null:localISO(new Date(Date.now()-days*86400000));
+
+    let data;
+    // 7 / 30 / 90 day windows all sit inside the 90-day cache every other tab
+    // already maintains, so serve them from it: 0 Firestore reads on repeat
+    // visits, and the numbers stay consistent with the Users, Shops and
+    // Activity tabs rather than being a second, separately-fetched version of
+    // the same data. A cold cache is filled via ensureTxCache() so the work is
+    // shared with those tabs instead of being a throwaway read for this one.
+    const cacheUsable=!allTime&&days<=90;
+    if(cacheUsable){
+      await ensureTxCache();   // downloads if cold, refreshes if >24h old
+      data=(loadCache(ADMIN_CACHE.txns)?.data||[]).filter(t=>(t.date||'')>=cutoffStr);
+      _txnsTruncated=(()=>{ try{ return localStorage.getItem('adm_c_txns_trunc')==='1'; }catch(e){ return false; } })();
+    }else{
+      // "All time" (or a cold cache) has to go to Firestore. Cursor
+      // pagination, not a flat limit(500): ordered by date desc, a 500-doc
+      // slice is entirely consumed by the handful of busiest shops, which is
+      // why this tab only ever listed ~10 businesses and why "All time"
+      // looked identical to "Last 30 days". HARD_CAP still bounds the read.
+      data=[];
+      let cursor=null; _txnsTruncated=false;
+      const HARD_CAP=20000;
+      while(true){
+        let q=DB.collection('transactions');
+        if(cutoffStr) q=q.where('date','>=',cutoffStr);
+        q=q.orderBy('date','desc').limit(1000);
+        if(cursor) q=q.startAfter(cursor);
+        const snap=await q.get();
+        if(snap.empty) break;
+        snap.docs.forEach(d=>data.push({id:d.id,...d.data()}));
+        if(data.length>=HARD_CAP){ _txnsTruncated=true; break; }
+        if(snap.docs.length<1000) break;
+        cursor=snap.docs[snap.docs.length-1];
+      }
+    }
+
     // Normalise the Android app's type:'sale' to the website's 'sales' —
     // without this every app sale was counted as an EXPENSE in the KPIs
     // below and invisible to the "Sales" type filter.
-    _txns=snap.docs.map(d=>({id:d.id,...d.data()})).map(t=>t.type==='sale'?{...t,type:'sales'}:t);
+    _txns=data.map(t=>t.type==='sale'?{...t,type:'sales'}:t);
     // Update summary KPIs
     const totalSales=_txns.filter(t=>t.type==='sales').reduce((a,t)=>a+(t.amount||0),0);
     const totalExp=_txns.filter(t=>t.type!=='sales').reduce((a,t)=>a+(t.amount||0),0);
@@ -1974,10 +2194,15 @@ async function loadTransactions(){
     const netEl=document.getElementById('txn-net');
     netEl.textContent=(net>=0?'+':'')+'₹'+fmt(Math.abs(net));
     netEl.style.color=net>=0?'var(--g1)':'var(--red)';
-    document.getElementById('kpi-txns').textContent=fmt(_txns.length);
-    document.getElementById('kpi-txns-sub').textContent='Last '+days+' days';
+    // NOTE: kpi-txns / kpi-txns-sub are the OVERVIEW tab's cards and are
+    // owned by loadUsers(). Writing this tab's windowed count into them made
+    // Overview show a different total depending on which tab you had opened
+    // last, so this no longer touches them.
+    const lbl=document.getElementById('txn-count-lbl');
+    if(lbl) lbl.textContent='('+_txns.length+(_txnsTruncated?'+ — read cap hit':'')+' entries · '
+      +(allTime?'all time':'last '+days+' days')+(cacheUsable?' · cached':' · live')+')';
     filterTxns();
-  }catch(e){console.error('loadTxns:',e);const g=document.getElementById('txn-groups');if(g)g.innerHTML='<div class="tbl-empty">Error loading transactions: '+esc(e.message)+'</div>';}
+  }catch(e){console.error('loadTxns:',e);if(g)g.innerHTML='<div class="tbl-empty">Error loading transactions: '+esc(e.message)+'</div>';}
 }
 
 function filterTxns(){
@@ -2005,12 +2230,20 @@ async function renderTxnGroups(txns){
     const sales=list.filter(t=>t.type==='sales'||t.type==='sale').reduce((a,t)=>a+(t.amount||0),0);
     const exp=list.filter(t=>t.type!=='sales'&&t.type!=='sale').reduce((a,t)=>a+(t.amount||0),0);
     const net=sales-exp;
+    // Streak/last-seen computed from THIS list, so it reflects the selected
+    // date window rather than the separate 90-day cache.
+    const dset=new Set(list.map(t=>t.date).filter(Boolean));
+    const streak=calcStreak(dset);
+    const lastDate=[...dset].sort().pop()||'';
+    const daysAgo=lastDate?Math.round((Date.now()-new Date(lastDate+'T00:00:00').getTime())/86400000):null;
+    const seen=daysAgo===null?'':daysAgo<=0?'today':daysAgo===1?'yesterday':daysAgo+'d ago';
     return`<div class="grp">
       <div class="grp-hd" onclick="var b=document.getElementById('txg-b-${gi}');b.style.display=b.style.display==='block'?'none':'block'">
         <div class="av" style="width:34px;height:34px;font-size:13px">${initials}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nm)}</div>
           <div style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email)}</div>
+          <div style="font-size:9px;margin-top:2px;color:${streak>0?'var(--yellow)':'var(--muted)'}">🔥 ${streak}d streak · 🗓 ${dset.size} active days${seen?' · last '+seen:''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:12px;font-weight:800;font-family:var(--mono);color:${net>=0?'var(--g1)':'var(--red)'}">${net>=0?'+':'−'}₹${fmt(Math.abs(net))}</div>
@@ -2110,30 +2343,45 @@ async function renderHotLeads(){
     }catch(e){}
 
     const now=Date.now();
-    const leads=_users.filter(u=>u.tier==='free'||u.tier==='expired').map(u=>{
+    const scored=_users.filter(u=>u.tier==='free'||u.tier==='expired').map(u=>{
       const st=_bizStats[u.businessId||u.uid||u.id];
       const streak=st?calcStreak(st.dates):0;
-      const daysSince=st?Math.round((now-new Date(st.last+'T00:00:00').getTime())/86400000):999;
+      const daysSince=st?.last?Math.round((now-new Date(st.last+'T00:00:00').getTime())/86400000):999;
       const activeDays=st?st.dates.size:0;
+      const entries=st?st.n||0:0;
       const pw=pwByUser[u.uid]||pwByUser[u.id];
       let score=0; const why=[];
-      if(daysSince<=7){score+=3;why.push('🟢 active '+(daysSince<=1?'today':daysSince+'d ago'));}
+      // Recency is graded, not pass/fail. The old rule only credited users
+      // active within 7 days; in a week where nobody opened the app that
+      // zeroed almost every score and the whole list collapsed to one name,
+      // which read as "the panel is broken" rather than "engagement is down".
+      if(daysSince<=1){score+=4;why.push('🟢 active today');}
+      else if(daysSince<=7){score+=3;why.push('🟢 active '+daysSince+'d ago');}
+      else if(daysSince<=14){score+=2;why.push('🟡 active '+daysSince+'d ago');}
+      else if(daysSince<=30){score+=1;why.push('🟠 active '+daysSince+'d ago');}
       if(streak>=7){score+=2;why.push('🔥 '+streak+'-day streak');}
       else if(streak>=3){score+=1;why.push('📈 '+streak+'-day streak');}
       if(activeDays>=30){score+=2;why.push('📒 '+activeDays+' active days (90d)');}
       else if(activeDays>=10){score+=1;why.push('📒 '+activeDays+' active days');}
+      else if(activeDays>=3){why.push('📒 '+activeDays+' active days');}
       if((u.shopCount||0)>=2){score+=1;why.push('🏪 '+u.shopCount+' shops');}
       if(pw){score+=pw.n>=3?4:3;why.push('🔒 paywall ×'+pw.n+(pw.last?' — '+pw.last.substring(0,32):''));}
       if(u.tier==='expired'){score+=2;why.push('⏳ had Pro before');}
-      return {u,score,why};
-    }).filter(l=>l.score>=3).sort((a,b)=>b.score-a.score).slice(0,15);
+      return {u,score,why,activeDays,daysSince};
+    }).sort((a,b)=>b.score-a.score||b.activeDays-a.activeDays);
+
+    // Show the ranked top regardless of an absolute threshold — anyone who
+    // has used the app at all is a more useful sales list than an empty box.
+    const strong=scored.filter(l=>l.score>=3);
+    const leads=(strong.length?strong:scored.filter(l=>l.activeDays>0)).slice(0,15);
+    const soft=!strong.length&&leads.length;
 
     const hc=document.getElementById('hot-count');
     if(hc) hc.textContent=leads.length?leads.length+' lead'+(leads.length>1?'s':''):'';
-    el.innerHTML=leads.length?leads.map(({u,score,why})=>{
+    el.innerHTML=leads.length?(soft?'<div style="font-size:10px;color:var(--muted);padding:0 0 8px">No strong signals right now — showing the most engaged free users instead, ranked by usage.</div>':'')+leads.map(({u,score,why})=>{
       const hot=score>=6;
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:18px">${hot?'💎':'🔥'}</div>
+        <div style="font-size:18px">${hot?'💎':score>=3?'🔥':'👤'}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:700">${esc(u.name!=='—'?u.name:(u.email||''))} <span style="font-weight:400;color:var(--muted);font-size:11px">· ${esc(u.email||'')}</span></div>
           <div style="font-size:10px;color:var(--muted);margin-top:2px">${why.join(' · ')}</div>
@@ -2141,7 +2389,7 @@ async function renderHotLeads(){
         <span style="font-family:var(--mono);font-weight:800;font-size:14px;color:${hot?'var(--gold)':'var(--yellow)'};flex-shrink:0" title="lead score">${score}</span>
       </div>`;
     }).join('')
-      :'<div class="tbl-empty">No hot leads yet — they appear when free users build daily streaks or tap Pro 🔒 locks on the website</div>';
+      :'<div class="tbl-empty">No free user has made a single entry in the cached 90-day window, so there is nothing to rank yet.<br><span style="font-size:11px">Leads appear as soon as free users start making entries, build streaks, or tap a Pro 🔒 lock on the website.</span></div>';
   }catch(e){
     el.innerHTML='<div class="tbl-empty">Error: '+esc(String(e.message||'').substring(0,100))+'</div>';
   }
@@ -2276,13 +2524,21 @@ function estMinutes(msList){
 
 async function loadActivity(){
   const days=parseInt(document.getElementById('act-days')?.value||'7');
-  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
+  // Inclusive window: "Today" (days=1) must mean today alone, and "Last 7
+  // days" must mean today plus the previous six. Subtracting the full `days`
+  // made every option reach one day too far back — "Today" silently showed
+  // yesterday's activity as well.
+  const cutISO=localISO(new Date(Date.now()-(days-1)*86400000));
+  // The audit feed used (now − N days) as its cutoff, so "Today" asked for
+  // events newer than this exact moment and could never return anything that
+  // had already happened today. Anchor it to the start of the same day the
+  // usage list uses instead.
+  const cutoff=new Date(cutISO+'T00:00:00');
 
   // ── A) Who's active — from the txn cache (user · shops · time spent) ──
   try{
     if(!_users.length){ try{ await loadUsers(); }catch(e){} }
     await ensureTxCache();
-    const cutISO=localISO(new Date(Date.now()-days*86400000));
     const txs=(loadCache(ADMIN_CACHE.txns)?.data||[]).filter(t=>(t.date||'')>=cutISO);
     const byBiz={};
     txs.forEach(t=>{const b=t.businessId;if(!b)return;(byBiz[b]=byBiz[b]||[]).push(t);});
@@ -2318,7 +2574,22 @@ async function loadActivity(){
           </div>
         </div>
       </div>`;
-    }).join(''):'<div class="tbl-empty">No usage in this period</div>';
+    }).join(''):(()=>{
+      // An empty list here is almost always real (nobody opened the app in
+      // the window), not a failure — but the old bare "No usage in this
+      // period" gave the operator no way to tell those two apart. Name the
+      // most recent entry in the whole cache so the range is obviously the
+      // reason, and how stale the cache itself is.
+      const all=loadCache(ADMIN_CACHE.txns)?.data||[];
+      const newest=all.map(t=>t.date).filter(Boolean).sort().pop();
+      const age=cacheAge(ADMIN_CACHE.txns);
+      if(!all.length) return '<div class="tbl-empty">No entry data cached yet — tap <b>↻ Refresh All</b> on the Overview tab.</div>';
+      const gap=newest?Math.round((Date.now()-new Date(newest+'T00:00:00').getTime())/86400000):null;
+      return '<div class="tbl-empty">Nobody made an entry in this window.<br>'
+        +'<span style="font-size:11px">Most recent entry anywhere: <b>'+esc(newest||'—')+'</b>'
+        +(gap!==null?' ('+gap+' days ago)':'')+' — widen the range above to see it.<br>'
+        +'Entry data refreshed '+esc(age||'never')+'.</span></div>';
+    })();
   }catch(e){
     console.error('act-usage:',e);
     const box=document.getElementById('act-usage');
@@ -2331,7 +2602,7 @@ async function loadActivity(){
     _audits=snap.docs.map(d=>({id:d.id,...d.data()}));
     document.getElementById('act-count').textContent=_audits.length+' events';
     const feed=document.getElementById('activity-feed');
-    if(!_audits.length){feed.innerHTML='<div class="tbl-empty">No activity in this period</div>';return;}
+    if(!_audits.length){feed.innerHTML='<div class="tbl-empty">No audit events in this window.<br><span style="font-size:11px">Audit events are written by the <b>website</b> (login / save / edit). The Android app does not write them, so this stays empty for app-only users — the list above is the real usage signal.</span></div>';return;}
     const iconMap={login:'🔑',logout:'👋',manual_add:'📝',scan_add:'📸',delete:'🗑️',edit:'✏️',supplier_add:'🏷️',payment_add:'💰',config_save:'⚙️'};
     const colorMap={login:'rgba(16,185,129,.1)',logout:'rgba(107,114,128,.1)',manual_add:'rgba(99,102,241,.1)',scan_add:'rgba(168,85,247,.1)',delete:'rgba(244,63,94,.1)',edit:'rgba(245,158,11,.1)'};
     feed.innerHTML=_audits.map(a=>`
@@ -2461,8 +2732,14 @@ async function _txnsForBiz(bid){
   const cache=loadCache(ADMIN_CACHE.txns);
   const cached=(cache?.data||[]).filter(t=>t.businessId===bid);
   if(cached.length) return cached.sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
-  const snap=await DB.collection('transactions').where('businessId','==',bid).orderBy('date','desc').limit(200).get();
-  return snap.docs.map(d=>d.data());
+  // No orderBy here. where(businessId)+orderBy(date) needs a composite index
+  // (businessId ASC, date DESC) that this project has never created, so the
+  // live fallback threw "The query requires an index" and killed both
+  // Archive and Purge — and it only ever fired for accounts with NOTHING in
+  // the 90-day cache, i.e. exactly the dormant accounts being deleted.
+  // A single equality filter needs no index; sort client-side instead.
+  const snap=await DB.collection('transactions').where('businessId','==',bid).limit(300).get();
+  return snap.docs.map(d=>d.data()).sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
 }
 
 // Snapshot a pending-deletion account into deleted_accounts so its identity,
