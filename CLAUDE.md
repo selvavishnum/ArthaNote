@@ -1,19 +1,31 @@
 # கணக்கபிள்ளை (Kanakkupillai) — Claude Code Context
 
+> ⚠️ **This repository is public. Do not put personal or account details in
+> this file.** No owner email addresses, no Firebase Auth UIDs, no API keys,
+> no real staff/customer names. This file is indexed by search engines and
+> read by AI assistants, so anything written here is effectively published.
+> The live values all exist in the code already — read them from there:
+> the Firebase web config is in `index.html`, the admin allowlist is in
+> `admin.html` (`ADMIN_EMAILS`), and the admin UID is in `firestore.rules`
+> (`isAdmin()`). Referring to them by location keeps this doc useful without
+> restating them.
+
 ## PROJECT OVERVIEW
 SaaS PWA for Tamil Nadu small retailers — digital ledger app
-- **Live URL:** https://selvavishnum.github.io/Kannakupilai/
-- **GitHub Repo:** selvavishnum/Kannakupilai (main branch)
-- **Firebase Project:** selva-ledger (projectId: selva-ledger)
-- **Firebase API Key:** AIzaSyB5q3fFfl5aUXp8d9yb0K_qkI20vdTL2Xg
-- **Admin email:** selvavishnu.m@gmail.com
-- **Admin UID:** WpCQtDGJkpOXJfWntS6vu3B5HXO2
+- **Live URL:** https://arthanote.com/
+- **GitHub Repo:** selvavishnum/ArthaNote (main branch)
+- **Firebase project / web API key:** see the `firebaseConfig` block in
+  `index.html`. (A Firebase *web* API key is a public client identifier by
+  design, not a secret — Firestore security rules are the real boundary.)
+- **Admin account:** the allowlist is `ADMIN_EMAILS` in `admin.html`; the
+  matching UID is hardcoded in `isAdmin()` in `firestore.rules`. Both must
+  refer to the same account.
 
 ## TECH STACK
 - Frontend: Single HTML PWA (vanilla JS, no framework)
 - Auth: Firebase Auth (Email/Password + Google OAuth popup)
 - Database: Firestore (cache-first, localStorage backup)
-- Hosting: GitHub Pages
+- Hosting: Vercel (arthanote.com). GitHub Pages is no longer used.
 - OCR: Gemini SDK (gemini-2.0-flash) → Claude fallback
 - PWA: manifest.json + sw.js (v7, no-cache passthrough)
 
@@ -68,7 +80,8 @@ Tied to the "link accounts" pending item below.
 1. **Cache-first**: localStorage → Firestore (never read on every login)
 2. **Google login**: signInWithPopup ONLY (signInWithRedirect breaks Android Chrome sessionStorage)
 3. **OCR**: Gemini SDK (importmap) → no CORS issues
-4. **Owner-only**: Scan tab + OCR API Keys hidden for non selvavishnu.m@gmail.com
+4. **Owner-only**: Scan tab + OCR API Keys hidden for anyone who is not the
+   owner account (see `OWNER_EMAIL` in `index.html`)
 5. **SW v7**: No-cache passthrough (unregisters old SWs on load)
 
 ## APP FEATURES
@@ -146,19 +159,15 @@ const API_CONFIG = {
 | 🟢 | Finance module working |
 | 🟢 | 12 shop types onboarding |
 
-## SELVA'S SHOPS (hardcoded fallback)
-```javascript
-SHOPS = {
-  s1:{name:'Tulsi Thuckaly',icon:'🥬',type:'vegetables'},
-  s2:{name:'Tea Shop',icon:'☕',type:'tea'},
-  s3:{name:'Tulsi Bridal',icon:'💍',type:'jewellery'},
-  s4:{name:'Tulsi Monday market',icon:'🥬',type:'vegetables'}
-}
-```
+## OWNER SHOPS (hardcoded fallback)
+The owner account has a hardcoded `SHOPS` fallback in `index.html` (4 shops,
+keyed `s1`–`s4`, each `{name, icon, type}`) used when the Firestore `config`
+doc has not loaded yet. Read the real values from `index.html`; they are not
+duplicated here because they name a real business.
 
 ## OWNER PERMISSIONS
 ```javascript
-const OWNER_EMAIL='selvavishnu.m@gmail.com';
+// OWNER_EMAIL is defined in index.html — see that file for the value.
 // Scan tab hidden for non-owners
 // OCR API Keys section hidden for non-owners
 // applyOwnerPermissions() called in _finishAppSetup
@@ -182,7 +191,9 @@ const OWNER_EMAIL='selvavishnu.m@gmail.com';
 - `slv_gstrate` — GST rate
 
 ## STAFF
-Perinbham, Sherina, Suseela, Shubhala, Suriya, Dishan, Aswathy, Manikandan, Mohan, Gaddson, Vishnu
+Staff are real employees, so their names are not listed here — this file is
+public. They live in the Firestore `staff` collection (~11 records for the
+owner business) and are managed in-app under Staff management.
 
 ## PRICING MODEL
 - Free: 1 shop, basic features
