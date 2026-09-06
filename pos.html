@@ -8,6 +8,12 @@
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
+/* Guarded: if the CDN is unreachable — a shop's internet is the least
+   reliable thing in the building — this assignment would otherwise throw
+   "tailwind is not defined" and take the rest of this block with it. The
+   fallback stylesheet further down keeps the terminal operable unstyled,
+   because billing is the one thing that cannot be allowed to stop. */
+if (typeof tailwind !== 'undefined') {
 tailwind.config = {
   theme: {
     extend: {
@@ -22,6 +28,7 @@ tailwind.config = {
       },
     }
   }
+}
 }
 </script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap">
@@ -54,10 +61,39 @@ tailwind.config = {
     @page{margin:3mm}
   }
   @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+  /* ── Degraded mode ────────────────────────────────────────────────────
+     Applied only when the Tailwind CDN failed to load. It will not look
+     like the designed terminal, but every control stays visible, legible
+     and clickable so the counter can keep billing. A shop losing its
+     internet must not also lose its till. */
+  body.no-css{font-family:system-ui,sans-serif;background:#fff;color:#111}
+  body.no-css #otp-screen,body.no-css .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+  body.no-css .modal.hidden,body.no-css #otp-screen.hidden,body.no-css .hidden{display:none!important}
+  body.no-css #otp-screen>div,body.no-css .modal>div{background:#fff;border-radius:10px;padding:18px;max-width:460px;width:100%;max-height:92vh;overflow:auto;border:1px solid #ccc}
+  body.no-css input,body.no-css select,body.no-css button{font:inherit;padding:8px 10px;border:1px solid #999;border-radius:6px;background:#fff;margin:2px 0}
+  body.no-css button{cursor:pointer;background:#065f46;color:#fff;border-color:#065f46;font-weight:700}
+  body.no-css table{width:100%;border-collapse:collapse}
+  body.no-css th,body.no-css td{border-bottom:1px solid #ddd;padding:6px;text-align:left}
+  body.no-css header{background:#0f172a;color:#fff;padding:8px}
+  body.no-css header button{background:#334155;border-color:#334155}
+  #css-warn{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;background:#b45309;color:#fff;
+    font:600 13px/1.4 system-ui,sans-serif;padding:9px 14px;text-align:center}
+  body.no-css #css-warn{display:block}
 </style>
 </head>
 
 <body class="h-full bg-slate-100 font-sans text-slate-900 select-none">
+
+<div id="css-warn">⚠️ Styling could not load (no internet). The terminal still works — keep billing.</div>
+<script>
+/* Detect a failed Tailwind load and switch to degraded mode. Checked on
+   DOMContentLoaded rather than immediately, because the Play CDN injects its
+   stylesheet asynchronously after the script executes. */
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{ if(typeof tailwind==='undefined') document.body.classList.add('no-css'); },400);
+});
+</script>
 
 <!-- ═══════════════════════════════════════════════════════════
      OTP LOGIN OVERLAY  (simulated 4-digit email OTP)
@@ -212,13 +248,25 @@ tailwind.config = {
             </div>
             <div class="flex justify-between" id="gst-row"><span class="text-slate-500">GST <span id="gst-lbl" class="text-xs"></span></span><span class="font-semibold tnum" id="t-gst">₹0.00</span></div>
           </div>
-          <button id="checkout-btn" onclick="openPayment()"
-            class="w-full h-16 bg-brand-600 hover:bg-brand-700 active:bg-brand-900 text-white flex items-center justify-between px-4 transition disabled:bg-slate-300 disabled:cursor-not-allowed">
-            <span class="text-left">
-              <span class="block text-[11px] font-semibold opacity-80 uppercase tracking-wide">Checkout · F4</span>
-              <span class="block text-xs font-medium" id="ck-items">0 items</span>
-            </span>
+          <div class="px-3 pb-2 flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-500" id="ck-items">0 items</span>
             <span class="text-2xl font-extrabold tnum" id="ck-total">₹0.00</span>
+          </div>
+          <!-- Payment routes are their own keys so a cash sale never needs a
+               mouse: F8 goes straight to cash, F9 to UPI. -->
+          <div class="grid grid-cols-3 gap-px bg-slate-200">
+            <button id="pay-cash-btn" onclick="openPayment('cash')"
+              class="h-14 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-amber-950 font-extrabold text-sm flex flex-col items-center justify-center transition disabled:bg-slate-200 disabled:text-slate-400">
+              <span>₹ CASH</span><span class="text-[10px] font-bold opacity-70">F8</span></button>
+            <button id="pay-upi-btn" onclick="openPayment('upi')"
+              class="h-14 bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 text-white font-extrabold text-sm flex flex-col items-center justify-center transition disabled:bg-slate-200 disabled:text-slate-400">
+              <span>QR / GPay</span><span class="text-[10px] font-bold opacity-80">F9</span></button>
+            <button id="pay-card-btn" onclick="openPayment('card')"
+              class="h-14 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-extrabold text-sm flex flex-col items-center justify-center transition disabled:bg-slate-200 disabled:text-slate-400">
+              <span>CARD</span><span class="text-[10px] font-bold opacity-70">Split</span></button>
+          </div>
+          <button onclick="openKeys()" class="w-full h-7 bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wide transition">
+            F1 sku · F2 search · F4 custom · F11 full screen · ? all keys
           </button>
         </div>
       </div>
@@ -236,6 +284,67 @@ tailwind.config = {
 <!-- ═══════════════════════════════════════════════════════════
      MODALS
      ═══════════════════════════════════════════════════════════ -->
+
+<!-- Quantity / weight prompt — opens on every product tap so the cashier enters
+     the weighed amount before the line joins the cart -->
+<div id="m-qty" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    <div class="bg-amber-400 text-amber-950 px-5 py-3 flex items-center justify-between">
+      <span class="font-extrabold text-sm">Add Product</span>
+      <button onclick="closeModals()" class="w-7 h-7 rounded-lg hover:bg-amber-500/30 grid place-items-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="p-5">
+      <div class="mb-3">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Product Name</label>
+        <div id="q-name" class="h-11 px-3 rounded-xl bg-slate-100 flex items-center font-bold text-[15px]"></div>
+        <div id="q-name-ta" class="font-ta text-xs text-slate-500 mt-1"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Price (MRP)</label>
+          <input id="q-rate" type="number" min="0" step="0.01" oninput="qtyCalc()"
+            class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Discount (%)</label>
+          <input id="q-disc" type="number" min="0" max="100" step="0.01" value="0" oninput="qtyCalc()"
+            class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+          Quantity <span id="q-unit-lbl" class="text-brand-700"></span>
+        </label>
+        <input id="q-qty" type="number" min="0" step="0.001" inputmode="decimal" oninput="qtyCalc()"
+          class="w-full h-14 px-3 rounded-xl border-2 border-brand-600 focus:outline-none text-right text-2xl font-extrabold tnum">
+        <div id="q-chips" class="flex gap-1.5 mt-2 flex-wrap"></div>
+      </div>
+      <div class="mt-4 bg-slate-50 rounded-xl p-3 flex justify-between items-baseline">
+        <div>
+          <div class="text-sm font-semibold text-slate-600">Selling Price (Total)</div>
+          <div id="q-perunit" class="text-[11px] text-slate-400"></div>
+        </div>
+        <span class="text-2xl font-extrabold tnum" id="q-total">₹0.00</span>
+      </div>
+      <div class="flex gap-2 mt-4">
+        <button onclick="closeModals()" class="flex-1 h-12 rounded-xl border-2 border-slate-200 font-bold hover:bg-slate-50">Cancel</button>
+        <button onclick="qtyAdd()" class="flex-[2] h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold">Add <span class="opacity-70 font-semibold text-xs">(Enter)</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard shortcut reference -->
+<div id="m-keys" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-lg">Keyboard shortcuts</h3>
+      <button onclick="closeModals()" class="w-8 h-8 rounded-lg hover:bg-slate-100 grid place-items-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="space-y-1.5 text-sm" id="keys-list"></div>
+    <button onclick="closeModals()" class="w-full h-11 rounded-xl bg-term-900 text-white font-bold mt-5">Close</button>
+  </div>
+</div>
 
 <!-- Custom item -->
 <div id="m-custom" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
@@ -604,17 +713,56 @@ function skuEnter(){
 }
 
 /* ══════════════ CART OPS ══════════════ */
+/* ── Quantity prompt ──────────────────────────────────────────────────
+   Tapping a product opens this rather than pushing a default quantity into
+   the cart. A vegetable counter weighs first and bills second, so the
+   weight is what the cashier actually has in hand at that moment; guessing
+   0.5 kg and correcting it afterwards is two edits instead of one entry. */
+let _qtyProduct = null;
 function addToCart(pid){
   const p = DB.products.find(x=>x.id===pid); if(!p) return;
+  _qtyProduct = p;
+  document.getElementById('q-name').textContent = p.nameEn;
+  document.getElementById('q-name-ta').textContent = p.nameTa || '';
+  document.getElementById('q-rate').value = p.price;
+  document.getElementById('q-disc').value = 0;
+  document.getElementById('q-qty').value  = p.unit==='kg' ? '' : 1;
+  document.getElementById('q-unit-lbl').textContent = p.unit==='kg' ? '(in kg — e.g. 0.750)' : '(pieces)';
+  // Weight shortcuts for the amounts a veg counter actually sells
+  const chips = p.unit==='kg' ? [0.25,0.5,0.75,1,1.5,2,2.5,5] : [1,2,3,5,10,12];
+  document.getElementById('q-chips').innerHTML = chips.map(v=>
+    `<button onclick="document.getElementById('q-qty').value=${v};qtyCalc()"
+      class="px-2.5 h-8 rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-xs font-bold tnum">${v}${p.unit==='kg'?'':'×'}</button>`).join('');
+  qtyCalc();
+  show('m-qty');
+  setTimeout(()=>{ const q=document.getElementById('q-qty'); q.focus(); q.select(); }, 40);
+}
+function qtyCalc(){
+  const rate = parseFloat(document.getElementById('q-rate').value)||0;
+  const disc = Math.min(Math.max(parseFloat(document.getElementById('q-disc').value)||0,0),100);
+  const qty  = parseFloat(document.getElementById('q-qty').value)||0;
+  const per  = rate*(1-disc/100);
+  document.getElementById('q-total').textContent   = money(per*qty);
+  document.getElementById('q-perunit').textContent = 'Per unit: '+money(per)+(_qtyProduct?' / '+_qtyProduct.unit:'');
+}
+function qtyAdd(){
+  if(!_qtyProduct) return;
+  const p = _qtyProduct;
+  const rate = parseFloat(document.getElementById('q-rate').value)||0;
+  const disc = Math.min(Math.max(parseFloat(document.getElementById('q-disc').value)||0,0),100);
+  let qty = parseFloat(document.getElementById('q-qty').value);
+  if(!(qty>0))  { toast('Enter a quantity','error'); document.getElementById('q-qty').focus(); return; }
+  if(!(rate>0)) { toast('Enter a rate','error');     document.getElementById('q-rate').focus(); return; }
+  qty = p.unit==='kg' ? +qty.toFixed(3) : Math.round(qty);
+  const net = +(rate*(1-disc/100)).toFixed(2);
   const c = cart();
-  const ex = c.items.find(i=>i.pid===pid);
-  if(ex) ex.qty = +(ex.qty + (p.unit==='kg' ? 0.25 : 1)).toFixed(3);
-  else c.items.push({ pid:p.id, name:p.nameEn, nameTa:p.nameTa, unit:p.unit, rate:p.price, qty: p.unit==='kg' ? 0.5 : 1 });
-  saveCarts(); renderAll();
-  // Focus the qty box of the row just touched so a weight can be typed straight away
-  const idx = c.items.findIndex(i=>i.pid===pid);
-  const box = document.getElementById('q-'+idx);
-  if(box){ box.focus(); box.select(); }
+  // Same product at the same effective rate merges instead of stacking lines
+  const ex = c.items.find(i=>i.pid===p.id && i.rate===net);
+  if(ex) ex.qty = +(ex.qty+qty).toFixed(3);
+  else c.items.push({ pid:p.id, name:p.nameEn, nameTa:p.nameTa, unit:p.unit, rate:net, qty });
+  saveCarts(); closeModals(); renderAll();
+  toast(p.nameEn+' · '+qtyFmt(qty,p.unit)+' '+p.unit+' = '+money(net*qty));
+  document.getElementById('search-input')?.focus();
 }
 function addCustomItem(){
   const name = document.getElementById('ci-name').value.trim();
@@ -698,16 +846,19 @@ function renderCart(){
   document.getElementById('t-gst').textContent   = money(t.gst);
   document.getElementById('ck-total').textContent= money(t.total);
   document.getElementById('ck-items').textContent= t.count + (t.count===1?' item':' items');
-  document.getElementById('checkout-btn').disabled = !t.count;
+  // All three payment routes disable together on an empty cart
+  ['pay-cash-btn','pay-upi-btn','pay-card-btn'].forEach(id=>{
+    const b=document.getElementById(id); if(b) b.disabled = !t.count;
+  });
   c.disc = t.dv; c.discType = t.dt; saveCarts();
   renderTabs(); icons();
 }
 function renderAll(){ renderTabs(); renderMode(); renderCats(); renderProducts(); renderCart(); }
 
 /* ══════════════ PAYMENT ══════════════ */
-function openPayment(){
+function openPayment(method){
   const t = calcTotals();
-  if(!t.count) return;
+  if(!t.count){ toast('Cart is empty','error'); return; }
   document.getElementById('pay-total').textContent = money(t.total);
   document.getElementById('pay-tendered').value = '';
   document.getElementById('pay-ref').value = '';
@@ -717,9 +868,18 @@ function openPayment(){
   document.getElementById('sp-upi').value = 0;
   document.getElementById('upi-vpa').textContent = DB.settings.vpa;
   document.getElementById('cust-list').innerHTML = DB.customers.map(c=>`<option value="${esc(c.name)} · ${c.phone}">`).join('');
-  drawQR(); quickCash(t.total); setPay('cash'); calcChange(); calcSplit();
+  drawQR(); quickCash(t.total); setPay(method||'cash'); calcChange(); calcSplit();
   show('m-pay');
-  setTimeout(()=>document.getElementById('pay-tendered').focus(), 50);
+  // Land the caret where that payment route needs input: the note handed over
+  // for cash, the transaction reference for UPI or card.
+  setTimeout(()=>{
+    const m = method||'cash';
+    const el = m==='cash' ? document.getElementById('pay-tendered')
+             : m==='upi'  ? document.getElementById('pay-ref')
+             : m==='card' ? document.getElementById('pay-card-ref')
+             : document.getElementById('sp-cash');
+    if(el){ el.focus(); el.select && el.select(); }
+  }, 50);
 }
 function setPay(m){
   payMethod = m;
@@ -822,6 +982,16 @@ function completeSale(){
   renderAll();
   showReceipt(bill);
   toast('Bill '+bill.billNo+' saved · '+money(bill.total));
+  // Hand the bill to the printer without a second keystroke. The browser's own
+  // print dialog is what appears; with Chrome launched using --kiosk-printing
+  // it prints silently, which is the only version fast enough for a counter.
+  if(AUTOPRINT) setTimeout(()=>window.print(), 250);
+}
+let AUTOPRINT = (()=>{ try{ return localStorage.getItem('anpos_autoprint')!=='0'; }catch(e){ return true; } })();
+function toggleAutoprint(){
+  AUTOPRINT=!AUTOPRINT;
+  try{ localStorage.setItem('anpos_autoprint',AUTOPRINT?'1':'0'); }catch(e){}
+  toast(AUTOPRINT?'Auto-print ON — bill prints as soon as the sale completes':'Auto-print OFF — use Print Bill on the receipt');
 }
 
 /* ══════════════ RECEIPT ══════════════ */
@@ -1131,21 +1301,115 @@ function toast(msg, kind){
 }
 function icons(){ if(window.lucide) lucide.createIcons(); }
 
-/* ══════════════ KEYBOARD ══════════════ */
+/* ══════════════ KEYBOARD ══════════════════════════════════════════════
+   A counter operator should never need the mouse. Function keys are claimed
+   deliberately, and each one is preventDefault-ed so the browser's own
+   binding (help, refresh, full screen) does not fire alongside ours.
+   ═══════════════════════════════════════════════════════════════════════ */
+const KEYMAP=[
+  ['F1','Jump to the SKU / barcode box'],
+  ['F2','Jump to product search'],
+  ['F4','Add a custom item (name, price, qty)'],
+  ['F5','Reload the terminal (held carts are kept)'],
+  ['F8','Cash payment → print bill'],
+  ['F9','GPay / UPI payment → print bill'],
+  ['F11','Full screen on / off'],
+  ['Enter','Confirm the open dialog (add item, complete sale)'],
+  ['Esc','Close dialog, or clear the search box'],
+  ['Alt + 1…5','Switch between held carts C1–C5'],
+  ['Ctrl + P','Reprint the last bill'],
+  ['?','Show this list'],
+];
+function openKeys(){
+  document.getElementById('keys-list').innerHTML = KEYMAP.map(([k,d])=>
+    `<div class="flex items-center gap-3 py-1.5 border-b border-slate-100 last:border-0">
+      <kbd class="px-2 py-1 rounded-md bg-slate-100 border border-slate-200 font-mono text-[11px] font-bold min-w-[62px] text-center">${k}</kbd>
+      <span class="text-slate-600 text-[13px]">${d}</span></div>`).join('')
+    + `<div class="flex items-center justify-between pt-3 mt-1 border-t border-slate-200">
+        <span class="text-[13px] text-slate-600">Print automatically after each sale</span>
+        <button onclick="toggleAutoprint();openKeys()" class="px-3 h-8 rounded-lg text-xs font-bold ${AUTOPRINT?'bg-brand-600 text-white':'bg-slate-200 text-slate-600'}">${AUTOPRINT?'ON':'OFF'}</button>
+      </div>`;
+  show('m-keys');
+}
+function toggleFullscreen(){
+  if(!document.fullscreenElement){
+    (document.documentElement.requestFullscreen?.() || Promise.reject())
+      .catch(()=>toast('Full screen was blocked — press F11 again','error'));
+  } else document.exitFullscreen?.();
+}
+const modalOpen = id => !document.getElementById(id).classList.contains('hidden');
+const anyModalOpen = () => [...document.querySelectorAll('.modal')].some(m=>!m.classList.contains('hidden'));
+
 document.addEventListener('keydown', e => {
-  if(e.key === 'F2'){ e.preventDefault(); document.getElementById('search-input')?.focus(); document.getElementById('search-input')?.select(); return; }
-  if(e.key === 'F4' || (e.ctrlKey && e.key === 'Enter')){
+  // Nothing below should fire while the terminal is still locked
+  if(!document.getElementById('otp-screen').classList.contains('hidden')) return;
+
+  switch(e.key){
+    case 'F1':   // cursor to SKU / barcode
+      e.preventDefault();
+      if(anyModalOpen()) closeModals();
+      { const el=document.getElementById('sku-input'); if(el){ el.focus(); el.select(); } }
+      return;
+
+    case 'F2':   // product search
+      e.preventDefault();
+      if(anyModalOpen()) closeModals();
+      { const el=document.getElementById('search-input'); if(el){ el.focus(); el.select(); } }
+      return;
+
+    case 'F4':   // custom item
+      e.preventDefault();
+      if(!modalOpen('m-custom')) openCustomItem();
+      return;
+
+    case 'F5':   // reload — carts already persist, so this is safe mid-bill
+      e.preventDefault();
+      saveCarts(); saveDB();
+      location.reload();
+      return;
+
+    case 'F8':   // cash → print
+      e.preventDefault();
+      if(modalOpen('m-pay')){ completeSale(); }
+      else if(modalOpen('m-receipt')){ window.print(); }
+      else openPayment('cash');
+      return;
+
+    case 'F9':   // UPI / GPay → print
+      e.preventDefault();
+      if(modalOpen('m-pay')){ completeSale(); }
+      else if(modalOpen('m-receipt')){ window.print(); }
+      else openPayment('upi');
+      return;
+
+    case 'F11':
+      e.preventDefault(); toggleFullscreen(); return;
+
+    case 'Enter':
+      // Enter confirms whichever dialog is open; the qty box also submits on Enter
+      if(modalOpen('m-qty'))     { e.preventDefault(); qtyAdd(); return; }
+      if(modalOpen('m-custom'))  { e.preventDefault(); addCustomItem(); return; }
+      if(modalOpen('m-pay'))     { e.preventDefault(); completeSale(); return; }
+      if(modalOpen('m-receipt')) { e.preventDefault(); closeModals(); return; }
+      return;
+
+    case 'Escape':
+      if(anyModalOpen()) closeModals();
+      else { const s=document.getElementById('search-input'); if(s&&s.value){ s.value=''; renderProducts(); } }
+      return;
+
+    case '?':
+      // Only when not typing into a field, or '?' could never be entered
+      if(!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName||'')){ e.preventDefault(); openKeys(); }
+      return;
+  }
+
+  if(e.ctrlKey && (e.key==='p'||e.key==='P')){   // reprint the last bill
     e.preventDefault();
-    if(!document.getElementById('m-pay').classList.contains('hidden')) completeSale();
-    else if(!document.getElementById('pos-view').classList.contains('hidden')) openPayment();
+    if(lastBill) showReceipt(lastBill); else toast('No bill to reprint yet','error');
     return;
   }
-  if(e.key === 'Escape'){
-    const open = [...document.querySelectorAll('.modal')].some(m=>!m.classList.contains('hidden'));
-    if(open) closeModals();
-    else { const s = document.getElementById('search-input'); if(s && s.value){ s.value=''; renderProducts(); } }
-    return;
-  }
+  if(e.ctrlKey && e.key==='Enter'){ e.preventDefault(); openPayment('cash'); return; }
   // Alt+1..5 jumps between held carts without leaving the keyboard
   if(e.altKey && /^[1-5]$/.test(e.key)){ e.preventDefault(); switchCart(+e.key - 1); }
 });
