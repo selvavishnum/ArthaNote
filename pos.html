@@ -4,525 +4,708 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>ArthaNote POS — Tulasi Vegetables Market</title>
-<meta name="theme-color" content="#0f172a">
-
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-/* Guarded: if the CDN is unreachable — a shop's internet is the least
-   reliable thing in the building — this assignment would otherwise throw
-   "tailwind is not defined" and take the rest of this block with it. The
-   fallback stylesheet further down keeps the terminal operable unstyled,
-   because billing is the one thing that cannot be allowed to stop. */
-if (typeof tailwind !== 'undefined') {
-tailwind.config = {
-  theme: {
-    extend: {
-      fontFamily: {
-        sans: ['Inter', 'Noto Sans Tamil', 'system-ui', 'sans-serif'],
-        ta:   ['Noto Sans Tamil', 'sans-serif'],
-        mono: ['Roboto Mono', 'ui-monospace', 'monospace'],
-      },
-      colors: {
-        brand:  { 50:'#ecfdf5', 500:'#10b981', 600:'#059669', 700:'#047857', 900:'#064e3b' },
-        term:   { 900:'#0f172a', 800:'#1e293b', 700:'#334155', 600:'#475569' },
-      },
-    }
-  }
-}
-}
-</script>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.451.0/umd/lucide.min.js"></script>
-
+<meta name="theme-color" content="#ffffff">
+<!-- Fonts load NON-BLOCKING. A plain stylesheet link holds up parsing and, with
+     it, every script on the page: on a slow or unreachable connection the whole
+     terminal sits dark until the request times out. Loading it as a preload
+     that promotes itself to a stylesheet means the till boots immediately and
+     the type swaps in when (or if) the fonts arrive. -->
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap"></noscript>
 <style>
-  html,body{height:100%;overscroll-behavior:none}
-  body{-webkit-tap-highlight-color:transparent}
-  .tnum{font-variant-numeric:tabular-nums}
-  /* Thin scrollbars so panels keep their density on a counter screen */
-  .scroll::-webkit-scrollbar{width:8px;height:8px}
-  .scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
-  .scroll::-webkit-scrollbar-track{background:transparent}
-  /* Number inputs: strip spinners, they steal width and are useless on a POS */
-  input[type=number]::-webkit-outer-spin-button,
-  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-  input[type=number]{-moz-appearance:textfield}
-  [x-cloak]{display:none!important}
+/* ══════════════════════════════════════════════════════════════════════
+   ArthaNote POS — clean, minimalist counter terminal.
 
-  /* ── Thermal receipt: 58mm ≈ 32 monospace chars, 80mm ≈ 48 ── */
-  .receipt{font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.45;color:#000;background:#fff;width:280px}
-  .receipt.w80{width:380px;font-size:11.5px}
-  .receipt hr{border:0;border-top:1px dashed #000;margin:5px 0}
-  .receipt .r{display:flex;justify-content:space-between;gap:8px}
+   No CSS framework and no icon CDN: every style and every icon ships in
+   this file. A shop's internet is the least reliable thing in the building
+   and billing is the one thing that cannot stop, so the terminal has no
+   runtime dependency it can lose. Google Fonts is the only external link,
+   and a failed font load degrades to the declared system stack.
 
-  @media print{
-    body *{visibility:hidden!important}
-    #receipt-print, #receipt-print *{visibility:visible!important}
-    #receipt-print{position:absolute;left:0;top:0;width:100%;margin:0;padding:0;box-shadow:none}
-    @page{margin:3mm}
-  }
-  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+   Single, deliberate light theme — a counter is a fixed lighting
+   environment, and every colour is painted explicitly so the page holds
+   regardless of the host's theme.
+   ══════════════════════════════════════════════════════════════════════ */
+:root{
+  color-scheme:light;
+  --page:#f7f7f6;          /* warm-neutral ground, chosen not inherited */
+  --surface:#ffffff;
+  --raised:#fcfcfb;
+  --line:#e8e8e6;
+  --line-2:#f2f2f0;
+  --ink:#101010;
+  --ink-2:#5a5a58;
+  --ink-3:#9a9a96;
+  --accent:#059669;
+  --accent-2:#047857;
+  --accent-soft:#ecfdf5;
+  --accent-line:#a7e0c8;
+  --danger:#c92a2a;
+  --danger-soft:#fdf3f3;
+  --info:#2a6fd6;
+  --info-soft:#eff5fd;
+  --info-line:#bcd6f5;
+  --amber:#b0770f;
+  --amber-soft:#fdf7ec;
+  --amber-line:#ecd9b0;
+  --r:9px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overscroll-behavior:none}
+body{
+  background:var(--page);color:var(--ink);
+  font-family:Inter,'Noto Sans Tamil',system-ui,-apple-system,sans-serif;
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+}
+.ta{font-family:'Noto Sans Tamil',Inter,sans-serif}
+.mono{font-family:'Roboto Mono',ui-monospace,monospace}
+.tnum{font-variant-numeric:tabular-nums}
+.hidden{display:none!important}
+.scroll::-webkit-scrollbar{width:7px;height:7px}
+.scroll::-webkit-scrollbar-thumb{background:#d8d8d4;border-radius:4px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input,select{font:inherit;color:inherit}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg{display:block}
 
-  /* ── Degraded mode ────────────────────────────────────────────────────
-     Applied only when the Tailwind CDN failed to load. It will not look
-     like the designed terminal, but every control stays visible, legible
-     and clickable so the counter can keep billing. A shop losing its
-     internet must not also lose its till. */
-  body.no-css{font-family:system-ui,sans-serif;background:#fff;color:#111}
-  body.no-css #otp-screen,body.no-css .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
-  body.no-css .modal.hidden,body.no-css #otp-screen.hidden,body.no-css .hidden{display:none!important}
-  body.no-css #otp-screen>div,body.no-css .modal>div{background:#fff;border-radius:10px;padding:18px;max-width:460px;width:100%;max-height:92vh;overflow:auto;border:1px solid #ccc}
-  body.no-css input,body.no-css select,body.no-css button{font:inherit;padding:8px 10px;border:1px solid #999;border-radius:6px;background:#fff;margin:2px 0}
-  body.no-css button{cursor:pointer;background:#065f46;color:#fff;border-color:#065f46;font-weight:700}
-  body.no-css table{width:100%;border-collapse:collapse}
-  body.no-css th,body.no-css td{border-bottom:1px solid #ddd;padding:6px;text-align:left}
-  body.no-css header{background:#0f172a;color:#fff;padding:8px}
-  body.no-css header button{background:#334155;border-color:#334155}
-  #css-warn{display:none;position:fixed;bottom:0;left:0;right:0;z-index:60;background:#b45309;color:#fff;
-    font:600 13px/1.4 system-ui,sans-serif;padding:9px 14px;text-align:center}
-  body.no-css #css-warn{display:block}
+/* ── form primitives ── */
+.inp{height:40px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);width:100%;font-size:14px}
+.inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.lbl{display:block;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px}
+.btn{height:40px;padding:0 15px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);
+  font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn:hover{background:var(--line-2)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent-2)}
+.btn-g{border-style:dashed;color:var(--ink-2)}
+.btn-g:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.btn svg{width:15px;height:15px}
+
+/* ══════════ OTP ══════════ */
+#otp-screen{position:fixed;inset:0;z-index:60;background:var(--page);display:flex;align-items:center;justify-content:center;padding:20px}
+.otp-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:30px;width:100%;max-width:370px}
+.otp-brand{display:flex;align-items:center;gap:11px;margin-bottom:22px}
+.otp-logo{width:40px;height:40px;border-radius:10px;background:var(--accent);display:grid;place-items:center;font-size:19px}
+.otp-brand b{display:block;font-size:15px;font-weight:700;line-height:1.25}
+.otp-brand span{display:block;font-size:11.5px;color:var(--ink-3)}
+.otp-row{display:flex;gap:9px;margin:16px 0}
+.otp-in{flex:1;height:56px;text-align:center;font-size:22px;font-weight:700;border:1px solid var(--line);border-radius:11px;background:var(--surface);font-variant-numeric:tabular-nums}
+.otp-in:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.hint{font-size:12px;color:var(--ink-3);line-height:1.5}
+.hint b{color:var(--accent);font-weight:600}
+#otp-err{display:none;font-size:12.5px;color:var(--danger);font-weight:500;margin-bottom:11px}
+
+/* ══════════ shell ══════════ */
+#app{height:100%;display:flex;flex-direction:column}
+header.top{height:52px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;padding:0 12px}
+.logo{width:29px;height:29px;border-radius:8px;background:var(--accent);display:grid;place-items:center;font-size:15px;flex-shrink:0}
+.brand b{display:block;font-size:13px;font-weight:700;line-height:1.2;white-space:nowrap}
+.brand span{display:block;font-size:10.5px;color:var(--ink-3);line-height:1.2}
+.chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:20px;
+  font-size:11px;font-weight:600;background:var(--line-2);color:var(--ink-2);white-space:nowrap}
+.chip.live{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--amber-soft);color:var(--amber)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.seg{display:inline-flex;background:var(--line-2);border-radius:var(--r);padding:2px;gap:2px}
+.seg button{height:30px;padding:0 11px;border-radius:7px;font-size:12px;font-weight:600;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.seg button svg{width:14px;height:14px}
+.who{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 5px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);flex-shrink:0}
+.who:hover{background:var(--line-2)}
+.who .av{width:24px;height:24px;border-radius:6px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700}
+
+/* ══════════ POS workspace ══════════ */
+#pos-view{flex:1;min-height:0;display:flex;flex-direction:column}
+.bar{background:var(--surface);border-bottom:1px solid var(--line);padding:8px 10px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;flex-shrink:0}
+.ctabs{display:flex;gap:5px}
+.ctab{position:relative;height:32px;min-width:44px;padding:0 11px;border-radius:8px;font-size:12.5px;font-weight:700;
+  color:var(--ink-3);background:var(--line-2);transition:background .12s,color .12s}
+.ctab:hover{background:#e9e9e6;color:var(--ink-2)}
+.ctab.has{background:var(--surface);border:1px solid var(--line);color:var(--ink-2)}
+.ctab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ctab .n{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;
+  background:var(--accent);color:#fff;font-size:9.5px;font-weight:700;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.ctab.on .n{background:var(--accent)}
+.vr{width:1px;height:22px;background:var(--line)}
+
+.work{flex:1;min-height:0;display:grid;grid-template-columns:1fr 400px}
+@media(max-width:1100px){.work{grid-template-columns:1fr 340px}}
+.left{min-height:0;display:flex;flex-direction:column;border-right:1px solid var(--line)}
+.searchbar{padding:9px 10px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;gap:8px;flex-shrink:0}
+.field{position:relative;flex:1}
+.field svg{position:absolute;left:11px;top:12px;width:16px;height:16px;color:var(--ink-3);pointer-events:none}
+.field .inp{padding-left:34px}
+.field.sku{flex:0 0 132px}
+.field .clr{position:absolute;right:6px;top:8px;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--ink-3)}
+.field .clr:hover{background:var(--line-2);color:var(--ink)}
+.cats{display:flex;gap:6px;padding:9px 10px 0;overflow-x:auto;flex-shrink:0}
+.cat{flex-shrink:0;height:28px;padding:0 12px;border-radius:20px;font-size:11.5px;font-weight:600;
+  background:var(--surface);border:1px solid var(--line);color:var(--ink-2)}
+.cat:hover{border-color:var(--ink-3)}
+.cat.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+#product-grid{flex:1;min-height:0;overflow-y:auto;padding:10px;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:8px;align-content:start}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:11px;
+  text-align:left;display:flex;flex-direction:column;min-height:92px;transition:border-color .12s,background .12s}
+.pcard:hover{border-color:var(--accent-line);background:var(--accent-soft)}
+.pcard:active{background:var(--accent-soft);border-color:var(--accent)}
+.pcard .nm{font-size:13px;font-weight:700;line-height:1.25}
+.pcard .ta{font-size:11.5px;color:var(--ink-3);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard .ft{margin-top:auto;padding-top:8px;display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+.pcard .pr{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+.pcard .un{font-size:10px;font-weight:600;color:var(--ink-3)}
+.pcard .st{font-size:10.5px;font-weight:600;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pcard .st.low{color:var(--danger)}
+.grid-empty{grid-column:1/-1;text-align:center;color:var(--ink-3);font-size:13px;padding:44px 20px;line-height:1.6}
+
+/* ── cart ── */
+.right{min-height:0;display:flex;flex-direction:column;background:var(--surface)}
+.cart-hd{padding:10px 13px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.cart-hd b{font-size:13.5px;font-weight:700}
+#cart-body{flex:1;min-height:0;overflow-y:auto}
+table.cart{width:100%;border-collapse:collapse;font-size:13px}
+table.cart th{position:sticky;top:0;background:var(--raised);border-bottom:1px solid var(--line);
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);padding:8px 10px;text-align:left;z-index:1}
+table.cart td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+table.cart tr:last-child td{border-bottom:0}
+.li-nm{font-size:13px;font-weight:600;line-height:1.25}
+.li-ta{font-size:11px;color:var(--ink-3);line-height:1.25}
+.li-un{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.04em;padding:1px 5px;border-radius:4px;
+  background:var(--amber-soft);color:var(--amber);vertical-align:middle;margin-left:4px}
+.stepper{display:flex;align-items:center;gap:3px}
+.stepper button{width:24px;height:28px;border-radius:6px;background:var(--line-2);font-weight:700;color:var(--ink-2);flex-shrink:0;font-size:14px;line-height:1}
+.stepper button:hover{background:#e6e6e3;color:var(--ink)}
+.stepper input{width:100%;min-width:0;height:28px;text-align:center;border:1px solid var(--line);border-radius:6px;
+  background:var(--surface);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.stepper input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.del{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--ink-3)}
+.del:hover{background:var(--danger-soft);color:var(--danger)}
+.del svg{width:14px;height:14px}
+.cart-empty{height:100%;display:grid;place-items:center;text-align:center;padding:40px 24px}
+.cart-empty .em{font-size:30px;margin-bottom:8px;opacity:.35}
+.cart-empty b{display:block;font-size:13.5px;color:var(--ink-3);font-weight:600}
+.cart-empty span{display:block;font-size:12px;color:var(--ink-3);margin-top:3px}
+
+.totals{border-top:1px solid var(--line);padding:10px 13px;display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.trow{display:flex;align-items:center;justify-content:space-between;font-size:13px;gap:8px}
+.trow .k{color:var(--ink-2)}
+.trow .v{font-weight:600;font-variant-numeric:tabular-nums}
+.trow .v.neg{color:var(--danger)}
+.disc-in{width:60px;height:30px;text-align:right;padding:0 8px;border:1px solid var(--line);border-radius:7px;
+  background:var(--surface);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.disc-in:focus{outline:none;border-color:var(--accent)}
+.disc-sel{height:30px;padding:0 5px;border:1px solid var(--line);border-radius:7px;background:var(--surface);font-size:12px;font-weight:700}
+.grand{display:flex;align-items:baseline;justify-content:space-between;padding:11px 13px 9px;border-top:1px solid var(--line);flex-shrink:0}
+.grand .k{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.grand .v{font-size:29px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+
+/* Payment routes. Distinguished by a quiet tint plus the function key that
+   triggers them — the key is the identifier, colour only reinforces it. */
+.pays{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:0 13px 10px;flex-shrink:0}
+.pay{height:56px;border-radius:10px;border:1px solid var(--line);background:var(--surface);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:background .12s,border-color .12s}
+.pay .t{font-size:12.5px;font-weight:700}
+.pay .k{font-size:10px;font-weight:700;color:var(--ink-3);font-family:'Roboto Mono',monospace}
+.pay:disabled{opacity:.4;cursor:not-allowed}
+.pay.cash{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-2)}
+.pay.cash:hover:not(:disabled){background:#dcf5ea}
+.pay.cash .k{color:var(--accent)}
+.pay.upi{background:var(--info-soft);border-color:var(--info-line);color:var(--info)}
+.pay.upi:hover:not(:disabled){background:#e4eefb}
+.pay.upi .k{color:var(--info)}
+.pay.card:hover:not(:disabled){background:var(--line-2)}
+/* Single line, never wrapped — this strip is a reminder, not content, and a
+   clipped second row reads as a rendering fault. */
+.keysbar{height:28px;border-top:1px solid var(--line);background:var(--raised);
+  font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--ink-3);text-transform:uppercase;flex-shrink:0;
+  width:100%;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.keysbar:hover{background:var(--line-2);color:var(--ink-2)}
+
+/* ══════════ modals ══════════ */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(16,16,16,.42);display:flex;align-items:center;justify-content:center;padding:16px}
+.sheet{background:var(--surface);border-radius:13px;width:100%;max-width:400px;max-height:100%;
+  overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.16)}
+.sheet.wide{max-width:440px}
+.sheet-hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sheet-hd h3{margin:0;font-size:15px;font-weight:700}
+.x{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--ink-3);flex-shrink:0}
+.x:hover{background:var(--line-2);color:var(--ink)}
+.x svg{width:16px;height:16px}
+.sheet-b{padding:18px}
+.sheet-f{padding:14px 18px;border-top:1px solid var(--line);display:flex;gap:9px}
+.fg{margin-bottom:13px}
+.fg:last-child{margin-bottom:0}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ro{height:40px;padding:0 12px;border-radius:var(--r);background:var(--line-2);display:flex;align-items:center;font-size:15px;font-weight:700}
+.big{height:52px;font-size:21px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.right-in{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.chips button{height:32px;padding:0 11px;border-radius:8px;background:var(--line-2);
+  font-size:12px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.chips button:hover{background:var(--accent-soft);color:var(--accent)}
+.readout{margin-top:15px;background:var(--raised);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.readout .k{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.readout .sub{font-size:10.5px;color:var(--ink-3);margin-top:1px}
+.readout .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+
+.pmgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:16px}
+.pm{height:62px;border-radius:10px;border:1px solid var(--line);background:var(--surface);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--ink-3);transition:.12s}
+.pm svg{width:18px;height:18px}
+.pm span{font-size:10.5px;font-weight:700}
+.pm:hover{border-color:var(--ink-3);color:var(--ink-2)}
+.pm.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-2)}
+.paytop{padding:16px 18px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.paytop .k{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;opacity:.6}
+.paytop .v{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.paytop .x{color:rgba(255,255,255,.6)}
+.paytop .x:hover{background:rgba(255,255,255,.12);color:#fff}
+.qrwrap{background:var(--raised);border:1px solid var(--line);border-radius:11px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:9px}
+#qr-box{width:150px;height:150px;background:#fff;border:1px solid var(--line);border-radius:9px;display:grid;place-items:center}
+.keyrow{display:flex;align-items:center;gap:11px;padding:7px 0;border-bottom:1px solid var(--line-2)}
+.keyrow:last-of-type{border-bottom:0}
+kbd{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:700;min-width:66px;text-align:center;
+  padding:5px 7px;border-radius:6px;background:var(--line-2);border:1px solid var(--line);flex-shrink:0}
+.keyrow span{font-size:12.5px;color:var(--ink-2)}
+.tgl{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:13px;margin-top:6px;border-top:1px solid var(--line)}
+.tgl button{height:32px;padding:0 13px;border-radius:8px;font-size:11.5px;font-weight:700}
+.tgl .on{background:var(--accent);color:#fff}
+.tgl .off{background:var(--line-2);color:var(--ink-2)}
+
+/* ── receipt (58mm ≈ 32 mono chars, 80mm ≈ 48) ── */
+#m-receipt .sheet{max-width:370px}
+.rcpt-stage{background:#eeeeec;padding:18px;display:grid;place-items:start center;max-height:56vh;overflow:auto}
+.receipt{font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.45;color:#000;background:#fff;width:280px;padding:13px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+.receipt.w80{width:380px;font-size:11.5px}
+.receipt hr{border:0;border-top:1px dashed #000;margin:5px 0}
+.receipt .r{display:flex;justify-content:space-between;gap:8px}
+
+/* ══════════ ERP ══════════ */
+#erp-view{flex:1;min-height:0;display:flex}
+#erp-nav{width:196px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);padding:7px;overflow-y:auto}
+.enav{display:flex;align-items:center;gap:10px;width:100%;height:37px;padding:0 11px;border-radius:8px;
+  font-size:13px;font-weight:600;color:var(--ink-2);text-align:left}
+.enav:hover{background:var(--line-2);color:var(--ink)}
+.enav.on{background:var(--accent-soft);color:var(--accent-2)}
+.enav svg{width:16px;height:16px;flex-shrink:0}
+#erp-body{flex:1;min-height:0;overflow-y:auto;padding:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:11px;margin-bottom:13px}
+.card-hd{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card-hd h3{margin:0;font-size:13.5px;font-weight:700}
+.card-hd .note{font-size:11px;color:var(--ink-3);font-weight:500}
+.card-b{padding:15px}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:11px;margin-bottom:13px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:14px 15px}
+.kpi .l{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.kpi .v{font-size:23px;font-weight:800;letter-spacing:-.02em;margin-top:3px;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .s{font-size:11px;color:var(--ink-3);margin-top:2px}
+.tw{overflow-x:auto}
+table.d{width:100%;border-collapse:collapse;font-size:13px}
+table.d th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.d td{padding:9px 14px;border-bottom:1px solid var(--line-2)}
+table.d tbody tr:last-child td{border-bottom:0}
+table.d tr.click{cursor:pointer}
+table.d tr.click:hover td{background:var(--raised)}
+.num{text-align:right}
+.pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--line-2);color:var(--ink-2);white-space:nowrap}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}
+.pill.bad{background:var(--danger-soft);color:var(--danger)}
+.pill.warn{background:var(--amber-soft);color:var(--amber)}
+.empty{padding:34px 20px;text-align:center;color:var(--ink-3);font-size:12.5px}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:70;
+  background:var(--ink);color:#fff;padding:11px 17px;border-radius:10px;font-size:13px;font-weight:600;
+  box-shadow:0 6px 22px rgba(0,0,0,.2);max-width:90vw;text-align:center}
+#toast.err{background:var(--danger)}
+
+@media print{
+  body *{visibility:hidden!important}
+  #receipt-print,#receipt-print *{visibility:visible!important}
+  #receipt-print{position:absolute;left:0;top:0;width:100%;margin:0;padding:0;box-shadow:none}
+  @page{margin:3mm}
+}
+@media(max-width:820px){
+  .work{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  .right{border-top:1px solid var(--line);max-height:52vh}
+  .left{border-right:0}
+  .frow{grid-template-columns:1fr}
+  #erp-nav{width:54px}
+  .enav span{display:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
+<body>
 
-<body class="h-full bg-slate-100 font-sans text-slate-900 select-none">
-
-<div id="css-warn">⚠️ Styling could not load (no internet). The terminal still works — keep billing.</div>
-<script>
-/* Detect a failed Tailwind load and switch to degraded mode. Checked on
-   DOMContentLoaded rather than immediately, because the Play CDN injects its
-   stylesheet asynchronously after the script executes. */
-document.addEventListener('DOMContentLoaded',()=>{
-  setTimeout(()=>{ if(typeof tailwind==='undefined') document.body.classList.add('no-css'); },400);
-});
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     OTP LOGIN OVERLAY  (simulated 4-digit email OTP)
-     ═══════════════════════════════════════════════════════════ -->
-<div id="otp-screen" class="fixed inset-0 z-50 bg-term-900 flex items-center justify-center p-4">
-  <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-7">
-    <div class="flex items-center gap-3 mb-1">
-      <div class="w-11 h-11 rounded-xl bg-brand-600 grid place-items-center text-white text-xl font-extrabold">🥬</div>
-      <div>
-        <div class="font-extrabold text-lg leading-tight">Tulasi Vegetables Market</div>
-        <div class="text-xs text-slate-500">ArthaNote POS Terminal</div>
-      </div>
+<!-- ══════════ OTP LOGIN ══════════ -->
+<div id="otp-screen">
+  <div class="otp-card">
+    <div class="otp-brand">
+      <div class="otp-logo">🥬</div>
+      <div><b>Tulasi Vegetables Market</b><span>ArthaNote POS · Terminal T1</span></div>
     </div>
-    <p class="text-sm text-slate-600 mt-4 mb-1">OTP to Login / Signup</p>
-    <p class="text-xs text-slate-400 mb-4">A 4-digit code was sent to the registered email. <span class="text-brand-600 font-semibold">Demo code: 1234</span></p>
-
-    <div class="flex gap-2.5 mb-4" id="otp-boxes">
-      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
-      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
-      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
-      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
+    <div class="lbl">OTP to login</div>
+    <p class="hint">A 4-digit code was sent to the registered email. Demo code <b>1234</b>.</p>
+    <div class="otp-row" id="otp-boxes">
+      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 1">
+      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 2">
+      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 3">
+      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 4">
     </div>
-
-    <div class="mb-4">
-      <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Cashier</label>
-      <select id="otp-cashier" class="w-full mt-1 border-2 border-slate-200 rounded-xl px-3 h-11 focus:border-brand-600 focus:outline-none text-sm font-medium">
+    <div class="fg">
+      <label class="lbl" for="otp-cashier">Cashier</label>
+      <select class="inp" id="otp-cashier">
         <option>Cashier 1 — Counter A</option>
         <option>Cashier 2 — Counter B</option>
         <option>Store Manager</option>
       </select>
     </div>
-
-    <div id="otp-err" class="hidden text-sm text-red-600 font-medium mb-3"></div>
-    <button onclick="verifyOTP()" class="w-full h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition">Unlock Terminal</button>
+    <div id="otp-err"></div>
+    <button class="btn btn-p" style="width:100%;height:46px;font-size:14px" onclick="verifyOTP()">Unlock terminal</button>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     APP
-     ═══════════════════════════════════════════════════════════ -->
-<div id="app" class="hidden h-full flex flex-col">
-
-  <!-- ── HEADER ────────────────────────────────────────────── -->
-  <header class="bg-term-900 text-white flex-shrink-0">
-    <div class="px-3 h-14 flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-brand-600 grid place-items-center text-lg flex-shrink-0">🥬</div>
-      <div class="min-w-0 hidden sm:block">
-        <div class="font-bold text-sm leading-tight truncate">Tulasi Vegetables Market</div>
-        <div class="text-[10px] text-slate-400 leading-tight">Thuckalay · Terminal T1</div>
-      </div>
-
-      <!-- status pills -->
-      <div class="flex items-center gap-1.5 ml-auto text-[11px]">
-        <span id="net-pill" class="px-2 py-1 rounded-md bg-brand-600/20 text-brand-500 font-semibold flex items-center gap-1">
-          <span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span><span id="net-txt">Online</span>
-        </span>
-        <span id="sync-pill" class="px-2 py-1 rounded-md bg-slate-700 text-slate-300 font-medium hidden md:flex items-center gap-1">
-          <i data-lucide="hard-drive" class="w-3 h-3"></i><span id="sync-txt">Saved locally</span>
-        </span>
-        <span class="px-2 py-1 rounded-md bg-slate-800 text-slate-300 font-mono tnum" id="clock">--:--:--</span>
-      </div>
-
-      <!-- view toggle -->
-      <div class="flex bg-slate-800 rounded-lg p-0.5 ml-1">
-        <button id="tab-pos" onclick="switchView('pos')" class="px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5">
-          <i data-lucide="calculator" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Billing</span>
-        </button>
-        <button id="tab-erp" onclick="switchView('erp')" class="px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5">
-          <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Manage</span>
-        </button>
-      </div>
-
-      <!-- cashier chip -->
-      <button onclick="logout()" class="flex items-center gap-2 pl-2 pr-2.5 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 transition flex-shrink-0" title="Logout">
-        <span class="w-6 h-6 rounded-md bg-brand-600 grid place-items-center text-[10px] font-bold" id="cashier-ini">C1</span>
-        <span class="text-[11px] font-semibold hidden lg:block" id="cashier-name">Cashier 1</span>
-        <i data-lucide="log-out" class="w-3.5 h-3.5 text-slate-400"></i>
-      </button>
+<!-- ══════════ APP ══════════ -->
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="logo">🥬</div>
+    <div class="brand" style="min-width:0">
+      <b>Tulasi Vegetables Market</b><span>Thuckalay · T1</span>
     </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+      <span class="chip live" id="net-pill"><span class="dot"></span><span id="net-txt">Online</span></span>
+      <span class="chip" id="sync-pill"><i data-i="hard-drive"></i><span id="sync-txt">Saved locally</span></span>
+      <span class="chip mono tnum" id="clock">--:--:--</span>
+    </div>
+    <div class="seg">
+      <button id="tab-pos" onclick="switchView('pos')"><i data-i="calculator"></i><span>Billing</span></button>
+      <button id="tab-erp" onclick="switchView('erp')"><i data-i="layout-grid"></i><span>Manage</span></button>
+    </div>
+    <button class="who" onclick="logout()" title="Log out">
+      <span class="av" id="cashier-ini">C1</span>
+      <span style="font-size:12px;font-weight:600" id="cashier-name">Cashier 1</span>
+      <i data-i="log-out" style="color:var(--ink-3)"></i>
+    </button>
   </header>
 
-  <!-- ══════════ POS BILLING VIEW ══════════ -->
-  <div id="pos-view" class="flex-1 min-h-0 flex flex-col">
-
-    <!-- ── CART TABS C1–C5 + ORDER MODE ── -->
-    <div class="bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2 flex-wrap flex-shrink-0">
-      <div class="flex gap-1.5" id="cart-tabs"><!-- rendered --></div>
-      <div class="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
-      <div class="flex bg-slate-100 rounded-lg p-0.5" id="mode-switch">
-        <button data-mode="InStore"   class="mode-btn px-3 h-8 rounded-md text-xs font-bold transition">InStore</button>
-        <button data-mode="Take-Away" class="mode-btn px-3 h-8 rounded-md text-xs font-bold transition">Take-Away</button>
-        <button data-mode="Delivery"  class="mode-btn px-3 h-8 rounded-md text-xs font-bold transition">Delivery</button>
+  <!-- ══════════ BILLING ══════════ -->
+  <div id="pos-view">
+    <div class="bar">
+      <div class="ctabs" id="cart-tabs"></div>
+      <span class="vr"></span>
+      <div class="seg" id="mode-switch">
+        <button class="mode-btn" data-mode="InStore">InStore</button>
+        <button class="mode-btn" data-mode="Take-Away">Take-Away</button>
+        <button class="mode-btn" data-mode="Delivery">Delivery</button>
       </div>
-      <button onclick="openCustomItem()" class="ml-auto h-8 px-3 rounded-lg border-2 border-dashed border-slate-300 hover:border-brand-600 hover:text-brand-700 text-xs font-bold text-slate-600 transition flex items-center gap-1.5">
-        <i data-lucide="plus" class="w-3.5 h-3.5"></i>Custom Item
+      <button class="btn btn-g" style="margin-left:auto;height:34px" onclick="openCustomItem()">
+        <i data-i="plus"></i>Custom item <span class="mono" style="font-size:10px;color:var(--ink-3)">F4</span>
       </button>
     </div>
 
-    <!-- ── WORKSPACE: catalog | cart ── -->
-    <div class="flex-1 min-h-0 grid lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_440px]">
-
-      <!-- LEFT: search + product grid -->
-      <div class="min-h-0 flex flex-col border-r border-slate-200">
-        <div class="p-2 flex gap-2 bg-white border-b border-slate-200 flex-shrink-0">
-          <div class="relative w-28 sm:w-32 flex-shrink-0">
-            <input id="sku-input" placeholder="SKU"
-              class="w-full h-11 pl-8 pr-2 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm font-mono font-semibold uppercase"
+    <div class="work">
+      <div class="left">
+        <div class="searchbar">
+          <div class="field sku">
+            <i data-i="scan-barcode"></i>
+            <input class="inp mono" id="sku-input" placeholder="SKU · F1" style="text-transform:uppercase;font-weight:600"
               onkeydown="if(event.key==='Enter')skuEnter()">
-            <i data-lucide="scan-barcode" class="w-4 h-4 absolute left-2.5 top-3.5 text-slate-400"></i>
           </div>
-          <div class="relative flex-1">
-            <input id="search-input" placeholder="Search item / தமிழ் பெயர் / barcode…    (F2)"
-              class="w-full h-11 pl-9 pr-9 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm font-medium"
-              oninput="renderProducts()">
-            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3.5 text-slate-400"></i>
-            <button onclick="clearSearch()" class="absolute right-2 top-2.5 w-6 h-6 rounded grid place-items-center text-slate-400 hover:bg-slate-100">
-              <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
+          <div class="field">
+            <i data-i="search"></i>
+            <input class="inp" id="search-input" placeholder="Search item / தமிழ் பெயர் / barcode — F2" oninput="renderProducts()">
+            <button class="clr" onclick="clearSearch()" aria-label="Clear"><i data-i="x"></i></button>
           </div>
         </div>
-        <div class="px-2 pt-2 flex gap-1.5 overflow-x-auto scroll flex-shrink-0" id="cat-chips"><!-- rendered --></div>
-        <div id="product-grid" class="flex-1 min-h-0 overflow-y-auto scroll p-2 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 content-start"><!-- rendered --></div>
+        <div class="cats scroll" id="cat-chips"></div>
+        <div id="product-grid" class="scroll"></div>
       </div>
 
-      <!-- RIGHT: cart -->
-      <div class="min-h-0 flex flex-col bg-white">
-        <div class="px-3 py-2 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-          <div class="font-bold text-sm flex items-center gap-2">
-            <i data-lucide="shopping-cart" class="w-4 h-4 text-brand-600"></i>
-            <span id="cart-title">Cart C1</span>
-            <span id="cart-mode-badge" class="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-600">InStore</span>
-          </div>
-          <button onclick="clearCart()" class="text-xs font-semibold text-red-600 hover:bg-red-50 px-2 py-1 rounded transition">Clear</button>
+      <div class="right">
+        <div class="cart-hd">
+          <i data-i="shopping-cart" style="width:15px;height:15px;color:var(--accent)"></i>
+          <b id="cart-title">Cart C1</b>
+          <span class="pill" id="cart-mode-badge">InStore</span>
+          <button class="btn" style="height:28px;padding:0 10px;font-size:11.5px;margin-left:auto;color:var(--danger);border-color:transparent" onclick="clearCart()">Clear</button>
         </div>
-
-        <div class="flex-1 min-h-0 overflow-y-auto scroll" id="cart-body"><!-- rendered --></div>
-
-        <!-- totals + checkout -->
-        <div class="border-t-2 border-slate-200 flex-shrink-0">
-          <div class="px-3 py-2 space-y-1 text-sm">
-            <div class="flex justify-between"><span class="text-slate-500">Subtotal</span><span class="font-semibold tnum" id="t-sub">₹0.00</span></div>
-            <div class="flex justify-between items-center gap-2">
-              <span class="text-slate-500 flex-shrink-0">Discount</span>
-              <div class="flex items-center gap-1 ml-auto">
-                <input id="disc-val" type="number" min="0" step="0.01" value="0" onchange="renderCart()" oninput="renderCart()"
-                  class="w-16 h-7 px-2 rounded border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right text-xs font-semibold tnum">
-                <select id="disc-type" onchange="renderCart()" class="h-7 px-1 rounded border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-xs font-bold">
-                  <option value="pct">%</option><option value="flat">₹</option>
-                </select>
-                <span class="font-semibold tnum text-red-600 w-16 text-right" id="t-disc">−₹0.00</span>
-              </div>
-            </div>
-            <div class="flex justify-between" id="gst-row"><span class="text-slate-500">GST <span id="gst-lbl" class="text-xs"></span></span><span class="font-semibold tnum" id="t-gst">₹0.00</span></div>
+        <div id="cart-body" class="scroll"></div>
+        <div class="totals">
+          <div class="trow"><span class="k">Subtotal</span><span class="v" id="t-sub">₹0.00</span></div>
+          <div class="trow">
+            <span class="k">Discount</span>
+            <span style="display:flex;align-items:center;gap:6px;margin-left:auto">
+              <input class="disc-in" id="disc-val" type="number" min="0" step="0.01" value="0" oninput="renderCart()">
+              <select class="disc-sel" id="disc-type" onchange="renderCart()"><option value="pct">%</option><option value="flat">₹</option></select>
+              <span class="v neg" style="min-width:66px;text-align:right" id="t-disc">−₹0.00</span>
+            </span>
           </div>
-          <div class="px-3 pb-2 flex items-center justify-between">
-            <span class="text-xs font-semibold text-slate-500" id="ck-items">0 items</span>
-            <span class="text-2xl font-extrabold tnum" id="ck-total">₹0.00</span>
-          </div>
-          <!-- Payment routes are their own keys so a cash sale never needs a
-               mouse: F8 goes straight to cash, F9 to UPI. -->
-          <div class="grid grid-cols-3 gap-px bg-slate-200">
-            <button id="pay-cash-btn" onclick="openPayment('cash')"
-              class="h-14 bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-amber-950 font-extrabold text-sm flex flex-col items-center justify-center transition disabled:bg-slate-200 disabled:text-slate-400">
-              <span>₹ CASH</span><span class="text-[10px] font-bold opacity-70">F8</span></button>
-            <button id="pay-upi-btn" onclick="openPayment('upi')"
-              class="h-14 bg-cyan-500 hover:bg-cyan-600 active:bg-cyan-700 text-white font-extrabold text-sm flex flex-col items-center justify-center transition disabled:bg-slate-200 disabled:text-slate-400">
-              <span>QR / GPay</span><span class="text-[10px] font-bold opacity-80">F9</span></button>
-            <button id="pay-card-btn" onclick="openPayment('card')"
-              class="h-14 bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-extrabold text-sm flex flex-col items-center justify-center transition disabled:bg-slate-200 disabled:text-slate-400">
-              <span>CARD</span><span class="text-[10px] font-bold opacity-70">Split</span></button>
-          </div>
-          <button onclick="openKeys()" class="w-full h-7 bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wide transition">
-            F1 sku · F2 search · F4 custom · F11 full screen · ? all keys
-          </button>
+          <div class="trow" id="gst-row"><span class="k">GST <span id="gst-lbl"></span></span><span class="v" id="t-gst">₹0.00</span></div>
         </div>
+        <div class="grand"><span class="k" id="ck-items">0 items</span><span class="v" id="ck-total">₹0.00</span></div>
+        <div class="pays">
+          <button class="pay cash" id="pay-cash-btn" onclick="openPayment('cash')"><span class="t">Cash</span><span class="k">F8</span></button>
+          <button class="pay upi"  id="pay-upi-btn"  onclick="openPayment('upi')"><span class="t">GPay / UPI</span><span class="k">F9</span></button>
+          <button class="pay card" id="pay-card-btn" onclick="openPayment('card')"><span class="t">Card</span><span class="k">Split</span></button>
+        </div>
+        <button class="keysbar" onclick="openKeys()">F1 SKU · F2 Search · F4 Custom · ? Shortcuts</button>
       </div>
     </div>
   </div>
 
-  <!-- ══════════ ADMIN / ERP VIEW ══════════ -->
-  <div id="erp-view" class="hidden flex-1 min-h-0 flex">
-    <!-- sidebar -->
-    <nav class="w-14 md:w-52 bg-white border-r border-slate-200 flex-shrink-0 py-2 overflow-y-auto scroll" id="erp-nav"><!-- rendered --></nav>
-    <div class="flex-1 min-h-0 overflow-y-auto scroll p-3 md:p-5" id="erp-body"><!-- rendered --></div>
+  <!-- ══════════ MANAGE ══════════ -->
+  <div id="erp-view" class="hidden">
+    <nav id="erp-nav" class="scroll"></nav>
+    <div id="erp-body" class="scroll"></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MODALS
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ══════════ MODALS ══════════ -->
 
-<!-- Quantity / weight prompt — opens on every product tap so the cashier enters
-     the weighed amount before the line joins the cart -->
-<div id="m-qty" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-    <div class="bg-amber-400 text-amber-950 px-5 py-3 flex items-center justify-between">
-      <span class="font-extrabold text-sm">Add Product</span>
-      <button onclick="closeModals()" class="w-7 h-7 rounded-lg hover:bg-amber-500/30 grid place-items-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+<!-- Quantity / weight prompt -->
+<div id="m-qty" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-hd"><h3>Add product</h3><button class="x" onclick="closeModals()" aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="sheet-b">
+      <div class="fg">
+        <label class="lbl">Product name</label>
+        <div class="ro" id="q-name"></div>
+        <div class="ta" id="q-name-ta" style="font-size:12px;color:var(--ink-3);margin-top:4px"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="lbl" for="q-rate">Price (MRP)</label>
+          <input class="inp right-in" id="q-rate" type="number" min="0" step="0.01" oninput="qtyCalc()"></div>
+        <div class="fg"><label class="lbl" for="q-disc">Discount (%)</label>
+          <input class="inp right-in" id="q-disc" type="number" min="0" max="100" step="0.01" value="0" oninput="qtyCalc()"></div>
+      </div>
+      <div class="fg">
+        <label class="lbl" for="q-qty">Quantity <span id="q-unit-lbl" style="color:var(--accent);text-transform:none;letter-spacing:0"></span></label>
+        <input class="inp big" id="q-qty" type="number" min="0" step="0.001" inputmode="decimal" oninput="qtyCalc()">
+        <div class="chips" id="q-chips"></div>
+      </div>
+      <div class="readout">
+        <div><div class="k">Selling price (total)</div><div class="sub" id="q-perunit"></div></div>
+        <span class="v" id="q-total">₹0.00</span>
+      </div>
     </div>
-    <div class="p-5">
-      <div class="mb-3">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Product Name</label>
-        <div id="q-name" class="h-11 px-3 rounded-xl bg-slate-100 flex items-center font-bold text-[15px]"></div>
-        <div id="q-name-ta" class="font-ta text-xs text-slate-500 mt-1"></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Price (MRP)</label>
-          <input id="q-rate" type="number" min="0" step="0.01" oninput="qtyCalc()"
-            class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Discount (%)</label>
-          <input id="q-disc" type="number" min="0" max="100" step="0.01" value="0" oninput="qtyCalc()"
-            class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
-        </div>
-      </div>
-      <div class="mt-3">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-          Quantity <span id="q-unit-lbl" class="text-brand-700"></span>
-        </label>
-        <input id="q-qty" type="number" min="0" step="0.001" inputmode="decimal" oninput="qtyCalc()"
-          class="w-full h-14 px-3 rounded-xl border-2 border-brand-600 focus:outline-none text-right text-2xl font-extrabold tnum">
-        <div id="q-chips" class="flex gap-1.5 mt-2 flex-wrap"></div>
-      </div>
-      <div class="mt-4 bg-slate-50 rounded-xl p-3 flex justify-between items-baseline">
-        <div>
-          <div class="text-sm font-semibold text-slate-600">Selling Price (Total)</div>
-          <div id="q-perunit" class="text-[11px] text-slate-400"></div>
-        </div>
-        <span class="text-2xl font-extrabold tnum" id="q-total">₹0.00</span>
-      </div>
-      <div class="flex gap-2 mt-4">
-        <button onclick="closeModals()" class="flex-1 h-12 rounded-xl border-2 border-slate-200 font-bold hover:bg-slate-50">Cancel</button>
-        <button onclick="qtyAdd()" class="flex-[2] h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold">Add <span class="opacity-70 font-semibold text-xs">(Enter)</span></button>
-      </div>
+    <div class="sheet-f">
+      <button class="btn" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-p" style="flex:2" onclick="qtyAdd()">Add <span class="mono" style="font-size:10px;opacity:.75">Enter</span></button>
     </div>
   </div>
 </div>
 
-<!-- Keyboard shortcut reference -->
-<div id="m-keys" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold text-lg">Keyboard shortcuts</h3>
-      <button onclick="closeModals()" class="w-8 h-8 rounded-lg hover:bg-slate-100 grid place-items-center"><i data-lucide="x" class="w-4 h-4"></i></button>
-    </div>
-    <div class="space-y-1.5 text-sm" id="keys-list"></div>
-    <button onclick="closeModals()" class="w-full h-11 rounded-xl bg-term-900 text-white font-bold mt-5">Close</button>
+<!-- Shortcuts -->
+<div id="m-keys" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-hd"><h3>Keyboard shortcuts</h3><button class="x" onclick="closeModals()" aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="sheet-b" id="keys-list"></div>
+    <div class="sheet-f"><button class="btn" style="flex:1" onclick="closeModals()">Close</button></div>
   </div>
 </div>
 
 <!-- Custom item -->
-<div id="m-custom" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl">
-    <h3 class="font-bold text-lg mb-4">Custom Item</h3>
-    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Item name</label>
-    <input id="ci-name" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none mb-3 font-medium" placeholder="e.g. Sambar mix pack">
-    <div class="grid grid-cols-3 gap-2 mb-4">
-      <div class="col-span-1">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Unit</label>
-        <select id="ci-unit" class="w-full h-11 px-2 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-semibold text-sm">
-          <option value="pcs">Pcs</option><option value="kg">Kg</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Rate ₹</label>
-        <input id="ci-rate" type="number" min="0" step="0.01" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-semibold tnum">
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Qty</label>
-        <input id="ci-qty" type="number" min="0" step="0.001" value="1" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-semibold tnum">
+<div id="m-custom" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-hd"><h3>Custom item</h3><button class="x" onclick="closeModals()" aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="sheet-b">
+      <div class="fg"><label class="lbl" for="ci-name">Item name</label>
+        <input class="inp" id="ci-name" placeholder="e.g. Sambar mix pack"></div>
+      <div class="frow" style="grid-template-columns:.8fr 1fr 1fr">
+        <div class="fg"><label class="lbl" for="ci-unit">Unit</label>
+          <select class="inp" id="ci-unit"><option value="pcs">Pcs</option><option value="kg">Kg</option></select></div>
+        <div class="fg"><label class="lbl" for="ci-rate">Rate ₹</label>
+          <input class="inp right-in" id="ci-rate" type="number" min="0" step="0.01"></div>
+        <div class="fg"><label class="lbl" for="ci-qty">Qty</label>
+          <input class="inp right-in" id="ci-qty" type="number" min="0" step="0.001" value="1"></div>
       </div>
     </div>
-    <div class="flex gap-2">
-      <button onclick="closeModals()" class="flex-1 h-11 rounded-lg border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Cancel</button>
-      <button onclick="addCustomItem()" class="flex-1 h-11 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm">Add to Cart</button>
+    <div class="sheet-f">
+      <button class="btn" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-p" style="flex:1" onclick="addCustomItem()">Add to cart</button>
     </div>
   </div>
 </div>
 
 <!-- Payment -->
-<div id="m-pay" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-full flex flex-col">
-    <div class="bg-term-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
-      <div>
-        <div class="text-[11px] uppercase tracking-wide opacity-70 font-semibold">Amount payable</div>
-        <div class="text-3xl font-extrabold tnum" id="pay-total">₹0.00</div>
-      </div>
-      <button onclick="closeModals()" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 grid place-items-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+<div id="m-pay" class="modal hidden">
+  <div class="sheet wide">
+    <div class="paytop">
+      <div><div class="k">Amount payable</div><div class="v" id="pay-total">₹0.00</div></div>
+      <button class="x" onclick="closeModals()" aria-label="Close"><i data-i="x"></i></button>
     </div>
-
-    <div class="p-4 overflow-y-auto scroll">
-      <div class="grid grid-cols-4 gap-1.5 mb-4" id="pay-methods">
-        <button data-pm="cash"  class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="banknote" class="w-5 h-5"></i><span class="text-[11px] font-bold">Cash</span></button>
-        <button data-pm="upi"   class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="qr-code" class="w-5 h-5"></i><span class="text-[11px] font-bold">UPI</span></button>
-        <button data-pm="card"  class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="credit-card" class="w-5 h-5"></i><span class="text-[11px] font-bold">Card</span></button>
-        <button data-pm="split" class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="split" class="w-5 h-5"></i><span class="text-[11px] font-bold">Split</span></button>
+    <div class="sheet-b">
+      <div class="pmgrid" id="pay-methods">
+        <button class="pm" data-pm="cash"><i data-i="banknote"></i><span>Cash</span></button>
+        <button class="pm" data-pm="upi"><i data-i="qr-code"></i><span>UPI</span></button>
+        <button class="pm" data-pm="card"><i data-i="credit-card"></i><span>Card</span></button>
+        <button class="pm" data-pm="split"><i data-i="split"></i><span>Split</span></button>
       </div>
 
-      <!-- CASH -->
       <div id="pane-cash" class="pay-pane">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Cash tendered</label>
-        <input id="pay-tendered" type="number" min="0" step="0.5" oninput="calcChange()"
-          class="w-full h-14 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right text-2xl font-bold tnum">
-        <div class="flex gap-1.5 mt-2 flex-wrap" id="quick-cash"></div>
-        <div class="mt-3 bg-slate-50 rounded-xl p-3 flex justify-between items-center">
-          <span class="text-sm font-semibold text-slate-600">Balance to return</span>
-          <span class="text-2xl font-extrabold tnum" id="pay-change">₹0.00</span>
-        </div>
+        <label class="lbl" for="pay-tendered">Cash tendered</label>
+        <input class="inp big" id="pay-tendered" type="number" min="0" step="0.5" oninput="calcChange()">
+        <div class="chips" id="quick-cash"></div>
+        <div class="readout"><span class="k">Balance to return</span><span class="v" id="pay-change">₹0.00</span></div>
       </div>
 
-      <!-- UPI -->
       <div id="pane-upi" class="pay-pane hidden">
-        <div class="bg-slate-50 rounded-xl p-4 flex flex-col items-center">
-          <div class="w-40 h-40 bg-white border-2 border-slate-200 rounded-xl grid place-items-center" id="qr-box"></div>
-          <div class="text-xs text-slate-500 mt-2 text-center">Scan with GPay / PhonePe / Paytm<br><span class="font-mono font-semibold text-slate-700" id="upi-vpa">tulasiveg@upi</span></div>
+        <div class="qrwrap">
+          <div id="qr-box"></div>
+          <div style="text-align:center;font-size:11.5px;color:var(--ink-3);line-height:1.5">
+            Scan with GPay / PhonePe / Paytm<br><b class="mono" style="color:var(--ink);font-size:12px" id="upi-vpa">tulasiveg@upi</b>
+          </div>
         </div>
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 mt-3">UPI reference / txn id</label>
-        <input id="pay-ref" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono text-sm" placeholder="e.g. 4312 8890 2231">
+        <div class="fg" style="margin-top:14px"><label class="lbl" for="pay-ref">UPI reference / txn id</label>
+          <input class="inp mono" id="pay-ref" placeholder="e.g. 4312 8890 2231"></div>
       </div>
 
-      <!-- CARD -->
       <div id="pane-card" class="pay-pane hidden">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Card approval code</label>
-        <input id="pay-card-ref" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono text-sm" placeholder="Approval / RRN">
-        <p class="text-xs text-slate-500 mt-2">Swipe on the card machine, then enter the approval code shown on its slip.</p>
+        <div class="fg"><label class="lbl" for="pay-card-ref">Card approval code</label>
+          <input class="inp mono" id="pay-card-ref" placeholder="Approval / RRN"></div>
+        <p class="hint">Swipe on the card machine, then enter the approval code from its slip.</p>
       </div>
 
-      <!-- SPLIT -->
-      <div id="pane-split" class="pay-pane hidden space-y-2">
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Cash portion ₹</label>
-          <input id="sp-cash" type="number" min="0" step="0.5" value="0" oninput="calcSplit()" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
+      <div id="pane-split" class="pay-pane hidden">
+        <div class="frow">
+          <div class="fg"><label class="lbl" for="sp-cash">Cash portion ₹</label>
+            <input class="inp right-in" id="sp-cash" type="number" min="0" step="0.5" value="0" oninput="calcSplit()"></div>
+          <div class="fg"><label class="lbl" for="sp-upi">UPI portion ₹</label>
+            <input class="inp right-in" id="sp-upi" type="number" min="0" step="0.5" value="0" oninput="calcSplit()"></div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">UPI portion ₹</label>
-          <input id="sp-upi" type="number" min="0" step="0.5" value="0" oninput="calcSplit()" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
-        </div>
-        <div class="bg-slate-50 rounded-xl p-3 flex justify-between text-sm font-semibold">
-          <span class="text-slate-600">Still unpaid</span><span class="tnum" id="sp-left">₹0.00</span>
-        </div>
+        <div class="readout"><span class="k">Still unpaid</span><span class="v" id="sp-left" style="font-size:17px">₹0.00</span></div>
       </div>
 
-      <!-- customer (optional) -->
-      <div class="mt-4 pt-3 border-t border-slate-200">
-        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Customer (optional)</label>
-        <input id="pay-cust" list="cust-list" class="w-full h-10 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm" placeholder="Name or phone">
+      <div class="fg" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+        <label class="lbl" for="pay-cust">Customer (optional)</label>
+        <input class="inp" id="pay-cust" list="cust-list" placeholder="Name or phone">
         <datalist id="cust-list"></datalist>
       </div>
     </div>
-
-    <div class="p-4 border-t border-slate-200 flex gap-2 flex-shrink-0">
-      <button onclick="closeModals()" class="flex-1 h-12 rounded-xl border-2 border-slate-200 font-bold hover:bg-slate-50">Cancel</button>
-      <button onclick="completeSale()" class="flex-[2] h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-base">Complete Sale</button>
+    <div class="sheet-f">
+      <button class="btn" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-p" style="flex:2;height:44px;font-size:14px" onclick="completeSale()">Complete sale</button>
     </div>
   </div>
 </div>
 
 <!-- Receipt -->
-<div id="m-receipt" class="modal hidden fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden max-h-full flex flex-col">
-    <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-      <h3 class="font-bold flex items-center gap-2"><i data-lucide="receipt" class="w-4 h-4 text-brand-600"></i>Receipt</h3>
-      <div class="flex bg-slate-100 rounded-lg p-0.5">
-        <button onclick="setPaper(58)" id="p58" class="px-2.5 h-7 rounded text-[11px] font-bold">58mm</button>
-        <button onclick="setPaper(80)" id="p80" class="px-2.5 h-7 rounded text-[11px] font-bold">80mm</button>
+<div id="m-receipt" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-hd">
+      <h3 style="display:flex;align-items:center;gap:8px"><i data-i="receipt" style="width:15px;height:15px;color:var(--accent)"></i>Receipt</h3>
+      <div class="seg">
+        <button id="p58" onclick="setPaper(58)">58mm</button>
+        <button id="p80" onclick="setPaper(80)">80mm</button>
       </div>
     </div>
-    <div class="flex-1 min-h-0 overflow-y-auto scroll bg-slate-200 p-4 grid place-items-start justify-center">
-      <div id="receipt-print" class="receipt p-3 shadow-lg"></div>
-    </div>
-    <div class="p-3 border-t border-slate-200 flex gap-2 flex-shrink-0">
-      <button onclick="closeModals()" class="flex-1 h-11 rounded-xl border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Done</button>
-      <button onclick="window.print()" class="flex-1 h-11 rounded-xl bg-term-900 hover:bg-term-800 text-white font-bold text-sm flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i>Print Bill</button>
+    <div class="rcpt-stage scroll"><div id="receipt-print" class="receipt"></div></div>
+    <div class="sheet-f">
+      <button class="btn" style="flex:1" onclick="closeModals()">Done</button>
+      <button class="btn btn-p" style="flex:1" onclick="window.print()"><i data-i="printer"></i>Print bill</button>
     </div>
   </div>
 </div>
 
-<!-- Product add/edit -->
-<div id="m-product" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl max-h-full overflow-y-auto scroll">
-    <h3 class="font-bold text-lg mb-4" id="pm-title">Add Product</h3>
-    <input type="hidden" id="pm-id">
-    <div class="grid grid-cols-2 gap-3">
-      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Name (English)</label>
-        <input id="pm-en" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-medium"></div>
-      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">பெயர் (Tamil)</label>
-        <input id="pm-ta" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-ta"></div>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">SKU</label>
-        <input id="pm-sku" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono uppercase text-sm"></div>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</label>
-        <input id="pm-cat" list="cat-list" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm">
-        <datalist id="cat-list"></datalist></div>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Unit</label>
-        <select id="pm-unit" class="w-full h-11 px-2 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-semibold text-sm"><option value="kg">Kg</option><option value="pcs">Pcs</option></select></div>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Stock</label>
-        <input id="pm-stock" type="number" step="0.001" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right tnum"></div>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Cost ₹</label>
-        <input id="pm-cost" type="number" step="0.01" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right tnum"></div>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Selling ₹</label>
-        <input id="pm-price" type="number" step="0.01" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right tnum font-bold"></div>
+<!-- Product add/edit (Manage tab) -->
+<div id="m-product" class="modal hidden">
+  <div class="sheet wide">
+    <div class="sheet-hd"><h3 id="pm-title">Add product</h3><button class="x" onclick="closeModals()" aria-label="Close"><i data-i="x"></i></button></div>
+    <div class="sheet-b">
+      <input type="hidden" id="pm-id">
+      <div class="fg"><label class="lbl" for="pm-en">Name (English)</label><input class="inp" id="pm-en"></div>
+      <div class="fg"><label class="lbl" for="pm-ta">பெயர் (Tamil)</label><input class="inp ta" id="pm-ta"></div>
+      <div class="frow">
+        <div class="fg"><label class="lbl" for="pm-sku">SKU</label><input class="inp mono" id="pm-sku" style="text-transform:uppercase"></div>
+        <div class="fg"><label class="lbl" for="pm-cat">Category</label><input class="inp" id="pm-cat" list="cat-list"><datalist id="cat-list"></datalist></div>
+        <div class="fg"><label class="lbl" for="pm-unit">Unit</label><select class="inp" id="pm-unit"><option value="kg">Kg</option><option value="pcs">Pcs</option></select></div>
+        <div class="fg"><label class="lbl" for="pm-stock">Stock</label><input class="inp right-in" id="pm-stock" type="number" step="0.001"></div>
+        <div class="fg"><label class="lbl" for="pm-cost">Cost ₹</label><input class="inp right-in" id="pm-cost" type="number" step="0.01"></div>
+        <div class="fg"><label class="lbl" for="pm-price">Selling ₹</label><input class="inp right-in" id="pm-price" type="number" step="0.01"></div>
+      </div>
     </div>
-    <div class="flex gap-2 mt-5">
-      <button onclick="closeModals()" class="flex-1 h-11 rounded-lg border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Cancel</button>
-      <button onclick="saveProduct()" class="flex-1 h-11 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm">Save</button>
+    <div class="sheet-f">
+      <button class="btn" style="flex:1" onclick="closeModals()">Cancel</button>
+      <button class="btn btn-p" style="flex:1" onclick="saveProduct()">Save</button>
     </div>
   </div>
 </div>
 
-<!-- toast -->
-<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden">
-  <div class="bg-term-900 text-white px-4 py-2.5 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-2" id="toast-body"></div>
-</div>
+<div id="toast" class="hidden"></div>
 
 <script>
 /* ══════════════════════════════════════════════════════════════════════
-   ArthaNote POS — single-file terminal
-   All state lives in localStorage. No backend calls: a bill is durable the
+   ArthaNote POS — single-file terminal, zero runtime dependencies.
+
+   All state lives in localStorage. No network calls: a bill is durable the
    instant it is written locally, which is the only behaviour acceptable at
-   a counter where the internet drops. Sync to Firestore is a later layer.
+   a counter where the internet drops. Sync to Firestore is a later layer,
+   and should batch daily rollups rather than write one document per bill.
    ══════════════════════════════════════════════════════════════════════ */
 
-const LS = 'anpos_v1';
-const TERMINAL = 'T1';                 // bill-number prefix; per-counter, so two
-                                       // terminals never collide while offline
+const LS='anpos_v1';
+const TERMINAL='T1';   // bill-number prefix, per counter, so two terminals
+                       // never collide while offline
+
+/* ── icons, inlined (no CDN: nav must not depend on the network) ── */
+const ICONS={
+'hard-drive':'<path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><path d="M6 16h.01"/><path d="M10 16h.01"/>',
+'calculator':'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14v4M8 18h.01M12 18h.01"/>',
+'layout-grid':'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+'log-out':'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+'plus':'<path d="M5 12h14"/><path d="M12 5v14"/>',
+'scan-barcode':'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 7v10M12 7v10M16 7v10"/>',
+'search':'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+'x':'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+'shopping-cart':'<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L22 7H5"/>',
+'trash-2':'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+'banknote':'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+'qr-code':'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M21 14v3M21 21h-4"/>',
+'credit-card':'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+'split':'<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.2-2.8L3 3"/><path d="m21 3-7.8 7.8a4 4 0 0 0-1.2 2.8V22"/>',
+'receipt':'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
+'printer':'<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
+'package':'<path d="m7.5 4.3 9 5.1"/><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+'layout-dashboard':'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+'truck':'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+'scroll-text':'<path d="M15 12h-5M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H10a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2h4"/>',
+'users':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+'wallet':'<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
+'settings':'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+'refresh-cw':'<path d="M3 12a9 9 0 0 1 15.7-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.7 6L3 16"/><path d="M8 16H3v5"/>',
+'download':'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+};
+function icons(root){
+  (root||document).querySelectorAll('i[data-i]').forEach(el=>{
+    const p=ICONS[el.getAttribute('data-i')];
+    if(!p){ el.remove(); return; }
+    const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    s.setAttribute('viewBox','0 0 24 24'); s.setAttribute('fill','none');
+    s.setAttribute('stroke','currentColor'); s.setAttribute('stroke-width','2');
+    s.setAttribute('stroke-linecap','round'); s.setAttribute('stroke-linejoin','round');
+    s.setAttribute('aria-hidden','true');
+    if(el.className) s.setAttribute('class',el.className);
+    if(el.getAttribute('style')) s.setAttribute('style',el.getAttribute('style'));
+    s.innerHTML=p; el.replaceWith(s);
+  });
+}
 
 /* ── seed catalog: real Tamil Nadu market produce and realistic rates ── */
-const SEED_PRODUCTS = [
+const SEED_PRODUCTS=[
   ['VEG01','Onion','வெங்காயம்','Vegetables','kg',28,38,120],
   ['VEG02','Tomato','தக்காளி','Vegetables','kg',18,26,85],
   ['VEG03','Potato','உருளைக்கிழங்கு','Vegetables','kg',24,32,95],
@@ -553,492 +736,434 @@ const SEED_PRODUCTS = [
   ['VEG28','Sweet Corn','சோளம்','Vegetables','pcs',15,25,35],
 ];
 
-/* ── DB ──────────────────────────────────────────────────────────────── */
-let DB, CARTS, active = 0, payMethod = 'cash', lastBill = null, paper = 58, erpModule = 'dashboard', catFilter = '';
-
-function blankCart(){ return { items:[], mode:'InStore', disc:0, discType:'pct' }; }
+/* ── state ── */
+let DB, CARTS, active=0, payMethod='cash', lastBill=null, paper=58, erpModule='dashboard', catFilter='';
+function blankCart(){ return {items:[],mode:'InStore',disc:0,discType:'pct'}; }
 
 function loadDB(){
-  let raw = null;
-  try { raw = JSON.parse(localStorage.getItem(LS) || 'null'); } catch(e){ raw = null; }
-  DB = raw || {};
-  if(!DB.products || !DB.products.length){
-    DB.products = SEED_PRODUCTS.map((p,i) => ({
-      id:'p'+(i+1), sku:p[0], nameEn:p[1], nameTa:p[2], category:p[3],
-      unit:p[4], cost:p[5], price:p[6], stock:p[7], barcode:'890'+String(1000+i)
-    }));
+  let raw=null;
+  try{ raw=JSON.parse(localStorage.getItem(LS)||'null'); }catch(e){ raw=null; }
+  DB=raw||{};
+  if(!DB.products||!DB.products.length){
+    DB.products=SEED_PRODUCTS.map((p,i)=>({id:'p'+(i+1),sku:p[0],nameEn:p[1],nameTa:p[2],category:p[3],
+      unit:p[4],cost:p[5],price:p[6],stock:p[7],barcode:'890'+String(1000+i)}));
   }
-  DB.bills      = DB.bills      || [];
-  DB.customers  = DB.customers  || [
-    {id:'c1',name:'Ramesh Anna',    phone:'9842011223', due:0,   loyalty:120},
-    {id:'c2',name:'Hotel Sai Sree', phone:'9445566778', due:840, loyalty:640},
-    {id:'c3',name:'Lakshmi Akka',   phone:'9003344556', due:0,   loyalty:60},
+  DB.bills=DB.bills||[];
+  DB.customers=DB.customers||[
+    {id:'c1',name:'Ramesh Anna',phone:'9842011223',due:0,loyalty:120},
+    {id:'c2',name:'Hotel Sai Sree',phone:'9445566778',due:840,loyalty:640},
+    {id:'c3',name:'Lakshmi Akka',phone:'9003344556',due:0,loyalty:60},
   ];
-  DB.suppliers  = DB.suppliers  || [
-    {id:'s1',name:'Oddanchatram Mandi', phone:'9787012345', warehouse:'Main Counter'},
-    {id:'s2',name:'Local Farmer — Kani',phone:'9600123456', warehouse:'Main Counter'},
-    {id:'s3',name:'Cold Store Depot',   phone:'9500998877', warehouse:'Cold Room'},
+  DB.suppliers=DB.suppliers||[
+    {id:'s1',name:'Oddanchatram Mandi',phone:'9787012345',warehouse:'Main Counter'},
+    {id:'s2',name:'Local Farmer — Kani',phone:'9600123456',warehouse:'Main Counter'},
+    {id:'s3',name:'Cold Store Depot',phone:'9500998877',warehouse:'Cold Room'},
   ];
-  DB.settings   = Object.assign({ gstOn:false, gstRate:5, openingCash:2000, expenses:0, vpa:'tulasiveg@upi', seq:1 }, DB.settings||{});
-  DB.session    = DB.session || null;
+  DB.settings=Object.assign({gstOn:false,gstRate:5,openingCash:2000,expenses:0,vpa:'tulasiveg@upi',seq:1},DB.settings||{});
+  DB.session=DB.session||null;
   saveDB();
 }
-function saveDB(){ try{ localStorage.setItem(LS, JSON.stringify(DB)); }catch(e){ toast('Storage full — export and clear old bills','error'); } }
-
-/* Carts are stored separately so a crash mid-bill never corrupts the master DB */
+function saveDB(){ try{ localStorage.setItem(LS,JSON.stringify(DB)); }catch(e){ toast('Storage full — export and clear old bills','error'); } }
+/* Carts live under their own key so a crash mid-bill cannot corrupt the master DB */
 function loadCarts(){
-  let c = null;
-  try { c = JSON.parse(localStorage.getItem(LS+'_carts') || 'null'); } catch(e){ c = null; }
-  CARTS = (Array.isArray(c) && c.length === 5) ? c : [blankCart(),blankCart(),blankCart(),blankCart(),blankCart()];
+  let c=null;
+  try{ c=JSON.parse(localStorage.getItem(LS+'_carts')||'null'); }catch(e){ c=null; }
+  CARTS=(Array.isArray(c)&&c.length===5)?c:[blankCart(),blankCart(),blankCart(),blankCart(),blankCart()];
 }
-function saveCarts(){ try{ localStorage.setItem(LS+'_carts', JSON.stringify(CARTS)); }catch(e){} }
+function saveCarts(){ try{ localStorage.setItem(LS+'_carts',JSON.stringify(CARTS)); }catch(e){} }
 
-const cart = () => CARTS[active];
-const money = n => '₹' + (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
-const qtyFmt = (q,u) => u === 'kg' ? Number(q).toFixed(3) : String(Math.round(q));
+const cart=()=>CARTS[active];
+const money=n=>'₹'+(Math.round((n+Number.EPSILON)*100)/100).toFixed(2);
+const qtyFmt=(q,u)=>u==='kg'?Number(q).toFixed(3):String(Math.round(q));
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 /* ══════════════ AUTH ══════════════ */
 function verifyOTP(){
-  const code = [...document.querySelectorAll('.otp-in')].map(i=>i.value).join('');
-  const err  = document.getElementById('otp-err');
-  if(code !== '1234'){
-    err.textContent = 'Incorrect code. Use 1234 for this demo terminal.';
-    err.classList.remove('hidden');
+  const code=[...document.querySelectorAll('.otp-in')].map(i=>i.value).join('');
+  const err=document.getElementById('otp-err');
+  if(code!=='1234'){
+    err.textContent='Incorrect code. Use 1234 for this demo terminal.';
+    err.style.display='block';
     document.querySelectorAll('.otp-in').forEach(i=>i.value='');
     document.querySelector('.otp-in').focus();
     return;
   }
-  const who = document.getElementById('otp-cashier').value;
-  DB.session = { cashier: who, since: Date.now() };
-  saveDB();
-  startApp();
+  DB.session={cashier:document.getElementById('otp-cashier').value,since:Date.now()};
+  saveDB(); startApp();
 }
 function logout(){
-  if(cart().items.length && !confirm('Cart C'+(active+1)+' still has items. Log out anyway?')) return;
-  DB.session = null; saveDB();
+  if(cart().items.length&&!confirm('Cart C'+(active+1)+' still has items. Log out anyway?')) return;
+  DB.session=null; saveDB();
   document.getElementById('app').classList.add('hidden');
   document.getElementById('otp-screen').classList.remove('hidden');
   document.querySelectorAll('.otp-in').forEach(i=>i.value='');
-  document.getElementById('otp-err').classList.add('hidden');
+  document.getElementById('otp-err').style.display='none';
   document.querySelector('.otp-in').focus();
 }
 function startApp(){
   document.getElementById('otp-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  const who = DB.session.cashier;
-  document.getElementById('cashier-name').textContent = who.split('—')[0].trim();
-  document.getElementById('cashier-ini').textContent  = who.startsWith('Store') ? 'SM' : 'C'+(who.match(/\d/)||['1'])[0];
+  const who=DB.session.cashier;
+  document.getElementById('cashier-name').textContent=who.split('—')[0].trim();
+  document.getElementById('cashier-ini').textContent=who.startsWith('Store')?'SM':'C'+(who.match(/\d/)||['1'])[0];
   switchView('pos');
   renderAll();
 }
 
 /* ══════════════ VIEW SWITCH ══════════════ */
 function switchView(v){
-  const pos = v === 'pos';
-  document.getElementById('pos-view').classList.toggle('hidden', !pos);
-  document.getElementById('erp-view').classList.toggle('hidden', pos);
-  document.getElementById('erp-view').classList.toggle('flex', !pos);
-  document.getElementById('tab-pos').className = 'px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5 ' + (pos?'bg-white text-term-900':'text-slate-400 hover:text-white');
-  document.getElementById('tab-erp').className = 'px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5 ' + (!pos?'bg-white text-term-900':'text-slate-400 hover:text-white');
+  const pos=v==='pos';
+  document.getElementById('pos-view').classList.toggle('hidden',!pos);
+  document.getElementById('erp-view').classList.toggle('hidden',pos);
+  document.getElementById('tab-pos').classList.toggle('on',pos);
+  document.getElementById('tab-erp').classList.toggle('on',!pos);
   if(!pos) renderERP();
-  icons();
 }
 
 /* ══════════════ CART TABS ══════════════ */
 function renderTabs(){
-  document.getElementById('cart-tabs').innerHTML = CARTS.map((c,i)=>{
-    const on = i === active, n = c.items.length;
-    return `<button onclick="switchCart(${i})" class="relative h-8 px-3 rounded-lg text-xs font-extrabold transition ${
-      on ? 'bg-amber-400 text-amber-950 shadow' : n ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">
-      C${i+1}${n ? `<span class="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center tnum">${n}</span>` : ''}
-    </button>`;
+  document.getElementById('cart-tabs').innerHTML=CARTS.map((c,i)=>{
+    const on=i===active, n=c.items.length;
+    return `<button class="ctab ${on?'on':n?'has':''}" onclick="switchCart(${i})">C${i+1}${n?`<span class="n">${n}</span>`:''}</button>`;
   }).join('');
 }
-function switchCart(i){ active = i; renderAll(); }
+function switchCart(i){ active=i; renderAll(); }
 function clearCart(){
   if(!cart().items.length) return;
   if(!confirm('Clear cart C'+(active+1)+'?')) return;
-  CARTS[active] = blankCart(); saveCarts(); renderAll();
+  CARTS[active]=blankCart(); saveCarts(); renderAll();
 }
 
 /* ══════════════ ORDER MODE ══════════════ */
 function renderMode(){
   document.querySelectorAll('.mode-btn').forEach(b=>{
-    const on = b.dataset.mode === cart().mode;
-    b.className = 'mode-btn px-3 h-8 rounded-md text-xs font-bold transition ' + (on?'bg-white shadow text-term-900':'text-slate-500 hover:text-slate-800');
-    b.onclick = () => { cart().mode = b.dataset.mode; saveCarts(); renderMode(); renderCart(); };
+    b.classList.toggle('on',b.dataset.mode===cart().mode);
+    b.onclick=()=>{ cart().mode=b.dataset.mode; saveCarts(); renderMode(); renderCart(); };
   });
-  document.getElementById('cart-mode-badge').textContent = cart().mode;
+  document.getElementById('cart-mode-badge').textContent=cart().mode;
 }
 
 /* ══════════════ PRODUCTS ══════════════ */
 function renderCats(){
-  const cats = [...new Set(DB.products.map(p=>p.category))].sort();
-  document.getElementById('cat-chips').innerHTML =
+  const cats=[...new Set(DB.products.map(p=>p.category))].sort();
+  document.getElementById('cat-chips').innerHTML=
     [['','All']].concat(cats.map(c=>[c,c])).map(([v,l])=>
-      `<button onclick="catFilter='${v}';renderProducts();renderCats()" class="flex-shrink-0 px-3 h-7 rounded-full text-[11px] font-bold transition ${
-        catFilter===v ? 'bg-term-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'}">${l}</button>`
-    ).join('');
+      `<button class="cat ${catFilter===v?'on':''}" onclick="catFilter='${v}';renderProducts();renderCats()">${esc(l)}</button>`).join('');
 }
-/* Fuzzy-ish match across English name, Tamil name, SKU and barcode */
-function matches(p, q){
+function matches(p,q){
   if(!q) return true;
-  q = q.toLowerCase().trim();
-  return p.nameEn.toLowerCase().includes(q) || p.nameTa.includes(q)
-      || p.sku.toLowerCase().includes(q)    || (p.barcode||'').includes(q);
+  q=q.toLowerCase().trim();
+  return p.nameEn.toLowerCase().includes(q)||p.nameTa.includes(q)
+      ||p.sku.toLowerCase().includes(q)||(p.barcode||'').includes(q);
 }
 function renderProducts(){
-  const q = document.getElementById('search-input').value;
-  const list = DB.products.filter(p => matches(p,q) && (!catFilter || p.category===catFilter));
-  const grid = document.getElementById('product-grid');
-  if(!list.length){ grid.innerHTML = `<div class="col-span-full text-center text-slate-400 text-sm py-10">No item matches “${esc(q)}”. Use <b>+ Custom Item</b> for an unlisted one.</div>`; return; }
-  grid.innerHTML = list.map(p=>{
-    const low = p.stock <= 5;
-    return `<button onclick="addToCart('${p.id}')" class="text-left bg-white border-2 border-slate-200 hover:border-brand-600 active:bg-brand-50 rounded-xl p-2.5 transition flex flex-col">
-      <div class="font-bold text-[13px] leading-tight">${esc(p.nameEn)}</div>
-      <div class="font-ta text-[12px] text-slate-500 leading-tight truncate">${esc(p.nameTa)}</div>
-      <div class="mt-auto pt-2 flex items-end justify-between">
-        <span class="text-base font-extrabold text-brand-700 tnum">₹${p.price}<span class="text-[10px] font-semibold text-slate-400">/${p.unit}</span></span>
-        <span class="text-[10px] font-bold tnum ${low?'text-red-600':'text-slate-400'}">${qtyFmt(p.stock,p.unit)}</span>
-      </div>
-    </button>`;
-  }).join('');
+  const q=document.getElementById('search-input').value;
+  const list=DB.products.filter(p=>matches(p,q)&&(!catFilter||p.category===catFilter));
+  const grid=document.getElementById('product-grid');
+  if(!list.length){
+    grid.innerHTML=`<div class="grid-empty">No item matches “${esc(q)}”.<br>Use <b>Custom item</b> (F4) for an unlisted one.</div>`;
+    return;
+  }
+  grid.innerHTML=list.map(p=>`<button class="pcard" onclick="addToCart('${p.id}')">
+      <div class="nm">${esc(p.nameEn)}</div>
+      <div class="ta">${esc(p.nameTa)}</div>
+      <div class="ft">
+        <span class="pr">₹${p.price}<span class="un">/${esc(p.unit)}</span></span>
+        <span class="st ${p.stock<=5?'low':''}">${qtyFmt(p.stock,p.unit)}</span>
+      </div></button>`).join('');
 }
-function clearSearch(){ document.getElementById('search-input').value=''; renderProducts(); document.getElementById('search-input').focus(); }
+function clearSearch(){ const s=document.getElementById('search-input'); s.value=''; renderProducts(); s.focus(); }
 function skuEnter(){
-  const el = document.getElementById('sku-input'), v = el.value.trim().toLowerCase();
+  const el=document.getElementById('sku-input'), v=el.value.trim().toLowerCase();
   if(!v) return;
-  const p = DB.products.find(x => x.sku.toLowerCase()===v || (x.barcode||'')===v);
+  const p=DB.products.find(x=>x.sku.toLowerCase()===v||(x.barcode||'')===v);
   if(p){ addToCart(p.id); el.value=''; } else { toast('No item with SKU / barcode '+v,'error'); el.select(); }
 }
 
-/* ══════════════ CART OPS ══════════════ */
-/* ── Quantity prompt ──────────────────────────────────────────────────
+/* ══════════════ QUANTITY PROMPT ══════════════
    Tapping a product opens this rather than pushing a default quantity into
-   the cart. A vegetable counter weighs first and bills second, so the
-   weight is what the cashier actually has in hand at that moment; guessing
-   0.5 kg and correcting it afterwards is two edits instead of one entry. */
-let _qtyProduct = null;
+   the cart. A vegetable counter weighs first and bills second, so the weight
+   is what the cashier actually has in hand at that moment; guessing 0.5 kg
+   and correcting it afterwards is two edits instead of one entry. */
+let _qtyProduct=null;
 function addToCart(pid){
-  const p = DB.products.find(x=>x.id===pid); if(!p) return;
-  _qtyProduct = p;
-  document.getElementById('q-name').textContent = p.nameEn;
-  document.getElementById('q-name-ta').textContent = p.nameTa || '';
-  document.getElementById('q-rate').value = p.price;
-  document.getElementById('q-disc').value = 0;
-  document.getElementById('q-qty').value  = p.unit==='kg' ? '' : 1;
-  document.getElementById('q-unit-lbl').textContent = p.unit==='kg' ? '(in kg — e.g. 0.750)' : '(pieces)';
-  // Weight shortcuts for the amounts a veg counter actually sells
-  const chips = p.unit==='kg' ? [0.25,0.5,0.75,1,1.5,2,2.5,5] : [1,2,3,5,10,12];
-  document.getElementById('q-chips').innerHTML = chips.map(v=>
-    `<button onclick="document.getElementById('q-qty').value=${v};qtyCalc()"
-      class="px-2.5 h-8 rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-xs font-bold tnum">${v}${p.unit==='kg'?'':'×'}</button>`).join('');
-  qtyCalc();
-  show('m-qty');
-  setTimeout(()=>{ const q=document.getElementById('q-qty'); q.focus(); q.select(); }, 40);
+  const p=DB.products.find(x=>x.id===pid); if(!p) return;
+  _qtyProduct=p;
+  document.getElementById('q-name').textContent=p.nameEn;
+  document.getElementById('q-name-ta').textContent=p.nameTa||'';
+  document.getElementById('q-rate').value=p.price;
+  document.getElementById('q-disc').value=0;
+  document.getElementById('q-qty').value=p.unit==='kg'?'':1;
+  document.getElementById('q-unit-lbl').textContent=p.unit==='kg'?'(in kg — e.g. 0.750)':'(pieces)';
+  const chips=p.unit==='kg'?[0.25,0.5,0.75,1,1.5,2,5]:[1,2,3,5,10,12];
+  document.getElementById('q-chips').innerHTML=chips.map(v=>
+    `<button onclick="document.getElementById('q-qty').value=${v};qtyCalc()">${v}${p.unit==='kg'?'':'×'}</button>`).join('');
+  qtyCalc(); show('m-qty');
+  setTimeout(()=>{ const q=document.getElementById('q-qty'); q.focus(); q.select(); },40);
 }
 function qtyCalc(){
-  const rate = parseFloat(document.getElementById('q-rate').value)||0;
-  const disc = Math.min(Math.max(parseFloat(document.getElementById('q-disc').value)||0,0),100);
-  const qty  = parseFloat(document.getElementById('q-qty').value)||0;
-  const per  = rate*(1-disc/100);
-  document.getElementById('q-total').textContent   = money(per*qty);
-  document.getElementById('q-perunit').textContent = 'Per unit: '+money(per)+(_qtyProduct?' / '+_qtyProduct.unit:'');
+  const rate=parseFloat(document.getElementById('q-rate').value)||0;
+  const disc=Math.min(Math.max(parseFloat(document.getElementById('q-disc').value)||0,0),100);
+  const qty=parseFloat(document.getElementById('q-qty').value)||0;
+  const per=rate*(1-disc/100);
+  document.getElementById('q-total').textContent=money(per*qty);
+  document.getElementById('q-perunit').textContent='Per unit: '+money(per)+(_qtyProduct?' / '+_qtyProduct.unit:'');
 }
 function qtyAdd(){
   if(!_qtyProduct) return;
-  const p = _qtyProduct;
-  const rate = parseFloat(document.getElementById('q-rate').value)||0;
-  const disc = Math.min(Math.max(parseFloat(document.getElementById('q-disc').value)||0,0),100);
-  let qty = parseFloat(document.getElementById('q-qty').value);
-  if(!(qty>0))  { toast('Enter a quantity','error'); document.getElementById('q-qty').focus(); return; }
-  if(!(rate>0)) { toast('Enter a rate','error');     document.getElementById('q-rate').focus(); return; }
-  qty = p.unit==='kg' ? +qty.toFixed(3) : Math.round(qty);
-  const net = +(rate*(1-disc/100)).toFixed(2);
-  const c = cart();
+  const p=_qtyProduct;
+  const rate=parseFloat(document.getElementById('q-rate').value)||0;
+  const disc=Math.min(Math.max(parseFloat(document.getElementById('q-disc').value)||0,0),100);
+  let qty=parseFloat(document.getElementById('q-qty').value);
+  if(!(qty>0)) { toast('Enter a quantity','error'); document.getElementById('q-qty').focus(); return; }
+  if(!(rate>0)){ toast('Enter a rate','error');     document.getElementById('q-rate').focus(); return; }
+  qty=p.unit==='kg'?+qty.toFixed(3):Math.round(qty);
+  const net=+(rate*(1-disc/100)).toFixed(2);
+  const c=cart();
   // Same product at the same effective rate merges instead of stacking lines
-  const ex = c.items.find(i=>i.pid===p.id && i.rate===net);
-  if(ex) ex.qty = +(ex.qty+qty).toFixed(3);
-  else c.items.push({ pid:p.id, name:p.nameEn, nameTa:p.nameTa, unit:p.unit, rate:net, qty });
+  const ex=c.items.find(i=>i.pid===p.id&&i.rate===net);
+  if(ex) ex.qty=+(ex.qty+qty).toFixed(3);
+  else c.items.push({pid:p.id,name:p.nameEn,nameTa:p.nameTa,unit:p.unit,rate:net,qty});
   saveCarts(); closeModals(); renderAll();
   toast(p.nameEn+' · '+qtyFmt(qty,p.unit)+' '+p.unit+' = '+money(net*qty));
   document.getElementById('search-input')?.focus();
 }
 function addCustomItem(){
-  const name = document.getElementById('ci-name').value.trim();
-  const rate = parseFloat(document.getElementById('ci-rate').value);
-  const qty  = parseFloat(document.getElementById('ci-qty').value);
-  const unit = document.getElementById('ci-unit').value;
-  if(!name)                    return toast('Enter an item name','error');
-  if(!(rate>0))                return toast('Enter a rate','error');
-  if(!(qty>0))                 return toast('Enter a quantity','error');
-  cart().items.push({ pid:null, name, nameTa:'', unit, rate, qty, custom:true });
+  const name=document.getElementById('ci-name').value.trim();
+  const rate=parseFloat(document.getElementById('ci-rate').value);
+  const qty=parseFloat(document.getElementById('ci-qty').value);
+  const unit=document.getElementById('ci-unit').value;
+  if(!name)     return toast('Enter an item name','error');
+  if(!(rate>0)) return toast('Enter a rate','error');
+  if(!(qty>0))  return toast('Enter a quantity','error');
+  cart().items.push({pid:null,name,nameTa:'',unit,rate,qty,custom:true});
   saveCarts(); closeModals(); renderAll(); toast('Added '+name);
 }
-function setQty(i, v){
-  const it = cart().items[i]; if(!it) return;
-  let q = parseFloat(v);
-  if(isNaN(q) || q < 0) q = 0;
-  it.qty = it.unit==='kg' ? +q.toFixed(3) : Math.round(q);
+function setQty(i,v){
+  const it=cart().items[i]; if(!it) return;
+  let q=parseFloat(v); if(isNaN(q)||q<0) q=0;
+  it.qty=it.unit==='kg'?+q.toFixed(3):Math.round(q);
   saveCarts(); renderCart();
 }
-function bumpQty(i, d){
-  const it = cart().items[i]; if(!it) return;
-  const step = it.unit==='kg' ? 0.25 : 1;
-  it.qty = Math.max(0, +(it.qty + d*step).toFixed(3));
+function bumpQty(i,d){
+  const it=cart().items[i]; if(!it) return;
+  const step=it.unit==='kg'?0.25:1;
+  it.qty=Math.max(0,+(it.qty+d*step).toFixed(3));
   saveCarts(); renderCart();
 }
 function removeItem(i){ cart().items.splice(i,1); saveCarts(); renderAll(); }
 
 function calcTotals(){
-  const c = cart();
-  const sub = c.items.reduce((a,i)=>a + i.rate*i.qty, 0);
-  const dv  = parseFloat(document.getElementById('disc-val').value)||0;
-  const dt  = document.getElementById('disc-type').value;
-  let disc  = dt==='pct' ? sub*dv/100 : dv;
-  disc = Math.min(Math.max(disc,0), sub);
-  const taxable = sub - disc;
-  const gst = DB.settings.gstOn ? taxable * DB.settings.gstRate/100 : 0;
-  return { sub, disc, dv, dt, gst, total: taxable + gst, count: c.items.length };
+  const c=cart();
+  const sub=c.items.reduce((a,i)=>a+i.rate*i.qty,0);
+  const dv=parseFloat(document.getElementById('disc-val').value)||0;
+  const dt=document.getElementById('disc-type').value;
+  let disc=dt==='pct'?sub*dv/100:dv;
+  disc=Math.min(Math.max(disc,0),sub);
+  const taxable=sub-disc;
+  const gst=DB.settings.gstOn?taxable*DB.settings.gstRate/100:0;
+  return {sub,disc,dv,dt,gst,total:taxable+gst,count:c.items.length};
 }
 
 function renderCart(){
-  const c = cart(), body = document.getElementById('cart-body');
-  document.getElementById('cart-title').textContent = 'Cart C'+(active+1);
-
+  const c=cart(), body=document.getElementById('cart-body');
+  document.getElementById('cart-title').textContent='Cart C'+(active+1);
   if(!c.items.length){
-    body.innerHTML = `<div class="h-full grid place-items-center text-center px-6 py-12">
-      <div><div class="text-4xl mb-2">🧺</div>
-      <div class="font-bold text-slate-400">Cart C${active+1} is empty</div>
-      <div class="text-xs text-slate-400 mt-1">Tap an item, or scan into the SKU box.</div></div></div>`;
-  } else {
-    body.innerHTML = `<table class="w-full text-sm">
-      <thead class="sticky top-0 bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
-        <tr><th class="text-left px-3 py-2 font-bold">Item</th><th class="text-right px-1 font-bold">Rate</th>
-            <th class="text-center px-1 font-bold w-[104px]">Qty</th><th class="text-right px-2 font-bold">Total</th><th class="w-8"></th></tr>
-      </thead><tbody>${c.items.map((it,i)=>`
-        <tr class="border-b border-slate-100">
-          <td class="px-3 py-2">
-            <div class="font-bold text-[13px] leading-tight">${esc(it.name)}${it.custom?'<span class="ml-1 text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-800 font-bold align-middle">CUSTOM</span>':''}</div>
-            ${it.nameTa?`<div class="font-ta text-[11px] text-slate-400 leading-tight">${esc(it.nameTa)}</div>`:''}
-            <div class="text-[10px] text-slate-400 font-semibold uppercase">${it.unit}</div>
-          </td>
-          <td class="text-right px-1 tnum font-semibold text-slate-600">${it.rate}</td>
-          <td class="px-1">
-            <div class="flex items-center gap-0.5">
-              <button onclick="bumpQty(${i},-1)" class="w-6 h-7 rounded bg-slate-100 hover:bg-slate-200 font-bold text-slate-600 flex-shrink-0">−</button>
-              <input id="q-${i}" value="${qtyFmt(it.qty,it.unit)}" inputmode="decimal"
-                onchange="setQty(${i},this.value)" onfocus="this.select()"
-                class="w-full min-w-0 h-7 text-center rounded border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-xs font-bold tnum">
-              <button onclick="bumpQty(${i},1)" class="w-6 h-7 rounded bg-slate-100 hover:bg-slate-200 font-bold text-slate-600 flex-shrink-0">+</button>
-            </div>
-          </td>
-          <td class="text-right px-2 tnum font-extrabold">${(it.rate*it.qty).toFixed(2)}</td>
-          <td class="px-1"><button onclick="removeItem(${i})" class="w-7 h-7 rounded grid place-items-center text-slate-300 hover:text-red-600 hover:bg-red-50 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></td>
-        </tr>`).join('')}</tbody></table>`;
+    body.innerHTML=`<div class="cart-empty"><div>
+      <div class="em">🧺</div><b>Cart C${active+1} is empty</b>
+      <span>Tap an item, or scan into the SKU box (F1).</span></div></div>`;
+  }else{
+    body.innerHTML=`<table class="cart">
+      <thead><tr><th>Item</th><th class="num">Rate</th><th style="width:108px;text-align:center">Qty</th><th class="num">Total</th><th style="width:34px"></th></tr></thead>
+      <tbody>${c.items.map((it,i)=>`<tr>
+        <td>
+          <div class="li-nm">${esc(it.name)}${it.custom?'<span class="tag">CUSTOM</span>':''}</div>
+          ${it.nameTa?`<div class="li-ta ta">${esc(it.nameTa)}</div>`:''}
+          <div class="li-un">${esc(it.unit)}</div>
+        </td>
+        <td class="num tnum" style="color:var(--ink-2);font-weight:600">${it.rate}</td>
+        <td>
+          <div class="stepper">
+            <button onclick="bumpQty(${i},-1)" aria-label="Less">−</button>
+            <input id="q-${i}" value="${qtyFmt(it.qty,it.unit)}" inputmode="decimal"
+              onchange="setQty(${i},this.value)" onfocus="this.select()" aria-label="Quantity">
+            <button onclick="bumpQty(${i},1)" aria-label="More">+</button>
+          </div>
+        </td>
+        <td class="num tnum" style="font-weight:800">${(it.rate*it.qty).toFixed(2)}</td>
+        <td><button class="del" onclick="removeItem(${i})" aria-label="Remove"><i data-i="trash-2"></i></button></td>
+      </tr>`).join('')}</tbody></table>`;
+    icons(body);
   }
-
-  const t = calcTotals();
-  document.getElementById('t-sub').textContent  = money(t.sub);
-  document.getElementById('t-disc').textContent = '−'+money(t.disc);
-  document.getElementById('gst-row').style.display = DB.settings.gstOn ? '' : 'none';
-  document.getElementById('gst-lbl').textContent = DB.settings.gstOn ? '@'+DB.settings.gstRate+'%' : '';
-  document.getElementById('t-gst').textContent   = money(t.gst);
-  document.getElementById('ck-total').textContent= money(t.total);
-  document.getElementById('ck-items').textContent= t.count + (t.count===1?' item':' items');
+  const t=calcTotals();
+  document.getElementById('t-sub').textContent=money(t.sub);
+  document.getElementById('t-disc').textContent='−'+money(t.disc);
+  document.getElementById('gst-row').style.display=DB.settings.gstOn?'':'none';
+  document.getElementById('gst-lbl').textContent=DB.settings.gstOn?'@'+DB.settings.gstRate+'%':'';
+  document.getElementById('t-gst').textContent=money(t.gst);
+  document.getElementById('ck-total').textContent=money(t.total);
+  document.getElementById('ck-items').textContent=t.count+(t.count===1?' item':' items');
   // All three payment routes disable together on an empty cart
   ['pay-cash-btn','pay-upi-btn','pay-card-btn'].forEach(id=>{
-    const b=document.getElementById(id); if(b) b.disabled = !t.count;
+    const b=document.getElementById(id); if(b) b.disabled=!t.count;
   });
-  c.disc = t.dv; c.discType = t.dt; saveCarts();
-  renderTabs(); icons();
+  c.disc=t.dv; c.discType=t.dt; saveCarts();
+  renderTabs();
 }
 function renderAll(){ renderTabs(); renderMode(); renderCats(); renderProducts(); renderCart(); }
 
 /* ══════════════ PAYMENT ══════════════ */
 function openPayment(method){
-  const t = calcTotals();
+  const t=calcTotals();
   if(!t.count){ toast('Cart is empty','error'); return; }
-  document.getElementById('pay-total').textContent = money(t.total);
-  document.getElementById('pay-tendered').value = '';
-  document.getElementById('pay-ref').value = '';
-  document.getElementById('pay-card-ref').value = '';
-  document.getElementById('pay-cust').value = '';
-  document.getElementById('sp-cash').value = 0;
-  document.getElementById('sp-upi').value = 0;
-  document.getElementById('upi-vpa').textContent = DB.settings.vpa;
-  document.getElementById('cust-list').innerHTML = DB.customers.map(c=>`<option value="${esc(c.name)} · ${c.phone}">`).join('');
+  document.getElementById('pay-total').textContent=money(t.total);
+  document.getElementById('pay-tendered').value='';
+  document.getElementById('pay-ref').value='';
+  document.getElementById('pay-card-ref').value='';
+  document.getElementById('pay-cust').value='';
+  document.getElementById('sp-cash').value=0;
+  document.getElementById('sp-upi').value=0;
+  document.getElementById('upi-vpa').textContent=DB.settings.vpa;
+  document.getElementById('cust-list').innerHTML=DB.customers.map(c=>`<option value="${esc(c.name)} · ${esc(c.phone)}">`).join('');
   drawQR(); quickCash(t.total); setPay(method||'cash'); calcChange(); calcSplit();
   show('m-pay');
-  // Land the caret where that payment route needs input: the note handed over
-  // for cash, the transaction reference for UPI or card.
+  // Land the caret where that payment route needs input
   setTimeout(()=>{
-    const m = method||'cash';
-    const el = m==='cash' ? document.getElementById('pay-tendered')
-             : m==='upi'  ? document.getElementById('pay-ref')
-             : m==='card' ? document.getElementById('pay-card-ref')
-             : document.getElementById('sp-cash');
-    if(el){ el.focus(); el.select && el.select(); }
-  }, 50);
+    const m=method||'cash';
+    const el=m==='cash'?document.getElementById('pay-tendered')
+           :m==='upi' ?document.getElementById('pay-ref')
+           :m==='card'?document.getElementById('pay-card-ref')
+           :document.getElementById('sp-cash');
+    if(el){ el.focus(); el.select&&el.select(); }
+  },50);
 }
 function setPay(m){
-  payMethod = m;
-  document.querySelectorAll('.pm-btn').forEach(b=>{
-    const on = b.dataset.pm===m;
-    b.className = 'pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition ' +
-      (on ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:border-slate-300');
-  });
-  ['cash','upi','card','split'].forEach(x=>document.getElementById('pane-'+x).classList.toggle('hidden', x!==m));
-  icons();
+  payMethod=m;
+  document.querySelectorAll('.pm').forEach(b=>b.classList.toggle('on',b.dataset.pm===m));
+  ['cash','upi','card','split'].forEach(x=>document.getElementById('pane-'+x).classList.toggle('hidden',x!==m));
 }
 /* Denomination shortcuts — the note the customer is most likely to hand over */
 function quickCash(total){
-  const notes = [...new Set([Math.ceil(total/10)*10, Math.ceil(total/50)*50, Math.ceil(total/100)*100, 100,200,500,2000])]
+  const notes=[...new Set([Math.ceil(total/10)*10,Math.ceil(total/50)*50,Math.ceil(total/100)*100,100,200,500,2000])]
     .filter(n=>n>=total).sort((a,b)=>a-b).slice(0,5);
-  document.getElementById('quick-cash').innerHTML = notes.map(n=>
-    `<button onclick="document.getElementById('pay-tendered').value=${n};calcChange()" class="px-3 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-bold tnum">₹${n}</button>`).join('')
-    + `<button onclick="document.getElementById('pay-tendered').value=${total.toFixed(2)};calcChange()" class="px-3 h-8 rounded-lg bg-brand-50 text-brand-700 text-xs font-bold">Exact</button>`;
+  document.getElementById('quick-cash').innerHTML=notes.map(n=>
+    `<button onclick="document.getElementById('pay-tendered').value=${n};calcChange()">₹${n}</button>`).join('')
+    +`<button onclick="document.getElementById('pay-tendered').value=${total.toFixed(2)};calcChange()" style="background:var(--accent-soft);color:var(--accent)">Exact</button>`;
 }
 function calcChange(){
-  const t = calcTotals().total;
-  const g = parseFloat(document.getElementById('pay-tendered').value)||0;
-  const ch = g - t;
-  const el = document.getElementById('pay-change');
-  el.textContent = money(Math.max(ch,0));
-  el.className = 'text-2xl font-extrabold tnum ' + (ch<0 ? 'text-red-600' : 'text-brand-700');
-  if(ch<0) el.textContent = '−'+money(-ch);
+  const t=calcTotals().total;
+  const g=parseFloat(document.getElementById('pay-tendered').value)||0;
+  const ch=g-t, el=document.getElementById('pay-change');
+  el.textContent=ch<0?'−'+money(-ch):money(ch);
+  el.style.color=ch<0?'var(--danger)':'var(--accent-2)';
 }
 function calcSplit(){
-  const t = calcTotals().total;
-  const c = parseFloat(document.getElementById('sp-cash').value)||0;
-  const u = parseFloat(document.getElementById('sp-upi').value)||0;
-  const left = t - c - u;
-  const el = document.getElementById('sp-left');
-  el.textContent = money(Math.abs(left)) + (left<0?' over':'');
-  el.className = 'tnum ' + (Math.abs(left)<0.01 ? 'text-brand-700' : 'text-red-600');
+  const t=calcTotals().total;
+  const c=parseFloat(document.getElementById('sp-cash').value)||0;
+  const u=parseFloat(document.getElementById('sp-upi').value)||0;
+  const left=t-c-u, el=document.getElementById('sp-left');
+  el.textContent=money(Math.abs(left))+(left<0?' over':'');
+  el.style.color=Math.abs(left)<0.01?'var(--accent-2)':'var(--danger)';
 }
 /* Deterministic QR-looking placeholder — a real deployment swaps in a UPI intent QR */
 function drawQR(){
-  const N=21; let s='<div style="display:grid;grid-template-columns:repeat('+N+',1fr);width:136px;height:136px">';
+  const N=21; let s='<div style="display:grid;grid-template-columns:repeat('+N+',1fr);width:130px;height:130px">';
   for(let i=0;i<N*N;i++){
     const r=Math.floor(i/N), c=i%N;
-    const finder = (r<7&&c<7)||(r<7&&c>=N-7)||(r>=N-7&&c<7);
-    const on = finder ? !((r>1&&r<5&&c>1&&c<5)||(r>1&&r<5&&c>N-6&&c<N-2)||(r>N-6&&r<N-2&&c>1&&c<5)) ? ((r===0||r===6||c===0||c===6)||(r>1&&r<5&&c>1&&c<5)) : true
-                      : ((r*7+c*13+((r*c)%5))%3===0);
-    s += '<div style="background:'+(on?'#000':'#fff')+'"></div>';
+    const finder=(r<7&&c<7)||(r<7&&c>=N-7)||(r>=N-7&&c<7);
+    const on=finder?((r===0||r===6||c===0||c===6)||(r>1&&r<5&&c>1&&c<5)||(r>1&&r<5&&c>N-6&&c<N-2)||(r>N-6&&r<N-2&&c>1&&c<5))
+                   :((r*7+c*13+((r*c)%5))%3===0);
+    s+='<div style="background:'+(on?'#000':'#fff')+'"></div>';
   }
-  document.getElementById('qr-box').innerHTML = s+'</div>';
+  document.getElementById('qr-box').innerHTML=s+'</div>';
 }
 
 function completeSale(){
-  const t = calcTotals();
+  const t=calcTotals();
   if(!t.count) return;
-  const c = cart();
-  let pay = { method: payMethod };
-
+  const c=cart();
+  let pay={method:payMethod};
   if(payMethod==='cash'){
-    const g = parseFloat(document.getElementById('pay-tendered').value)||0;
-    if(g < t.total - 0.001) return toast('Cash tendered is less than the total','error');
-    pay.tendered = g; pay.change = +(g - t.total).toFixed(2);
-  } else if(payMethod==='upi'){
-    pay.ref = document.getElementById('pay-ref').value.trim();
+    const g=parseFloat(document.getElementById('pay-tendered').value)||0;
+    if(g<t.total-0.001) return toast('Cash tendered is less than the total','error');
+    pay.tendered=g; pay.change=+(g-t.total).toFixed(2);
+  }else if(payMethod==='upi'){
+    pay.ref=document.getElementById('pay-ref').value.trim();
     if(!pay.ref) return toast('Enter the UPI reference id','error');
-  } else if(payMethod==='card'){
-    pay.ref = document.getElementById('pay-card-ref').value.trim();
+  }else if(payMethod==='card'){
+    pay.ref=document.getElementById('pay-card-ref').value.trim();
     if(!pay.ref) return toast('Enter the card approval code','error');
-  } else {
-    pay.cash = parseFloat(document.getElementById('sp-cash').value)||0;
-    pay.upi  = parseFloat(document.getElementById('sp-upi').value)||0;
-    if(Math.abs(t.total - pay.cash - pay.upi) > 0.01) return toast('Split parts must add up to the total','error');
+  }else{
+    pay.cash=parseFloat(document.getElementById('sp-cash').value)||0;
+    pay.upi=parseFloat(document.getElementById('sp-upi').value)||0;
+    if(Math.abs(t.total-pay.cash-pay.upi)>0.01) return toast('Split parts must add up to the total','error');
   }
-
-  const bill = {
-    id: 'b'+Date.now(),
-    billNo: TERMINAL+'-'+String(DB.settings.seq).padStart(5,'0'),
-    ts: Date.now(),
-    date: new Date().toISOString().slice(0,10),
-    cashier: DB.session.cashier,
-    mode: c.mode,
-    customer: document.getElementById('pay-cust').value.trim(),
-    items: c.items.map(i=>({name:i.name, nameTa:i.nameTa, unit:i.unit, rate:i.rate, qty:i.qty})),
+  const bill={
+    id:'b'+Date.now(),
+    billNo:TERMINAL+'-'+String(DB.settings.seq).padStart(5,'0'),
+    ts:Date.now(), date:new Date().toISOString().slice(0,10),
+    cashier:DB.session.cashier, mode:c.mode,
+    customer:document.getElementById('pay-cust').value.trim(),
+    items:c.items.map(i=>({name:i.name,nameTa:i.nameTa,unit:i.unit,rate:i.rate,qty:i.qty})),
     subtotal:+t.sub.toFixed(2), discount:+t.disc.toFixed(2), discType:t.dt, discVal:t.dv,
-    gst:+t.gst.toFixed(2), gstRate: DB.settings.gstOn ? DB.settings.gstRate : 0,
-    total:+t.total.toFixed(2), payment: pay
+    gst:+t.gst.toFixed(2), gstRate:DB.settings.gstOn?DB.settings.gstRate:0,
+    total:+t.total.toFixed(2), payment:pay
   };
-
   // Decrement stock for catalogued items (custom lines have no pid)
-  c.items.forEach(i=>{ if(i.pid){ const p = DB.products.find(x=>x.id===i.pid); if(p) p.stock = +(p.stock - i.qty).toFixed(3); } });
-
-  DB.bills.unshift(bill);
-  DB.settings.seq++;
-  saveDB();
-
-  CARTS[active] = blankCart();
-  document.getElementById('disc-val').value = 0;
+  c.items.forEach(i=>{ if(i.pid){ const p=DB.products.find(x=>x.id===i.pid); if(p) p.stock=+(p.stock-i.qty).toFixed(3); } });
+  DB.bills.unshift(bill); DB.settings.seq++; saveDB();
+  CARTS[active]=blankCart();
+  document.getElementById('disc-val').value=0;
   saveCarts();
-
-  lastBill = bill;
-  closeModals();
-  renderAll();
-  showReceipt(bill);
+  lastBill=bill;
+  closeModals(); renderAll(); showReceipt(bill);
   toast('Bill '+bill.billNo+' saved · '+money(bill.total));
-  // Hand the bill to the printer without a second keystroke. The browser's own
-  // print dialog is what appears; with Chrome launched using --kiosk-printing
-  // it prints silently, which is the only version fast enough for a counter.
-  if(AUTOPRINT) setTimeout(()=>window.print(), 250);
+  // Hand the bill to the printer without a second keystroke. With Chrome
+  // launched using --kiosk-printing this prints silently, which is the only
+  // version fast enough for a counter.
+  if(AUTOPRINT) setTimeout(()=>window.print(),250);
 }
-let AUTOPRINT = (()=>{ try{ return localStorage.getItem('anpos_autoprint')!=='0'; }catch(e){ return true; } })();
+let AUTOPRINT=(()=>{ try{ return localStorage.getItem('anpos_autoprint')!=='0'; }catch(e){ return true; } })();
 function toggleAutoprint(){
   AUTOPRINT=!AUTOPRINT;
   try{ localStorage.setItem('anpos_autoprint',AUTOPRINT?'1':'0'); }catch(e){}
-  toast(AUTOPRINT?'Auto-print ON — bill prints as soon as the sale completes':'Auto-print OFF — use Print Bill on the receipt');
+  toast(AUTOPRINT?'Auto-print ON — bill prints as soon as the sale completes':'Auto-print OFF — use Print bill on the receipt');
 }
 
 /* ══════════════ RECEIPT ══════════════ */
 function setPaper(p){
-  paper = p;
-  document.getElementById('receipt-print').classList.toggle('w80', p===80);
-  document.getElementById('p58').className = 'px-2.5 h-7 rounded text-[11px] font-bold ' + (p===58?'bg-white shadow':'text-slate-500');
-  document.getElementById('p80').className = 'px-2.5 h-7 rounded text-[11px] font-bold ' + (p===80?'bg-white shadow':'text-slate-500');
+  paper=p;
+  document.getElementById('receipt-print').classList.toggle('w80',p===80);
+  document.getElementById('p58').classList.toggle('on',p===58);
+  document.getElementById('p80').classList.toggle('on',p===80);
 }
 function showReceipt(b){
-  const d = new Date(b.ts);
-  const pm = b.payment.method==='cash'  ? 'CASH'
-           : b.payment.method==='upi'   ? 'UPI'
-           : b.payment.method==='card'  ? 'CARD' : 'SPLIT';
-  document.getElementById('receipt-print').innerHTML = `
+  const d=new Date(b.ts);
+  const pm=b.payment.method==='cash'?'CASH':b.payment.method==='upi'?'UPI':b.payment.method==='card'?'CARD':'SPLIT';
+  document.getElementById('receipt-print').innerHTML=`
     <div style="text-align:center">
       <div style="font-weight:700;font-size:13px">TULASI VEGETABLES MARKET</div>
-      <div>Thuckalay, Kanyakumari</div>
-      <div>Ph 98420 11223</div>
-    </div>
-    <hr>
-    <div class="r"><span>Bill: ${b.billNo}</span><span>${b.mode}</span></div>
+      <div>Thuckalay, Kanyakumari</div><div>Ph 98420 11223</div>
+    </div><hr>
+    <div class="r"><span>Bill: ${esc(b.billNo)}</span><span>${esc(b.mode)}</span></div>
     <div class="r"><span>${d.toLocaleDateString('en-IN')}</span><span>${d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span></div>
     <div>Cashier: ${esc(b.cashier)}</div>
     ${b.customer?`<div>Customer: ${esc(b.customer)}</div>`:''}
-    <hr>
-    <div class="r" style="font-weight:700"><span>ITEM</span><span>AMOUNT</span></div>
-    <hr>
-    ${b.items.map(i=>`
-      <div>${esc(i.name)}</div>
-      <div class="r"><span>&nbsp;&nbsp;${qtyFmt(i.qty,i.unit)} ${i.unit} × ${i.rate}</span><span>${(i.rate*i.qty).toFixed(2)}</span></div>
-    `).join('')}
+    <hr><div class="r" style="font-weight:700"><span>ITEM</span><span>AMOUNT</span></div><hr>
+    ${b.items.map(i=>`<div>${esc(i.name)}</div>
+      <div class="r"><span>&nbsp;&nbsp;${qtyFmt(i.qty,i.unit)} ${esc(i.unit)} × ${i.rate}</span><span>${(i.rate*i.qty).toFixed(2)}</span></div>`).join('')}
     <hr>
     <div class="r"><span>Subtotal</span><span>${b.subtotal.toFixed(2)}</span></div>
     ${b.discount>0?`<div class="r"><span>Discount${b.discType==='pct'?' ('+b.discVal+'%)':''}</span><span>-${b.discount.toFixed(2)}</span></div>`:''}
     ${b.gst>0?`<div class="r"><span>GST @${b.gstRate}%</span><span>${b.gst.toFixed(2)}</span></div>`:''}
-    <hr>
-    <div class="r" style="font-weight:700;font-size:14px"><span>TOTAL</span><span>${b.total.toFixed(2)}</span></div>
-    <hr>
+    <hr><div class="r" style="font-weight:700;font-size:14px"><span>TOTAL</span><span>${b.total.toFixed(2)}</span></div><hr>
     <div class="r"><span>Paid via</span><span>${pm}</span></div>
     ${b.payment.method==='cash'?`<div class="r"><span>Tendered</span><span>${b.payment.tendered.toFixed(2)}</span></div>
       <div class="r"><span>Change</span><span>${b.payment.change.toFixed(2)}</span></div>`:''}
     ${b.payment.ref?`<div class="r"><span>Ref</span><span>${esc(b.payment.ref)}</span></div>`:''}
     ${b.payment.method==='split'?`<div class="r"><span>Cash</span><span>${b.payment.cash.toFixed(2)}</span></div>
       <div class="r"><span>UPI</span><span>${b.payment.upi.toFixed(2)}</span></div>`:''}
-    <hr>
-    <div style="text-align:center">
+    <hr><div style="text-align:center">
       <div>${b.items.length} item(s)</div>
       <div style="margin-top:4px">நன்றி! வாங்கிட்டு வாங்க 🙏</div>
       <div style="margin-top:2px;font-size:10px">Powered by ArthaNote · arthanote.com</div>
@@ -1046,8 +1171,8 @@ function showReceipt(b){
   setPaper(paper); show('m-receipt');
 }
 
-/* ══════════════ ERP ══════════════ */
-const ERP_MODULES = [
+/* ══════════════ MANAGE (ERP) ══════════════ */
+const ERP_MODULES=[
   ['dashboard','Dashboard','layout-dashboard'],
   ['products','Products','package'],
   ['suppliers','Suppliers','truck'],
@@ -1057,254 +1182,214 @@ const ERP_MODULES = [
   ['settings','Settings','settings'],
 ];
 function renderERP(m){
-  if(m) erpModule = m;
-  document.getElementById('erp-nav').innerHTML = ERP_MODULES.map(([k,l,ic])=>`
-    <button onclick="renderERP('${k}')" class="w-full flex items-center gap-3 px-3 md:px-4 h-11 text-sm font-semibold transition ${
-      erpModule===k ? 'bg-brand-50 text-brand-700 border-r-[3px] border-brand-600' : 'text-slate-500 hover:bg-slate-50'}">
-      <i data-lucide="${ic}" class="w-4 h-4 flex-shrink-0"></i><span class="hidden md:inline">${l}</span></button>`).join('');
-  ({dashboard:erpDash, products:erpProducts, suppliers:erpSuppliers,
-    sales:erpSales, customers:erpCustomers, accounting:erpAccounting, settings:erpSettings}[erpModule])();
-  icons();
+  if(m) erpModule=m;
+  document.getElementById('erp-nav').innerHTML=ERP_MODULES.map(([k,l,ic])=>
+    `<button class="enav ${erpModule===k?'on':''}" onclick="renderERP('${k}')"><i data-i="${ic}"></i><span>${esc(l)}</span></button>`).join('');
+  ({dashboard:erpDash,products:erpProducts,suppliers:erpSuppliers,sales:erpSales,
+    customers:erpCustomers,accounting:erpAccounting,settings:erpSettings}[erpModule])();
+  icons(document.getElementById('erp-view'));
 }
-const H = (t,sub) => `<div class="mb-4"><h2 class="text-xl font-extrabold">${t}</h2>${sub?`<p class="text-sm text-slate-500">${sub}</p>`:''}</div>`;
-const card = (label,val,sub,color) => `<div class="bg-white rounded-xl border border-slate-200 p-4">
-  <div class="text-[11px] font-bold uppercase tracking-wide text-slate-400">${label}</div>
-  <div class="text-2xl font-extrabold tnum mt-1 ${color||''}">${val}</div>
-  ${sub?`<div class="text-xs text-slate-400 mt-0.5">${sub}</div>`:''}</div>`;
-
-function todayBills(){ const d = new Date().toISOString().slice(0,10); return DB.bills.filter(b=>b.date===d); }
+const H=(t,s)=>`<div style="margin-bottom:15px"><h2 style="font-size:19px;font-weight:800;margin:0;letter-spacing:-.02em">${t}</h2>${s?`<p style="font-size:12.5px;color:var(--ink-3);margin:2px 0 0">${s}</p>`:''}</div>`;
+const kpi=(l,v,s)=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+const fmt=n=>'₹'+Math.round(n||0).toLocaleString('en-IN');
+function todayBills(){ const d=new Date().toISOString().slice(0,10); return DB.bills.filter(b=>b.date===d); }
 
 function erpDash(){
-  const tb = todayBills();
-  const sales = tb.reduce((a,b)=>a+b.total,0);
-  const cash  = tb.reduce((a,b)=> a + (b.payment.method==='cash' ? b.total : b.payment.method==='split' ? (b.payment.cash||0) : 0), 0);
-  const inward= DB.products.reduce((a,p)=>a+p.cost*p.stock,0);
-  const abv   = tb.length ? sales/tb.length : 0;
-  document.getElementById('erp-body').innerHTML = H('Dashboard', new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))
-  + `<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-      ${card('Today\'s Sales', money(sales), tb.length+' bills','text-brand-700')}
-      ${card('Total Bills', tb.length, 'Avg bill '+money(abv))}
-      ${card('Cash in Drawer', money(DB.settings.openingCash + cash - DB.settings.expenses), 'incl. opening '+money(DB.settings.openingCash))}
-      ${card('Stock Value (inward)', money(inward), DB.products.length+' SKUs')}
-    </div>`
-  + `<div class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
-      <div class="font-bold mb-3">Low stock — reorder today</div>
-      ${(()=>{ const low = DB.products.filter(p=>p.stock<=10).sort((a,b)=>a.stock-b.stock);
-        return low.length ? `<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">${low.map(p=>
-          `<div class="flex justify-between items-center border border-slate-200 rounded-lg px-3 py-2">
-            <div><div class="text-sm font-bold">${esc(p.nameEn)}</div><div class="font-ta text-[11px] text-slate-400">${esc(p.nameTa)}</div></div>
-            <span class="text-sm font-extrabold tnum ${p.stock<=5?'text-red-600':'text-amber-600'}">${qtyFmt(p.stock,p.unit)} ${p.unit}</span>
-          </div>`).join('')}</div>` : '<div class="text-sm text-slate-400">Everything is above the reorder line.</div>'; })()}
-    </div>`
-  + `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-200 font-bold">Recent bills</div>
-      ${DB.bills.length ? tableBills(DB.bills.slice(0,8)) : '<div class="p-6 text-center text-sm text-slate-400">No bills yet today.</div>'}
-    </div>`;
+  const tb=todayBills();
+  const sales=tb.reduce((a,b)=>a+b.total,0);
+  const cash=tb.reduce((a,b)=>a+(b.payment.method==='cash'?b.total:b.payment.method==='split'?(b.payment.cash||0):0),0);
+  const inward=DB.products.reduce((a,p)=>a+p.cost*p.stock,0);
+  document.getElementById('erp-body').innerHTML=
+    H('Dashboard',new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))
+    +`<div class="kgrid">
+      ${kpi("Today's sales",fmt(sales),tb.length+' bills')}
+      ${kpi('Total bills',tb.length,'avg '+fmt(tb.length?sales/tb.length:0))}
+      ${kpi('Cash in drawer',fmt(DB.settings.openingCash+cash-DB.settings.expenses),'incl. opening '+fmt(DB.settings.openingCash))}
+      ${kpi('Stock value',fmt(inward),DB.products.length+' SKUs')}
+    </div>
+    <div class="card"><div class="card-hd"><h3>Low stock</h3><span class="note">reorder before tomorrow's run</span></div>
+      ${(()=>{ const low=DB.products.filter(p=>p.stock<=10).sort((a,b)=>a.stock-b.stock);
+        return low.length?`<div class="tw"><table class="d"><thead><tr><th>Item</th><th>SKU</th><th class="num">Stock</th></tr></thead><tbody>
+          ${low.map(p=>`<tr><td><b>${esc(p.nameEn)}</b><div class="ta" style="font-size:11.5px;color:var(--ink-3)">${esc(p.nameTa)}</div></td>
+            <td class="mono" style="font-size:12px">${esc(p.sku)}</td>
+            <td class="num"><span class="pill ${p.stock<=5?'bad':'warn'}">${qtyFmt(p.stock,p.unit)} ${esc(p.unit)}</span></td></tr>`).join('')}
+        </tbody></table></div>`:'<div class="empty">Everything is above the reorder line.</div>'; })()}
+    </div>
+    <div class="card"><div class="card-hd"><h3>Recent bills</h3></div>
+      ${DB.bills.length?tableBills(DB.bills.slice(0,8)):'<div class="empty">No bills yet today.</div>'}</div>`;
 }
-
 function tableBills(list){
-  return `<div class="overflow-x-auto scroll"><table class="w-full text-sm min-w-[560px]">
-    <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
-      <tr><th class="text-left px-4 py-2 font-bold">Bill No</th><th class="text-left px-3 font-bold">Time</th>
-      <th class="text-left px-3 font-bold">Mode</th><th class="text-left px-3 font-bold">Payment</th>
-      <th class="text-right px-3 font-bold">Items</th><th class="text-right px-4 font-bold">Total</th><th class="w-10"></th></tr></thead>
-    <tbody>${list.map(b=>`<tr class="border-t border-slate-100">
-      <td class="px-4 py-2 font-mono font-bold text-xs">${b.billNo}</td>
-      <td class="px-3 text-slate-500 text-xs tnum">${new Date(b.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
-      <td class="px-3"><span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100">${b.mode}</span></td>
-      <td class="px-3 text-xs font-semibold uppercase text-slate-600">${b.payment.method}</td>
-      <td class="px-3 text-right tnum">${b.items.length}</td>
-      <td class="px-4 text-right font-extrabold tnum">${money(b.total)}</td>
-      <td class="px-2"><button onclick="reprint('${b.id}')" class="w-7 h-7 rounded grid place-items-center text-slate-400 hover:text-brand-700 hover:bg-brand-50" title="Reprint"><i data-lucide="printer" class="w-3.5 h-3.5"></i></button></td>
+  return `<div class="tw"><table class="d">
+    <thead><tr><th>Bill No</th><th>Time</th><th>Mode</th><th>Payment</th><th class="num">Items</th><th class="num">Total</th><th style="width:44px"></th></tr></thead>
+    <tbody>${list.map(b=>`<tr>
+      <td class="mono" style="font-size:12px"><b>${esc(b.billNo)}</b></td>
+      <td class="tnum" style="color:var(--ink-3);font-size:12px">${new Date(b.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td><span class="pill">${esc(b.mode)}</span></td>
+      <td style="font-size:11.5px;font-weight:700;text-transform:uppercase;color:var(--ink-2)">${esc(b.payment.method)}</td>
+      <td class="num tnum">${b.items.length}</td>
+      <td class="num tnum"><b>${fmt(b.total)}</b></td>
+      <td><button class="del" onclick="reprint('${b.id}')" title="Reprint"><i data-i="printer"></i></button></td>
     </tr>`).join('')}</tbody></table></div>`;
 }
-function reprint(id){ const b = DB.bills.find(x=>x.id===id); if(b) showReceipt(b); }
+function reprint(id){ const b=DB.bills.find(x=>x.id===id); if(b) showReceipt(b); }
 
 function erpProducts(){
-  document.getElementById('erp-body').innerHTML = H('Products Catalog', DB.products.length+' items · tap a row to edit')
-  + `<div class="flex gap-2 mb-3">
-      <input id="pf" oninput="renderProdTable()" placeholder="Filter products…" class="flex-1 h-10 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm">
-      <button onclick="openProduct()" class="h-10 px-4 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm flex items-center gap-1.5"><i data-lucide="plus" class="w-4 h-4"></i>Add</button>
+  document.getElementById('erp-body').innerHTML=H('Products',DB.products.length+' items · tap a row to edit')
+    +`<div style="display:flex;gap:9px;margin-bottom:13px">
+      <input class="inp" id="pf" oninput="renderProdTable()" placeholder="Filter products…" style="max-width:280px">
+      <button class="btn btn-p" style="margin-left:auto" onclick="openProduct()"><i data-i="plus"></i>Add</button>
     </div><div id="prod-table"></div>`;
   renderProdTable();
+  icons(document.getElementById('erp-body'));
 }
 function renderProdTable(){
-  const q = (document.getElementById('pf')?.value||'').toLowerCase();
-  const list = DB.products.filter(p=>matches(p,q));
-  document.getElementById('prod-table').innerHTML = `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-    <div class="overflow-x-auto scroll"><table class="w-full text-sm min-w-[640px]">
-      <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
-        <th class="text-left px-4 py-2 font-bold">Item</th><th class="text-left px-3 font-bold">SKU</th>
-        <th class="text-left px-3 font-bold">Category</th><th class="text-center px-3 font-bold">Unit</th>
-        <th class="text-right px-3 font-bold">Cost</th><th class="text-right px-3 font-bold">Selling</th>
-        <th class="text-right px-3 font-bold">Margin</th><th class="text-right px-4 font-bold">Stock</th></tr></thead>
-      <tbody>${list.map(p=>{
-        const m = p.price ? ((p.price-p.cost)/p.price*100) : 0;
-        return `<tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openProduct('${p.id}')">
-          <td class="px-4 py-2"><div class="font-bold">${esc(p.nameEn)}</div><div class="font-ta text-[11px] text-slate-400">${esc(p.nameTa)}</div></td>
-          <td class="px-3 font-mono text-xs">${p.sku}</td>
-          <td class="px-3 text-xs text-slate-500">${esc(p.category)}</td>
-          <td class="px-3 text-center text-[10px] font-bold uppercase text-slate-500">${p.unit}</td>
-          <td class="px-3 text-right tnum text-slate-500">${p.cost}</td>
-          <td class="px-3 text-right tnum font-bold">${p.price}</td>
-          <td class="px-3 text-right tnum text-xs ${m<15?'text-red-600':'text-brand-700'}">${m.toFixed(0)}%</td>
-          <td class="px-4 text-right tnum font-semibold ${p.stock<=5?'text-red-600':''}">${qtyFmt(p.stock,p.unit)}</td>
-        </tr>`;}).join('')}</tbody></table></div></div>`;
+  const q=(document.getElementById('pf')?.value||'').toLowerCase();
+  const list=DB.products.filter(p=>matches(p,q));
+  document.getElementById('prod-table').innerHTML=`<div class="card" style="margin:0"><div class="tw"><table class="d">
+    <thead><tr><th>Item</th><th>SKU</th><th>Category</th><th>Unit</th><th class="num">Cost</th><th class="num">Selling</th><th class="num">Margin</th><th class="num">Stock</th></tr></thead>
+    <tbody>${list.length?list.map(p=>{ const m=p.price?((p.price-p.cost)/p.price*100):0;
+      return `<tr class="click" onclick="openProduct('${p.id}')">
+        <td><b>${esc(p.nameEn)}</b><div class="ta" style="font-size:11.5px;color:var(--ink-3)">${esc(p.nameTa)}</div></td>
+        <td class="mono" style="font-size:12px">${esc(p.sku)}</td>
+        <td style="font-size:12.5px;color:var(--ink-2)">${esc(p.category)}</td>
+        <td class="li-un">${esc(p.unit)}</td>
+        <td class="num tnum" style="color:var(--ink-2)">${p.cost}</td>
+        <td class="num tnum"><b>${p.price}</b></td>
+        <td class="num"><span class="pill ${m<15?'bad':'ok'}">${m.toFixed(0)}%</span></td>
+        <td class="num tnum ${p.stock<=5?'':''}" style="${p.stock<=5?'color:var(--danger);font-weight:700':''}">${qtyFmt(p.stock,p.unit)}</td>
+      </tr>`;}).join(''):'<tr><td colspan="8"><div class="empty">No product matches.</div></td></tr>'}</tbody></table></div></div>`;
 }
 function openProduct(id){
-  const p = id ? DB.products.find(x=>x.id===id) : null;
-  document.getElementById('pm-title').textContent = p ? 'Edit Product' : 'Add Product';
-  document.getElementById('pm-id').value    = p ? p.id : '';
-  document.getElementById('pm-en').value    = p ? p.nameEn : '';
-  document.getElementById('pm-ta').value    = p ? p.nameTa : '';
-  document.getElementById('pm-sku').value   = p ? p.sku : '';
-  document.getElementById('pm-cat').value   = p ? p.category : '';
-  document.getElementById('pm-unit').value  = p ? p.unit : 'kg';
-  document.getElementById('pm-stock').value = p ? p.stock : 0;
-  document.getElementById('pm-cost').value  = p ? p.cost : '';
-  document.getElementById('pm-price').value = p ? p.price : '';
-  document.getElementById('cat-list').innerHTML = [...new Set(DB.products.map(x=>x.category))].map(c=>`<option value="${esc(c)}">`).join('');
+  const p=id?DB.products.find(x=>x.id===id):null;
+  document.getElementById('pm-title').textContent=p?'Edit product':'Add product';
+  document.getElementById('pm-id').value=p?p.id:'';
+  document.getElementById('pm-en').value=p?p.nameEn:'';
+  document.getElementById('pm-ta').value=p?p.nameTa:'';
+  document.getElementById('pm-sku').value=p?p.sku:'';
+  document.getElementById('pm-cat').value=p?p.category:'';
+  document.getElementById('pm-unit').value=p?p.unit:'kg';
+  document.getElementById('pm-stock').value=p?p.stock:0;
+  document.getElementById('pm-cost').value=p?p.cost:'';
+  document.getElementById('pm-price').value=p?p.price:'';
+  document.getElementById('cat-list').innerHTML=[...new Set(DB.products.map(x=>x.category))].map(c=>`<option value="${esc(c)}">`).join('');
   show('m-product');
 }
 function saveProduct(){
-  const id = document.getElementById('pm-id').value;
-  const o = {
-    nameEn: document.getElementById('pm-en').value.trim(),
-    nameTa: document.getElementById('pm-ta').value.trim(),
-    sku:    document.getElementById('pm-sku').value.trim().toUpperCase(),
-    category: document.getElementById('pm-cat').value.trim() || 'Vegetables',
-    unit:   document.getElementById('pm-unit').value,
-    stock:  parseFloat(document.getElementById('pm-stock').value)||0,
-    cost:   parseFloat(document.getElementById('pm-cost').value)||0,
-    price:  parseFloat(document.getElementById('pm-price').value)||0,
+  const id=document.getElementById('pm-id').value;
+  const o={
+    nameEn:document.getElementById('pm-en').value.trim(),
+    nameTa:document.getElementById('pm-ta').value.trim(),
+    sku:document.getElementById('pm-sku').value.trim().toUpperCase(),
+    category:document.getElementById('pm-cat').value.trim()||'Vegetables',
+    unit:document.getElementById('pm-unit').value,
+    stock:parseFloat(document.getElementById('pm-stock').value)||0,
+    cost:parseFloat(document.getElementById('pm-cost').value)||0,
+    price:parseFloat(document.getElementById('pm-price').value)||0,
   };
   if(!o.nameEn) return toast('Enter the item name','error');
   if(!o.price)  return toast('Enter a selling price','error');
-  if(!o.sku)    o.sku = 'SKU'+String(DB.products.length+1).padStart(3,'0');
-  if(id){ Object.assign(DB.products.find(x=>x.id===id), o); }
-  else  { DB.products.push(Object.assign({id:'p'+Date.now(), barcode:''}, o)); }
+  if(!o.sku) o.sku='SKU'+String(DB.products.length+1).padStart(3,'0');
+  if(id) Object.assign(DB.products.find(x=>x.id===id),o);
+  else DB.products.push(Object.assign({id:'p'+Date.now(),barcode:''},o));
   saveDB(); closeModals(); renderERP(); renderProducts();
-  toast(id ? 'Product updated' : 'Product added');
+  toast(id?'Product updated':'Product added');
 }
 
 function erpSuppliers(){
-  document.getElementById('erp-body').innerHTML = H('Suppliers & Warehouses','Who you buy from, and where the stock lands')
-  + `<div class="grid md:grid-cols-2 gap-3 mb-5">${DB.suppliers.map(s=>`
-      <div class="bg-white rounded-xl border border-slate-200 p-4">
-        <div class="font-bold">${esc(s.name)}</div>
-        <div class="text-sm text-slate-500 font-mono mt-0.5">${s.phone}</div>
-        <span class="inline-block mt-2 text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-600">📍 ${esc(s.warehouse)}</span>
-      </div>`).join('')}</div>
-    <div class="bg-white rounded-xl border border-slate-200 p-4">
-      <div class="font-bold mb-2">Warehouse branches</div>
-      <div class="flex gap-2 flex-wrap">${[...new Set(DB.suppliers.map(s=>s.warehouse))].map(w=>
-        `<span class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-sm font-bold">${esc(w)}</span>`).join('')}</div>
-    </div>`;
+  document.getElementById('erp-body').innerHTML=H('Suppliers','Who you buy from, and where the stock lands')
+    +`<div class="kgrid">${DB.suppliers.map(s=>`<div class="card" style="margin:0"><div class="card-b">
+        <b style="font-size:14px">${esc(s.name)}</b>
+        <div class="mono" style="font-size:12.5px;color:var(--ink-3);margin-top:3px">${esc(s.phone)}</div>
+        <span class="pill" style="margin-top:10px">${esc(s.warehouse)}</span>
+      </div></div>`).join('')}</div>`;
 }
-
 function erpSales(){
-  document.getElementById('erp-body').innerHTML = H('Sales & Orders Ledger', DB.bills.length+' bills recorded on this terminal')
-  + `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      ${DB.bills.length ? tableBills(DB.bills.slice(0,100)) : '<div class="p-8 text-center text-sm text-slate-400">No bills yet. Complete a sale in the Billing view.</div>'}
-    </div>`;
+  document.getElementById('erp-body').innerHTML=H('Sales & Orders',DB.bills.length+' bills on this terminal')
+    +`<div class="card">${DB.bills.length?tableBills(DB.bills.slice(0,100)):'<div class="empty">No bills yet. Complete a sale in Billing.</div>'}</div>`;
+  icons(document.getElementById('erp-body'));
 }
-
 function erpCustomers(){
-  document.getElementById('erp-body').innerHTML = H('Customers (CRM)','Loyalty points and outstanding dues')
-  + `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden"><div class="overflow-x-auto scroll">
-      <table class="w-full text-sm min-w-[460px]"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
-        <tr><th class="text-left px-4 py-2 font-bold">Customer</th><th class="text-left px-3 font-bold">Phone</th>
-        <th class="text-right px-3 font-bold">Loyalty</th><th class="text-right px-4 font-bold">Due</th></tr></thead>
-      <tbody>${DB.customers.map(c=>`<tr class="border-t border-slate-100">
-        <td class="px-4 py-2 font-bold">${esc(c.name)}</td>
-        <td class="px-3 font-mono text-xs text-slate-500">${c.phone}</td>
-        <td class="px-3 text-right tnum">${c.loyalty} pts</td>
-        <td class="px-4 text-right tnum font-bold ${c.due>0?'text-red-600':'text-slate-400'}">${money(c.due)}</td>
-      </tr>`).join('')}</tbody></table></div></div>`;
+  document.getElementById('erp-body').innerHTML=H('Customers','Loyalty points and outstanding dues')
+    +`<div class="card"><div class="tw"><table class="d">
+      <thead><tr><th>Customer</th><th>Phone</th><th class="num">Loyalty</th><th class="num">Due</th></tr></thead>
+      <tbody>${DB.customers.map(c=>`<tr><td><b>${esc(c.name)}</b></td>
+        <td class="mono" style="font-size:12.5px;color:var(--ink-2)">${esc(c.phone)}</td>
+        <td class="num tnum">${c.loyalty} pts</td>
+        <td class="num tnum" style="${c.due>0?'color:var(--danger);font-weight:700':'color:var(--ink-3)'}">${fmt(c.due)}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
 }
-
 function erpAccounting(){
-  const tb = todayBills();
-  const cashSales = tb.reduce((a,b)=> a + (b.payment.method==='cash' ? b.total : b.payment.method==='split' ? (b.payment.cash||0) : 0), 0);
-  const digital   = tb.reduce((a,b)=> a + (b.payment.method==='upi'||b.payment.method==='card' ? b.total : b.payment.method==='split' ? (b.payment.upi||0) : 0), 0);
-  const closing   = DB.settings.openingCash + cashSales - DB.settings.expenses;
-  document.getElementById('erp-body').innerHTML = H('Accounting — day-end handover','Opening cash + cash sales − counter expenses = closing drawer')
-  + `<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-      ${card('Cash Sales', money(cashSales), tb.filter(b=>b.payment.method==='cash').length+' cash bills')}
-      ${card('Digital (UPI + Card)', money(digital), 'not in drawer','text-blue-700')}
-      ${card('Counter Expenses', money(DB.settings.expenses),'petty cash out','text-red-600')}
-      ${card('Closing Drawer', money(closing),'must match physical count','text-brand-700')}
+  const tb=todayBills();
+  const cashSales=tb.reduce((a,b)=>a+(b.payment.method==='cash'?b.total:b.payment.method==='split'?(b.payment.cash||0):0),0);
+  const digital=tb.reduce((a,b)=>a+(b.payment.method==='upi'||b.payment.method==='card'?b.total:b.payment.method==='split'?(b.payment.upi||0):0),0);
+  const closing=DB.settings.openingCash+cashSales-DB.settings.expenses;
+  document.getElementById('erp-body').innerHTML=H('Accounting','Opening cash + cash sales − counter expenses = closing drawer')
+    +`<div class="kgrid">
+      ${kpi('Cash sales',fmt(cashSales),tb.filter(b=>b.payment.method==='cash').length+' cash bills')}
+      ${kpi('Digital (UPI + card)',fmt(digital),'not in the drawer')}
+      ${kpi('Counter expenses',fmt(DB.settings.expenses),'petty cash out')}
+      ${kpi('Closing drawer',fmt(closing),'must match the physical count')}
     </div>
-    <div class="bg-white rounded-xl border border-slate-200 p-4 max-w-md">
-      <div class="font-bold mb-3">Adjust</div>
-      <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Opening cash ₹</label>
-      <input type="number" value="${DB.settings.openingCash}" onchange="DB.settings.openingCash=parseFloat(this.value)||0;saveDB();renderERP()"
-        class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum mb-3">
-      <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Counter expenses today ₹</label>
-      <input type="number" value="${DB.settings.expenses}" onchange="DB.settings.expenses=parseFloat(this.value)||0;saveDB();renderERP()"
-        class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
-      <div class="mt-4 pt-3 border-t border-slate-200 flex justify-between items-center">
-        <span class="font-bold">Hand over</span><span class="text-2xl font-extrabold tnum text-brand-700">${money(closing)}</span>
-      </div>
-    </div>`;
+    <div class="card" style="max-width:420px"><div class="card-hd"><h3>Adjust</h3></div><div class="card-b">
+      <div class="fg"><label class="lbl">Opening cash ₹</label>
+        <input class="inp right-in" type="number" value="${DB.settings.openingCash}" onchange="DB.settings.openingCash=parseFloat(this.value)||0;saveDB();renderERP()"></div>
+      <div class="fg"><label class="lbl">Counter expenses today ₹</label>
+        <input class="inp right-in" type="number" value="${DB.settings.expenses}" onchange="DB.settings.expenses=parseFloat(this.value)||0;saveDB();renderERP()"></div>
+      <div class="readout"><span class="k">Hand over</span><span class="v" style="color:var(--accent-2)">${fmt(closing)}</span></div>
+    </div></div>`;
 }
-
 function erpSettings(){
-  const s = DB.settings;
-  document.getElementById('erp-body').innerHTML = H('Settings','Terminal '+TERMINAL+' · bills numbered '+TERMINAL+'-00001 upward')
-  + `<div class="bg-white rounded-xl border border-slate-200 p-4 max-w-md space-y-4">
-      <label class="flex items-center justify-between cursor-pointer">
-        <span><span class="font-bold block">Charge GST</span><span class="text-xs text-slate-500">Adds tax to every bill</span></span>
-        <input type="checkbox" ${s.gstOn?'checked':''} onchange="DB.settings.gstOn=this.checked;saveDB();renderERP();renderCart()" class="w-11 h-6 accent-brand-600">
-      </label>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">GST rate %</label>
-        <input type="number" value="${s.gstRate}" onchange="DB.settings.gstRate=parseFloat(this.value)||0;saveDB();renderCart()" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum"></div>
-      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">UPI VPA</label>
-        <input value="${esc(s.vpa)}" onchange="DB.settings.vpa=this.value.trim();saveDB()" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono text-sm"></div>
-      <div class="pt-3 border-t border-slate-200 flex gap-2">
-        <button onclick="exportData()" class="flex-1 h-11 rounded-lg border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Export JSON</button>
-        <button onclick="resetDemo()" class="flex-1 h-11 rounded-lg border-2 border-red-200 text-red-600 font-bold text-sm hover:bg-red-50">Reset demo data</button>
+  const s=DB.settings;
+  document.getElementById('erp-body').innerHTML=H('Settings','Terminal '+TERMINAL+' · bills numbered '+TERMINAL+'-00001 upward')
+    +`<div class="card" style="max-width:440px"><div class="card-b">
+      <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;margin-bottom:15px">
+        <span><b style="font-size:13.5px">Charge GST</b><div style="font-size:12px;color:var(--ink-3)">Adds tax to every bill</div></span>
+        <input type="checkbox" ${s.gstOn?'checked':''} style="width:18px;height:18px;accent-color:var(--accent)"
+          onchange="DB.settings.gstOn=this.checked;saveDB();renderERP();renderCart()"></label>
+      <div class="fg"><label class="lbl">GST rate %</label>
+        <input class="inp right-in" type="number" value="${s.gstRate}" onchange="DB.settings.gstRate=parseFloat(this.value)||0;saveDB();renderCart()"></div>
+      <div class="fg"><label class="lbl">UPI VPA</label>
+        <input class="inp mono" value="${esc(s.vpa)}" onchange="DB.settings.vpa=this.value.trim();saveDB()"></div>
+      <div style="display:flex;gap:9px;padding-top:13px;border-top:1px solid var(--line)">
+        <button class="btn" style="flex:1" onclick="exportData()"><i data-i="download"></i>Export JSON</button>
+        <button class="btn" style="flex:1;color:var(--danger);border-color:#f0d5d5" onclick="resetDemo()"><i data-i="refresh-cw"></i>Reset demo</button>
       </div>
-      <p class="text-xs text-slate-400">Everything is stored in this browser only. Clearing site data erases it — export before you do.</p>
-    </div>`;
+      <p class="hint" style="margin-top:12px">Everything is stored in this browser only. Clearing site data erases it — export before you do.</p>
+    </div></div>`;
+  icons(document.getElementById('erp-body'));
 }
 function exportData(){
-  const blob = new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'arthanote-pos-'+new Date().toISOString().slice(0,10)+'.json';
-  a.click(); URL.revokeObjectURL(a.href);
-  toast('Exported');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}));
+  a.download='arthanote-pos-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click(); URL.revokeObjectURL(a.href); toast('Exported');
 }
 function resetDemo(){
   if(!confirm('Erase all bills, products and settings on this terminal?')) return;
-  localStorage.removeItem(LS); localStorage.removeItem(LS+'_carts');
-  location.reload();
+  localStorage.removeItem(LS); localStorage.removeItem(LS+'_carts'); location.reload();
 }
 
 /* ══════════════ UTIL ══════════════ */
-function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function show(id){ document.getElementById(id).classList.remove('hidden'); icons(); }
+function show(id){ document.getElementById(id).classList.remove('hidden'); icons(document.getElementById(id)); }
 function closeModals(){ document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden')); }
 function openCustomItem(){
   document.getElementById('ci-name').value=''; document.getElementById('ci-rate').value='';
-  document.getElementById('ci-qty').value=1;   show('m-custom');
+  document.getElementById('ci-qty').value=1; show('m-custom');
   setTimeout(()=>document.getElementById('ci-name').focus(),50);
 }
 let toastT;
-function toast(msg, kind){
-  const t = document.getElementById('toast'), b = document.getElementById('toast-body');
-  b.className = 'px-4 py-2.5 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-2 ' + (kind==='error'?'bg-red-600 text-white':'bg-term-900 text-white');
-  b.textContent = msg;
+function toast(msg,kind){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.toggle('err',kind==='error');
   t.classList.remove('hidden');
-  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.add('hidden'), 2400);
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.add('hidden'),2400);
 }
-function icons(){ if(window.lucide) lucide.createIcons(); }
 
 /* ══════════════ KEYBOARD ══════════════════════════════════════════════
    A counter operator should never need the mouse. Function keys are claimed
-   deliberately, and each one is preventDefault-ed so the browser's own
-   binding (help, refresh, full screen) does not fire alongside ours.
+   deliberately, and each is preventDefault-ed so the browser's own binding
+   (help, refresh, full screen) does not fire alongside ours.
    ═══════════════════════════════════════════════════════════════════════ */
 const KEYMAP=[
   ['F1','Jump to the SKU / barcode box'],
@@ -1321,122 +1406,103 @@ const KEYMAP=[
   ['?','Show this list'],
 ];
 function openKeys(){
-  document.getElementById('keys-list').innerHTML = KEYMAP.map(([k,d])=>
-    `<div class="flex items-center gap-3 py-1.5 border-b border-slate-100 last:border-0">
-      <kbd class="px-2 py-1 rounded-md bg-slate-100 border border-slate-200 font-mono text-[11px] font-bold min-w-[62px] text-center">${k}</kbd>
-      <span class="text-slate-600 text-[13px]">${d}</span></div>`).join('')
-    + `<div class="flex items-center justify-between pt-3 mt-1 border-t border-slate-200">
-        <span class="text-[13px] text-slate-600">Print automatically after each sale</span>
-        <button onclick="toggleAutoprint();openKeys()" class="px-3 h-8 rounded-lg text-xs font-bold ${AUTOPRINT?'bg-brand-600 text-white':'bg-slate-200 text-slate-600'}">${AUTOPRINT?'ON':'OFF'}</button>
-      </div>`;
+  document.getElementById('keys-list').innerHTML=
+    KEYMAP.map(([k,d])=>`<div class="keyrow"><kbd>${esc(k)}</kbd><span>${esc(d)}</span></div>`).join('')
+    +`<div class="tgl"><span style="font-size:12.5px;color:var(--ink-2)">Print automatically after each sale</span>
+       <button class="${AUTOPRINT?'on':'off'}" onclick="toggleAutoprint();openKeys()">${AUTOPRINT?'ON':'OFF'}</button></div>`;
   show('m-keys');
 }
 function toggleFullscreen(){
   if(!document.fullscreenElement){
-    (document.documentElement.requestFullscreen?.() || Promise.reject())
+    (document.documentElement.requestFullscreen?.()||Promise.reject())
       .catch(()=>toast('Full screen was blocked — press F11 again','error'));
   } else document.exitFullscreen?.();
 }
-const modalOpen = id => !document.getElementById(id).classList.contains('hidden');
-const anyModalOpen = () => [...document.querySelectorAll('.modal')].some(m=>!m.classList.contains('hidden'));
+const modalOpen=id=>!document.getElementById(id).classList.contains('hidden');
+const anyModalOpen=()=>[...document.querySelectorAll('.modal')].some(m=>!m.classList.contains('hidden'));
 
-document.addEventListener('keydown', e => {
+document.addEventListener('keydown',e=>{
   // Nothing below should fire while the terminal is still locked
   if(!document.getElementById('otp-screen').classList.contains('hidden')) return;
 
   switch(e.key){
-    case 'F1':   // cursor to SKU / barcode
+    case 'F1':
       e.preventDefault();
       if(anyModalOpen()) closeModals();
       { const el=document.getElementById('sku-input'); if(el){ el.focus(); el.select(); } }
       return;
-
-    case 'F2':   // product search
+    case 'F2':
       e.preventDefault();
       if(anyModalOpen()) closeModals();
       { const el=document.getElementById('search-input'); if(el){ el.focus(); el.select(); } }
       return;
-
-    case 'F4':   // custom item
+    case 'F4':
       e.preventDefault();
       if(!modalOpen('m-custom')) openCustomItem();
       return;
-
-    case 'F5':   // reload — carts already persist, so this is safe mid-bill
+    case 'F5':   // carts already persist, so a reload is safe mid-bill
+      e.preventDefault(); saveCarts(); saveDB(); location.reload(); return;
+    case 'F8':
       e.preventDefault();
-      saveCarts(); saveDB();
-      location.reload();
-      return;
-
-    case 'F8':   // cash → print
-      e.preventDefault();
-      if(modalOpen('m-pay')){ completeSale(); }
-      else if(modalOpen('m-receipt')){ window.print(); }
+      if(modalOpen('m-pay')) completeSale();
+      else if(modalOpen('m-receipt')) window.print();
       else openPayment('cash');
       return;
-
-    case 'F9':   // UPI / GPay → print
+    case 'F9':
       e.preventDefault();
-      if(modalOpen('m-pay')){ completeSale(); }
-      else if(modalOpen('m-receipt')){ window.print(); }
+      if(modalOpen('m-pay')) completeSale();
+      else if(modalOpen('m-receipt')) window.print();
       else openPayment('upi');
       return;
-
     case 'F11':
       e.preventDefault(); toggleFullscreen(); return;
-
     case 'Enter':
-      // Enter confirms whichever dialog is open; the qty box also submits on Enter
       if(modalOpen('m-qty'))     { e.preventDefault(); qtyAdd(); return; }
       if(modalOpen('m-custom'))  { e.preventDefault(); addCustomItem(); return; }
       if(modalOpen('m-pay'))     { e.preventDefault(); completeSale(); return; }
       if(modalOpen('m-receipt')) { e.preventDefault(); closeModals(); return; }
       return;
-
     case 'Escape':
       if(anyModalOpen()) closeModals();
       else { const s=document.getElementById('search-input'); if(s&&s.value){ s.value=''; renderProducts(); } }
       return;
-
     case '?':
-      // Only when not typing into a field, or '?' could never be entered
       if(!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName||'')){ e.preventDefault(); openKeys(); }
       return;
   }
-
-  if(e.ctrlKey && (e.key==='p'||e.key==='P')){   // reprint the last bill
+  if(e.ctrlKey&&(e.key==='p'||e.key==='P')){
     e.preventDefault();
     if(lastBill) showReceipt(lastBill); else toast('No bill to reprint yet','error');
     return;
   }
-  if(e.ctrlKey && e.key==='Enter'){ e.preventDefault(); openPayment('cash'); return; }
-  // Alt+1..5 jumps between held carts without leaving the keyboard
-  if(e.altKey && /^[1-5]$/.test(e.key)){ e.preventDefault(); switchCart(+e.key - 1); }
+  if(e.ctrlKey&&e.key==='Enter'){ e.preventDefault(); openPayment('cash'); return; }
+  if(e.altKey&&/^[1-5]$/.test(e.key)){ e.preventDefault(); switchCart(+e.key-1); }
 });
+
 document.querySelectorAll('.otp-in').forEach((el,i,all)=>{
-  el.addEventListener('input', ()=>{ if(el.value && i<all.length-1) all[i+1].focus(); if(all[all.length-1].value && [...all].every(x=>x.value)) verifyOTP(); });
-  el.addEventListener('keydown', e=>{ if(e.key==='Backspace' && !el.value && i>0) all[i-1].focus(); if(e.key==='Enter') verifyOTP(); });
+  el.addEventListener('input',()=>{ if(el.value&&i<all.length-1) all[i+1].focus();
+    if(all[all.length-1].value&&[...all].every(x=>x.value)) verifyOTP(); });
+  el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&!el.value&&i>0) all[i-1].focus(); if(e.key==='Enter') verifyOTP(); });
 });
-document.querySelectorAll('.pm-btn').forEach(b=> b.onclick = ()=> setPay(b.dataset.pm));
-document.querySelectorAll('.modal').forEach(m=> m.addEventListener('mousedown', e=>{ if(e.target===m) closeModals(); }));
+document.querySelectorAll('.pm').forEach(b=>b.onclick=()=>setPay(b.dataset.pm));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('mousedown',e=>{ if(e.target===m) closeModals(); }));
 
 /* ══════════════ NETWORK / CLOCK ══════════════ */
 function netStatus(){
-  const on = navigator.onLine;
-  document.getElementById('net-txt').textContent = on ? 'Online' : 'Offline';
-  document.getElementById('net-pill').className = 'px-2 py-1 rounded-md font-semibold flex items-center gap-1 ' +
-    (on ? 'bg-brand-600/20 text-brand-500' : 'bg-amber-500/20 text-amber-400');
-  document.getElementById('net-pill').firstElementChild.className = 'w-1.5 h-1.5 rounded-full ' + (on?'bg-brand-500':'bg-amber-400');
-  document.getElementById('sync-txt').textContent = on ? 'Saved locally' : 'Offline — billing continues';
+  const on=navigator.onLine;
+  const pill=document.getElementById('net-pill');
+  document.getElementById('net-txt').textContent=on?'Online':'Offline';
+  pill.className='chip '+(on?'live':'warn');
+  document.getElementById('sync-txt').textContent=on?'Saved locally':'Offline — billing continues';
 }
-window.addEventListener('online', netStatus);
-window.addEventListener('offline', netStatus);
-setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false}); }, 1000);
+addEventListener('online',netStatus);
+addEventListener('offline',netStatus);
+setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false}); },1000);
 
 /* ══════════════ BOOT ══════════════ */
 loadDB(); loadCarts(); netStatus(); icons();
-document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false});
-if(DB.session){ startApp(); } else { document.querySelector('.otp-in').focus(); }
+document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false});
+if(DB.session) startApp(); else document.querySelector('.otp-in').focus();
 </script>
 </body>
 </html>
