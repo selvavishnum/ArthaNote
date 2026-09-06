@@ -1298,6 +1298,7 @@ function erpDash(){
   const inward=DB.products.reduce((a,p)=>a+p.cost*p.stock,0);
   document.getElementById('erp-body').innerHTML=
     H('Dashboard',new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))
+    +erpBackOffice()
     +`<div class="kgrid">
       ${kpi("Today's sales",fmt(sales),tb.length+' bills')}
       ${kpi('Total bills',tb.length,'avg '+fmt(tb.length?sales/tb.length:0))}

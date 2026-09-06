@@ -179,6 +179,38 @@ textarea.inp{height:auto;padding:8px 10px;min-height:64px;resize:vertical}
 </head>
 <body>
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     Manager lock. The back office shows cost prices, margins and payroll —
+     numbers the counter staff should not be reading. The billing terminal's
+     own login does NOT open this: they are different people, so it takes a
+     different code.
+
+     Be clear about what this is: a deterrent against a walk-up, not
+     security. It is client-side, so anyone who opens devtools can bypass
+     it. Real enforcement needs the server, which is the same reason the
+     Pro/owner gates in the main app are not security either.
+     ══════════════════════════════════════════════════════════════════════ -->
+<div id="lock" style="position:fixed;inset:0;z-index:100;background:var(--page);display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:30px;width:100%;max-width:360px">
+    <div style="display:flex;align-items:center;gap:11px;margin-bottom:20px">
+      <div style="width:40px;height:40px;border-radius:10px;background:var(--accent);display:grid;place-items:center;font-size:19px">🥬</div>
+      <div><b style="display:block;font-size:15px;font-weight:700;line-height:1.25">Tulasi Mart</b>
+        <span style="display:block;font-size:11.5px;color:var(--ink-3)">Back office — manager only</span></div>
+    </div>
+    <label class="fl" for="lock-pin">Manager PIN</label>
+    <input id="lock-pin" class="inp" type="password" inputmode="numeric" maxlength="8" autocomplete="off"
+      style="height:52px;font-size:22px;text-align:center;letter-spacing:.35em;font-family:'Roboto Mono',monospace"
+      onkeydown="if(event.key==='Enter')unlockAdmin()">
+    <p style="font-size:12px;color:var(--ink-3);margin:9px 0 0;line-height:1.5">
+      This is separate from the till login — the back office shows cost, margin and payroll.
+      Demo PIN <b style="color:var(--accent)">4321</b>.
+    </p>
+    <div id="lock-err" style="display:none;font-size:12.5px;color:var(--danger);font-weight:500;margin-top:10px"></div>
+    <button class="btn btn-p" style="width:100%;height:46px;font-size:14px;margin-top:16px" onclick="unlockAdmin()">Unlock back office</button>
+    <a href="pos.html" class="btn" style="width:100%;margin-top:9px;text-decoration:none">← Back to billing</a>
+  </div>
+</div>
+
 <div class="shell">
   <aside class="side" id="side">
     <div class="brand">
@@ -187,7 +219,9 @@ textarea.inp{height:auto;padding:8px 10px;min-height:64px;resize:vertical}
     </div>
     <nav class="nav scroll" id="nav"></nav>
     <div class="side-foot">
-      <a href="pos.html" class="btn" style="width:100%;justify-content:center;text-decoration:none"><i data-i="calculator"></i>Open Billing</a>
+      <a href="pos.html" class="btn" style="width:100%;justify-content:center;text-decoration:none">
+        <i data-i="calculator"></i>Open Billing</a>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:7px" onclick="lockAdmin()">Lock back office</button>
     </div>
   </aside>
   <div class="scrim" id="scrim" onclick="closeSide()"></div>
@@ -1320,12 +1354,37 @@ const SPECIAL={
 };
 
 /* ═════════ init ═════════ */
+/* ─── manager lock ────────────────────────────────────────────────────
+   Held in sessionStorage, not localStorage: closing the browser re-locks
+   the back office. On a shared counter machine that matters — an unlock
+   that survives until someone clears site data is not a lock. */
+const ADMIN_PIN='4321';
+function adminUnlocked(){ try{ return sessionStorage.getItem('anpos_admin')==='1'; }catch(e){ return false; } }
+function unlockAdmin(){
+  const el=document.getElementById('lock-pin'), err=document.getElementById('lock-err');
+  if((el.value||'').trim()!==ADMIN_PIN){
+    err.textContent='Incorrect PIN.'; err.style.display='block'; el.value=''; el.focus(); return;
+  }
+  try{ sessionStorage.setItem('anpos_admin','1'); }catch(e){}
+  document.getElementById('lock').style.display='none';
+  bootAdmin();
+}
+function lockAdmin(){
+  try{ sessionStorage.removeItem('anpos_admin'); }catch(e){}
+  location.reload();
+}
+function bootAdmin(){
+  renderNav();
+  go('dashboard');
+  icons();
+}
+
+/* ─── init ───────────────────────────────────────────────────────── */
 load();
 document.getElementById('today').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
 document.getElementById('src-pill').textContent=DB.bills.length+' bills · demo';
-renderNav();
-go('dashboard');
-icons();
+if(adminUnlocked()){ document.getElementById('lock').style.display='none'; bootAdmin(); }
+else { icons(); setTimeout(()=>document.getElementById('lock-pin').focus(),60); }
 addEventListener('resize',()=>{ if(page==='dashboard'||page==='reports') go(page); });
 </script>
 </body>
