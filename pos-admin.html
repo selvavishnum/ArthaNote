@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArthaNote POS — Admin</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   Clean-white minimalist admin. Deliberately single-theme: the brief
+   was "clean white background", and a counter-room screen is a fixed
+   lighting environment. Every colour is painted explicitly so the page
+   holds regardless of the host's own theme.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  color-scheme: light;
+  --page:#fafafa;
+  --surface:#ffffff;
+  --line:#ebebeb;
+  --line-2:#f4f4f4;
+  --ink:#111111;
+  --ink-2:#5c5c5c;
+  --ink-3:#9a9a9a;
+  --accent:#059669;
+  --accent-soft:#ecfdf5;
+  --danger:#dc2626;
+  --warn:#c2740a;
+
+  /* Chart roles — categorical slots 1-3 of the validated reference palette.
+     Validated on #ffffff: all-pairs CVD ΔE 9.2, normal-vision 24.0.
+     Slot 3 sits at 2.82:1 contrast, so every mark using it carries a
+     visible direct label (the relief rule), never colour alone. */
+  --series-1:#2a78d6;   /* cash    */
+  --series-2:#eb6834;   /* upi     */
+  --series-3:#1baf7a;   /* card    */
+  --bar:#059669;        /* single-series magnitude */
+  --grid:#f0f0f0;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--page);color:var(--ink);
+  font-family:Inter,'Noto Sans Tamil',system-ui,sans-serif;
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+.ta{font-family:'Noto Sans Tamil',Inter,sans-serif}
+.mono{font-family:'Roboto Mono',ui-monospace,monospace}
+.tnum{font-variant-numeric:tabular-nums}
+.scroll::-webkit-scrollbar{width:7px;height:7px}
+.scroll::-webkit-scrollbar-thumb{background:#dcdcdc;border-radius:4px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+input,select{font:inherit;color:inherit}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ── shell ── */
+.shell{display:flex;height:100%}
+.side{
+  width:224px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.brand .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.brand b{display:block;font-size:13px;font-weight:700;line-height:1.2}
+.brand span{display:block;font-size:11px;color:var(--ink-3)}
+.nav{padding:8px;display:flex;flex-direction:column;gap:1px}
+.nav a{
+  display:flex;align-items:center;gap:11px;padding:0 12px;height:38px;border-radius:8px;
+  color:var(--ink-2);text-decoration:none;font-size:13.5px;font-weight:500;
+}
+.nav a:hover{background:var(--line-2);color:var(--ink)}
+.nav a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav a svg{width:17px;height:17px;flex-shrink:0}
+.side-foot{margin-top:auto;padding:12px;border-top:1px solid var(--line)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.top{
+  height:60px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;padding:0 20px;
+}
+.burger{display:none;width:36px;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--surface);place-items:center}
+.top h1{font-size:17px;font-weight:700;margin:0;letter-spacing:-.01em}
+.top .sub{font-size:12px;color:var(--ink-3);margin-top:-2px}
+.body{flex:1;overflow-y:auto;padding:20px}
+.wrap{max-width:1180px;margin:0 auto}
+
+/* ── primitives ── */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.card-hd{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.card-hd h3{margin:0;font-size:14px;font-weight:700}
+.card-hd .note{font-size:11.5px;color:var(--ink-3);font-weight:500}
+.card-b{padding:16px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:15px 16px}
+.kpi .l{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.kpi .v{font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:3px;line-height:1.1}
+.kpi .s{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#fcfcfc}
+.tw{overflow-x:auto}
+
+.btn{height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{background:var(--line-2)}
+.btn-p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-p:hover{background:#047857}
+.btn svg{width:15px;height:15px}
+.inp{height:36px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:13.5px;width:100%}
+.inp:focus{outline:none;border-color:var(--accent)}
+.seg{display:inline-flex;background:var(--line-2);border-radius:8px;padding:2px;gap:2px}
+.seg button{height:30px;padding:0 12px;border:0;border-radius:6px;background:transparent;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--line-2);color:var(--ink-2)}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}
+.pill.bad{background:#fef2f2;color:var(--danger)}
+.pill.warn{background:#fff7ed;color:var(--warn)}
+.empty{padding:40px 20px;text-align:center;color:var(--ink-3);font-size:13px}
+
+/* ── charts ── */
+.chart{position:relative}
+/* The y-axis gets its own right-hand gutter. Previously the value labels sat
+   inside the plot at right:0, so the bars — painted after the gridlines —
+   covered every label except the topmost one. An axis must never render
+   underneath the data it describes. */
+.plot{position:relative;height:190px;padding-right:46px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:100%;padding-top:6px}
+.bar-col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
+.bar{width:100%;background:var(--bar);border-radius:4px 4px 0 0;min-height:2px;transition:opacity .12s}
+.bar-col:hover .bar{opacity:.72}
+.xaxis{display:flex;gap:2px;margin-top:7px;padding-right:46px;font-size:10px;color:var(--ink-3)}
+.xaxis span{flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
+.gridline{position:absolute;left:0;right:46px;border-top:1px solid var(--grid);font-size:10px;color:var(--ink-3)}
+.gridline b{position:absolute;left:100%;top:-8px;padding-left:7px;font-weight:500;white-space:nowrap}
+.tip{position:fixed;z-index:60;background:#111;color:#fff;font-size:11.5px;padding:7px 10px;border-radius:7px;pointer-events:none;display:none;white-space:nowrap;line-height:1.45}
+.tip b{color:#fff}
+
+/* horizontal bars carry their value as a direct label — required relief for
+   any series below 3:1 contrast on white */
+.hbar-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.hbar-lab{width:104px;flex-shrink:0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar-track{flex:1;height:15px;background:var(--line-2);border-radius:4px;overflow:hidden}
+.hbar-fill{height:100%;border-radius:4px}
+.hbar-val{width:96px;text-align:right;font-size:12.5px;font-weight:700;flex-shrink:0}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:10px}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle}
+
+.modal{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:16px}
+.modal.on{display:flex}
+.modal-in{background:var(--surface);border-radius:12px;width:100%;max-width:440px;max-height:100%;overflow-y:auto;padding:20px}
+.modal-in h3{margin:0 0 14px;font-size:16px;font-weight:700}
+.fl{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:4px}
+.fg{margin-bottom:12px}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:600;z-index:80;display:none}
+
+@media(max-width:1000px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}}
+@media(max-width:820px){
+  .side{position:fixed;inset:0 auto 0 0;z-index:50;transform:translateX(-100%);transition:transform .2s}
+  .side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.16)}
+  .burger{display:grid}
+  .g2,.g4{grid-template-columns:1fr}
+  .body{padding:14px}
+  .hbar-lab{width:76px}.hbar-val{width:76px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- ── SIDEBAR ── -->
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="logo">🥬</div>
+      <div><b>Tulasi Mart</b><span>ArthaNote Admin</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <a href="pos.html" class="btn" style="width:100%;justify-content:center;text-decoration:none">
+        <i data-lucide="calculator"></i>Open Billing
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+    <header class="top">
+      <button class="burger" onclick="document.getElementById('side').classList.toggle('open')"><i data-lucide="menu"></i></button>
+      <div style="min-width:0">
+        <h1 id="pg-title">Dashboard</h1>
+        <div class="sub" id="pg-sub"></div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+        <span class="pill ok" id="src-pill">demo data</span>
+        <span style="font-size:13px;font-weight:600" class="tnum" id="today"></span>
+      </div>
+    </header>
+    <div class="body scroll"><div class="wrap" id="view"></div></div>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="modal"><div class="modal-in" id="modal-in"></div></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   ArthaNote POS Admin
+   Reads the SAME localStorage database pos.html writes (key anpos_v1), so
+   a bill taken at the counter shows up here without any sync step.
+
+   The point of interest is the rollup layer. A 90-day report must never be
+   built by reading 90 days of bills: at 150 bills/day that is 13,500 docs
+   for one screen, which is slow on every database and expensive on a metered
+   one. Instead each day is collapsed once into a single summary document,
+   and reports read those. 90 docs instead of 13,500 — the same trick works
+   unchanged on Firestore, Postgres or DynamoDB, which is why the data model
+   matters more than the choice of database.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const LS='anpos_v1', LS_ROLL='anpos_v1_rollups';
+let DB, ROLL={}, page='dashboard', range=30;
+
+/* ─── boot / storage ─────────────────────────────────────────────── */
+function load(){
+  try{ DB=JSON.parse(localStorage.getItem(LS)||'null'); }catch(e){ DB=null; }
+  if(!DB || !DB.products){ DB=seedAll(); save(); }
+  DB.bills=DB.bills||[]; DB.customers=DB.customers||[]; DB.suppliers=DB.suppliers||[];
+  DB.staff=DB.staff||seedStaff(); DB.projects=DB.projects||seedProjects();
+  DB.orders=DB.orders||seedOrders(); DB.warehouses=DB.warehouses||seedWarehouses();
+  DB.settings=Object.assign({gstOn:false,gstRate:5,openingCash:2000,expenses:0,vpa:'tulasiveg@upi',seq:1},DB.settings||{});
+  loadRollups();
+}
+function save(){ try{ localStorage.setItem(LS,JSON.stringify(DB)); }catch(e){ toast('Storage full'); } }
+function saveRollups(){ try{ localStorage.setItem(LS_ROLL,JSON.stringify(ROLL)); }catch(e){} }
+
+/* ─── seed ───────────────────────────────────────────────────────────
+   Historical days are seeded AS ROLLUPS, and only the last 7 days keep raw
+   bills. That is deliberately the production shape: recent detail stays hot,
+   older detail collapses to summaries. It also keeps the demo inside the
+   ~5MB localStorage budget, which 13,500 raw bills would blow on its own. */
+const PRODUCTS=[
+  ['VEG01','Onion','வெங்காயம்','Vegetables','kg',28,38,120],
+  ['VEG02','Tomato','தக்காளி','Vegetables','kg',18,26,85],
+  ['VEG03','Potato','உருளைக்கிழங்கு','Vegetables','kg',24,32,95],
+  ['VEG04','Ginger','இஞ்சி','Vegetables','kg',70,95,18],
+  ['VEG05','Green Chilli','பச்சை மிளகாய்','Vegetables','kg',40,60,22],
+  ['VEG06','Curry Leaves','கறிவேப்பிலை','Greens','pcs',4,8,60],
+  ['VEG07','Coriander','கொத்தமல்லி','Greens','pcs',7,12,45],
+  ['VEG08','Mint','புதினா','Greens','pcs',6,10,30],
+  ['VEG09','Spinach','பசலைக்கீரை','Greens','pcs',9,15,25],
+  ['VEG10','Carrot','கேரட்','Vegetables','kg',38,52,40],
+  ['VEG11','Beans','பீன்ஸ்','Vegetables','kg',45,65,28],
+  ['VEG12','Brinjal','கத்தரிக்காய்','Vegetables','kg',26,38,35],
+  ['VEG13','Ladies Finger','வெண்டைக்காய்','Vegetables','kg',32,45,30],
+  ['VEG14','Drumstick','முருங்கைக்காய்','Vegetables','pcs',6,10,80],
+  ['VEG15','Garlic','பூண்டு','Vegetables','kg',110,145,15],
+  ['VEG16','Lemon','எலுமிச்சை','Fruits','pcs',3,5,150],
+  ['VEG17','Cabbage','முட்டைகோஸ்','Vegetables','kg',20,30,32],
+  ['VEG18','Cauliflower','காலிஃபிளவர்','Vegetables','pcs',22,35,26],
+  ['VEG19','Beetroot','பீட்ரூட்','Vegetables','kg',30,42,20],
+  ['VEG20','Cucumber','வெள்ளரிக்காய்','Vegetables','kg',22,32,24],
+];
+function seedAll(){
+  return {
+    products:PRODUCTS.map((p,i)=>({id:'p'+(i+1),sku:p[0],nameEn:p[1],nameTa:p[2],category:p[3],unit:p[4],cost:p[5],price:p[6],stock:p[7],barcode:'890'+(1000+i)})),
+    bills:seedBills(),
+    customers:[
+      {id:'c1',name:'Ramesh Anna',phone:'9842011223',due:0,loyalty:120},
+      {id:'c2',name:'Hotel Sai Sree',phone:'9445566778',due:840,loyalty:640},
+      {id:'c3',name:'Lakshmi Akka',phone:'9003344556',due:0,loyalty:60},
+      {id:'c4',name:'Murugan Mess',phone:'9787001122',due:1250,loyalty:410},
+    ],
+    suppliers:[
+      {id:'s1',name:'Oddanchatram Mandi',phone:'9787012345',warehouse:'Main Counter',terms:'Cash on delivery'},
+      {id:'s2',name:'Local Farmer — Kani',phone:'9600123456',warehouse:'Main Counter',terms:'Weekly settle'},
+      {id:'s3',name:'Cold Store Depot',phone:'9500998877',warehouse:'Cold Room',terms:'15 days'},
+    ],
+    staff:seedStaff(), projects:seedProjects(), orders:seedOrders(), warehouses:seedWarehouses(),
+    settings:{gstOn:false,gstRate:5,openingCash:2000,expenses:340,vpa:'tulasiveg@upi',seq:1},
+  };
+}
+function seedStaff(){ return [
+  {id:'e1',name:'Store Manager',role:'Manager',phone:'9842000001',salary:22000,present:26,shift:'05:00–21:30'},
+  {id:'e2',name:'Cashier — Counter A',role:'Cashier',phone:'9842000002',salary:14000,present:25,shift:'06:00–15:00'},
+  {id:'e3',name:'Cashier — Counter B',role:'Cashier',phone:'9842000003',salary:14000,present:24,shift:'13:00–21:30'},
+  {id:'e4',name:'Floor Worker',role:'Floor',phone:'9842000004',salary:12000,present:26,shift:'05:00–21:30'},
+  {id:'e5',name:'Loader L1',role:'Logistics',phone:'9842000005',salary:11000,present:23,shift:'03:30–12:00'},
+  {id:'e6',name:'Loader L2',role:'Logistics',phone:'9842000006',salary:11000,present:22,shift:'03:30–12:00'},
+]; }
+function seedProjects(){ return [
+  {id:'pr1',name:'Cold room expansion',owner:'Store Manager',status:'In progress',due:'2026-10-15',done:60},
+  {id:'pr2',name:'Second counter setup',owner:'Store Manager',status:'Planning',due:'2026-11-01',done:20},
+  {id:'pr3',name:'Supplier contract renewal',owner:'Owner',status:'In progress',due:'2026-09-30',done:75},
+  {id:'pr4',name:'Staff SOP rollout',owner:'Store Manager',status:'Done',due:'2026-09-01',done:100},
+]; }
+function seedOrders(){
+  const out=[]; const sup=['Oddanchatram Mandi','Local Farmer — Kani','Cold Store Depot'];
+  for(let i=0;i<12;i++){
+    const d=new Date(); d.setDate(d.getDate()-i*2);
+    out.push({id:'o'+i,po:'PO-'+String(1200+i),date:iso(d),supplier:sup[i%3],
+      crates:8+((i*5)%22), amount:4200+((i*937)%9800),
+      status:i===0?'Pending':i<3?'Received':'Settled'});
+  }
+  return out;
+}
+function seedWarehouses(){ return [
+  {id:'w1',name:'Main Counter',type:'Retail floor',capacity:'—',items:18},
+  {id:'w2',name:'Cold Room',type:'Chilled 4°C',capacity:'2 tonne',items:9},
+  {id:'w3',name:'Back Store',type:'Dry storage',capacity:'1.5 tonne',items:12},
+]; }
+
+/* Raw bills for the last 7 days only */
+function seedBills(){
+  const bills=[]; let seq=1;
+  const prods=PRODUCTS;
+  for(let d=6; d>=0; d--){
+    const day=new Date(); day.setDate(day.getDate()-d);
+    const dow=day.getDay();
+    const n = 34 + (dow===0?26:dow===6?18:0) + ((d*13)%11);   // weekends busier
+    for(let b=0;b<n;b++){
+      const items=[]; const lines=1+((b*7+d*3)%5);
+      for(let k=0;k<lines;k++){
+        const p=prods[(b*3+k*5+d)%prods.length];
+        const qty=p[4]==='kg' ? +(0.25*(1+((b+k)%6))).toFixed(3) : 1+((b+k)%3);
+        items.push({name:p[1],nameTa:p[2],unit:p[4],rate:p[6],qty,sku:p[0]});
+      }
+      const sub=+items.reduce((a,i)=>a+i.rate*i.qty,0).toFixed(2);
+      const m=(b%10===0)?'card':(b%3===0)?'upi':'cash';
+      const t=new Date(day); t.setHours(6+((b*7)%15), (b*13)%60, 0, 0);
+      bills.push({id:'b'+d+'_'+b, billNo:'T1-'+String(seq++).padStart(5,'0'), ts:t.getTime(),
+        date:iso(day), cashier:'Cashier '+(1+(b%2)), mode:b%9===0?'Delivery':b%5===0?'Take-Away':'InStore',
+        customer:'', items, subtotal:sub, discount:0, discType:'pct', discVal:0,
+        gst:0, gstRate:0, total:sub,
+        payment:m==='cash'?{method:'cash',tendered:Math.ceil(sub/10)*10,change:+(Math.ceil(sub/10)*10-sub).toFixed(2)}:{method:m,ref:'REF'+(10000+b)}});
+    }
+  }
+  return bills;
+}
+
+/* ─── rollups ────────────────────────────────────────────────────────
+   One document per shop-day. Built from raw bills where we have them;
+   synthesised for older days in this demo. In production this is written
+   once at day close (or incrementally per bill) and never recomputed. */
+function loadRollups(){
+  try{ ROLL=JSON.parse(localStorage.getItem(LS_ROLL)||'null')||{}; }catch(e){ ROLL={}; }
+  // Always recompute the days we hold raw bills for — they are the source of truth
+  const byDate={};
+  DB.bills.forEach(b=>{ (byDate[b.date]=byDate[b.date]||[]).push(b); });
+  Object.entries(byDate).forEach(([d,list])=>{ ROLL[d]=rollupFrom(d,list); });
+
+  // Backfill 90 days of history as rollups only (no raw bills kept)
+  for(let i=0;i<90;i++){
+    const dt=new Date(); dt.setDate(dt.getDate()-i);
+    const d=iso(dt);
+    if(ROLL[d]) continue;
+    ROLL[d]=synthRollup(d, dt);
+  }
+  saveRollups();
+}
+function rollupFrom(date, list){
+  const r={date, bills:list.length, sales:0, cash:0, upi:0, card:0, items:{}, qty:0, synth:false};
+  list.forEach(b=>{
+    r.sales+=b.total;
+    const m=b.payment.method;
+    if(m==='cash') r.cash+=b.total;
+    else if(m==='upi') r.upi+=b.total;
+    else if(m==='card') r.card+=b.total;
+    else { r.cash+=b.payment.cash||0; r.upi+=b.payment.upi||0; }
+    b.items.forEach(i=>{
+      const k=i.sku||i.name;
+      const e=r.items[k]=r.items[k]||{name:i.name,qty:0,amt:0};
+      e.qty+=i.qty; e.amt+=i.rate*i.qty; r.qty+=i.qty;
+    });
+  });
+  r.sales=+r.sales.toFixed(2); r.cash=+r.cash.toFixed(2); r.upi=+r.upi.toFixed(2); r.card=+r.card.toFixed(2);
+  return r;
+}
+/* Deterministic history so the charts look the same on every reload */
+function synthRollup(d, dt){
+  const dow=dt.getDay(), n=dt.getDate(), mo=dt.getMonth();
+  const seed=(n*37+mo*101+dow*17)%100;
+  const base = 30 + (dow===0?24:dow===6?16:dow===1?-6:0) + (seed%13);
+  const bills=Math.max(12, base);
+  const avg  = 210 + (seed%70);
+  const sales=+(bills*avg).toFixed(2);
+  const cash=+(sales*(0.52+((seed%9)/100))).toFixed(2);
+  const card=+(sales*(0.06+((seed%4)/100))).toFixed(2);
+  const upi =+(sales-cash-card).toFixed(2);
+  const items={};
+  PRODUCTS.forEach((p,i)=>{
+    if((seed+i)%4===0) return;
+    const q=+(((seed+i*7)%40)+4).toFixed(2);
+    items[p[0]]={name:p[1],qty:q,amt:+(q*p[6]).toFixed(2)};
+  });
+  return {date:d,bills,sales,cash,upi,card,items,qty:0,synth:true};
+}
+/* A report reads ONLY these summary docs — never the raw bills */
+function rollupRange(days){
+  const out=[];
+  for(let i=days-1;i>=0;i--){
+    const dt=new Date(); dt.setDate(dt.getDate()-i);
+    const d=iso(dt);
+    out.push(ROLL[d]||{date:d,bills:0,sales:0,cash:0,upi:0,card:0,items:{},synth:true});
+  }
+  return out;
+}
+
+/* ─── helpers ────────────────────────────────────────────────────── */
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const money=n=>'₹'+Math.round(n||0).toLocaleString('en-IN');
+const money2=n=>'₹'+(Math.round((n+Number.EPSILON)*100)/100).toFixed(2);
+const compact=n=> n>=10000000?(n/10000000).toFixed(1)+'Cr' : n>=100000?(n/100000).toFixed(1)+'L' : n>=1000?(n/1000).toFixed(1)+'k' : Math.round(n);
+const dshort=d=>{const x=new Date(d+'T00:00:00');return x.getDate()+'/'+(x.getMonth()+1);};
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2200);}
+
+/* ─── icons ──────────────────────────────────────────────────────────
+   Inlined rather than pulled from a CDN. A shop's internet is the least
+   reliable thing in the building, and an admin panel whose navigation
+   loses its icons because a CDN is unreachable is a bad trade for the
+   ~2KB this costs. Also removes a third-party request from every load. */
+const ICONS={
+  'layout-dashboard':'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  'bar-chart-3':'<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  'warehouse':'<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12v-8H6z"/>',
+  'truck':'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  'clipboard-list':'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  'shopping-cart':'<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L22 7H5"/>',
+  'package':'<path d="m7.5 4.3 9 5.1"/><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  'contact':'<path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"/><rect x="3" y="4" width="18" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M8 2v2"/><path d="M16 2v2"/>',
+  'users':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+  'git-branch':'<path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  'wallet':'<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
+  'settings':'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  'menu':'<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+  'calculator':'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14v4M8 18h.01M12 18h.01"/>',
+  'plus':'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  'download':'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  'refresh-cw':'<path d="M3 12a9 9 0 0 1 15.7-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.7 6L3 16"/><path d="M8 16H3v5"/>',
+  'trash-2':'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+  'zap':'<path d="M4 14h7l-1 8 10-12h-7l1-8z"/>',
+};
+/* Replaces every <i data-lucide="name"> left in the DOM with its inline SVG */
+function icons(){
+  document.querySelectorAll('i[data-lucide]').forEach(el=>{
+    const p=ICONS[el.getAttribute('data-lucide')];
+    if(!p) { el.remove(); return; }
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 24 24');
+    svg.setAttribute('fill','none');
+    svg.setAttribute('stroke','currentColor');
+    svg.setAttribute('stroke-width','2');
+    svg.setAttribute('stroke-linecap','round');
+    svg.setAttribute('stroke-linejoin','round');
+    svg.setAttribute('aria-hidden','true');
+    svg.innerHTML=p;
+    if(el.getAttribute('style')) svg.setAttribute('style', el.getAttribute('style'));
+    el.replaceWith(svg);
+  });
+}
+function modal(html){ document.getElementById('modal-in').innerHTML=html; document.getElementById('modal').classList.add('on'); icons(); }
+function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+document.getElementById('modal').addEventListener('mousedown',e=>{ if(e.target.id==='modal') closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ─── charts ─────────────────────────────────────────────────────── */
+/* Vertical bars, single series (magnitude over time). One scale, recessive
+   gridlines, 4px rounded data-ends anchored to the baseline, hover tooltip. */
+function barChart(rows, valKey, labelFn, fmt){
+  const max=Math.max(...rows.map(r=>r[valKey]),1);
+  const step=niceStep(max), lines=[];
+  for(let v=step; v<=max*1.02; v+=step) lines.push(v);
+  const every=Math.ceil(rows.length/(window.innerWidth<700?6:12));
+  return `<div class="chart">
+    <div class="plot">
+      ${lines.map(v=>`<div class="gridline" style="bottom:${(v/max*100)*0.94}%"><b>${compact(v)}</b></div>`).join('')}
+      <div class="bars">
+        ${rows.map((r,i)=>`<div class="bar-col"
+            onmousemove="showTip(event,'${esc(labelFn(r))}','${esc(fmt(r))}')" onmouseleave="hideTip()">
+            <div class="bar" style="height:${Math.max(r[valKey]/max*94,r[valKey]>0?1.2:0)}%"></div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="xaxis">${rows.map((r,i)=>`<span>${i%every===0?dshort(r.date):''}</span>`).join('')}</div>
+  </div>`;
+}
+function niceStep(max){
+  const raw=max/4, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  return [1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw)||mag*10;
+}
+/* Horizontal bars always carry a direct value label — this is the relief
+   required for any series below 3:1 contrast on a white surface. */
+function hBars(rows, color){
+  const max=Math.max(...rows.map(r=>r.v),1);
+  return rows.map(r=>`<div class="hbar-row">
+    <div class="hbar-lab" title="${esc(r.k)}">${esc(r.k)}</div>
+    <div class="hbar-track"><div class="hbar-fill" style="width:${r.v/max*100}%;background:${r.c||color}"></div></div>
+    <div class="hbar-val tnum">${r.lab}</div>
+  </div>`).join('');
+}
+function showTip(e,a,b){
+  const t=document.getElementById('tip');
+  t.innerHTML='<b>'+a+'</b><br>'+b;
+  t.style.display='block';
+  const w=t.offsetWidth, x=Math.min(Math.max(e.clientX-w/2,8), innerWidth-w-8);
+  t.style.left=x+'px'; t.style.top=(e.clientY-t.offsetHeight-12)+'px';
+}
+function hideTip(){ document.getElementById('tip').style.display='none'; }
+
+/* ─── nav ────────────────────────────────────────────────────────── */
+const PAGES=[
+  ['dashboard','Dashboard','layout-dashboard'],
+  ['reports','Reports','bar-chart-3'],
+  ['warehouses','Warehouses','warehouse'],
+  ['suppliers','Suppliers','truck'],
+  ['orders','Orders','clipboard-list'],
+  ['sales','Sales','shopping-cart'],
+  ['products','Products','package'],
+  ['customers','Customers (CRM)','contact'],
+  ['employees','Employees (HRM)','users'],
+  ['projects','Projects','git-branch'],
+  ['accounting','Accounting','wallet'],
+  ['settings','Admin Settings','settings'],
+];
+function renderNav(){
+  document.getElementById('nav').innerHTML=PAGES.map(([k,l,ic])=>
+    `<a href="#${k}" class="${page===k?'on':''}" onclick="go('${k}');return false"><i data-lucide="${ic}"></i>${l}</a>`).join('');
+}
+function go(k){
+  page=k;
+  document.getElementById('side').classList.remove('open');
+  renderNav();
+  const [,label]=PAGES.find(p=>p[0]===k);
+  document.getElementById('pg-title').textContent=label;
+  ({dashboard:pgDashboard,reports:pgReports,warehouses:pgWarehouses,suppliers:pgSuppliers,
+    orders:pgOrders,sales:pgSales,products:pgProducts,customers:pgCustomers,
+    employees:pgEmployees,projects:pgProjects,accounting:pgAccounting,settings:pgSettings}[k])();
+  icons();
+  document.querySelector('.body').scrollTop=0;
+}
+const V=h=>{document.getElementById('view').innerHTML=h;};
+const sub=t=>{document.getElementById('pg-sub').textContent=t;};
+const kpi=(l,v,s)=>`<div class="kpi"><div class="l">${l}</div><div class="v tnum">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+
+/* ─── 1 DASHBOARD ───────────────────────────────────────────────── */
+function pgDashboard(){
+  const r30=rollupRange(30), today=ROLL[iso(new Date())]||{bills:0,sales:0,cash:0,upi:0,card:0,items:{}};
+  const sales30=r30.reduce((a,r)=>a+r.sales,0), bills30=r30.reduce((a,r)=>a+r.bills,0);
+  const abv=bills30?sales30/bills30:0;
+  const stockVal=DB.products.reduce((a,p)=>a+p.cost*p.stock,0);
+  const drawer=DB.settings.openingCash+today.cash-DB.settings.expenses;
+  sub('Last 30 days · '+r30.length+' rollup documents read');
+
+  const mix=[
+    {k:'Cash', v:r30.reduce((a,r)=>a+r.cash,0), c:'var(--series-1)'},
+    {k:'UPI',  v:r30.reduce((a,r)=>a+r.upi,0),  c:'var(--series-2)'},
+    {k:'Card', v:r30.reduce((a,r)=>a+r.card,0), c:'var(--series-3)'},
+  ].map(x=>({...x,lab:money(x.v)}));
+
+  const top=topItems(r30,6);
+
+  V(`<div class="grid g4" style="margin-bottom:14px">
+      ${kpi('Sales today',money(today.sales), today.bills+' bills')}
+      ${kpi('Avg bill (30d)',money(abv),'across '+bills30+' bills')}
+      ${kpi('Cash in drawer',money(drawer),'opening '+money(DB.settings.openingCash))}
+      ${kpi('Stock value',money(stockVal), DB.products.length+' SKUs')}
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd"><h3>Daily sales — last 30 days</h3><span class="note">from daily rollups · 30 reads</span></div>
+      <div class="card-b">${barChart(r30,'sales',r=>new Date(r.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}),r=>money(r.sales)+' · '+r.bills+' bills')}</div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-hd"><h3>Payment mix — 30 days</h3></div>
+        <div class="card-b">${hBars(mix)}
+          <div class="legend">
+            <span><i style="background:var(--series-1)"></i>Cash</span>
+            <span><i style="background:var(--series-2)"></i>UPI</span>
+            <span><i style="background:var(--series-3)"></i>Card</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><h3>Top items — 30 days</h3></div>
+        <div class="card-b">${top.length?hBars(top,'var(--bar)'):'<div class="empty">No sales yet</div>'}</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-hd"><h3>Low stock</h3><span class="note">reorder before tomorrow's run</span></div>
+      ${lowStockTable()}
+    </div>`);
+}
+function topItems(rows,n){
+  const agg={};
+  rows.forEach(r=>Object.entries(r.items||{}).forEach(([k,v])=>{
+    const e=agg[k]=agg[k]||{name:v.name,amt:0,qty:0}; e.amt+=v.amt; e.qty+=v.qty;
+  }));
+  return Object.values(agg).sort((a,b)=>b.amt-a.amt).slice(0,n)
+    .map(x=>({k:x.name,v:x.amt,lab:money(x.amt)}));
+}
+function lowStockTable(){
+  const low=DB.products.filter(p=>p.stock<=25).sort((a,b)=>a.stock-b.stock).slice(0,8);
+  if(!low.length) return '<div class="empty">Everything is above the reorder line.</div>';
+  return `<div class="tw"><table><thead><tr><th>Item</th><th>SKU</th><th style="text-align:right">Stock</th><th style="text-align:right">Cost to refill 50</th></tr></thead>
+    <tbody>${low.map(p=>`<tr>
+      <td><b>${esc(p.nameEn)}</b><div class="ta" style="font-size:11.5px;color:var(--ink-3)">${esc(p.nameTa)}</div></td>
+      <td class="mono" style="font-size:12px">${p.sku}</td>
+      <td style="text-align:right" class="tnum"><span class="pill ${p.stock<=10?'bad':'warn'}">${p.stock} ${p.unit}</span></td>
+      <td style="text-align:right" class="tnum">${money(p.cost*50)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* ─── 2 REPORTS ─────────────────────────────────────────────────── */
+function pgReports(){
+  const rows=rollupRange(range);
+  const sales=rows.reduce((a,r)=>a+r.sales,0), bills=rows.reduce((a,r)=>a+r.bills,0);
+  const abv=bills?sales/bills:0;
+  const best=[...rows].sort((a,b)=>b.sales-a.sales)[0];
+  const worst=[...rows].filter(r=>r.bills>0).sort((a,b)=>a.sales-b.sales)[0];
+  // What the same report would have cost read straight off raw bills
+  const rawEquivalent=bills;
+  sub(range+'-day report · '+rows.length+' rollup reads');
+
+  V(`<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <div class="seg">
+        ${[7,30,60,90].map(d=>`<button class="${range===d?'on':''}" onclick="range=${d};pgReports();icons()">${d} days</button>`).join('')}
+      </div>
+      <button class="btn" onclick="exportCsv()"><i data-lucide="download"></i>CSV</button>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;border-color:#d7efe4;background:var(--accent-soft)">
+      <div class="card-b" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+        <div><i data-lucide="zap" style="width:20px;height:20px;color:var(--accent)"></i></div>
+        <div style="flex:1;min-width:220px">
+          <div style="font-weight:700;font-size:13.5px">This report read <span class="tnum">${rows.length}</span> summary documents, not <span class="tnum">${rawEquivalent.toLocaleString('en-IN')}</span> bills.</div>
+          <div style="font-size:12.5px;color:var(--ink-2);margin-top:2px">
+            Each day is collapsed once into one rollup document. Reading the raw bills instead would be
+            <b class="tnum">${rawEquivalent?Math.round(rawEquivalent/rows.length):0}×</b> the work for the same numbers — and that ratio grows every day the shop trades.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g4" style="margin-bottom:14px">
+      ${kpi('Total sales',money(sales),range+' days')}
+      ${kpi('Bills',bills.toLocaleString('en-IN'),'')}
+      ${kpi('Average bill',money(abv),'sales ÷ bills')}
+      ${kpi('Best day',best?money(best.sales):'—',best?new Date(best.date+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}):'')}
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd"><h3>Sales by day</h3><span class="note">${rows.length} days</span></div>
+      <div class="card-b">${barChart(rows,'sales',r=>new Date(r.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}),r=>money(r.sales)+' · '+r.bills+' bills')}</div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd"><h3>Bills per day</h3><span class="note">footfall, separate from rupees</span></div>
+      <div class="card-b">${barChart(rows,'bills',r=>new Date(r.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}),r=>r.bills+' bills · avg '+money(r.bills?r.sales/r.bills:0))}</div>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-hd"><h3>Top items by value</h3></div>
+        <div class="card-b">${hBars(topItems(rows,10),'var(--bar)')}</div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><h3>Weekday pattern</h3><span class="note">median, so one festival can't skew it</span></div>
+        <div class="card-b">${weekdayTable(rows)}</div>
+      </div>
+    </div>
+
+    ${worst?`<div class="card" style="margin-top:14px"><div class="card-hd"><h3>Quietest trading day</h3></div>
+      <div class="card-b" style="font-size:13.5px;color:var(--ink-2)">
+        <b style="color:var(--ink)">${new Date(worst.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long'})}</b>
+        — ${money(worst.sales)} across ${worst.bills} bills. Compare it against the same weekday's median above before treating it as a problem.
+      </div></div>`:''}`);
+}
+/* Median, not mean: retail has festival spikes that a mean would smear across
+   every comparison. */
+function weekdayTable(rows){
+  const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], by={};
+  rows.forEach(r=>{ const d=new Date(r.date+'T00:00:00').getDay(); (by[d]=by[d]||[]).push(r.sales); });
+  const med=a=>{ const s=[...a].sort((x,y)=>x-y); return s.length? (s.length%2?s[(s.length-1)/2]:(s[s.length/2-1]+s[s.length/2])/2) : 0; };
+  const vals=D.map((n,i)=>({k:n,v:med(by[i]||[]),lab:money(med(by[i]||[]))}));
+  return hBars(vals,'var(--bar)');
+}
+function exportCsv(){
+  const rows=rollupRange(range);
+  const csv='date,bills,sales,cash,upi,card\n'+rows.map(r=>[r.date,r.bills,r.sales,r.cash,r.upi,r.card].join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='arthanote-report-'+range+'d.csv'; a.click(); URL.revokeObjectURL(a.href);
+  toast('CSV exported');
+}
+
+/* ─── 3 WAREHOUSES ──────────────────────────────────────────────── */
+function pgWarehouses(){
+  sub(DB.warehouses.length+' locations');
+  V(`<div class="grid g3" style="margin-bottom:14px">
+      ${DB.warehouses.map(w=>`<div class="card"><div class="card-b">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <i data-lucide="warehouse" style="width:18px;height:18px;color:var(--accent)"></i>
+          <b style="font-size:14px">${esc(w.name)}</b>
+        </div>
+        <div style="font-size:12.5px;color:var(--ink-2)">${esc(w.type)}</div>
+        <div style="display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)">
+          <div><div class="l" style="font-size:10.5px;color:var(--ink-3);font-weight:600">CAPACITY</div><b class="tnum">${esc(w.capacity)}</b></div>
+          <div><div class="l" style="font-size:10.5px;color:var(--ink-3);font-weight:600">SKUS</div><b class="tnum">${w.items}</b></div>
+        </div></div></div>`).join('')}
+    </div>
+    <div class="card"><div class="card-hd"><h3>Stock by location</h3><span class="note">demo allocation</span></div>
+    <div class="tw"><table><thead><tr><th>Item</th><th>Main Counter</th><th>Cold Room</th><th>Back Store</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${DB.products.slice(0,12).map((p,i)=>{
+      const a=Math.round(p.stock*0.6),b=Math.round(p.stock*0.25),c=p.stock-a-b;
+      return `<tr><td><b>${esc(p.nameEn)}</b></td><td class="tnum">${a}</td><td class="tnum">${b}</td><td class="tnum">${c<0?0:c}</td>
+      <td style="text-align:right" class="tnum"><b>${p.stock} ${p.unit}</b></td></tr>`;}).join('')}</tbody></table></div></div>`);
+}
+
+/* ─── 4 SUPPLIERS ───────────────────────────────────────────────── */
+function pgSuppliers(){
+  sub(DB.suppliers.length+' vendors');
+  V(`<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="btn btn-p" onclick="editSupplier()"><i data-lucide="plus"></i>Add supplier</button></div>
+    <div class="card"><div class="tw"><table>
+      <thead><tr><th>Supplier</th><th>Phone</th><th>Warehouse</th><th>Terms</th><th style="text-align:right">Orders (90d)</th></tr></thead>
+      <tbody>${DB.suppliers.map(s=>{
+        const n=DB.orders.filter(o=>o.supplier===s.name).length;
+        return `<tr class="click" onclick="editSupplier('${s.id}')">
+          <td><b>${esc(s.name)}</b></td><td class="mono" style="font-size:12.5px">${esc(s.phone)}</td>
+          <td><span class="pill">${esc(s.warehouse)}</span></td><td style="color:var(--ink-2)">${esc(s.terms||'—')}</td>
+          <td style="text-align:right" class="tnum">${n}</td></tr>`;}).join('')}</tbody></table></div></div>`);
+}
+function editSupplier(id){
+  const s=id?DB.suppliers.find(x=>x.id===id):{name:'',phone:'',warehouse:'Main Counter',terms:''};
+  modal(`<h3>${id?'Edit':'Add'} supplier</h3>
+    <div class="fg"><label class="fl">Name</label><input class="inp" id="f-name" value="${esc(s.name)}"></div>
+    <div class="fg"><label class="fl">Phone</label><input class="inp" id="f-phone" value="${esc(s.phone)}"></div>
+    <div class="fg"><label class="fl">Warehouse</label><select class="inp" id="f-wh">${DB.warehouses.map(w=>`<option ${w.name===s.warehouse?'selected':''}>${esc(w.name)}</option>`).join('')}</select></div>
+    <div class="fg"><label class="fl">Payment terms</label><input class="inp" id="f-terms" value="${esc(s.terms||'')}"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn" style="flex:1;justify-content:center" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p" style="flex:1;justify-content:center" onclick="saveSupplier('${id||''}')">Save</button></div>`);
+}
+function saveSupplier(id){
+  const o={name:val('f-name'),phone:val('f-phone'),warehouse:val('f-wh'),terms:val('f-terms')};
+  if(!o.name) return toast('Enter a name');
+  if(id) Object.assign(DB.suppliers.find(x=>x.id===id),o);
+  else DB.suppliers.push({id:'s'+Date.now(),...o});
+  save(); closeModal(); go('suppliers'); toast('Saved');
+}
+const val=id=>document.getElementById(id).value.trim();
+
+/* ─── 5 ORDERS ──────────────────────────────────────────────────── */
+function pgOrders(){
+  const pend=DB.orders.filter(o=>o.status==='Pending').length;
+  sub(DB.orders.length+' purchase orders · '+pend+' pending');
+  V(`<div class="grid g3" style="margin-bottom:14px">
+      ${kpi('Pending',pend,'awaiting delivery')}
+      ${kpi('Received (unsettled)',DB.orders.filter(o=>o.status==='Received').length,'to pay')}
+      ${kpi('Inward value (90d)',money(DB.orders.reduce((a,o)=>a+o.amount,0)),'')}
+    </div>
+    <div class="card"><div class="card-hd"><h3>Purchase orders</h3></div><div class="tw"><table>
+      <thead><tr><th>PO No</th><th>Date</th><th>Supplier</th><th style="text-align:right">Crates</th><th style="text-align:right">Amount</th><th>Status</th></tr></thead>
+      <tbody>${DB.orders.map(o=>`<tr>
+        <td class="mono" style="font-size:12.5px"><b>${o.po}</b></td>
+        <td class="tnum" style="color:var(--ink-2)">${dshort(o.date)}</td>
+        <td>${esc(o.supplier)}</td>
+        <td style="text-align:right" class="tnum">${o.crates}</td>
+        <td style="text-align:right" class="tnum"><b>${money(o.amount)}</b></td>
+        <td><span class="pill ${o.status==='Pending'?'warn':o.status==='Settled'?'ok':''}">${o.status}</span></td>
+      </tr>`).join('')}</tbody></table></div></div>`);
+}
+
+/* ─── 6 SALES ───────────────────────────────────────────────────── */
+function pgSales(){
+  const bills=DB.bills.slice().sort((a,b)=>b.ts-a.ts);
+  sub(bills.length+' raw bills held (last 7 days) · older days kept as rollups');
+  V(`<div class="card" style="margin-bottom:14px;background:#fbfbfb">
+      <div class="card-b" style="font-size:12.5px;color:var(--ink-2)">
+        Raw bills are kept for the recent window only; anything older is available as a daily rollup under
+        <b>Reports</b>. That is the same split a production database should use — detail stays hot, history stays cheap.
+      </div></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input class="inp" id="s-q" placeholder="Search bill no, cashier or mode…" style="max-width:320px" oninput="renderSales()">
+      <button class="btn" onclick="exportBills()"><i data-lucide="download"></i>CSV</button>
+    </div>
+    <div id="sales-table"></div>`);
+  renderSales();
+}
+function renderSales(){
+  const q=(document.getElementById('s-q')?.value||'').toLowerCase();
+  const list=DB.bills.slice().sort((a,b)=>b.ts-a.ts).filter(b=>
+    !q || b.billNo.toLowerCase().includes(q) || b.cashier.toLowerCase().includes(q) || b.mode.toLowerCase().includes(q) || b.payment.method.includes(q));
+  document.getElementById('sales-table').innerHTML=`<div class="card"><div class="tw"><table>
+    <thead><tr><th>Bill No</th><th>Date / time</th><th>Cashier</th><th>Mode</th><th>Payment</th><th style="text-align:right">Items</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${list.slice(0,300).map(b=>`<tr class="click" onclick="viewBill('${b.id}')">
+      <td class="mono" style="font-size:12.5px"><b>${b.billNo}</b></td>
+      <td class="tnum" style="color:var(--ink-2);font-size:12.5px">${dshort(b.date)} ${new Date(b.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td style="font-size:13px">${esc(b.cashier)}</td>
+      <td><span class="pill">${b.mode}</span></td>
+      <td style="text-transform:uppercase;font-size:11.5px;font-weight:600;color:var(--ink-2)">${b.payment.method}</td>
+      <td style="text-align:right" class="tnum">${b.items.length}</td>
+      <td style="text-align:right" class="tnum"><b>${money2(b.total)}</b></td>
+    </tr>`).join('')||'<tr><td colspan="7"><div class="empty">No bills match.</div></td></tr>'}</tbody></table></div>
+    ${list.length>300?`<div style="padding:10px 14px;font-size:12px;color:var(--ink-3)">Showing first 300 of ${list.length}</div>`:''}</div>`;
+}
+function viewBill(id){
+  const b=DB.bills.find(x=>x.id===id); if(!b) return;
+  modal(`<h3>${b.billNo}</h3>
+    <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:12px">
+      ${new Date(b.ts).toLocaleString('en-IN')} · ${esc(b.cashier)} · ${b.mode}</div>
+    <table style="font-size:13px"><tbody>
+      ${b.items.map(i=>`<tr><td style="padding:6px 0">${esc(i.name)}<div style="font-size:11px;color:var(--ink-3)" class="tnum">${i.qty} ${i.unit} × ${i.rate}</div></td>
+      <td style="text-align:right;padding:6px 0" class="tnum"><b>${(i.rate*i.qty).toFixed(2)}</b></td></tr>`).join('')}
+    </tbody></table>
+    <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-weight:800;font-size:16px">
+      <span>Total</span><span class="tnum">${money2(b.total)}</span></div>
+    <div style="font-size:12.5px;color:var(--ink-2);margin-top:6px">Paid by ${b.payment.method.toUpperCase()}${b.payment.ref?' · '+esc(b.payment.ref):''}</div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:16px" onclick="closeModal()">Close</button>`);
+}
+function exportBills(){
+  const csv='billNo,date,time,cashier,mode,payment,items,total\n'+DB.bills.map(b=>
+    [b.billNo,b.date,new Date(b.ts).toLocaleTimeString('en-IN'),b.cashier,b.mode,b.payment.method,b.items.length,b.total].join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='arthanote-bills.csv'; a.click(); URL.revokeObjectURL(a.href);
+  toast('CSV exported');
+}
+
+/* ─── 7 PRODUCTS ────────────────────────────────────────────────── */
+function pgProducts(){
+  sub(DB.products.length+' SKUs');
+  V(`<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input class="inp" id="p-q" placeholder="Filter products…" style="max-width:300px" oninput="renderProducts()">
+      <button class="btn btn-p" style="margin-left:auto" onclick="editProduct()"><i data-lucide="plus"></i>Add product</button>
+    </div><div id="prod-table"></div>`);
+  renderProducts();
+}
+function renderProducts(){
+  const q=(document.getElementById('p-q')?.value||'').toLowerCase();
+  const list=DB.products.filter(p=>!q||p.nameEn.toLowerCase().includes(q)||p.nameTa.includes(q)||p.sku.toLowerCase().includes(q));
+  document.getElementById('prod-table').innerHTML=`<div class="card"><div class="tw"><table>
+    <thead><tr><th>Item</th><th>SKU</th><th>Category</th><th>Unit</th><th style="text-align:right">Cost</th><th style="text-align:right">Selling</th><th style="text-align:right">Margin</th><th style="text-align:right">Stock</th></tr></thead>
+    <tbody>${list.map(p=>{ const m=p.price?((p.price-p.cost)/p.price*100):0;
+      return `<tr class="click" onclick="editProduct('${p.id}')">
+        <td><b>${esc(p.nameEn)}</b><div class="ta" style="font-size:11.5px;color:var(--ink-3)">${esc(p.nameTa)}</div></td>
+        <td class="mono" style="font-size:12px">${p.sku}</td>
+        <td style="color:var(--ink-2);font-size:12.5px">${esc(p.category)}</td>
+        <td style="font-size:11.5px;text-transform:uppercase;color:var(--ink-3);font-weight:600">${p.unit}</td>
+        <td style="text-align:right" class="tnum" >${p.cost}</td>
+        <td style="text-align:right" class="tnum"><b>${p.price}</b></td>
+        <td style="text-align:right" class="tnum"><span class="pill ${m<15?'bad':'ok'}">${m.toFixed(0)}%</span></td>
+        <td style="text-align:right" class="tnum">${p.stock}</td></tr>`;}).join('')
+      ||'<tr><td colspan="8"><div class="empty">No product matches.</div></td></tr>'}</tbody></table></div></div>`;
+}
+function editProduct(id){
+  const p=id?DB.products.find(x=>x.id===id):{nameEn:'',nameTa:'',sku:'',category:'Vegetables',unit:'kg',cost:'',price:'',stock:0};
+  modal(`<h3>${id?'Edit':'Add'} product</h3>
+    <div class="fg"><label class="fl">Name (English)</label><input class="inp" id="f-en" value="${esc(p.nameEn)}"></div>
+    <div class="fg"><label class="fl">பெயர் (Tamil)</label><input class="inp ta" id="f-ta" value="${esc(p.nameTa)}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">SKU</label><input class="inp mono" id="f-sku" value="${esc(p.sku)}"></div>
+      <div class="fg"><label class="fl">Category</label><input class="inp" id="f-cat" value="${esc(p.category)}"></div>
+      <div class="fg"><label class="fl">Unit</label><select class="inp" id="f-unit"><option value="kg" ${p.unit==='kg'?'selected':''}>Kg</option><option value="pcs" ${p.unit==='pcs'?'selected':''}>Pcs</option></select></div>
+      <div class="fg"><label class="fl">Stock</label><input class="inp tnum" type="number" id="f-stock" value="${p.stock}"></div>
+      <div class="fg"><label class="fl">Cost ₹</label><input class="inp tnum" type="number" id="f-cost" value="${p.cost}"></div>
+      <div class="fg"><label class="fl">Selling ₹</label><input class="inp tnum" type="number" id="f-price" value="${p.price}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn" style="flex:1;justify-content:center" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p" style="flex:1;justify-content:center" onclick="saveProduct('${id||''}')">Save</button></div>`);
+}
+function saveProduct(id){
+  const o={nameEn:val('f-en'),nameTa:val('f-ta'),sku:val('f-sku').toUpperCase(),category:val('f-cat')||'Vegetables',
+    unit:val('f-unit'),stock:+val('f-stock')||0,cost:+val('f-cost')||0,price:+val('f-price')||0};
+  if(!o.nameEn) return toast('Enter a name');
+  if(!o.price)  return toast('Enter a selling price');
+  if(!o.sku) o.sku='SKU'+String(DB.products.length+1).padStart(3,'0');
+  if(id) Object.assign(DB.products.find(x=>x.id===id),o);
+  else DB.products.push({id:'p'+Date.now(),barcode:'',...o});
+  save(); closeModal(); go('products'); toast('Saved');
+}
+
+/* ─── 8 CUSTOMERS ───────────────────────────────────────────────── */
+function pgCustomers(){
+  const due=DB.customers.reduce((a,c)=>a+c.due,0);
+  sub(DB.customers.length+' customers · '+money(due)+' outstanding');
+  V(`<div class="grid g3" style="margin-bottom:14px">
+      ${kpi('Customers',DB.customers.length,'')}
+      ${kpi('Outstanding dues',money(due), DB.customers.filter(c=>c.due>0).length+' with balance')}
+      ${kpi('Loyalty points issued',DB.customers.reduce((a,c)=>a+c.loyalty,0).toLocaleString('en-IN'),'')}
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+      <button class="btn btn-p" onclick="editCustomer()"><i data-lucide="plus"></i>Add customer</button></div>
+    <div class="card"><div class="tw"><table>
+      <thead><tr><th>Customer</th><th>Phone</th><th style="text-align:right">Loyalty</th><th style="text-align:right">Due</th></tr></thead>
+      <tbody>${DB.customers.map(c=>`<tr class="click" onclick="editCustomer('${c.id}')">
+        <td><b>${esc(c.name)}</b></td><td class="mono" style="font-size:12.5px">${esc(c.phone)}</td>
+        <td style="text-align:right" class="tnum">${c.loyalty}</td>
+        <td style="text-align:right" class="tnum"><b style="color:${c.due>0?'var(--danger)':'var(--ink-3)'}">${money(c.due)}</b></td>
+      </tr>`).join('')}</tbody></table></div></div>`);
+}
+function editCustomer(id){
+  const c=id?DB.customers.find(x=>x.id===id):{name:'',phone:'',due:0,loyalty:0};
+  modal(`<h3>${id?'Edit':'Add'} customer</h3>
+    <div class="fg"><label class="fl">Name</label><input class="inp" id="f-name" value="${esc(c.name)}"></div>
+    <div class="fg"><label class="fl">Phone</label><input class="inp mono" id="f-phone" value="${esc(c.phone)}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Due ₹</label><input class="inp tnum" type="number" id="f-due" value="${c.due}"></div>
+      <div class="fg"><label class="fl">Loyalty pts</label><input class="inp tnum" type="number" id="f-loy" value="${c.loyalty}"></div></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn" style="flex:1;justify-content:center" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p" style="flex:1;justify-content:center" onclick="saveCustomer('${id||''}')">Save</button></div>`);
+}
+function saveCustomer(id){
+  const o={name:val('f-name'),phone:val('f-phone'),due:+val('f-due')||0,loyalty:+val('f-loy')||0};
+  if(!o.name) return toast('Enter a name');
+  if(id) Object.assign(DB.customers.find(x=>x.id===id),o);
+  else DB.customers.push({id:'c'+Date.now(),...o});
+  save(); closeModal(); go('customers'); toast('Saved');
+}
+
+/* ─── 9 EMPLOYEES ───────────────────────────────────────────────── */
+function pgEmployees(){
+  const payroll=DB.staff.reduce((a,s)=>a+s.salary,0);
+  sub(DB.staff.length+' on the roster');
+  V(`<div class="grid g3" style="margin-bottom:14px">
+      ${kpi('Headcount',DB.staff.length,'')}
+      ${kpi('Monthly payroll',money(payroll),'gross')}
+      ${kpi('Avg attendance',Math.round(DB.staff.reduce((a,s)=>a+s.present,0)/DB.staff.length)+' / 26','days this month')}
+    </div>
+    <div class="card"><div class="card-hd"><h3>Roster</h3><span class="note">shift times match the shop SOP</span></div><div class="tw"><table>
+      <thead><tr><th>Name</th><th>Role</th><th>Shift</th><th>Phone</th><th style="text-align:right">Present</th><th style="text-align:right">Salary</th></tr></thead>
+      <tbody>${DB.staff.map(s=>`<tr>
+        <td><b>${esc(s.name)}</b></td>
+        <td><span class="pill">${esc(s.role)}</span></td>
+        <td class="tnum" style="font-size:12.5px;color:var(--ink-2)">${esc(s.shift)}</td>
+        <td class="mono" style="font-size:12.5px">${esc(s.phone)}</td>
+        <td style="text-align:right" class="tnum"><span class="pill ${s.present>=25?'ok':s.present>=23?'':'warn'}">${s.present}/26</span></td>
+        <td style="text-align:right" class="tnum"><b>${money(s.salary)}</b></td>
+      </tr>`).join('')}</tbody></table></div></div>`);
+}
+
+/* ─── 10 PROJECTS ───────────────────────────────────────────────── */
+function pgProjects(){
+  sub(DB.projects.filter(p=>p.status!=='Done').length+' active');
+  V(`<div class="grid g2">${DB.projects.map(p=>`
+    <div class="card"><div class="card-b">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div><b style="font-size:14px">${esc(p.name)}</b>
+          <div style="font-size:12.5px;color:var(--ink-3);margin-top:2px">${esc(p.owner)} · due ${new Date(p.due+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div></div>
+        <span class="pill ${p.status==='Done'?'ok':p.status==='Planning'?'':'warn'}">${p.status}</span>
+      </div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
+        <div class="hbar-track" style="flex:1"><div class="hbar-fill" style="width:${p.done}%;background:${p.done===100?'var(--accent)':'var(--series-1)'}"></div></div>
+        <b class="tnum" style="font-size:12.5px;width:38px;text-align:right">${p.done}%</b>
+      </div>
+    </div></div>`).join('')}</div>`);
+}
+
+/* ─── 11 ACCOUNTING ─────────────────────────────────────────────── */
+function pgAccounting(){
+  const today=ROLL[iso(new Date())]||{sales:0,cash:0,upi:0,card:0,bills:0};
+  const r30=rollupRange(30);
+  const sales30=r30.reduce((a,r)=>a+r.sales,0);
+  const cogs=r30.reduce((a,r)=>a+Object.entries(r.items||{}).reduce((s,[sku,v])=>{
+    const p=DB.products.find(x=>x.sku===sku); return s+(p?p.cost*v.qty:v.amt*0.7); },0),0);
+  const gross=sales30-cogs;
+  const payroll=DB.staff.reduce((a,s)=>a+s.salary,0);
+  const closing=DB.settings.openingCash+today.cash-DB.settings.expenses;
+  sub('Day book and 30-day margin');
+  V(`<div class="card" style="margin-bottom:14px">
+      <div class="card-hd"><h3>Day-end handover</h3><span class="note">must match the physical count</span></div>
+      <div class="card-b">
+        <table style="max-width:460px"><tbody>
+          <tr><td style="padding:7px 0">Opening cash</td><td style="text-align:right;padding:7px 0" class="tnum">${money2(DB.settings.openingCash)}</td></tr>
+          <tr><td style="padding:7px 0">+ Cash sales today</td><td style="text-align:right;padding:7px 0" class="tnum">${money2(today.cash)}</td></tr>
+          <tr><td style="padding:7px 0">− Counter expenses</td><td style="text-align:right;padding:7px 0;color:var(--danger)" class="tnum">−${money2(DB.settings.expenses)}</td></tr>
+          <tr style="border-top:2px solid var(--ink)"><td style="padding:10px 0;font-weight:800">Closing drawer</td>
+            <td style="text-align:right;padding:10px 0;font-weight:800;font-size:17px" class="tnum">${money2(closing)}</td></tr>
+        </tbody></table>
+        <div style="font-size:12.5px;color:var(--ink-2);margin-top:8px">
+          UPI ${money(today.upi)} and card ${money(today.card)} are <b>not</b> in the drawer — they settle to the bank.
+        </div>
+      </div></div>
+
+    <div class="grid g4" style="margin-bottom:14px">
+      ${kpi('Revenue (30d)',money(sales30),'')}
+      ${kpi('Cost of goods',money(cogs),'at purchase cost')}
+      ${kpi('Gross margin',money(gross), sales30?Math.round(gross/sales30*100)+'% of revenue':'')}
+      ${kpi('Payroll',money(payroll),'monthly gross')}
+    </div>
+
+    <div class="card"><div class="card-hd"><h3>Adjust</h3></div><div class="card-b" style="max-width:400px">
+      <div class="fg"><label class="fl">Opening cash ₹</label>
+        <input class="inp tnum" type="number" value="${DB.settings.openingCash}" onchange="DB.settings.openingCash=+this.value||0;save();go('accounting')"></div>
+      <div class="fg"><label class="fl">Counter expenses today ₹</label>
+        <input class="inp tnum" type="number" value="${DB.settings.expenses}" onchange="DB.settings.expenses=+this.value||0;save();go('accounting')"></div>
+    </div></div>`);
+}
+
+/* ─── 12 SETTINGS ───────────────────────────────────────────────── */
+function pgSettings(){
+  const s=DB.settings;
+  sub('Store, tax and data');
+  V(`<div class="grid g2">
+      <div class="card"><div class="card-hd"><h3>Tax</h3></div><div class="card-b">
+        <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:12px">
+          <span><b>Charge GST</b><div style="font-size:12.5px;color:var(--ink-3)">Adds tax to every bill</div></span>
+          <input type="checkbox" ${s.gstOn?'checked':''} style="width:18px;height:18px;accent-color:var(--accent)"
+            onchange="DB.settings.gstOn=this.checked;save();toast('Saved')"></label>
+        <div class="fg"><label class="fl">GST rate %</label>
+          <input class="inp tnum" type="number" value="${s.gstRate}" onchange="DB.settings.gstRate=+this.value||0;save();toast('Saved')"></div>
+        <div class="fg"><label class="fl">UPI VPA</label>
+          <input class="inp mono" value="${esc(s.vpa)}" onchange="DB.settings.vpa=this.value.trim();save();toast('Saved')"></div>
+      </div></div>
+
+      <div class="card"><div class="card-hd"><h3>Data</h3></div><div class="card-b">
+        <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:12px">
+          This admin reads the same browser database the billing terminal writes
+          (<span class="mono">anpos_v1</span>). Nothing leaves this device yet — wiring it to
+          Firestore is the next layer, and it should write <b>batched daily rollups</b>, not one document per bill.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="exportAll()"><i data-lucide="download"></i>Export JSON</button>
+          <button class="btn" onclick="rebuild()"><i data-lucide="refresh-cw"></i>Rebuild rollups</button>
+          <button class="btn" style="color:var(--danger);border-color:#f6d3d3" onclick="resetAll()"><i data-lucide="trash-2"></i>Reset demo</button>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="card" style="margin-top:14px"><div class="card-hd"><h3>Storage footprint</h3></div>
+      <div class="card-b"><table style="max-width:520px"><tbody>
+        <tr><td style="padding:7px 0">Raw bills held</td><td style="text-align:right" class="tnum"><b>${DB.bills.length.toLocaleString('en-IN')}</b></td></tr>
+        <tr><td style="padding:7px 0">Daily rollups</td><td style="text-align:right" class="tnum"><b>${Object.keys(ROLL).length}</b></td></tr>
+        <tr><td style="padding:7px 0">Products</td><td style="text-align:right" class="tnum">${DB.products.length}</td></tr>
+        <tr><td style="padding:7px 0">localStorage used</td><td style="text-align:right" class="tnum">${((JSON.stringify(DB).length+JSON.stringify(ROLL).length)/1024).toFixed(0)} KB</td></tr>
+      </tbody></table></div></div>`);
+}
+function exportAll(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify({DB,ROLL},null,2)],{type:'application/json'}));
+  a.download='arthanote-admin-'+iso(new Date())+'.json'; a.click(); URL.revokeObjectURL(a.href);
+  toast('Exported');
+}
+function rebuild(){ localStorage.removeItem(LS_ROLL); loadRollups(); go(page); toast('Rollups rebuilt'); }
+function resetAll(){
+  if(!confirm('Erase the demo database on this device?')) return;
+  localStorage.removeItem(LS); localStorage.removeItem(LS_ROLL); localStorage.removeItem(LS+'_carts');
+  location.reload();
+}
+
+/* ─── init ───────────────────────────────────────────────────────── */
+load();
+document.getElementById('today').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+document.getElementById('src-pill').textContent = DB.bills.length ? DB.bills.length+' bills · demo' : 'demo data';
+renderNav();
+go(location.hash?.slice(1) && PAGES.some(p=>p[0]===location.hash.slice(1)) ? location.hash.slice(1) : 'dashboard');
+icons();
+addEventListener('resize',()=>{ if(page==='dashboard'||page==='reports') go(page); });
+</script>
+</body>
+</html>
