@@ -181,6 +181,38 @@ service cloud.firestore {
       allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
     }
 
+    // ── POS ────────────────────────────────────────────────────────────
+    // Deliberately separate from `transactions`. POS is new and will have
+    // bugs; keeping it out of the collection 369 live businesses depend on
+    // means a POS defect cannot corrupt ledger data. The day's total is
+    // rolled up into one `transactions` entry, so the Android ledger app,
+    // the reports and the admin panel keep working with no change at all.
+
+    // One document per bill. At 4 shops x 500 bills/day that is ~60k writes
+    // a month (~₹9) — cheap enough that packing bills into day-documents to
+    // save writes would only buy multi-terminal write conflicts and a 1MB
+    // ceiling. Bills are immutable once written: a mistake is corrected with
+    // a return, never by editing history.
+    match /pos_bills/{docId} {
+      allow read:   if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || (ownsBusiness(request.resource.data.businessId)
+                       && request.resource.data.businessId is string
+                       && request.resource.data.shopId is string
+                       && request.resource.data.total is number
+                       && request.resource.data.total >= 0);
+      allow update, delete: if isAdmin();
+    }
+
+    // One document per shop per day, incremented as bills sync. This is what
+    // reports read: a 90-day report is 90 documents instead of ~45,000 bills.
+    // Writes are increments, so two terminals updating the same day are safe.
+    match /pos_rollups/{docId} {
+      allow read:  if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow create: if isAdmin() || ownsBusiness(request.resource.data.businessId);
+      allow update: if isAdmin() || ownsBusiness(resource.data.businessId);
+      allow delete: if isAdmin();
+    }
+
     // Promo codes — you (admin) create/delete them; any signed-in user may read
     // a code to validate it and, when redeeming, update ONLY the usage fields
     // (usedCount / usedBy). This stops casual tampering with planType/maxUses/
