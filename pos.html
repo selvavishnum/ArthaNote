@@ -16,6 +16,15 @@
       onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap"></noscript>
+
+<!-- Firebase SDK. This is the one runtime dependency the terminal now has, and
+     every use of it is guarded: if these fail to load the till drops to
+     local-only mode and keeps billing. Sync catches up later. Billing is the
+     one thing that must never stop, so it is never allowed to depend on a
+     script arriving. -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════════════════
    ArthaNote POS — clean, minimalist counter terminal.
@@ -436,24 +445,44 @@ table.d tr.click:hover td{background:var(--raised)}
       <div class="otp-logo">🥬</div>
       <div><b>Tulasi Vegetables Market</b><span>ArthaNote POS · Terminal T1</span></div>
     </div>
-    <div class="lbl">OTP to login</div>
-    <p class="hint">A 4-digit code was sent to the registered email. Demo code <b>1234</b>.</p>
-    <div class="otp-row" id="otp-boxes">
-      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 1">
-      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 2">
-      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 3">
-      <input inputmode="numeric" maxlength="1" class="otp-in" aria-label="OTP digit 4">
+    <!-- Real Firebase Auth. Same account as the ledger app: the signed-in
+         user's staff doc supplies businessId, so bills are scoped to the
+         right business from the very first sale. -->
+    <div id="login-step">
+      <div class="fg">
+        <label class="lbl" for="li-email">Email</label>
+        <input class="inp" id="li-email" type="email" autocomplete="username" placeholder="you@shop.com"
+          onkeydown="if(event.key==='Enter')document.getElementById('li-pass').focus()">
+      </div>
+      <div class="fg">
+        <label class="lbl" for="li-pass">Password</label>
+        <input class="inp" id="li-pass" type="password" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')signIn()">
+      </div>
+      <div id="otp-err"></div>
+      <button class="btn btn-p" style="width:100%;height:46px;font-size:14px" id="li-btn" onclick="signIn()">Sign in</button>
+      <p class="hint" style="margin-top:14px;text-align:center">
+        Same login as your ArthaNote ledger.<br>
+        <button onclick="startDemo()" style="color:var(--accent);font-weight:600;text-decoration:underline;padding:0;margin-top:5px">Try the demo instead</button>
+        <span style="display:block;margin-top:2px;color:var(--ink-3)">local only — nothing syncs</span>
+      </p>
     </div>
-    <div class="fg">
-      <label class="lbl" for="otp-cashier">Cashier</label>
-      <select class="inp" id="otp-cashier">
-        <option>Cashier 1 — Counter A</option>
-        <option>Cashier 2 — Counter B</option>
-        <option>Store Manager</option>
-      </select>
+
+    <!-- Shop + terminal are chosen once per device and remembered -->
+    <div id="shop-step" class="hidden">
+      <div class="fg">
+        <label class="lbl" for="li-shop">Which shop is this counter in?</label>
+        <select class="inp" id="li-shop"></select>
+      </div>
+      <div class="fg">
+        <label class="lbl" for="li-term">Terminal name</label>
+        <input class="inp mono" id="li-term" placeholder="T1" style="text-transform:uppercase">
+        <p class="hint" style="margin-top:6px">Bill numbers are prefixed with this. <b>Give each counter a different one</b> — two counters sharing a name would issue duplicate bill numbers.</p>
+      </div>
+      <div id="shop-err" style="display:none;font-size:12.5px;color:var(--danger);font-weight:500;margin-bottom:11px"></div>
+      <button class="btn btn-p" style="width:100%;height:46px;font-size:14px" onclick="confirmShop()">Open terminal</button>
+      <button class="btn" style="width:100%;margin-top:9px" onclick="signOutPos()">Use a different account</button>
     </div>
-    <div id="otp-err"></div>
-    <button class="btn btn-p" style="width:100%;height:46px;font-size:14px" onclick="verifyOTP()">Unlock terminal</button>
   </div>
 </div>
 
@@ -462,7 +491,7 @@ table.d tr.click:hover td{background:var(--raised)}
   <header class="top">
     <div class="logo">🥬</div>
     <div class="brand" style="min-width:0">
-      <b>Tulasi Vegetables Market</b><span>Thuckalay · T1</span>
+      <b id="hdr-shop">Tulasi Vegetables Market</b><span id="hdr-term">Thuckalay · T1</span>
     </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
       <span class="chip live" id="net-pill"><span class="dot"></span><span id="net-txt">Online</span></span>
@@ -745,8 +774,11 @@ table.d tr.click:hover td{background:var(--raised)}
    ══════════════════════════════════════════════════════════════════════ */
 
 const LS='anpos_v1';
-const TERMINAL='T1';   // bill-number prefix, per counter, so two terminals
-                       // never collide while offline
+/* Terminal id is chosen per device at login and stored in IDENT — it is NOT a
+   constant, because two counters running the same file with the same prefix
+   would issue duplicate bill numbers. This fallback only covers the moment
+   before identity is loaded. */
+const termId=()=>(IDENT&&IDENT.terminal)||'T1';
 
 /* ── icons, inlined (no CDN: nav must not depend on the network) ── */
 const ICONS={
@@ -864,35 +896,222 @@ const money=n=>'₹'+(Math.round((n+Number.EPSILON)*100)/100).toFixed(2);
 const qtyFmt=(q,u)=>u==='kg'?Number(q).toFixed(3):String(Math.round(q));
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-/* ══════════════ AUTH ══════════════ */
-function verifyOTP(){
-  const code=[...document.querySelectorAll('.otp-in')].map(i=>i.value).join('');
-  const err=document.getElementById('otp-err');
-  if(code!=='1234'){
-    err.textContent='Incorrect code. Use 1234 for this demo terminal.';
-    err.style.display='block';
-    document.querySelectorAll('.otp-in').forEach(i=>i.value='');
-    document.querySelector('.otp-in').focus();
-    return;
+/* ══════════════════════════════════════════════════════════════════════
+   FIREBASE — auth + offline-first sync
+
+   Design notes worth keeping:
+
+   ONE DOCUMENT PER BILL. At 4 shops x 500 bills that is 60k writes a month,
+   which costs about ₹9. Packing bills into day-documents would save ~₹8 and
+   buy multi-terminal write conflicts, a 1MB ceiling and whole-document
+   rewrites. Not a trade worth making. The rollup below still matters
+   enormously — but for READS (a 90-day report is 90 docs, not 45,000), not
+   for writes.
+
+   THE SALE NEVER WAITS FOR THE NETWORK. A bill is written to localStorage
+   and is durable the instant it is taken. Sync is a separate queue that
+   drains when it can. If Firebase never loads at all, the till still bills.
+   ══════════════════════════════════════════════════════════════════════ */
+const FB_CONFIG={
+  apiKey:"AIzaSyB5q3fFfl5aUXp8d9yb0K_qkI20vdTL2Xg",
+  authDomain:"selva-ledger.firebaseapp.com",
+  projectId:"selva-ledger",
+  storageBucket:"selva-ledger.firebasestorage.app",
+  messagingSenderId:"546195090451",
+  appId:"1:546195090451:web:26dd2f6aa464721ddae3e6"
+};
+let AUTH=null, FS=null, FB_OK=false;
+try{
+  if(typeof firebase!=='undefined'&&firebase.initializeApp){
+    firebase.initializeApp(FB_CONFIG);
+    AUTH=firebase.auth(); FS=firebase.firestore();
+    FB_OK=true;
   }
-  DB.session={cashier:document.getElementById('otp-cashier').value,since:Date.now()};
+}catch(e){ console.warn('Firebase unavailable — local-only mode:',e&&e.message); }
+
+const Q_KEY=LS+'_queue';                       // bills waiting to sync
+const ID_KEY=LS+'_identity';                   // businessId / shopId / terminal
+let IDENT=null, DEMO=false, syncing=false;
+
+function loadIdent(){ try{ IDENT=JSON.parse(localStorage.getItem(ID_KEY)||'null'); }catch(e){ IDENT=null; } }
+function saveIdent(){ try{ localStorage.setItem(ID_KEY,JSON.stringify(IDENT)); }catch(e){} }
+function getQueue(){ try{ return JSON.parse(localStorage.getItem(Q_KEY)||'[]'); }catch(e){ return []; } }
+function setQueue(q){ try{ localStorage.setItem(Q_KEY,JSON.stringify(q)); }catch(e){} }
+
+/* ── sign in ── */
+function signIn(){
+  const err=document.getElementById('otp-err'), btn=document.getElementById('li-btn');
+  const email=document.getElementById('li-email').value.trim();
+  const pass=document.getElementById('li-pass').value;
+  err.style.display='none';
+  if(!email||!pass){ err.textContent='Enter your email and password.'; err.style.display='block'; return; }
+  if(!FB_OK){ err.textContent='Cannot reach Firebase from this device. Use the demo, or check the connection.'; err.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Signing in…';
+  AUTH.signInWithEmailAndPassword(email,pass)
+    .then(cred=>resolveIdentity(cred.user))
+    .catch(e=>{
+      const m=({'auth/wrong-password':'Wrong password.','auth/user-not-found':'No account with that email.',
+        'auth/invalid-email':'That email address is not valid.','auth/too-many-requests':'Too many attempts — wait a minute.',
+        'auth/network-request-failed':'No connection. Use the demo, or try again when you are online.'})[e.code]
+        ||('Sign-in failed: '+(e.message||e.code));
+      err.textContent=m; err.style.display='block';
+    })
+    .finally(()=>{ btn.disabled=false; btn.textContent='Sign in'; });
+}
+/* businessId comes from the signed-in user's staff doc — the same resolution
+   the ledger app uses, so POS bills land under the same business. */
+function resolveIdentity(user){
+  const fallback={uid:user.uid,businessId:user.uid,email:user.email||'',name:user.displayName||user.email||'User',role:'owner'};
+  return FS.collection('staff').doc(user.uid).get()
+    .then(d=>{ const s=d.exists?d.data():{};
+      return {uid:user.uid,businessId:s.businessId||user.uid,email:user.email||'',
+              name:s.name||user.displayName||user.email||'User',role:s.role||'owner'}; })
+    .catch(()=>fallback)
+    .then(me=>FS.collection('config').doc(me.businessId).get()
+      .then(c=>({me,shops:(c.exists&&c.data().shops)||{}}))
+      .catch(()=>({me,shops:{}})))
+    .then(({me,shops})=>{ askShop(me,shops); });
+}
+let _pendingMe=null;
+function askShop(me,shops){
+  _pendingMe=me;
+  const sel=document.getElementById('li-shop');
+  const entries=Object.entries(shops);
+  sel.innerHTML=entries.length
+    ? entries.map(([id,s])=>`<option value="${esc(id)}">${esc(s.name||id)}</option>`).join('')
+    : '<option value="s1">Main counter</option>';
+  const prev=IDENT&&IDENT.businessId===me.businessId?IDENT:null;
+  if(prev&&entries.some(([id])=>id===prev.shopId)) sel.value=prev.shopId;
+  document.getElementById('li-term').value=(prev&&prev.terminal)||'T1';
+  document.getElementById('login-step').classList.add('hidden');
+  document.getElementById('shop-step').classList.remove('hidden');
+}
+function confirmShop(){
+  const sel=document.getElementById('li-shop');
+  const term=(document.getElementById('li-term').value||'').trim().toUpperCase();
+  const err=document.getElementById('shop-err');
+  if(!/^[A-Z0-9-]{1,8}$/.test(term)){
+    err.textContent='Terminal name: letters and numbers only, up to 8 characters (e.g. T1, COUNTER2).';
+    err.style.display='block'; return;
+  }
+  IDENT={businessId:_pendingMe.businessId,shopId:sel.value,shopName:sel.selectedOptions[0]?.textContent||sel.value,
+         terminal:term,uid:_pendingMe.uid,cashier:_pendingMe.name,email:_pendingMe.email,role:_pendingMe.role};
+  saveIdent();
+  DEMO=false;
+  DB.session={cashier:_pendingMe.name,since:Date.now()};
+  saveDB(); startApp(); syncNow();
+}
+/* Demo keeps the file useful without an account — and is explicit that
+   nothing leaves the device, so nobody mistakes it for a live till. */
+function startDemo(){
+  DEMO=true;
+  IDENT={businessId:'demo',shopId:'demo',shopName:'Demo shop',terminal:'T1',uid:'demo',cashier:'Demo cashier',email:'',role:'owner'};
+  saveIdent();          // without this a refresh drops back to the login screen
+  DB.session={cashier:'Demo cashier',since:Date.now()};
   saveDB(); startApp();
+  toast('Demo mode — bills stay on this device only');
+}
+function signOutPos(){
+  document.getElementById('shop-step').classList.add('hidden');
+  document.getElementById('login-step').classList.remove('hidden');
+  if(FB_OK&&AUTH.currentUser) AUTH.signOut().catch(()=>{});
 }
 function logout(){
   if(cart().items.length&&!confirm('Cart C'+(active+1)+' still has items. Log out anyway?')) return;
+  const pend=getQueue().length;
+  if(pend&&!confirm(pend+' bill(s) have not synced yet. They stay on this device — log out anyway?')) return;
   DB.session=null; saveDB();
+  if(FB_OK&&AUTH.currentUser) AUTH.signOut().catch(()=>{});
   document.getElementById('app').classList.add('hidden');
   document.getElementById('otp-screen').classList.remove('hidden');
-  document.querySelectorAll('.otp-in').forEach(i=>i.value='');
+  document.getElementById('shop-step').classList.add('hidden');
+  document.getElementById('login-step').classList.remove('hidden');
   document.getElementById('otp-err').style.display='none';
-  document.querySelector('.otp-in').focus();
+  document.getElementById('li-pass').value='';
+  document.getElementById('li-email').focus();
 }
+
+/* ══════════════ SYNC QUEUE ══════════════
+   Bills are pushed here after they are already durable locally. The queue
+   drains in batches; anything that fails stays queued and is retried. */
+function enqueueBill(bill){
+  if(DEMO) return;                       // demo never touches the network
+  const q=getQueue(); q.push(bill); setQueue(q);
+  updateSyncPill();
+  syncNow();
+}
+function syncNow(){
+  if(DEMO||!FB_OK||syncing||!navigator.onLine||!IDENT) return;
+  const q=getQueue();
+  if(!q.length){ updateSyncPill(); return; }
+  syncing=true; updateSyncPill();
+  const chunk=q.slice(0,20);             // 20 bills = 40 batch ops, well under 500
+  const batch=FS.batch();
+  const rollups={};
+  chunk.forEach(b=>{
+    const ref=FS.collection('pos_bills').doc(b.id);
+    batch.set(ref,Object.assign({},b,{
+      businessId:IDENT.businessId, shopId:IDENT.shopId, terminal:IDENT.terminal,
+      syncedAt:firebase.firestore.FieldValue.serverTimestamp()
+    }));
+    const rk=IDENT.businessId+'_'+IDENT.shopId+'_'+b.date;
+    const r=rollups[rk]=rollups[rk]||{date:b.date,bills:0,sales:0,cash:0,upi:0,card:0};
+    r.bills++; r.sales+=b.total;
+    const m=b.payment.method;
+    if(m==='cash') r.cash+=b.total;
+    else if(m==='upi') r.upi+=b.total;
+    else if(m==='card') r.card+=b.total;
+    else { r.cash+=b.payment.cash||0; r.upi+=b.payment.upi||0; }
+  });
+  // One rollup document per shop per day, incremented — this is what the back
+  // office reads, so a 90-day report is 90 documents rather than 45,000 bills.
+  const inc=firebase.firestore.FieldValue.increment;
+  Object.entries(rollups).forEach(([rk,r])=>{
+    batch.set(FS.collection('pos_rollups').doc(rk),{
+      businessId:IDENT.businessId, shopId:IDENT.shopId, date:r.date,
+      bills:inc(r.bills), sales:inc(+r.sales.toFixed(2)),
+      cash:inc(+r.cash.toFixed(2)), upi:inc(+r.upi.toFixed(2)), card:inc(+r.card.toFixed(2)),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  });
+  batch.commit()
+    .then(()=>{
+      const ids=new Set(chunk.map(b=>b.id));
+      setQueue(getQueue().filter(b=>!ids.has(b.id)));
+      syncing=false; updateSyncPill();
+      if(getQueue().length) syncNow();     // keep draining
+    })
+    .catch(e=>{
+      syncing=false; updateSyncPill();
+      console.warn('sync failed, bills stay queued:',e&&e.message);
+    });
+}
+function updateSyncPill(){
+  const txt=document.getElementById('sync-txt'), pill=document.getElementById('sync-pill');
+  if(!txt||!pill) return;
+  const n=getQueue().length;
+  // Order matters. The number of bills not yet safe on the server is the most
+  // actionable fact there is, so it outranks the reason they are stuck —
+  // showing only "Local only" would hide that anything is pending at all.
+  if(DEMO){ txt.textContent='Demo — not synced'; pill.className='chip warn'; return; }
+  if(n){ txt.textContent=n+' to sync'+(FB_OK?'':' · offline'); pill.className='chip warn'; return; }
+  if(syncing){ txt.textContent='Syncing…'; pill.className='chip'; return; }
+  if(!FB_OK){ txt.textContent='Local only'; pill.className='chip warn'; return; }
+  txt.textContent='Synced'; pill.className='chip live';
+}
+addEventListener('online',()=>{ setTimeout(syncNow,600); });
+setInterval(syncNow,30000);              // catch anything a failure left behind
 function startApp(){
   document.getElementById('otp-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   const who=DB.session.cashier;
   document.getElementById('cashier-name').textContent=who.split('—')[0].trim();
-  document.getElementById('cashier-ini').textContent=who.startsWith('Store')?'SM':'C'+(who.match(/\d/)||['1'])[0];
+  document.getElementById('cashier-ini').textContent=(who||'C').trim().slice(0,2).toUpperCase();
+  if(IDENT){
+    document.getElementById('hdr-shop').textContent=IDENT.shopName||'Counter';
+    document.getElementById('hdr-term').textContent=(DEMO?'Demo · ':'')+IDENT.terminal;
+  }
+  updateSyncPill();
   switchView('pos');
   renderAll();
 }
@@ -1196,8 +1415,11 @@ function completeSale(){
     if(Math.abs(t.total-pay.cash-pay.upi)>0.01) return toast('Split parts must add up to the total','error');
   }
   const bill={
-    id:'b'+Date.now(),
-    billNo:TERMINAL+'-'+String(DB.settings.seq).padStart(5,'0'),
+    id:'b'+Date.now()+'_'+Math.floor(Math.random()*1e4).toString(36),
+    businessId:IDENT?IDENT.businessId:'local',
+    shopId:IDENT?IDENT.shopId:'local',
+    terminal:IDENT?IDENT.terminal:'T1',
+    billNo:(IDENT?IDENT.terminal:'T1')+'-'+String(DB.settings.seq).padStart(5,'0'),
     ts:Date.now(), date:new Date().toISOString().slice(0,10),
     cashier:DB.session.cashier, mode:c.mode,
     customer:document.getElementById('pay-cust').value.trim(),
@@ -1209,6 +1431,7 @@ function completeSale(){
   // Decrement stock for catalogued items (custom lines have no pid)
   c.items.forEach(i=>{ if(i.pid){ const p=DB.products.find(x=>x.id===i.pid); if(p) p.stock=+(p.stock-i.qty).toFixed(3); } });
   DB.bills.unshift(bill); DB.settings.seq++; saveDB();
+  enqueueBill(bill);            // durable locally first; the network is optional
   CARTS[active]=blankCart();
   document.getElementById('disc-val').value=0;
   saveCarts();
@@ -1239,7 +1462,7 @@ function showReceipt(b){
   const pm=b.payment.method==='cash'?'CASH':b.payment.method==='upi'?'UPI':b.payment.method==='card'?'CARD':'SPLIT';
   document.getElementById('receipt-print').innerHTML=`
     <div style="text-align:center">
-      <div style="font-weight:700;font-size:13px">TULASI VEGETABLES MARKET</div>
+      <div style="font-weight:700;font-size:13px">${esc((IDENT&&IDENT.shopName)||'TULASI VEGETABLES MARKET').toUpperCase()}</div>
       <div>Thuckalay, Kanyakumari</div><div>Ph 98420 11223</div>
     </div><hr>
     <div class="r"><span>Bill: ${esc(b.billNo)}</span><span>${esc(b.mode)}</span></div>
@@ -1436,9 +1659,23 @@ function erpAccounting(){
       <div class="readout"><span class="k">Hand over</span><span class="v" style="color:var(--accent-2)">${fmt(closing)}</span></div>
     </div></div>`;
 }
+/* The Manage tab here is a light in-terminal view; the 61-screen back office
+   is a separate page and nothing pointed at it. */
+function erpBackOffice(){
+  return `<div class="card" style="background:var(--accent-soft);border-color:var(--accent-line)">
+    <div class="card-b" style="display:flex;align-items:center;gap:13px;flex-wrap:wrap">
+      <div style="flex:1;min-width:190px">
+        <b style="font-size:13.5px">Full back office</b>
+        <div style="font-size:12.5px;color:var(--ink-2);margin-top:2px">
+          Reports, purchase orders, HRM, accounting and the order pipeline. Manager PIN required.</div>
+      </div>
+      <a class="btn btn-p" href="pos-admin.html" style="text-decoration:none">Open back office</a>
+    </div></div>`;
+}
 function erpSettings(){
   const s=DB.settings;
-  document.getElementById('erp-body').innerHTML=H('Settings','Terminal '+TERMINAL+' · bills numbered '+TERMINAL+'-00001 upward')
+  document.getElementById('erp-body').innerHTML=H('Settings','Terminal '+termId()+' · bills numbered '+termId()+'-00001 upward'
+      +(DEMO?' · DEMO — nothing syncs':IDENT?' · '+esc(IDENT.shopName):''))
     +`<div class="card" style="max-width:440px"><div class="card-b">
       <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;margin-bottom:15px">
         <span><b style="font-size:13.5px">Charge GST</b><div style="font-size:12px;color:var(--ink-3)">Adds tax to every bill</div></span>
@@ -1595,11 +1832,6 @@ document.addEventListener('keydown',e=>{
   if(e.altKey&&/^[1-5]$/.test(e.key)){ e.preventDefault(); switchCart(+e.key-1); }
 });
 
-document.querySelectorAll('.otp-in').forEach((el,i,all)=>{
-  el.addEventListener('input',()=>{ if(el.value&&i<all.length-1) all[i+1].focus();
-    if(all[all.length-1].value&&[...all].every(x=>x.value)) verifyOTP(); });
-  el.addEventListener('keydown',e=>{ if(e.key==='Backspace'&&!el.value&&i>0) all[i-1].focus(); if(e.key==='Enter') verifyOTP(); });
-});
 document.querySelectorAll('.pm').forEach(b=>b.onclick=()=>setPay(b.dataset.pm));
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('mousedown',e=>{ if(e.target===m) closeModals(); }));
 
@@ -1618,7 +1850,15 @@ setInterval(()=>{ document.getElementById('clock').textContent=new Date().toLoca
 /* ══════════════ BOOT ══════════════ */
 loadDB(); loadCarts(); netStatus(); icons();
 document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{hour12:false});
-if(DB.session) startApp(); else document.querySelector('.otp-in').focus();
+loadIdent();
+if(DB.session&&IDENT){
+  DEMO = IDENT.businessId==='demo';
+  startApp();
+  if(!DEMO) syncNow();
+} else {
+  document.getElementById('li-email').focus();
+}
+updateSyncPill();
 </script>
 </body>
 </html>
