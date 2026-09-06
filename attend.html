@@ -8,6 +8,7 @@
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{font-family:'DM Sans',sans-serif;background:linear-gradient(160deg,#022c22 0%,#065f46 50%,#059669 100%);min-height:100vh;-webkit-font-smoothing:antialiased}
@@ -217,10 +218,35 @@ function tickClock(){
 }
 tickClock(); setInterval(tickClock,1000);
 
+// This page is opened by scanning a QR code and deliberately has no login, so
+// every request it makes is unauthenticated. That is what forces `staff` to be
+// world-readable in firestore.rules, which in turn lets anyone on the internet
+// enumerate every staff record of every business on the platform.
+//
+// Signing in anonymously gives the page a real Firebase identity without
+// showing the staff member anything, so that rule can be tightened to
+// `request.auth != null`. It is deliberately non-fatal: if Anonymous sign-in
+// has not been enabled in the Firebase Console yet, the page carries on
+// exactly as before rather than leaving staff unable to mark attendance.
+// Only tighten the staff rule once this is deployed AND Anonymous sign-in is
+// switched on — otherwise this page stops working.
+async function ensureAnonAuth(){
+  try{
+    if(!firebase.auth) return false;
+    if(firebase.auth().currentUser) return true;
+    await firebase.auth().signInAnonymously();
+    return true;
+  }catch(e){
+    console.warn('Anonymous sign-in unavailable, continuing unauthenticated:',e&&e.code);
+    return false;
+  }
+}
+
 async function init(){
   document.getElementById('si-name').textContent=SHOP_NAME;
   document.getElementById('si-sub').textContent='📅 '+DATE_NICE;
   if(!BID){showErr2('Invalid QR. Please ask manager for new QR.');return;}
+  await ensureAnonAuth();
   try{
     const [ss,as]=await Promise.all([
       DB.collection('staff').where('businessId','==',BID).get(),

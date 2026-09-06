@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArthaNote POS — Admin</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   Clean-white minimalist back office. Deliberately single-theme: the
+   brief was "clean white background", and a counter room is a fixed
+   lighting environment. Every colour is painted explicitly so the page
+   holds regardless of the host's own theme.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  color-scheme:light;
+  --page:#fafafa; --surface:#ffffff; --line:#ebebeb; --line-2:#f4f4f4;
+  --ink:#111111; --ink-2:#5c5c5c; --ink-3:#9a9a9a;
+  --accent:#059669; --accent-soft:#ecfdf5;
+  --danger:#dc2626; --danger-soft:#fef2f2;
+  --warn:#c2740a; --warn-soft:#fff7ed;
+  --info:#2a78d6; --info-soft:#eff6ff;
+  /* Chart roles — categorical slots 1-3 of the validated reference palette.
+     Checked on #ffffff: all-pairs CVD ΔE 9.2, normal-vision 24.0. Slot 3 is
+     2.82:1 against white, so every mark using it carries a visible direct
+     label (the relief rule) and never relies on colour alone. */
+  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a;
+  --bar:#059669; --grid:#f0f0f0;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--page);color:var(--ink);font-family:Inter,'Noto Sans Tamil',system-ui,sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.ta{font-family:'Noto Sans Tamil',Inter,sans-serif}
+.mono{font-family:'Roboto Mono',ui-monospace,monospace}
+.tnum{font-variant-numeric:tabular-nums}
+.scroll::-webkit-scrollbar{width:7px;height:7px}
+.scroll::-webkit-scrollbar-thumb{background:#dcdcdc;border-radius:4px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+
+/* ── shell ── */
+.shell{display:flex;height:100%}
+.side{width:250px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;padding:15px 16px;border-bottom:1px solid var(--line);flex-shrink:0}
+.brand .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:grid;place-items:center;font-size:16px;flex-shrink:0}
+.brand b{display:block;font-size:13px;font-weight:700;line-height:1.2}
+.brand span{display:block;font-size:11px;color:var(--ink-3)}
+.nav{padding:6px;overflow-y:auto;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:0 10px;height:36px;border-radius:7px;color:var(--ink-2);font-size:13.5px;font-weight:500;width:100%;border:0;background:none;text-align:left}
+.nav-item:hover{background:var(--line-2);color:var(--ink)}
+.nav-item.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.nav-item .chev{margin-left:auto;width:13px;height:13px;transition:transform .15s;color:var(--ink-3)}
+.nav-item.open .chev{transform:rotate(90deg)}
+.nav-kids{overflow:hidden;padding-left:8px;margin-left:15px;border-left:1px solid var(--line)}
+.nav-kid{display:block;width:100%;border:0;background:none;text-align:left;padding:0 10px;height:31px;line-height:31px;border-radius:6px;color:var(--ink-2);font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-kid:hover{background:var(--line-2);color:var(--ink)}
+.nav-kid.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.side-foot{padding:10px;border-top:1px solid var(--line);flex-shrink:0}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.top{height:58px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 18px}
+.burger{display:none;width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);place-items:center;flex-shrink:0}
+.top h1{font-size:16.5px;font-weight:700;margin:0;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sub{font-size:11.5px;color:var(--ink-3);margin-top:-3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.body{flex:1;overflow-y:auto;padding:18px}
+.wrap{max-width:1200px;margin:0 auto}
+.scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40}
+.scrim.on{display:block}
+
+/* ── primitives ── */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.card-hd{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.card-hd h3{margin:0;font-size:14px;font-weight:700}
+.card-hd .note{font-size:11.5px;color:var(--ink-3);font-weight:500}
+.card-b{padding:15px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 15px}
+.kpi .l{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.kpi .v{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-top:2px;line-height:1.1}
+.kpi .s{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);padding:9px 13px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface)}
+td{padding:9px 13px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tfoot td{border-top:2px solid var(--ink);border-bottom:0;font-weight:800;background:#fcfcfc}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#fcfcfc}
+.tw{overflow-x:auto}
+.num{text-align:right}
+
+.btn{height:34px;padding:0 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--line-2)}
+.btn-p{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-p:hover{background:#047857}
+.btn-d{color:var(--danger);border-color:#f3d5d5}
+.btn-d:hover{background:var(--danger-soft)}
+.btn svg{width:14px;height:14px}
+.btn-xs{height:27px;padding:0 9px;font-size:11.5px;border-radius:6px}
+.inp{height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:13.5px;width:100%}
+.inp:focus{outline:none;border-color:var(--accent)}
+textarea.inp{height:auto;padding:8px 10px;min-height:64px;resize:vertical}
+.seg{display:inline-flex;background:var(--line-2);border-radius:8px;padding:2px;gap:2px;flex-wrap:wrap}
+.seg button{height:28px;padding:0 11px;border:0;border-radius:6px;background:transparent;font-size:12px;font-weight:600;color:var(--ink-2)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--line-2);color:var(--ink-2);white-space:nowrap}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}
+.pill.bad{background:var(--danger-soft);color:var(--danger)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.info{background:var(--info-soft);color:var(--info)}
+.empty{padding:38px 20px;text-align:center;color:var(--ink-3);font-size:13px}
+.toolbar{display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+
+/* ── charts ── */
+/* The y-axis has its own right gutter: labels positioned inside the plot get
+   painted over by the bars, which are drawn after the gridlines. */
+.plot{position:relative;height:186px;padding-right:46px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:100%;padding-top:6px}
+.bar-col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.bar{width:100%;background:var(--bar);border-radius:4px 4px 0 0;min-height:2px;transition:opacity .12s}
+.bar-col:hover .bar{opacity:.72}
+.xaxis{display:flex;gap:2px;margin-top:7px;padding-right:46px;font-size:10px;color:var(--ink-3)}
+.xaxis span{flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
+.gridline{position:absolute;left:0;right:46px;border-top:1px solid var(--grid);font-size:10px;color:var(--ink-3)}
+.gridline b{position:absolute;left:100%;top:-8px;padding-left:7px;font-weight:500;white-space:nowrap}
+.tip{position:fixed;z-index:90;background:#111;color:#fff;font-size:11.5px;padding:7px 10px;border-radius:7px;pointer-events:none;display:none;white-space:nowrap;line-height:1.45}
+.hbar-row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.hbar-lab{width:110px;flex-shrink:0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar-track{flex:1;height:14px;background:var(--line-2);border-radius:4px;overflow:hidden}
+.hbar-fill{height:100%;border-radius:4px}
+.hbar-val{width:96px;text-align:right;font-size:12.5px;font-weight:700;flex-shrink:0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:9px}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle}
+
+/* ── order pipeline ── */
+.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:9px}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:13px;text-align:left;transition:border-color .12s}
+.stage:hover{border-color:var(--accent)}
+.stage.on{border-color:var(--accent);background:var(--accent-soft)}
+.stage .n{font-size:10.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.stage .c{font-size:23px;font-weight:800;margin-top:3px;line-height:1}
+.stage .lab{font-size:12.5px;font-weight:600;margin-top:1px}
+
+/* ── modal ── */
+.modal{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:16px}
+.modal.on{display:flex}
+.modal-in{background:var(--surface);border-radius:12px;width:100%;max-width:520px;max-height:100%;overflow-y:auto;padding:20px}
+.modal-in h3{margin:0 0 14px;font-size:16px;font-weight:700}
+.fl{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:4px}
+.fg{margin-bottom:11px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:600;z-index:95;display:none}
+
+/* barcode */
+.bc{display:inline-block;background:#fff;padding:10px;border:1px solid var(--line);border-radius:8px;text-align:center}
+.bc-bars{display:flex;align-items:flex-end;height:52px;gap:0}
+.bc-bars i{display:block;height:100%;background:#000}
+.bc-txt{font-family:'Roboto Mono',monospace;font-size:11px;letter-spacing:2px;margin-top:5px}
+
+@media(max-width:1000px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}}
+@media(max-width:860px){
+  .side{position:fixed;inset:0 auto 0 0;z-index:50;transform:translateX(-100%);transition:transform .2s}
+  .side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.16)}
+  .burger{display:grid}
+  .g2,.g4{grid-template-columns:1fr}
+  .body{padding:13px}
+  .frow{grid-template-columns:1fr}
+  .hbar-lab{width:80px}.hbar-val{width:78px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     Manager lock. The back office shows cost prices, margins and payroll —
+     numbers the counter staff should not be reading. The billing terminal's
+     own login does NOT open this: they are different people, so it takes a
+     different code.
+
+     Be clear about what this is: a deterrent against a walk-up, not
+     security. It is client-side, so anyone who opens devtools can bypass
+     it. Real enforcement needs the server, which is the same reason the
+     Pro/owner gates in the main app are not security either.
+     ══════════════════════════════════════════════════════════════════════ -->
+<div id="lock" style="position:fixed;inset:0;z-index:100;background:var(--page);display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:30px;width:100%;max-width:360px">
+    <div style="display:flex;align-items:center;gap:11px;margin-bottom:20px">
+      <div style="width:40px;height:40px;border-radius:10px;background:var(--accent);display:grid;place-items:center;font-size:19px">🥬</div>
+      <div><b style="display:block;font-size:15px;font-weight:700;line-height:1.25">Tulasi Mart</b>
+        <span style="display:block;font-size:11.5px;color:var(--ink-3)">Back office — manager only</span></div>
+    </div>
+    <label class="fl" for="lock-pin">Manager PIN</label>
+    <input id="lock-pin" class="inp" type="password" inputmode="numeric" maxlength="8" autocomplete="off"
+      style="height:52px;font-size:22px;text-align:center;letter-spacing:.35em;font-family:'Roboto Mono',monospace"
+      onkeydown="if(event.key==='Enter')unlockAdmin()">
+    <p style="font-size:12px;color:var(--ink-3);margin:9px 0 0;line-height:1.5">
+      This is separate from the till login — the back office shows cost, margin and payroll.
+      Demo PIN <b style="color:var(--accent)">4321</b>.
+    </p>
+    <div id="lock-err" style="display:none;font-size:12.5px;color:var(--danger);font-weight:500;margin-top:10px"></div>
+    <button class="btn btn-p" style="width:100%;height:46px;font-size:14px;margin-top:16px" onclick="unlockAdmin()">Unlock back office</button>
+    <a href="pos.html" class="btn" style="width:100%;margin-top:9px;text-decoration:none">← Back to billing</a>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="logo">🥬</div>
+      <div><b>Tulasi Mart</b><span>ArthaNote Admin</span></div>
+    </div>
+    <nav class="nav scroll" id="nav"></nav>
+    <div class="side-foot">
+      <a href="pos.html" class="btn" style="width:100%;justify-content:center;text-decoration:none">
+        <i data-i="calculator"></i>Open Billing</a>
+      <button class="btn" style="width:100%;justify-content:center;margin-top:7px" onclick="lockAdmin()">Lock back office</button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" onclick="closeSide()"></div>
+
+  <div class="main">
+    <header class="top">
+      <button class="burger" onclick="toggleSide()" aria-label="Menu"><i data-i="menu"></i></button>
+      <div style="min-width:0">
+        <h1 id="pg-title">Dashboard</h1>
+        <div class="sub" id="pg-sub"></div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:9px;flex-shrink:0">
+        <span class="pill ok" id="src-pill">demo</span>
+        <span style="font-size:12.5px;font-weight:600" class="tnum" id="today"></span>
+      </div>
+    </header>
+    <div class="body scroll"><div class="wrap" id="view"></div></div>
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="modal-in" id="modal-in"></div></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   ArthaNote POS Admin — back office
+
+   Reads the same browser database pos.html writes (anpos_v1), so a bill
+   taken at the counter appears here with no sync step.
+
+   Two structural ideas carry this file:
+
+   1. ROLLUPS. A 90-day report must never be built by reading 90 days of
+      bills — at 150 bills/day that is 13,500 documents for one screen.
+      Each day is collapsed once into one summary document and reports read
+      those. The same trick works unchanged on Firestore, Postgres or
+      DynamoDB, which is why the data model matters more than the database.
+
+   2. A SCHEMA-DRIVEN CRUD ENGINE. Most of the ~70 screens in this admin are
+      the same thing: a searchable list of records you can add, edit and
+      delete. Writing 70 of those by hand would be 70 places for the same
+      bug. Each entity declares its fields once in SCHEMA and one renderer
+      builds the list, the form, validation and persistence for all of them.
+      Only screens whose behaviour genuinely differs — the 15 reports, the
+      9-stage order pipeline, the barcode tool, the stock checker — are
+      written out by hand.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const LS='anpos_v1', LS_ROLL='anpos_v1_rollups';
+let DB, ROLL={}, page='dashboard', range=30, openGroups={}, orderStage='all', reportKey='r1';
+
+/* ═════════ ICONS (inlined — a shop's internet is the least reliable thing
+   in the building, and nav that loses its icons to a CDN outage is a bad
+   trade for ~2KB) ═════════ */
+const ICONS={
+'layout-dashboard':'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+'bar-chart-3':'<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+'warehouse':'<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35a2 2 0 0 1 1.26-1.86l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12v-8H6z"/>',
+'truck':'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+'clipboard-list':'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+'shopping-cart':'<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L22 7H5"/>',
+'package':'<path d="m7.5 4.3 9 5.1"/><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+'contact':'<path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2"/><rect x="3" y="4" width="18" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M8 2v2"/><path d="M16 2v2"/>',
+'users':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+'git-branch':'<path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+'wallet':'<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
+'settings':'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+'menu':'<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+'calculator':'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14v4M8 18h.01M12 18h.01"/>',
+'plus':'<path d="M5 12h14"/><path d="M12 5v14"/>',
+'download':'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+'refresh-cw':'<path d="M3 12a9 9 0 0 1 15.7-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.7 6L3 16"/><path d="M8 16H3v5"/>',
+'trash-2':'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+'zap':'<path d="M4 14h7l-1 8 10-12h-7l1-8z"/>',
+'chevron-right':'<path d="m9 18 6-6-6-6"/>',
+'pencil':'<path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>',
+'search':'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+'barcode':'<path d="M3 5v14M6 5v14M10 5v14M13 5v9M17 5v14M21 5v14"/>',
+'arrow-right':'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+};
+function icons(root){
+  (root||document).querySelectorAll('i[data-i]').forEach(el=>{
+    const p=ICONS[el.getAttribute('data-i')];
+    if(!p){ el.remove(); return; }
+    const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    s.setAttribute('viewBox','0 0 24 24'); s.setAttribute('fill','none');
+    s.setAttribute('stroke','currentColor'); s.setAttribute('stroke-width','2');
+    s.setAttribute('stroke-linecap','round'); s.setAttribute('stroke-linejoin','round');
+    s.setAttribute('aria-hidden','true');
+    if(el.className) s.setAttribute('class', el.className);
+    if(el.getAttribute('style')) s.setAttribute('style', el.getAttribute('style'));
+    s.innerHTML=p; el.replaceWith(s);
+  });
+}
+
+/* ═════════ helpers ═════════ */
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const money=n=>'₹'+Math.round(n||0).toLocaleString('en-IN');
+const money2=n=>'₹'+(Math.round(((n||0)+Number.EPSILON)*100)/100).toFixed(2);
+const compact=n=>n>=10000000?(n/10000000).toFixed(1)+'Cr':n>=100000?(n/100000).toFixed(1)+'L':n>=1000?(n/1000).toFixed(1)+'k':Math.round(n);
+const dshort=d=>{const x=new Date(d+'T00:00:00');return x.getDate()+'/'+(x.getMonth()+1);};
+const dlong=d=>new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'});
+const uid=p=>p+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36);
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2200);}
+function modal(h){document.getElementById('modal-in').innerHTML=h;document.getElementById('modal').classList.add('on');icons(document.getElementById('modal-in'));}
+function closeModal(){document.getElementById('modal').classList.remove('on');}
+function toggleSide(){const s=document.getElementById('side');s.classList.toggle('open');document.getElementById('scrim').classList.toggle('on',s.classList.contains('open'));}
+function closeSide(){document.getElementById('side').classList.remove('open');document.getElementById('scrim').classList.remove('on');}
+const val=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+document.getElementById('modal').addEventListener('mousedown',e=>{if(e.target.id==='modal')closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* ═════════ seed catalog ═════════ */
+const P=[
+ ['VEG01','Onion','வெங்காயம்','Vegetables','kg',28,38,120],['VEG02','Tomato','தக்காளி','Vegetables','kg',18,26,85],
+ ['VEG03','Potato','உருளைக்கிழங்கு','Vegetables','kg',24,32,95],['VEG04','Ginger','இஞ்சி','Vegetables','kg',70,95,18],
+ ['VEG05','Green Chilli','பச்சை மிளகாய்','Vegetables','kg',40,60,22],['VEG06','Curry Leaves','கறிவேப்பிலை','Greens','pcs',4,8,60],
+ ['VEG07','Coriander','கொத்தமல்லி','Greens','pcs',7,12,45],['VEG08','Mint','புதினா','Greens','pcs',6,10,30],
+ ['VEG09','Spinach','பசலைக்கீரை','Greens','pcs',9,15,25],['VEG10','Carrot','கேரட்','Vegetables','kg',38,52,40],
+ ['VEG11','Beans','பீன்ஸ்','Vegetables','kg',45,65,28],['VEG12','Brinjal','கத்தரிக்காய்','Vegetables','kg',26,38,35],
+ ['VEG13','Ladies Finger','வெண்டைக்காய்','Vegetables','kg',32,45,30],['VEG14','Drumstick','முருங்கைக்காய்','Vegetables','pcs',6,10,80],
+ ['VEG15','Garlic','பூண்டு','Vegetables','kg',110,145,15],['VEG16','Lemon','எலுமிச்சை','Fruits','pcs',3,5,150],
+ ['VEG17','Cabbage','முட்டைகோஸ்','Vegetables','kg',20,30,32],['VEG18','Cauliflower','காலிஃபிளவர்','Vegetables','pcs',22,35,26],
+ ['VEG19','Beetroot','பீட்ரூட்','Vegetables','kg',30,42,20],['VEG20','Cucumber','வெள்ளரிக்காய்','Vegetables','kg',22,32,24],
+];
+const pick=(a,i)=>a[i%a.length];
+
+function seedDB(){
+  const db={};
+  db.products=P.map((p,i)=>({id:'p'+(i+1),sku:p[0],nameEn:p[1],nameTa:p[2],category:p[3],brand:i%3===0?'Local Farm':i%3===1?'Mandi Fresh':'Cold Store',unit:p[4],cost:p[5],price:p[6],stock:p[7],barcode:'890'+(10000+i),warehouse:i%3===0?'Cold Room':'Main Counter'}));
+  db.categories=[{id:'cat1',name:'Vegetables',parent:'—',items:14},{id:'cat2',name:'Greens',parent:'—',items:4},{id:'cat3',name:'Fruits',parent:'—',items:2},{id:'cat4',name:'Exotic',parent:'Vegetables',items:0}];
+  db.brands=[{id:'b1',name:'Local Farm',supplier:'Local Farmer — Kani',items:7},{id:'b2',name:'Mandi Fresh',supplier:'Oddanchatram Mandi',items:7},{id:'b3',name:'Cold Store',supplier:'Cold Store Depot',items:6}];
+  db.datatypes=[{id:'dt1',name:'Weight (kg)',kind:'decimal',unit:'kg',note:'3 decimal places'},{id:'dt2',name:'Pieces',kind:'integer',unit:'pcs',note:'whole numbers only'},{id:'dt3',name:'Bunch',kind:'integer',unit:'bunch',note:'greens'}];
+  db.warehouses=[{id:'w1',name:'Main Counter',type:'Retail floor',capacity:'—',incharge:'Store Manager'},{id:'w2',name:'Cold Room',type:'Chilled 4°C',capacity:'2 tonne',incharge:'Floor Worker'},{id:'w3',name:'Back Store',type:'Dry storage',capacity:'1.5 tonne',incharge:'Loader L1'}];
+  db.suppliers=[{id:'s1',name:'Oddanchatram Mandi',phone:'9787012345',warehouse:'Main Counter',terms:'Cash on delivery',gstin:'33ABCDE1234F1Z5'},
+    {id:'s2',name:'Local Farmer — Kani',phone:'9600123456',warehouse:'Main Counter',terms:'Weekly settle',gstin:'—'},
+    {id:'s3',name:'Cold Store Depot',phone:'9500998877',warehouse:'Cold Room',terms:'15 days',gstin:'33XYZAB5678K1Z2'}];
+  db.customers=[{id:'c1',name:'Ramesh Anna',phone:'9842011223',due:0,loyalty:120,type:'Retail'},
+    {id:'c2',name:'Hotel Sai Sree',phone:'9445566778',due:840,loyalty:640,type:'Wholesale'},
+    {id:'c3',name:'Lakshmi Akka',phone:'9003344556',due:0,loyalty:60,type:'Retail'},
+    {id:'c4',name:'Murugan Mess',phone:'9787001122',due:1250,loyalty:410,type:'Wholesale'}];
+  db.coupons=[{id:'cp1',code:'FRESH10',type:'Percent',value:10,min:300,uses:24,active:'Yes'},{id:'cp2',code:'FLAT50',type:'Flat',value:50,min:800,uses:9,active:'Yes'},{id:'cp3',code:'PONGAL25',type:'Percent',value:25,min:500,uses:112,active:'No'}];
+  db.feedback=[{id:'f1',customer:'Ramesh Anna',rating:5,note:'Greens always fresh',date:iso(new Date())},{id:'f2',customer:'Hotel Sai Sree',rating:3,note:'Delivery was late by an hour',date:iso(new Date(Date.now()-2*864e5))},{id:'f3',customer:'Lakshmi Akka',rating:4,note:'Good rates on tomato',date:iso(new Date(Date.now()-5*864e5))}];
+  db.complaints=[{id:'cm1',customer:'Murugan Mess',issue:'Short weight on beans crate',status:'Open',priority:'High',date:iso(new Date(Date.now()-864e5))},{id:'cm2',customer:'Hotel Sai Sree',issue:'Wrong item in delivery',status:'Resolved',priority:'Medium',date:iso(new Date(Date.now()-6*864e5))}];
+  db.departments=[{id:'d1',name:'Counter',head:'Store Manager',staff:2},{id:'d2',name:'Shop Floor',head:'Store Manager',staff:1},{id:'d3',name:'Logistics',head:'Store Manager',staff:2},{id:'d4',name:'Management',head:'Owner',staff:1}];
+  db.staff=[{id:'e1',name:'Store Manager',role:'Manager',dept:'Management',phone:'9842000001',salary:22000,shift:'05:00–21:30',joined:'2024-06-01',status:'Active'},
+    {id:'e2',name:'Cashier — Counter A',role:'Cashier',dept:'Counter',phone:'9842000002',salary:14000,shift:'06:00–15:00',joined:'2025-02-10',status:'Active'},
+    {id:'e3',name:'Cashier — Counter B',role:'Cashier',dept:'Counter',phone:'9842000003',salary:14000,shift:'13:00–21:30',joined:'2025-07-01',status:'Active'},
+    {id:'e4',name:'Floor Worker',role:'Floor',dept:'Shop Floor',phone:'9842000004',salary:12000,shift:'05:00–21:30',joined:'2024-11-15',status:'Active'},
+    {id:'e5',name:'Loader L1',role:'Logistics',dept:'Logistics',phone:'9842000005',salary:11000,shift:'03:30–12:00',joined:'2025-01-05',status:'Active'},
+    {id:'e6',name:'Loader L2',role:'Logistics',dept:'Logistics',phone:'9842000006',salary:11000,shift:'03:30–12:00',joined:'2025-03-20',status:'Active'}];
+  db.timesheet=[]; db.staff.forEach((s,i)=>{ for(let d=0;d<5;d++){ const dt=new Date();dt.setDate(dt.getDate()-d);
+    db.timesheet.push({id:'ts'+i+d,employee:s.name,date:iso(dt),inTime:s.shift.split('–')[0],outTime:s.shift.split('–')[1],hours:(8+((i+d)%3)).toFixed(1),status:(i+d)%9===0?'Half day':'Present'}); }});
+  db.leave=[{id:'lv1',employee:'Loader L2',type:'Casual',from:iso(new Date(Date.now()+2*864e5)),to:iso(new Date(Date.now()+3*864e5)),days:2,status:'Pending'},
+    {id:'lv2',employee:'Cashier — Counter A',type:'Sick',from:iso(new Date(Date.now()-4*864e5)),to:iso(new Date(Date.now()-4*864e5)),days:1,status:'Approved'}];
+  db.actions=[{id:'ac1',employee:'Loader L2',action:'Verbal warning',reason:'Late 3 times this month',date:iso(new Date(Date.now()-3*864e5)),by:'Store Manager'}];
+  db.requests=[{id:'rq1',employee:'Floor Worker',request:'New apron and gloves',status:'Approved',date:iso(new Date(Date.now()-864e5))},
+    {id:'rq2',employee:'Cashier — Counter B',request:'Advance salary ₹3000',status:'Pending',date:iso(new Date())}];
+  db.performance=[{id:'pf1',employee:'Cashier — Counter A',period:'Aug 2026',bills:1240,accuracy:'99.2%',rating:5,note:'Zero cash shortage'},
+    {id:'pf2',employee:'Cashier — Counter B',period:'Aug 2026',bills:980,accuracy:'97.8%',rating:4,note:'Two small shortages, reported'},
+    {id:'pf3',employee:'Floor Worker',period:'Aug 2026',bills:0,accuracy:'—',rating:4,note:'Waste held under 9%'}];
+  db.onboarding=[{id:'ob1',name:'New Cashier (trial)',role:'Cashier',day:4,step:'Day 4 — Customer & phone',mentor:'Cashier — Counter A',status:'In progress'}];
+  db.exits=[{id:'ex1',employee:'Old Loader',role:'Logistics',lastDay:iso(new Date(Date.now()-30*864e5)),reason:'Moved to hometown',settled:'Yes'}];
+  db.holidays=[{id:'h1',name:'Pongal',date:'2027-01-15',type:'Festival',closed:'Half day'},{id:'h2',name:'Deepavali',date:'2026-11-08',type:'Festival',closed:'Half day'},
+    {id:'h3',name:'Independence Day',date:'2026-08-15',type:'National',closed:'Open'},{id:'h4',name:'Tamil New Year',date:'2027-04-14',type:'Festival',closed:'Half day'}];
+  db.projects=[{id:'pr1',name:'Cold room expansion',owner:'Store Manager',status:'In progress',due:'2026-10-15',done:60},
+    {id:'pr2',name:'Second counter setup',owner:'Store Manager',status:'Planning',due:'2026-11-01',done:20},
+    {id:'pr3',name:'Supplier contract renewal',owner:'Owner',status:'In progress',due:'2026-09-30',done:75},
+    {id:'pr4',name:'Staff SOP rollout',owner:'Store Manager',status:'Done',due:'2026-09-01',done:100}];
+  db.workitems=[{id:'wi1',project:'Cold room expansion',item:'Get electrician quote',owner:'Store Manager',status:'Done',due:'2026-09-10'},
+    {id:'wi2',project:'Cold room expansion',item:'Order insulation panels',owner:'Loader L1',status:'In progress',due:'2026-09-20'},
+    {id:'wi3',project:'Second counter setup',item:'Buy second weighing scale',owner:'Owner',status:'To do',due:'2026-10-05'}];
+  db.backlogs=[{id:'bk1',project:'Second counter setup',item:'Barcode scanner evaluation',priority:'Medium',est:'2 days'},
+    {id:'bk2',project:'Cold room expansion',item:'Temperature logger',priority:'Low',est:'1 day'}];
+  db.risks=[{id:'rk1',project:'Cold room expansion',risk:'Power load may exceed sanctioned limit',impact:'High',mitigation:'Get EB load survey before install',owner:'Owner'},
+    {id:'rk2',project:'Supplier contract renewal',risk:'Mandi may raise rates before renewal',impact:'Medium',mitigation:'Lock rate for 6 months in writing',owner:'Store Manager'}];
+  db.accountCats=[{id:'a1',name:'Sales',kind:'Income',code:'4000'},{id:'a2',name:'Purchases',kind:'Expense',code:'5000'},
+    {id:'a3',name:'Salaries',kind:'Expense',code:'5100'},{id:'a4',name:'Rent',kind:'Expense',code:'5200'},
+    {id:'a5',name:'Electricity',kind:'Expense',code:'5300'},{id:'a6',name:'Transport',kind:'Expense',code:'5400'},
+    {id:'a7',name:'Wastage',kind:'Expense',code:'5500'}];
+  db.debits=[]; db.credits=[];
+  ['Rent|18000','Electricity|4200','Transport|3600','Salaries|84000','Wastage|5400','Purchases|126000'].forEach((s,i)=>{
+    const [cat,amt]=s.split('|'); const dt=new Date(); dt.setDate(dt.getDate()-i*4);
+    db.debits.push({id:'db'+i,date:iso(dt),category:cat,amount:+amt,mode:i%2?'Cash':'Bank',note:cat+' — Sept',ref:'V-'+(2100+i)});
+  });
+  [0,1,2].forEach(i=>{const dt=new Date();dt.setDate(dt.getDate()-i*7);
+    db.credits.push({id:'cr'+i,date:iso(dt),category:'Sales',amount:42000+i*5100,mode:i%2?'Bank':'Cash',note:'Weekly counter deposit',ref:'R-'+(3100+i)});});
+  db.ar=[{id:'ar1',party:'Hotel Sai Sree',invoice:'INV-4412',date:iso(new Date(Date.now()-12*864e5)),amount:840,dueDate:iso(new Date(Date.now()+3*864e5)),status:'Overdue'},
+    {id:'ar2',party:'Murugan Mess',invoice:'INV-4460',date:iso(new Date(Date.now()-5*864e5)),amount:1250,dueDate:iso(new Date(Date.now()+10*864e5)),status:'Open'}];
+  db.ap=[{id:'ap1',party:'Cold Store Depot',bill:'PB-881',date:iso(new Date(Date.now()-9*864e5)),amount:14600,dueDate:iso(new Date(Date.now()+6*864e5)),status:'Open'},
+    {id:'ap2',party:'Oddanchatram Mandi',bill:'PB-903',date:iso(new Date(Date.now()-2*864e5)),amount:22400,dueDate:iso(new Date(Date.now()+1*864e5)),status:'Due soon'}];
+  db.payroll=db.staff.map((s,i)=>({id:'py'+i,employee:s.name,month:'Aug 2026',gross:s.salary,deductions:i%2?500:0,net:s.salary-(i%2?500:0),paid:i<4?'Paid':'Pending'}));
+  db.banks=[{id:'bn1',name:'Current A/c — TMB',number:'****4421',branch:'Thuckalay',balance:284500},{id:'bn2',name:'Savings — SBI',number:'****9087',branch:'Nagercoil',balance:96200}];
+  db.reconciliation=[{id:'br1',date:iso(new Date(Date.now()-864e5)),bank:'Current A/c — TMB',statement:284500,book:283900,diff:600,status:'Unreconciled',note:'UPI settlement in transit'},
+    {id:'br2',date:iso(new Date(Date.now()-8*864e5)),bank:'Savings — SBI',statement:96200,book:96200,diff:0,status:'Matched',note:''}];
+  db.adminUsers=[{id:'au1',name:'Selva',email:'owner@tulasimart.in',role:'Super Admin',status:'Active'},
+    {id:'au2',name:'Store Manager',email:'manager@tulasimart.in',role:'Manager',status:'Active'}];
+  db.posUsers=[{id:'pu1',name:'Cashier — Counter A',pin:'1234',terminal:'T1',role:'Cashier',status:'Active'},
+    {id:'pu2',name:'Cashier — Counter B',pin:'5678',terminal:'T2',role:'Cashier',status:'Active'}];
+  db.shipping=[{id:'sh1',name:'Local 2-wheeler',area:'Thuckalay town',charge:20,eta:'30 min',active:'Yes'},
+    {id:'sh2',name:'Auto — bulk',area:'Within 10 km',charge:120,eta:'90 min',active:'Yes'},
+    {id:'sh3',name:'Counter pickup',area:'—',charge:0,eta:'—',active:'Yes'}];
+  db.taxes=[{id:'tx1',name:'GST 0%',rate:0,applies:'Fresh vegetables',hsn:'0709'},
+    {id:'tx2',name:'GST 5%',rate:5,applies:'Packaged / processed',hsn:'2106'},
+    {id:'tx3',name:'GST 12%',rate:12,applies:'Preserved goods',hsn:'2005'}];
+  db.currencies=[{id:'cu1',country:'India',currency:'INR',symbol:'₹',rate:1,primary:'Yes'},{id:'cu2',country:'Sri Lanka',currency:'LKR',symbol:'Rs',rate:3.65,primary:'No'}];
+  db.rawMaterials=[{id:'rm1',name:'Jute bags',unit:'pcs',cost:14,stock:220,supplier:'Cold Store Depot'},
+    {id:'rm2',name:'Plastic crates',unit:'pcs',cost:180,stock:64,supplier:'Cold Store Depot'},
+    {id:'rm3',name:'Packing covers',unit:'kg',cost:95,stock:38,supplier:'Local Farmer — Kani'},
+    {id:'rm4',name:'Rubber bands',unit:'kg',cost:210,stock:6,supplier:'Cold Store Depot'}];
+  db.indents=[]; db.inward=[]; db.po=[]; db.rawPO=[]; db.orders=[];
+  const sup=['Oddanchatram Mandi','Local Farmer — Kani','Cold Store Depot'];
+  for(let i=0;i<14;i++){
+    const dt=new Date(); dt.setDate(dt.getDate()-i*2);
+    const prod=pick(P,i*3);
+    db.po.push({id:'po'+i,po:'PO-'+(1200+i),date:iso(dt),supplier:pick(sup,i),product:prod[1],qty:40+((i*7)%60),rate:prod[5],amount:(40+((i*7)%60))*prod[5],status:i===0?'Pending':i<4?'Received':'Settled'});
+    db.indents.push({id:'in'+i,indent:'IND-'+(700+i),date:iso(dt),product:prod[1],qty:40+((i*7)%60),unit:prod[4],raisedBy:'Store Manager',status:i<2?'Open':'Converted'});
+    db.inward.push({id:'iw'+i,grn:'GRN-'+(900+i),date:iso(dt),po:'PO-'+(1200+i),product:prod[1],ordered:40+((i*7)%60),received:40+((i*7)%60)-(i%3),shortfall:i%3,warehouse:i%3===0?'Cold Room':'Main Counter'});
+  }
+  for(let i=0;i<6;i++){ const dt=new Date(); dt.setDate(dt.getDate()-i*3);
+    const rm=db.rawMaterials[i%4];
+    db.rawPO.push({id:'rpo'+i,po:'RPO-'+(400+i),date:iso(dt),supplier:rm.supplier,material:rm.name,qty:20+i*10,rate:rm.cost,amount:(20+i*10)*rm.cost,status:i<2?'Pending':'Received'});
+  }
+  const STAGES=['New','Prepare','Package','Ship','Delivery','Payment','Closed','Returns'];
+  for(let i=0;i<26;i++){
+    const dt=new Date(); dt.setDate(dt.getDate()-(i%9));
+    const cust=db.customers[i%db.customers.length];
+    const prod=pick(P,i*5);
+    const qty=2+(i%8), amt=qty*prod[6];
+    db.orders.push({id:'so'+i,so:'SO-'+(5200+i),date:iso(dt),customer:cust.name,phone:cust.phone,
+      product:prod[1],qty,amount:amt,channel:i%4===0?'Phone':i%4===1?'WhatsApp':i%4===2?'Walk-in':'Delivery',
+      stage:i<3?'New':i<6?'Prepare':i<9?'Package':i<12?'Ship':i<15?'Delivery':i<18?'Payment':i<24?'Closed':'Returns'});
+  }
+  db.ledger=[];
+  db.credits.forEach(c=>db.ledger.push({id:'lg'+c.id,date:c.date,account:c.category,particulars:c.note,debit:0,credit:c.amount,ref:c.ref}));
+  db.debits.forEach(d=>db.ledger.push({id:'lg'+d.id,date:d.date,account:d.category,particulars:d.note,debit:d.amount,credit:0,ref:d.ref}));
+  db.ledger.sort((a,b)=>a.date<b.date?1:-1);
+  db.bills=seedBills();
+  db.settings={gstOn:false,gstRate:5,openingCash:2000,expenses:340,vpa:'tulasiveg@upi',seq:1,store:'Tulasi Vegetables Market',gstin:'33TULAS1234M1Z9',address:'Thuckalay, Kanyakumari'};
+  return db;
+}
+function seedBills(){
+  const bills=[]; let seq=1;
+  for(let d=6;d>=0;d--){
+    const day=new Date(); day.setDate(day.getDate()-d);
+    const dow=day.getDay();
+    const n=34+(dow===0?26:dow===6?18:0)+((d*13)%11);
+    for(let b=0;b<n;b++){
+      const items=[]; const lines=1+((b*7+d*3)%5);
+      for(let k=0;k<lines;k++){
+        const p=pick(P,b*3+k*5+d);
+        const qty=p[4]==='kg'?+(0.25*(1+((b+k)%6))).toFixed(3):1+((b+k)%3);
+        items.push({name:p[1],nameTa:p[2],unit:p[4],rate:p[6],qty,sku:p[0]});
+      }
+      const sub=+items.reduce((a,i)=>a+i.rate*i.qty,0).toFixed(2);
+      const m=(b%10===0)?'card':(b%3===0)?'upi':'cash';
+      const t=new Date(day); t.setHours(6+((b*7)%15),(b*13)%60,0,0);
+      const cust=b%7===0?['Ramesh Anna','Hotel Sai Sree','Lakshmi Akka','Murugan Mess'][b%4]:'';
+      bills.push({id:'b'+d+'_'+b,billNo:'T1-'+String(seq++).padStart(5,'0'),ts:t.getTime(),date:iso(day),
+        cashier:'Cashier '+(1+(b%2)),mode:b%9===0?'Delivery':b%5===0?'Take-Away':'InStore',customer:cust,
+        items,subtotal:sub,discount:0,discType:'pct',discVal:0,gst:0,gstRate:0,total:sub,
+        payment:m==='cash'?{method:'cash',tendered:Math.ceil(sub/10)*10,change:+(Math.ceil(sub/10)*10-sub).toFixed(2)}:{method:m,ref:'REF'+(10000+b)}});
+    }
+  }
+  return bills;
+}
+
+/* ═════════ storage ═════════ */
+function load(){
+  try{ DB=JSON.parse(localStorage.getItem(LS)||'null'); }catch(e){ DB=null; }
+  if(!DB||!DB.products||!DB.staff||!DB.orders) DB=Object.assign(seedDB(),DB||{});
+  // Any collection a newer build introduces is backfilled rather than left undefined
+  const fresh=seedDB();
+  Object.keys(fresh).forEach(k=>{ if(DB[k]===undefined) DB[k]=fresh[k]; });
+  save(); loadRollups();
+}
+function save(){ try{ localStorage.setItem(LS,JSON.stringify(DB)); }catch(e){ toast('Storage full — export and reset'); } }
+function saveRollups(){ try{ localStorage.setItem(LS_ROLL,JSON.stringify(ROLL)); }catch(e){} }
+
+/* ═════════ rollups ═════════ */
+function loadRollups(){
+  try{ ROLL=JSON.parse(localStorage.getItem(LS_ROLL)||'null')||{}; }catch(e){ ROLL={}; }
+  const byDate={};
+  DB.bills.forEach(b=>{ (byDate[b.date]=byDate[b.date]||[]).push(b); });
+  Object.entries(byDate).forEach(([d,l])=>{ ROLL[d]=rollupFrom(d,l); });
+  for(let i=0;i<90;i++){ const dt=new Date(); dt.setDate(dt.getDate()-i); const d=iso(dt);
+    if(!ROLL[d]) ROLL[d]=synthRollup(d,dt); }
+  saveRollups();
+}
+function rollupFrom(date,list){
+  const r={date,bills:list.length,sales:0,cash:0,upi:0,card:0,items:{},synth:false};
+  list.forEach(b=>{
+    r.sales+=b.total; const m=b.payment.method;
+    if(m==='cash')r.cash+=b.total; else if(m==='upi')r.upi+=b.total; else if(m==='card')r.card+=b.total;
+    else {r.cash+=b.payment.cash||0;r.upi+=b.payment.upi||0;}
+    b.items.forEach(i=>{ const k=i.sku||i.name;
+      const e=r.items[k]=r.items[k]||{name:i.name,qty:0,amt:0}; e.qty+=i.qty; e.amt+=i.rate*i.qty; });
+  });
+  ['sales','cash','upi','card'].forEach(k=>r[k]=+r[k].toFixed(2));
+  return r;
+}
+function synthRollup(d,dt){
+  const dow=dt.getDay(),n=dt.getDate(),mo=dt.getMonth(),seed=(n*37+mo*101+dow*17)%100;
+  const bills=Math.max(12,30+(dow===0?24:dow===6?16:dow===1?-6:0)+(seed%13));
+  const sales=+(bills*(210+(seed%70))).toFixed(2);
+  const cash=+(sales*(0.52+((seed%9)/100))).toFixed(2), card=+(sales*(0.06+((seed%4)/100))).toFixed(2);
+  const items={};
+  P.forEach((p,i)=>{ if((seed+i)%4===0)return; const q=+(((seed+i*7)%40)+4).toFixed(2);
+    items[p[0]]={name:p[1],qty:q,amt:+(q*p[6]).toFixed(2)}; });
+  return {date:d,bills,sales,cash,upi:+(sales-cash-card).toFixed(2),card,items,synth:true};
+}
+function rollupRange(days){
+  const out=[];
+  for(let i=days-1;i>=0;i--){ const dt=new Date(); dt.setDate(dt.getDate()-i); const d=iso(dt);
+    out.push(ROLL[d]||{date:d,bills:0,sales:0,cash:0,upi:0,card:0,items:{},synth:true}); }
+  return out;
+}
+
+/* ═════════ charts ═════════ */
+function barChart(rows,key,labelFn,fmtFn){
+  const max=Math.max(...rows.map(r=>r[key]),1), step=niceStep(max), lines=[];
+  for(let v=step;v<=max*1.02;v+=step) lines.push(v);
+  const every=Math.ceil(rows.length/(window.innerWidth<700?6:12));
+  return `<div class="plot">
+    ${lines.map(v=>`<div class="gridline" style="bottom:${(v/max*100)*0.94}%"><b>${compact(v)}</b></div>`).join('')}
+    <div class="bars">${rows.map(r=>`<div class="bar-col" onmousemove="showTip(event,'${esc(labelFn(r))}','${esc(fmtFn(r))}')" onmouseleave="hideTip()">
+      <div class="bar" style="height:${Math.max(r[key]/max*94,r[key]>0?1.2:0)}%"></div></div>`).join('')}</div>
+  </div><div class="xaxis">${rows.map((r,i)=>`<span>${i%every===0?dshort(r.date):''}</span>`).join('')}</div>`;
+}
+function niceStep(max){const raw=max/4,mag=Math.pow(10,Math.floor(Math.log10(raw)));return [1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw)||mag*10;}
+/* Every horizontal bar carries a direct value label — required relief for any
+   series below 3:1 contrast on white, and useful on the rest regardless. */
+function hBars(rows,color){
+  const max=Math.max(...rows.map(r=>r.v),1);
+  return rows.map(r=>`<div class="hbar-row"><div class="hbar-lab" title="${esc(r.k)}">${esc(r.k)}</div>
+    <div class="hbar-track"><div class="hbar-fill" style="width:${Math.max(r.v/max*100,0)}%;background:${r.c||color||'var(--bar)'}"></div></div>
+    <div class="hbar-val tnum">${r.lab}</div></div>`).join('');
+}
+function showTip(e,a,b){const t=document.getElementById('tip');t.innerHTML='<b>'+a+'</b><br>'+b;t.style.display='block';
+  const w=t.offsetWidth,x=Math.min(Math.max(e.clientX-w/2,8),innerWidth-w-8);t.style.left=x+'px';t.style.top=(e.clientY-t.offsetHeight-12)+'px';}
+function hideTip(){document.getElementById('tip').style.display='none';}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SCHEMA — one declaration per entity drives list, form, validation and
+   persistence. Adding a screen means adding a row here, not a new page.
+   t: text | num | money | date | select | textarea
+   ══════════════════════════════════════════════════════════════════════ */
+const T=(k,l,o={})=>Object.assign({k,l,t:'text'},o);
+const N=(k,l,o={})=>Object.assign({k,l,t:'num'},o);
+const M=(k,l,o={})=>Object.assign({k,l,t:'money'},o);
+const D=(k,l,o={})=>Object.assign({k,l,t:'date'},o);
+const S=(k,l,opts,o={})=>Object.assign({k,l,t:'select',opts},o);
+
+const SCHEMA={
+  /* ── Products group ── */
+  'prod-cat':      {t:'Product Category', c:'categories', f:[T('name','Category',{req:1}),T('parent','Parent'),N('items','Items')]},
+  'prod-indent':   {t:'Purchase INDENT',  c:'indents',    f:[T('indent','Indent No',{req:1}),D('date','Date'),T('product','Product'),N('qty','Qty'),T('unit','Unit'),T('raisedBy','Raised by'),S('status','Status',['Open','Converted','Cancelled'])]},
+  'prod-inward':   {t:'Purchase INWARD',  c:'inward',     f:[T('grn','GRN No',{req:1}),D('date','Date'),T('po','Against PO'),T('product','Product'),N('ordered','Ordered'),N('received','Received'),N('shortfall','Shortfall'),T('warehouse','Warehouse')]},
+  'prod-inv':      {t:'Product Inventory',c:'products',   f:[T('nameEn','Name',{req:1}),T('nameTa','தமிழ்'),T('sku','SKU'),T('category','Category'),T('brand','Brand'),S('unit','Unit',['kg','pcs']),M('cost','Cost'),M('price','Selling',{req:1}),N('stock','Stock'),T('warehouse','Warehouse'),T('barcode','Barcode')]},
+  'prod-brands':   {t:'Brands',           c:'brands',     f:[T('name','Brand',{req:1}),T('supplier','Supplier'),N('items','Items')]},
+  'prod-dtypes':   {t:'DataTypes',        c:'datatypes',  f:[T('name','Name',{req:1}),S('kind','Kind',['integer','decimal','text']),T('unit','Unit'),T('note','Note')]},
+  /* ── Suppliers / warehouses ── */
+  'suppliers':     {t:'Suppliers',        c:'suppliers',  f:[T('name','Supplier',{req:1}),T('phone','Phone'),T('warehouse','Warehouse'),T('terms','Payment terms'),T('gstin','GSTIN')]},
+  'warehouses':    {t:'Warehouses',       c:'warehouses', f:[T('name','Warehouse',{req:1}),T('type','Type'),T('capacity','Capacity'),T('incharge','In-charge')]},
+  'raw-mat':       {t:'Raw Materials',    c:'rawMaterials',f:[T('name','Material',{req:1}),S('unit','Unit',['kg','pcs']),M('cost','Cost'),N('stock','Stock'),T('supplier','Supplier')]},
+  'raw-po':        {t:'RawMaterial PO',   c:'rawPO',      f:[T('po','PO No',{req:1}),D('date','Date'),T('supplier','Supplier'),T('material','Material'),N('qty','Qty'),M('rate','Rate'),M('amount','Amount'),S('status','Status',['Pending','Received','Settled'])]},
+  'prod-po':       {t:'Purchase Orders',  c:'po',         f:[T('po','PO No',{req:1}),D('date','Date'),T('supplier','Supplier'),T('product','Product'),N('qty','Qty'),M('rate','Rate'),M('amount','Amount'),S('status','Status',['Pending','Received','Settled'])]},
+  /* ── CRM ── */
+  'crm-db':        {t:'Customer DB',      c:'customers',  f:[T('name','Customer',{req:1}),T('phone','Phone'),S('type','Type',['Retail','Wholesale']),M('due','Due'),N('loyalty','Loyalty pts')]},
+  'crm-coupons':   {t:'Coupons',          c:'coupons',    f:[T('code','Code',{req:1}),S('type','Type',['Percent','Flat']),N('value','Value'),M('min','Min bill'),N('uses','Times used'),S('active','Active',['Yes','No'])]},
+  'crm-feedback':  {t:'Feedbacks & Ratings',c:'feedback', f:[T('customer','Customer',{req:1}),N('rating','Rating 1-5'),T('note','Comment'),D('date','Date')]},
+  'crm-complaints':{t:'Complaints & Issues',c:'complaints',f:[T('customer','Customer',{req:1}),T('issue','Issue'),S('status','Status',['Open','In progress','Resolved']),S('priority','Priority',['Low','Medium','High']),D('date','Date')]},
+  /* ── HRM ── */
+  'hr-dept':       {t:'Departments',      c:'departments',f:[T('name','Department',{req:1}),T('head','Head'),N('staff','Headcount')]},
+  'hr-db':         {t:'Employee DB',      c:'staff',      f:[T('name','Name',{req:1}),T('role','Role'),T('dept','Department'),T('phone','Phone'),M('salary','Salary'),T('shift','Shift'),D('joined','Joined'),S('status','Status',['Active','On leave','Exited'])]},
+  'hr-timesheet':  {t:'Employee Timesheet',c:'timesheet', f:[T('employee','Employee',{req:1}),D('date','Date'),T('inTime','In'),T('outTime','Out'),N('hours','Hours'),S('status','Status',['Present','Half day','Absent'])]},
+  'hr-leave':      {t:'Employee Leave',   c:'leave',      f:[T('employee','Employee',{req:1}),S('type','Type',['Casual','Sick','Unpaid','Festival']),D('from','From'),D('to','To'),N('days','Days'),S('status','Status',['Pending','Approved','Rejected'])]},
+  'hr-actions':    {t:'Employee Actions', c:'actions',    f:[T('employee','Employee',{req:1}),T('action','Action'),T('reason','Reason'),D('date','Date'),T('by','Recorded by')]},
+  'hr-requests':   {t:'Employee Requests',c:'requests',   f:[T('employee','Employee',{req:1}),T('request','Request'),S('status','Status',['Pending','Approved','Rejected']),D('date','Date')]},
+  'hr-perf':       {t:'Employee Performance',c:'performance',f:[T('employee','Employee',{req:1}),T('period','Period'),N('bills','Bills'),T('accuracy','Accuracy'),N('rating','Rating 1-5'),T('note','Note')]},
+  'hr-onboard':    {t:'Employee Onboarding',c:'onboarding',f:[T('name','New hire',{req:1}),T('role','Role'),N('day','Day (1-7)'),T('step','Current step'),T('mentor','Mentor'),S('status','Status',['In progress','Passed','Extended'])]},
+  'hr-exit':       {t:'Employee Exit / Resign',c:'exits',  f:[T('employee','Employee',{req:1}),T('role','Role'),D('lastDay','Last day'),T('reason','Reason'),S('settled','Settled',['Yes','No'])]},
+  'hr-holidays':   {t:'Holidays Calendar',c:'holidays',   f:[T('name','Holiday',{req:1}),D('date','Date'),S('type','Type',['Festival','National','Local']),S('closed','Shop',['Open','Half day','Closed'])]},
+  /* ── Projects ── */
+  'pj-list':       {t:'Projects',         c:'projects',   f:[T('name','Project',{req:1}),T('owner','Owner'),S('status','Status',['Planning','In progress','Blocked','Done']),D('due','Due'),N('done','% done')]},
+  'pj-items':      {t:'Project WorkItems',c:'workitems',  f:[T('project','Project',{req:1}),T('item','Work item'),T('owner','Owner'),S('status','Status',['To do','In progress','Done']),D('due','Due')]},
+  'pj-backlog':    {t:'Project Backlogs', c:'backlogs',   f:[T('project','Project',{req:1}),T('item','Item'),S('priority','Priority',['Low','Medium','High']),T('est','Estimate')]},
+  'pj-risks':      {t:'Project Risks',    c:'risks',      f:[T('project','Project',{req:1}),T('risk','Risk'),S('impact','Impact',['Low','Medium','High']),T('mitigation','Mitigation'),T('owner','Owner')]},
+  /* ── Accounting ── */
+  'ac-cat':        {t:'Account Category', c:'accountCats',f:[T('name','Account',{req:1}),S('kind','Kind',['Income','Expense','Asset','Liability']),T('code','Code')]},
+  'ac-debit':      {t:'Debits — Expenses / Outflows',c:'debits',f:[D('date','Date',{req:1}),T('category','Account'),M('amount','Amount',{req:1}),S('mode','Mode',['Cash','Bank','UPI']),T('note','Note'),T('ref','Voucher')]},
+  'ac-credit':     {t:'Credits — Revenues / Inflows',c:'credits',f:[D('date','Date',{req:1}),T('category','Account'),M('amount','Amount',{req:1}),S('mode','Mode',['Cash','Bank','UPI']),T('note','Note'),T('ref','Receipt')]},
+  'ac-ar':         {t:'Receivable (AR)',  c:'ar',         f:[T('party','Party',{req:1}),T('invoice','Invoice'),D('date','Date'),M('amount','Amount'),D('dueDate','Due date'),S('status','Status',['Open','Due soon','Overdue','Paid'])]},
+  'ac-ap':         {t:'Payable (AP)',     c:'ap',         f:[T('party','Party',{req:1}),T('bill','Bill'),D('date','Date'),M('amount','Amount'),D('dueDate','Due date'),S('status','Status',['Open','Due soon','Overdue','Paid'])]},
+  'ac-payroll':    {t:'Employee Payroll', c:'payroll',    f:[T('employee','Employee',{req:1}),T('month','Month'),M('gross','Gross'),M('deductions','Deductions'),M('net','Net'),S('paid','Paid',['Paid','Pending'])]},
+  'ac-banks':      {t:'Bank Accounts',    c:'banks',      f:[T('name','Account',{req:1}),T('number','Number'),T('branch','Branch'),M('balance','Balance')]},
+  'ac-recon':      {t:'Bank Reconciliation',c:'reconciliation',f:[D('date','Date',{req:1}),T('bank','Bank'),M('statement','Statement'),M('book','Book'),M('diff','Difference'),S('status','Status',['Matched','Unreconciled']),T('note','Note')]},
+  'ac-ledger':     {t:'Ledger',           c:'ledger',     f:[D('date','Date',{req:1}),T('account','Account'),T('particulars','Particulars'),M('debit','Debit'),M('credit','Credit'),T('ref','Ref')]},
+  /* ── Sales ── */
+  'sales-so':      {t:'Sale Orders (SO)', c:'orders',     f:[T('so','SO No',{req:1}),D('date','Date'),T('customer','Customer'),T('phone','Phone'),T('product','Product'),N('qty','Qty'),M('amount','Amount'),S('channel','Channel',['Phone','WhatsApp','Walk-in','Delivery']),S('stage','Stage',['New','Prepare','Package','Ship','Delivery','Payment','Closed','Returns'])]},
+  /* ── Admin settings ── */
+  'set-admin':     {t:'Admin Portal Users',c:'adminUsers',f:[T('name','Name',{req:1}),T('email','Email'),S('role','Role',['Super Admin','Manager','Viewer']),S('status','Status',['Active','Disabled'])]},
+  'set-pos':       {t:'POS Portal Users', c:'posUsers',   f:[T('name','Name',{req:1}),T('pin','PIN'),T('terminal','Terminal'),S('role','Role',['Cashier','Manager']),S('status','Status',['Active','Disabled'])]},
+  'set-ship':      {t:'Shipping / Delivery',c:'shipping', f:[T('name','Method',{req:1}),T('area','Area'),M('charge','Charge'),T('eta','ETA'),S('active','Active',['Yes','No'])]},
+  'set-tax':       {t:'Taxes',            c:'taxes',      f:[T('name','Tax',{req:1}),N('rate','Rate %'),T('applies','Applies to'),T('hsn','HSN')]},
+  'set-currency':  {t:'Multi Country & Currency',c:'currencies',f:[T('country','Country',{req:1}),T('currency','Currency'),T('symbol','Symbol'),N('rate','Rate to ₹'),S('primary','Primary',['Yes','No'])]},
+};
+
+/* ═════════ NAV — mirrors the requested menu tree ═════════ */
+const NAV=[
+ {k:'dashboard',l:'Dashboard',ic:'layout-dashboard'},
+ {k:'reports',l:'Reports',ic:'bar-chart-3'},
+ {k:'warehouses',l:'Warehouses',ic:'warehouse'},
+ {g:'sup',l:'Suppliers',ic:'truck',kids:[['suppliers','Supplier DB'],['prod-po','Purchase Orders (PO)'],['raw-mat','Raw Materials'],['raw-po','RawMaterial PO']]},
+ {g:'ord',l:'Orders',ic:'clipboard-list',kids:[['ord-dash','Dashboard'],['ord-New','1. New Orders'],['ord-Prepare','2. Prepare'],['ord-Package','3. Package'],['ord-Ship','4. Ship'],['ord-Delivery','5. Delivery'],['ord-Payment','6. Payment'],['ord-Closed','7. Closed'],['ord-History','8. History'],['ord-Returns','9. Returns']]},
+ {g:'sal',l:'Sales',ic:'shopping-cart',kids:[['sales-so','Sale Orders (SO)'],['sales-pos','Billing POS — OUTWARD']]},
+ {g:'prd',l:'Products',ic:'package',kids:[['prod-cat','Product Category'],['prod-indent','Purchase INDENT'],['prod-inward','Purchase INWARD'],['prod-inv','Product Inventory'],['prod-stock','In-Stock Checker'],['prod-brands','Brands'],['prod-dtypes','DataTypes'],['prod-barcode','BarCode Creator']]},
+ {g:'crm',l:'Customers (CRM)',ic:'contact',kids:[['crm-db','Customer DB'],['crm-coupons','Coupons'],['crm-feedback','Feedbacks & Ratings'],['crm-complaints','Complaints & Issues']]},
+ {g:'hrm',l:'Employees (HRM)',ic:'users',kids:[['hr-dept','Departments'],['hr-db','Employee DB'],['hr-timesheet','Employee Timesheet'],['hr-leave','Employee Leave'],['hr-actions','Employee Actions'],['hr-requests','Employee Requests'],['hr-perf','Employee Performance'],['hr-onboard','Employee Onboarding'],['hr-exit','Employee Exit/Resign'],['hr-holidays','Holidays Calender']]},
+ {g:'pjt',l:'Projects',ic:'git-branch',kids:[['pj-list','Projects'],['pj-items','Project WorkItems'],['pj-backlog','Project Backlogs'],['pj-risks','Project Risks']]},
+ {g:'acc',l:'Accounting',ic:'wallet',kids:[['ac-dash','Dashboard'],['ac-cat','Account Category'],['ac-debit','Debits [Expenses]'],['ac-credit','Credits [Revenues]'],['ac-ar','Receivable (AR)'],['ac-ap','Payable (AP)'],['ac-payroll','Employee Payroll'],['ac-banks','Bank Accounts'],['ac-recon','Bank Reconciliation'],['ac-ledger','Ledger']]},
+ {g:'set',l:'Admin Settings',ic:'settings',kids:[['set-admin','Admin Portal Users'],['set-pos','POS Portal Users'],['set-ship','Shipping / Delivery'],['set-tax','Taxes'],['set-currency','Multi Country & Currency'],['set-store','Settings']]},
+];
+function renderNav(){
+  document.getElementById('nav').innerHTML=NAV.map(n=>{
+    if(!n.kids) return `<button class="nav-item ${page===n.k?'on':''}" onclick="go('${n.k}')"><i data-i="${n.ic}"></i>${esc(n.l)}</button>`;
+    const kidOn=n.kids.some(k=>k[0]===page);
+    const open=openGroups[n.g]||kidOn;
+    return `<button class="nav-item ${open?'open':''} ${kidOn?'on':''}" onclick="toggleGroup('${n.g}')">
+        <i data-i="${n.ic}"></i>${esc(n.l)}<i data-i="chevron-right" class="chev"></i></button>
+      <div class="nav-kids" style="display:${open?'block':'none'}">
+        ${n.kids.map(([k,l])=>`<button class="nav-kid ${page===k?'on':''}" onclick="go('${k}')">${esc(l)}</button>`).join('')}
+      </div>`;
+  }).join('');
+  icons(document.getElementById('nav'));
+}
+function toggleGroup(g){ openGroups[g]=!(openGroups[g]||NAV.find(n=>n.g===g).kids.some(k=>k[0]===page)); renderNav(); }
+
+/* ═════════ ROUTER ═════════ */
+function go(k){
+  page=k; closeSide(); renderNav();
+  document.getElementById('pg-sub').textContent='';
+  if(k.startsWith('ord-')) return routeOrders(k);
+  if(SPECIAL[k]) { const s=SPECIAL[k]; title(s.t); s.fn(); icons(document.getElementById('view')); scrollTop(); return; }
+  if(SCHEMA[k])  { const s=SCHEMA[k]; title(s.t); renderCrud(k); icons(document.getElementById('view')); scrollTop(); return; }
+  title('Not found'); V('<div class="card"><div class="empty">This screen does not exist.</div></div>');
+}
+function title(t){ document.getElementById('pg-title').textContent=t; }
+function sub(t){ document.getElementById('pg-sub').textContent=t; }
+const V=h=>{document.getElementById('view').innerHTML=h;};
+function scrollTop(){ document.querySelector('.body').scrollTop=0; }
+const kpiC=(l,v,s)=>`<div class="kpi"><div class="l">${l}</div><div class="v tnum">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;
+
+/* ══════════════════════════════════════════════════════════════════════
+   GENERIC CRUD — one implementation for ~40 screens
+   ══════════════════════════════════════════════════════════════════════ */
+let crudQ='';
+function renderCrud(key){
+  const s=SCHEMA[key], rows=DB[s.c]||[];
+  sub(rows.length+' record'+(rows.length===1?'':'s'));
+  V(`<div class="toolbar">
+      <input class="inp" id="crud-q" placeholder="Search ${esc(s.t).toLowerCase()}…" style="max-width:280px" value="${esc(crudQ)}" oninput="crudQ=this.value;drawCrud('${key}')">
+      <button class="btn" onclick="exportCrud('${key}')"><i data-i="download"></i>CSV</button>
+      <button class="btn btn-p" style="margin-left:auto" onclick="crudForm('${key}')"><i data-i="plus"></i>Add</button>
+    </div><div id="crud-body"></div>`);
+  drawCrud(key);
+}
+function crudMatch(row,q){
+  if(!q) return true; q=q.toLowerCase();
+  return Object.values(row).some(v=>String(v==null?'':v).toLowerCase().includes(q));
+}
+function fmtCell(f,v){
+  if(v===undefined||v===null||v==='') return '<span style="color:var(--ink-3)">—</span>';
+  if(f.t==='money') return money2(v);
+  if(f.t==='num')   return Number(v).toLocaleString('en-IN');
+  if(f.t==='date')  return dlong(v);
+  const s=String(v);
+  if(f.t==='select'){
+    const bad=/^(Overdue|Rejected|Blocked|High|Disabled|Absent|Unreconciled|Open)$/i.test(s);
+    const ok=/^(Approved|Done|Paid|Active|Yes|Resolved|Matched|Closed|Settled|Received|Present|Passed)$/i.test(s);
+    const wn=/^(Pending|In progress|Due soon|Medium|Half day|Planning|To do|Extended|Converted)$/i.test(s);
+    return `<span class="pill ${ok?'ok':bad?'bad':wn?'warn':''}">${esc(s)}</span>`;
+  }
+  return esc(s);
+}
+function drawCrud(key){
+  const s=SCHEMA[key];
+  const rows=(DB[s.c]||[]).filter(r=>crudMatch(r,crudQ));
+  const cols=s.f.slice(0,8);
+  document.getElementById('crud-body').innerHTML=`<div class="card"><div class="tw"><table>
+    <thead><tr>${cols.map(f=>`<th class="${f.t==='money'||f.t==='num'?'num':''}">${esc(f.l)}</th>`).join('')}<th style="width:86px"></th></tr></thead>
+    <tbody>${rows.length?rows.map(r=>`<tr>
+      ${cols.map(f=>`<td class="${f.t==='money'||f.t==='num'?'num tnum':''}">${fmtCell(f,r[f.k])}</td>`).join('')}
+      <td style="white-space:nowrap">
+        <button class="btn btn-xs" onclick="crudForm('${key}','${r.id}')" aria-label="Edit"><i data-i="pencil"></i></button>
+        <button class="btn btn-xs btn-d" onclick="crudDel('${key}','${r.id}')" aria-label="Delete"><i data-i="trash-2"></i></button>
+      </td></tr>`).join(''):`<tr><td colspan="${cols.length+1}"><div class="empty">${crudQ?'Nothing matches “'+esc(crudQ)+'”.':'No records yet — use <b>Add</b>.'}</div></td></tr>`}
+    </tbody></table></div></div>`;
+  icons(document.getElementById('crud-body'));
+  sub(rows.length+' of '+(DB[s.c]||[]).length+' record'+((DB[s.c]||[]).length===1?'':'s'));
+}
+function crudForm(key,id){
+  const s=SCHEMA[key];
+  const r=id?(DB[s.c]||[]).find(x=>x.id===id):{};
+  if(id&&!r) return toast('Record not found');
+  modal(`<h3>${id?'Edit':'Add'} — ${esc(s.t)}</h3>
+    <div class="frow">${s.f.map(f=>{
+      const v=r[f.k]===undefined?'':r[f.k];
+      const wide=f.t==='textarea'||f.l.length>18;
+      let ctl;
+      if(f.t==='select') ctl=`<select class="inp" id="cf-${f.k}">${f.opts.map(o=>`<option ${String(v)===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+      else if(f.t==='textarea') ctl=`<textarea class="inp" id="cf-${f.k}">${esc(v)}</textarea>`;
+      else ctl=`<input class="inp ${f.t==='money'||f.t==='num'?'tnum':''}" id="cf-${f.k}" type="${f.t==='date'?'date':f.t==='num'||f.t==='money'?'number':'text'}" ${f.t==='money'?'step="0.01"':''} value="${esc(v)}">`;
+      return `<div class="fg" style="${wide?'grid-column:1/-1':''}"><label class="fl" for="cf-${f.k}">${esc(f.l)}${f.req?' *':''}</label>${ctl}</div>`;
+    }).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn" style="flex:1;justify-content:center" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p" style="flex:1;justify-content:center" onclick="crudSave('${key}','${id||''}')">Save</button>
+    </div>`);
+  const first=document.getElementById('cf-'+s.f[0].k); if(first) first.focus();
+}
+function crudSave(key,id){
+  const s=SCHEMA[key], o={};
+  for(const f of s.f){
+    let v=val('cf-'+f.k);
+    if(f.req&&!v) return toast('“'+f.l+'” is required');
+    if(f.t==='num'||f.t==='money') v=v===''?0:Number(v);
+    o[f.k]=v;
+  }
+  DB[s.c]=DB[s.c]||[];
+  if(id){ const r=DB[s.c].find(x=>x.id===id); if(!r) return toast('Record not found'); Object.assign(r,o); }
+  else DB[s.c].unshift(Object.assign({id:uid('x')},o));
+  save(); closeModal(); drawCrud(key); toast(id?'Updated':'Added');
+}
+function crudDel(key,id){
+  const s=SCHEMA[key];
+  const r=(DB[s.c]||[]).find(x=>x.id===id); if(!r) return;
+  const label=r[s.f[0].k]||'this record';
+  if(!confirm('Delete “'+label+'”? This cannot be undone.')) return;
+  DB[s.c]=DB[s.c].filter(x=>x.id!==id);
+  save(); drawCrud(key); toast('Deleted');
+}
+function exportCrud(key){
+  const s=SCHEMA[key], rows=(DB[s.c]||[]).filter(r=>crudMatch(r,crudQ));
+  const head=s.f.map(f=>f.l).join(',');
+  const body=rows.map(r=>s.f.map(f=>{const v=r[f.k]==null?'':String(r[f.k]);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(',')).join('\n');
+  dl(head+'\n'+body,'text/csv',key+'.csv'); toast('CSV exported');
+}
+function dl(content,type,name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ORDERS — 9-stage pipeline. Orders genuinely move between stages, so this
+   is not a CRUD list: advancing one is the primary action.
+   ══════════════════════════════════════════════════════════════════════ */
+const STAGES=['New','Prepare','Package','Ship','Delivery','Payment','Closed'];
+function routeOrders(k){
+  const which=k.slice(4);
+  if(which==='dash'){ title('Orders — Dashboard'); ordDash(); }
+  else { orderStage=which; title('Orders — '+which); ordList(which); }
+  icons(document.getElementById('view')); scrollTop();
+}
+const stageCount=s=>DB.orders.filter(o=>o.stage===s).length;
+function ordDash(){
+  const total=DB.orders.length;
+  sub(total+' orders in the pipeline');
+  V(`<div class="pipe" style="margin-bottom:14px">
+      ${STAGES.map((s,i)=>`<button class="stage" onclick="go('ord-${s}')">
+        <div class="n">${i+1}</div><div class="c tnum">${stageCount(s)}</div><div class="lab">${s}</div></button>`).join('')}
+      <button class="stage" onclick="go('ord-History')"><div class="n">8</div><div class="c tnum">${total}</div><div class="lab">History</div></button>
+      <button class="stage" onclick="go('ord-Returns')"><div class="n">9</div><div class="c tnum" style="color:var(--danger)">${stageCount('Returns')}</div><div class="lab">Returns</div></button>
+    </div>
+    <div class="card"><div class="card-hd"><h3>Orders needing attention</h3><span class="note">anything not Closed or Returned</span></div>
+    ${ordTable(DB.orders.filter(o=>o.stage!=='Closed'&&o.stage!=='Returns'))}</div>`);
+}
+function ordList(stage){
+  let rows;
+  if(stage==='History') rows=DB.orders;
+  else rows=DB.orders.filter(o=>o.stage===stage);
+  sub(rows.length+' order'+(rows.length===1?'':'s'));
+  V(`<div class="toolbar">
+      <div class="seg">${['dash'].concat(STAGES,['Returns','History']).map(s=>
+        `<button class="${(s==='dash'?false:s===stage)?'on':''}" onclick="go('ord-${s}')">${s==='dash'?'Dashboard':s}</button>`).join('')}</div>
+    </div>${ordTable(rows,stage)}`);
+}
+function ordTable(rows,stage){
+  return `<div class="card"><div class="tw"><table>
+    <thead><tr><th>SO No</th><th>Date</th><th>Customer</th><th>Product</th><th class="num">Qty</th><th class="num">Amount</th><th>Channel</th><th>Stage</th><th style="width:120px"></th></tr></thead>
+    <tbody>${rows.length?rows.map(o=>{
+      const nxt=STAGES[STAGES.indexOf(o.stage)+1];
+      return `<tr>
+        <td class="mono" style="font-size:12.5px"><b>${esc(o.so)}</b></td>
+        <td class="tnum" style="color:var(--ink-2);font-size:12.5px">${dshort(o.date)}</td>
+        <td><b>${esc(o.customer)}</b><div style="font-size:11px;color:var(--ink-3)" class="mono">${esc(o.phone||'')}</div></td>
+        <td>${esc(o.product)}</td>
+        <td class="num tnum">${o.qty}</td>
+        <td class="num tnum"><b>${money(o.amount)}</b></td>
+        <td><span class="pill">${esc(o.channel)}</span></td>
+        <td><span class="pill ${o.stage==='Closed'?'ok':o.stage==='Returns'?'bad':'warn'}">${esc(o.stage)}</span></td>
+        <td style="white-space:nowrap">
+          ${nxt?`<button class="btn btn-xs" onclick="advance('${o.id}')" title="Move to ${nxt}">${nxt}<i data-i="arrow-right"></i></button>`:''}
+          ${o.stage!=='Returns'?`<button class="btn btn-xs btn-d" onclick="markReturn('${o.id}')">Return</button>`:''}
+        </td></tr>`;}).join('')
+      :`<tr><td colspan="9"><div class="empty">No orders in ${esc(stage||'this stage')}.</div></td></tr>`}
+    </tbody></table></div></div>`;
+}
+function advance(id){
+  const o=DB.orders.find(x=>x.id===id); if(!o) return;
+  const i=STAGES.indexOf(o.stage);
+  if(i<0||i>=STAGES.length-1) return toast('Already at the last stage');
+  o.stage=STAGES[i+1]; save(); go(page); toast(o.so+' → '+o.stage);
+}
+function markReturn(id){
+  const o=DB.orders.find(x=>x.id===id); if(!o) return;
+  if(!confirm('Mark '+o.so+' as returned?')) return;
+  o.stage='Returns'; save(); go(page); toast(o.so+' marked returned');
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   REPORTS — 15 report types over one generic table renderer.
+   Every one of them is built from daily rollups or master data, never by
+   scanning raw bills.
+   ══════════════════════════════════════════════════════════════════════ */
+const REPORTS=[
+ ['r1','1. Sales by Product',            repSalesByProduct],
+ ['r2','2. Sales by Category',           repSalesByCategory],
+ ['r3','3. Sales by Order',              repSalesByOrder],
+ ['r4','4. Top Selling Products',        repTopSelling],
+ ['r5','5. Top Purchasing Customers',    repTopCustomers],
+ ['r6','6. Products Purchase Summary — by Product', repPurchByProduct],
+ ['r7','7. Product Purchase Order (PO) Summary',    repPOSummary],
+ ['r8','8. RawMaterial Purchase Summary — by Material', repRawByMaterial],
+ ['r9','9. RawMaterials Purchase Order (PO) Summary',   repRawPO],
+ ['r10','10. Sales Report (GST) — Detailed',  repSalesGst],
+ ['r11','11. Purchases Report (GST) — Detailed', repPurchGst],
+ ['r12','12. Sales & Purchases Summary',  repSalesVsPurch],
+ ['r13','13. Account Ledger Book — Detailed', repLedgerDetail],
+ ['r14','14. Account Ledger — Summary',   repLedgerSummary],
+ ['r15','15. Product — Price List',       repPriceList],
+];
+function pgReports(){
+  const rows=rollupRange(range);
+  const bills=rows.reduce((a,r)=>a+r.bills,0);
+  sub(range+'-day window · '+rows.length+' rollup reads');
+  const rep=REPORTS.find(r=>r[0]===reportKey)||REPORTS[0];
+  const out=rep[2](rows);
+  V(`<div class="toolbar">
+      <select class="inp" style="max-width:340px" onchange="reportKey=this.value;pgReports();icons(document.getElementById('view'))">
+        ${REPORTS.map(r=>`<option value="${r[0]}" ${r[0]===reportKey?'selected':''}>${esc(r[1])}</option>`).join('')}
+      </select>
+      <div class="seg">${[7,30,60,90].map(d=>`<button class="${range===d?'on':''}" onclick="range=${d};pgReports();icons(document.getElementById('view'))">${d}d</button>`).join('')}</div>
+      <button class="btn" style="margin-left:auto" onclick="exportReport()"><i data-i="download"></i>CSV</button>
+    </div>
+
+    <div class="card" style="margin-bottom:13px;border-color:#d7efe4;background:var(--accent-soft)">
+      <div class="card-b" style="display:flex;gap:14px;align-items:flex-start">
+        <i data-i="zap" style="width:19px;height:19px;color:var(--accent);flex-shrink:0;margin-top:2px"></i>
+        <div style="font-size:12.5px;color:var(--ink-2)">
+          <b style="color:var(--ink);font-size:13.5px">Read ${rows.length} summary documents, not ${bills.toLocaleString('en-IN')} bills.</b><br>
+          Every report on this page is built from one rollup document per day. Scanning the raw bills instead would be
+          <b class="tnum">${bills?Math.round(bills/rows.length):0}×</b> the work for the same numbers, and that ratio grows every day the shop trades.
+        </div>
+      </div>
+    </div>
+
+    <div class="card"><div class="card-hd"><h3>${esc(rep[1])}</h3><span class="note">${esc(out.note||'')}</span></div>
+      ${repTable(out)}</div>`);
+  _lastReport=out; _lastReportName=rep[1];
+}
+let _lastReport=null,_lastReportName='';
+function repTable(o){
+  if(!o.rows.length) return '<div class="empty">No data in this window.</div>';
+  return `<div class="tw"><table>
+    <thead><tr>${o.cols.map((c,i)=>`<th class="${o.num&&o.num.includes(i)?'num':''}">${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${o.rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${o.num&&o.num.includes(i)?'num tnum':''}">${c}</td>`).join('')}</tr>`).join('')}</tbody>
+    ${o.total?`<tfoot><tr>${o.total.map((c,i)=>`<td class="${o.num&&o.num.includes(i)?'num tnum':''}">${c}</td>`).join('')}</tr></tfoot>`:''}
+  </table></div>`;
+}
+function exportReport(){
+  if(!_lastReport) return;
+  const rip=s=>String(s).replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
+  const lines=[_lastReport.cols.join(',')].concat(_lastReport.rows.map(r=>r.map(c=>{
+    const v=rip(c); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(',')));
+  if(_lastReport.total) lines.push(_lastReport.total.map(c=>rip(c)).join(','));
+  dl(lines.join('\n'),'text/csv',_lastReportName.replace(/[^\w]+/g,'-').toLowerCase()+'.csv');
+  toast('CSV exported');
+}
+/* aggregate SKU → {qty, amt} across a rollup range */
+function aggItems(rows){
+  const agg={};
+  rows.forEach(r=>Object.entries(r.items||{}).forEach(([sku,v])=>{
+    const e=agg[sku]=agg[sku]||{sku,name:v.name,qty:0,amt:0}; e.qty+=v.qty; e.amt+=v.amt; }));
+  return Object.values(agg);
+}
+function repSalesByProduct(rows){
+  const a=aggItems(rows).sort((x,y)=>y.amt-x.amt);
+  const tq=a.reduce((s,x)=>s+x.qty,0), ta=a.reduce((s,x)=>s+x.amt,0);
+  return {cols:['SKU','Product','தமிழ்','Qty','Value','% of sales'],num:[3,4,5],
+    note:'from '+rows.length+' daily rollups',
+    rows:a.map(x=>{const p=DB.products.find(p=>p.sku===x.sku);
+      return ['<span class="mono" style="font-size:12px">'+esc(x.sku)+'</span>','<b>'+esc(x.name)+'</b>',
+        '<span class="ta" style="color:var(--ink-2)">'+esc(p?p.nameTa:'—')+'</span>',
+        x.qty.toFixed(2),money(x.amt),(ta?x.amt/ta*100:0).toFixed(1)+'%'];}),
+    total:['','<b>Total</b>','',tq.toFixed(2),money(ta),'100%']};
+}
+function repSalesByCategory(rows){
+  const a=aggItems(rows), by={};
+  a.forEach(x=>{const p=DB.products.find(p=>p.sku===x.sku);const c=p?p.category:'Uncategorised';
+    const e=by[c]=by[c]||{qty:0,amt:0,n:0}; e.qty+=x.qty; e.amt+=x.amt; e.n++;});
+  const list=Object.entries(by).sort((x,y)=>y[1].amt-x[1].amt);
+  const ta=list.reduce((s,[,v])=>s+v.amt,0);
+  return {cols:['Category','SKUs','Qty','Value','% of sales'],num:[1,2,3,4],
+    rows:list.map(([c,v])=>['<b>'+esc(c)+'</b>',v.n,v.qty.toFixed(2),money(v.amt),(ta?v.amt/ta*100:0).toFixed(1)+'%']),
+    total:['<b>Total</b>',list.length,'',money(ta),'100%']};
+}
+function repSalesByOrder(rows){
+  const cut=rows[0].date;
+  const bills=DB.bills.filter(b=>b.date>=cut).sort((a,b)=>b.ts-a.ts);
+  const ta=bills.reduce((s,b)=>s+b.total,0);
+  return {cols:['Bill No','Date','Cashier','Mode','Payment','Items','Total'],num:[5,6],
+    note:'raw bills held for the recent window',
+    rows:bills.slice(0,300).map(b=>['<span class="mono" style="font-size:12px">'+esc(b.billNo)+'</span>',dshort(b.date),
+      esc(b.cashier),'<span class="pill">'+esc(b.mode)+'</span>',b.payment.method.toUpperCase(),b.items.length,money2(b.total)]),
+    total:['<b>Total</b>','','','','',bills.reduce((s,b)=>s+b.items.length,0),money(ta)]};
+}
+function repTopSelling(rows){
+  const a=aggItems(rows).sort((x,y)=>y.amt-x.amt).slice(0,15);
+  return {cols:['#','Product','Qty sold','Value','Share'],num:[0,2,3,4],
+    rows:a.map((x,i)=>{const tot=aggItems(rows).reduce((s,y)=>s+y.amt,0);
+      return [i+1,'<b>'+esc(x.name)+'</b>',x.qty.toFixed(2),money(x.amt),(tot?x.amt/tot*100:0).toFixed(1)+'%'];})};
+}
+function repTopCustomers(rows){
+  const cut=rows[0].date, by={};
+  DB.bills.filter(b=>b.date>=cut&&b.customer).forEach(b=>{
+    const e=by[b.customer]=by[b.customer]||{n:0,amt:0}; e.n++; e.amt+=b.total; });
+  DB.orders.forEach(o=>{ const e=by[o.customer]=by[o.customer]||{n:0,amt:0}; e.n++; e.amt+=o.amount; });
+  const list=Object.entries(by).sort((x,y)=>y[1].amt-x[1].amt);
+  return {cols:['Customer','Phone','Orders','Value','Avg order','Due'],num:[2,3,4,5],
+    note:'named bills + sale orders',
+    rows:list.map(([n,v])=>{const c=DB.customers.find(c=>c.name===n);
+      return ['<b>'+esc(n)+'</b>','<span class="mono" style="font-size:12px">'+esc(c?c.phone:'—')+'</span>',
+        v.n,money(v.amt),money(v.amt/v.n),c&&c.due?'<span style="color:var(--danger)">'+money(c.due)+'</span>':'—'];}),
+    total:['<b>Total</b>','',list.reduce((s,[,v])=>s+v.n,0),money(list.reduce((s,[,v])=>s+v.amt,0)),'','']};
+}
+function repPurchByProduct(){
+  const by={};
+  DB.po.forEach(p=>{const e=by[p.product]=by[p.product]||{qty:0,amt:0,n:0};e.qty+=p.qty;e.amt+=p.amount;e.n++;});
+  const list=Object.entries(by).sort((a,b)=>b[1].amt-a[1].amt);
+  return {cols:['Product','POs','Qty in','Value','Avg rate'],num:[1,2,3,4],
+    rows:list.map(([n,v])=>['<b>'+esc(n)+'</b>',v.n,v.qty,money(v.amt),money(v.amt/v.qty)]),
+    total:['<b>Total</b>',list.reduce((s,[,v])=>s+v.n,0),list.reduce((s,[,v])=>s+v.qty,0),money(list.reduce((s,[,v])=>s+v.amt,0)),'']};
+}
+function repPOSummary(){
+  const ta=DB.po.reduce((s,p)=>s+p.amount,0);
+  return {cols:['PO No','Date','Supplier','Product','Qty','Rate','Amount','Status'],num:[4,5,6],
+    rows:DB.po.map(p=>['<span class="mono" style="font-size:12px">'+esc(p.po)+'</span>',dshort(p.date),esc(p.supplier),esc(p.product),
+      p.qty,money(p.rate),money(p.amount),fmtCell({t:'select'},p.status)]),
+    total:['<b>Total</b>','','','','','',money(ta),'']};
+}
+function repRawByMaterial(){
+  const by={};
+  DB.rawPO.forEach(p=>{const e=by[p.material]=by[p.material]||{qty:0,amt:0,n:0};e.qty+=p.qty;e.amt+=p.amount;e.n++;});
+  const list=Object.entries(by).sort((a,b)=>b[1].amt-a[1].amt);
+  return {cols:['Material','POs','Qty','Value','In stock'],num:[1,2,3,4],
+    rows:list.map(([n,v])=>{const m=DB.rawMaterials.find(m=>m.name===n);
+      return ['<b>'+esc(n)+'</b>',v.n,v.qty,money(v.amt),m?(m.stock+' '+m.unit):'—'];}),
+    total:['<b>Total</b>',list.reduce((s,[,v])=>s+v.n,0),list.reduce((s,[,v])=>s+v.qty,0),money(list.reduce((s,[,v])=>s+v.amt,0)),'']};
+}
+function repRawPO(){
+  const ta=DB.rawPO.reduce((s,p)=>s+p.amount,0);
+  return {cols:['PO No','Date','Supplier','Material','Qty','Rate','Amount','Status'],num:[4,5,6],
+    rows:DB.rawPO.map(p=>['<span class="mono" style="font-size:12px">'+esc(p.po)+'</span>',dshort(p.date),esc(p.supplier),esc(p.material),
+      p.qty,money(p.rate),money(p.amount),fmtCell({t:'select'},p.status)]),
+    total:['<b>Total</b>','','','','','',money(ta),'']};
+}
+function repSalesGst(rows){
+  const rate=DB.settings.gstOn?DB.settings.gstRate:0;
+  const list=rows.filter(r=>r.sales>0);
+  const tt=list.reduce((s,r)=>s+r.sales,0);
+  const taxable=rate?tt/(1+rate/100):tt, tax=tt-taxable;
+  return {cols:['Date','Bills','Taxable value','GST @'+rate+'%','Total'],num:[1,2,3,4],
+    note:rate?'tax-inclusive totals split at '+rate+'%':'GST is off in Settings — shown as zero-rated',
+    rows:list.map(r=>{const tv=rate?r.sales/(1+rate/100):r.sales;
+      return [dlong(r.date),r.bills,money2(tv),money2(r.sales-tv),money2(r.sales)];}),
+    total:['<b>Total</b>',list.reduce((s,r)=>s+r.bills,0),money(taxable),money(tax),money(tt)]};
+}
+function repPurchGst(){
+  const rate=5;
+  const ta=DB.po.reduce((s,p)=>s+p.amount,0);
+  return {cols:['PO No','Date','Supplier','GSTIN','Taxable','GST @'+rate+'%','Total'],num:[4,5,6],
+    note:'purchase side, at the standard 5% slab',
+    rows:DB.po.map(p=>{const tv=p.amount/(1+rate/100);const s=DB.suppliers.find(s=>s.name===p.supplier);
+      return ['<span class="mono" style="font-size:12px">'+esc(p.po)+'</span>',dshort(p.date),esc(p.supplier),
+        '<span class="mono" style="font-size:11.5px">'+esc(s?s.gstin:'—')+'</span>',money2(tv),money2(p.amount-tv),money2(p.amount)];}),
+    total:['<b>Total</b>','','','',money(ta/(1+rate/100)),money(ta-ta/(1+rate/100)),money(ta)]};
+}
+function repSalesVsPurch(rows){
+  const sales=rows.reduce((s,r)=>s+r.sales,0);
+  const cut=rows[0].date;
+  const purch=DB.po.filter(p=>p.date>=cut).reduce((s,p)=>s+p.amount,0);
+  const raw=DB.rawPO.filter(p=>p.date>=cut).reduce((s,p)=>s+p.amount,0);
+  const exp=DB.debits.filter(d=>d.date>=cut).reduce((s,d)=>s+d.amount,0);
+  const gross=sales-purch-raw;
+  return {cols:['Line','Amount','Note'],num:[1],
+    note:'over the selected '+rows.length+'-day window',
+    rows:[
+      ['<b>Sales (counter)</b>',money(sales),rows.reduce((s,r)=>s+r.bills,0)+' bills'],
+      ['Product purchases',  '−'+money(purch),DB.po.filter(p=>p.date>=cut).length+' POs'],
+      ['Raw material purchases','−'+money(raw),DB.rawPO.filter(p=>p.date>=cut).length+' POs'],
+      ['<b>Gross margin</b>','<b>'+money(gross)+'</b>',sales?Math.round(gross/sales*100)+'% of sales':''],
+      ['Other expenses (day book)','−'+money(exp),DB.debits.filter(d=>d.date>=cut).length+' vouchers'],
+    ],
+    total:['<b>Net</b>','<b>'+money(gross-exp)+'</b>','before payroll and tax']};
+}
+function repLedgerDetail(){
+  let bal=0;
+  const rows=[...DB.ledger].sort((a,b)=>a.date<b.date?-1:1);
+  const td=rows.reduce((s,r)=>s+(r.debit||0),0), tc=rows.reduce((s,r)=>s+(r.credit||0),0);
+  return {cols:['Date','Account','Particulars','Ref','Debit','Credit','Balance'],num:[4,5,6],
+    rows:rows.map(r=>{bal+=(r.credit||0)-(r.debit||0);
+      return [dlong(r.date),'<b>'+esc(r.account)+'</b>',esc(r.particulars||''),'<span class="mono" style="font-size:11.5px">'+esc(r.ref||'')+'</span>',
+        r.debit?money2(r.debit):'—',r.credit?money2(r.credit):'—',
+        (bal<0?'<span style="color:var(--danger)">':'<span>')+money2(bal)+'</span>'];}),
+    total:['<b>Total</b>','','','',money(td),money(tc),money(tc-td)]};
+}
+function repLedgerSummary(){
+  const by={};
+  DB.ledger.forEach(r=>{const e=by[r.account]=by[r.account]||{d:0,c:0,n:0};e.d+=r.debit||0;e.c+=r.credit||0;e.n++;});
+  const list=Object.entries(by).sort((a,b)=>(b[1].c+b[1].d)-(a[1].c+a[1].d));
+  const td=list.reduce((s,[,v])=>s+v.d,0), tc=list.reduce((s,[,v])=>s+v.c,0);
+  return {cols:['Account','Kind','Entries','Debit','Credit','Net'],num:[2,3,4,5],
+    rows:list.map(([n,v])=>{const c=DB.accountCats.find(a=>a.name===n);
+      return ['<b>'+esc(n)+'</b>',c?'<span class="pill">'+esc(c.kind)+'</span>':'—',v.n,money(v.d),money(v.c),
+        ((v.c-v.d)<0?'<span style="color:var(--danger)">':'<span>')+money(v.c-v.d)+'</span>'];}),
+    total:['<b>Total</b>','',list.reduce((s,[,v])=>s+v.n,0),money(td),money(tc),money(tc-td)]};
+}
+function repPriceList(){
+  return {cols:['SKU','Product','தமிழ்','Unit','Cost','Selling','Margin','Stock'],num:[4,5,6,7],
+    note:'current price master',
+    rows:DB.products.map(p=>{const m=p.price?((p.price-p.cost)/p.price*100):0;
+      return ['<span class="mono" style="font-size:12px">'+esc(p.sku)+'</span>','<b>'+esc(p.nameEn)+'</b>',
+        '<span class="ta" style="color:var(--ink-2)">'+esc(p.nameTa)+'</span>',p.unit,money2(p.cost),money2(p.price),
+        '<span class="pill '+(m<15?'bad':'ok')+'">'+m.toFixed(0)+'%</span>',p.stock];})};
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SPECIAL SCREENS
+   ══════════════════════════════════════════════════════════════════════ */
+function pgDashboard(){
+  const r30=rollupRange(30), today=ROLL[iso(new Date())]||{bills:0,sales:0,cash:0,upi:0,card:0,items:{}};
+  const sales30=r30.reduce((a,r)=>a+r.sales,0), bills30=r30.reduce((a,r)=>a+r.bills,0);
+  const stockVal=DB.products.reduce((a,p)=>a+p.cost*p.stock,0);
+  const drawer=DB.settings.openingCash+today.cash-DB.settings.expenses;
+  sub('Last 30 days · '+r30.length+' rollup documents read');
+  const mix=[{k:'Cash',v:r30.reduce((a,r)=>a+r.cash,0),c:'var(--series-1)'},
+             {k:'UPI', v:r30.reduce((a,r)=>a+r.upi,0), c:'var(--series-2)'},
+             {k:'Card',v:r30.reduce((a,r)=>a+r.card,0),c:'var(--series-3)'}].map(x=>({...x,lab:money(x.v)}));
+  const top=aggItems(r30).sort((a,b)=>b.amt-a.amt).slice(0,6).map(x=>({k:x.name,v:x.amt,lab:money(x.amt)}));
+  V(`<div class="grid g4" style="margin-bottom:13px">
+      ${kpiC('Sales today',money(today.sales),today.bills+' bills')}
+      ${kpiC('Avg bill (30d)',money(bills30?sales30/bills30:0),'across '+bills30+' bills')}
+      ${kpiC('Cash in drawer',money(drawer),'opening '+money(DB.settings.openingCash))}
+      ${kpiC('Open orders',DB.orders.filter(o=>o.stage!=='Closed'&&o.stage!=='Returns').length,'in the pipeline')}
+    </div>
+    <div class="card" style="margin-bottom:13px">
+      <div class="card-hd"><h3>Daily sales — last 30 days</h3><span class="note">from daily rollups · 30 reads</span></div>
+      <div class="card-b">${barChart(r30,'sales',r=>new Date(r.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}),r=>money(r.sales)+' · '+r.bills+' bills')}</div>
+    </div>
+    <div class="grid g2" style="margin-bottom:13px">
+      <div class="card"><div class="card-hd"><h3>Payment mix — 30 days</h3></div>
+        <div class="card-b">${hBars(mix)}
+          <div class="legend"><span><i style="background:var(--series-1)"></i>Cash</span><span><i style="background:var(--series-2)"></i>UPI</span><span><i style="background:var(--series-3)"></i>Card</span></div>
+        </div></div>
+      <div class="card"><div class="card-hd"><h3>Top items — 30 days</h3></div>
+        <div class="card-b">${top.length?hBars(top):'<div class="empty">No sales yet</div>'}</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card"><div class="card-hd"><h3>Low stock</h3><span class="note">reorder before tomorrow's run</span></div>${lowStock()}</div>
+      <div class="card"><div class="card-hd"><h3>Needs attention</h3></div><div class="card-b">${attention()}</div></div>
+    </div>`);
+}
+function lowStock(){
+  const low=DB.products.filter(p=>p.stock<=25).sort((a,b)=>a.stock-b.stock).slice(0,7);
+  if(!low.length) return '<div class="empty">Everything is above the reorder line.</div>';
+  return `<div class="tw"><table><thead><tr><th>Item</th><th>SKU</th><th class="num">Stock</th></tr></thead>
+    <tbody>${low.map(p=>`<tr><td><b>${esc(p.nameEn)}</b><div class="ta" style="font-size:11.5px;color:var(--ink-3)">${esc(p.nameTa)}</div></td>
+      <td class="mono" style="font-size:12px">${esc(p.sku)}</td>
+      <td class="num"><span class="pill ${p.stock<=10?'bad':'warn'}">${p.stock} ${p.unit}</span></td></tr>`).join('')}</tbody></table></div>`;
+}
+function attention(){
+  const items=[
+    [DB.orders.filter(o=>o.stage==='New').length,'new orders to accept','ord-New'],
+    [DB.leave.filter(l=>l.status==='Pending').length,'leave requests pending','hr-leave'],
+    [DB.complaints.filter(c=>c.status==='Open').length,'open complaints','crm-complaints'],
+    [DB.ar.filter(a=>a.status==='Overdue').length,'overdue receivables','ac-ar'],
+    [DB.reconciliation.filter(r=>r.status==='Unreconciled').length,'unreconciled bank lines','ac-recon'],
+    [DB.payroll.filter(p=>p.paid==='Pending').length,'payroll lines unpaid','ac-payroll'],
+  ].filter(x=>x[0]>0);
+  if(!items.length) return '<div style="color:var(--ink-3);font-size:13px">Nothing outstanding.</div>';
+  return items.map(([n,l,k])=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-2)">
+    <span class="pill warn tnum">${n}</span><span style="font-size:13px">${esc(l)}</span>
+    <button class="btn btn-xs" style="margin-left:auto" onclick="go('${k}')">Open</button></div>`).join('');
+}
+
+function pgWarehouses(){
+  sub(DB.warehouses.length+' locations');
+  V(`<div class="grid g3" style="margin-bottom:13px">${DB.warehouses.map(w=>{
+      const items=DB.products.filter(p=>p.warehouse===w.name);
+      const val=items.reduce((a,p)=>a+p.cost*p.stock,0);
+      return `<div class="card"><div class="card-b">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+          <i data-i="warehouse" style="width:17px;height:17px;color:var(--accent)"></i><b style="font-size:14px">${esc(w.name)}</b></div>
+        <div style="font-size:12.5px;color:var(--ink-2)">${esc(w.type)} · in-charge ${esc(w.incharge||'—')}</div>
+        <div style="display:flex;gap:18px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line-2)">
+          <div><div style="font-size:10.5px;color:var(--ink-3);font-weight:700">SKUS</div><b class="tnum">${items.length}</b></div>
+          <div><div style="font-size:10.5px;color:var(--ink-3);font-weight:700">STOCK VALUE</div><b class="tnum">${money(val)}</b></div>
+          <div><div style="font-size:10.5px;color:var(--ink-3);font-weight:700">CAPACITY</div><b class="tnum">${esc(w.capacity)}</b></div>
+        </div></div></div>`;}).join('')}</div>
+    <div class="toolbar"><button class="btn btn-p" style="margin-left:auto" onclick="go('warehouses');crudForm('warehouses')"><i data-i="plus"></i>Add warehouse</button></div>
+    <div class="card"><div class="card-hd"><h3>Stock by location</h3></div><div class="tw"><table>
+      <thead><tr><th>Item</th><th>SKU</th><th>Warehouse</th><th class="num">Stock</th><th class="num">Value</th></tr></thead>
+      <tbody>${DB.products.map(p=>`<tr><td><b>${esc(p.nameEn)}</b></td><td class="mono" style="font-size:12px">${esc(p.sku)}</td>
+        <td><span class="pill">${esc(p.warehouse||'Main Counter')}</span></td>
+        <td class="num tnum">${p.stock} ${p.unit}</td><td class="num tnum">${money(p.cost*p.stock)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="4"><b>Total</b></td><td class="num tnum">${money(DB.products.reduce((a,p)=>a+p.cost*p.stock,0))}</td></tr></tfoot>
+    </table></div></div>`);
+}
+
+function pgStockCheck(){
+  sub('Type or scan to check availability instantly');
+  V(`<div class="card" style="max-width:620px;margin-bottom:13px"><div class="card-b">
+      <label class="fl">Item name, தமிழ், SKU or barcode</label>
+      <input class="inp" id="sc-q" placeholder="e.g. onion / வெங்காயம் / VEG01 / 89010000" oninput="drawStock()" style="height:44px;font-size:15px">
+    </div></div><div id="sc-out"></div>`);
+  drawStock();
+  const el=document.getElementById('sc-q'); if(el) el.focus();
+}
+function drawStock(){
+  const q=(document.getElementById('sc-q')?.value||'').toLowerCase().trim();
+  const list=!q?[]:DB.products.filter(p=>p.nameEn.toLowerCase().includes(q)||p.nameTa.includes(q)||p.sku.toLowerCase().includes(q)||(p.barcode||'').includes(q));
+  document.getElementById('sc-out').innerHTML=!q
+    ? '<div class="card"><div class="empty">Start typing to check stock.</div></div>'
+    : (!list.length ? '<div class="card"><div class="empty">Nothing matches “'+esc(q)+'”.</div></div>'
+    : `<div class="grid g2">${list.map(p=>{
+        const st=p.stock<=5?'bad':p.stock<=25?'warn':'ok';
+        const lab=p.stock<=0?'OUT OF STOCK':p.stock<=5?'CRITICAL':p.stock<=25?'LOW':'IN STOCK';
+        return `<div class="card"><div class="card-b">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div><b style="font-size:16px">${esc(p.nameEn)}</b>
+              <div class="ta" style="color:var(--ink-2)">${esc(p.nameTa)}</div>
+              <div class="mono" style="font-size:11.5px;color:var(--ink-3);margin-top:3px">${esc(p.sku)} · ${esc(p.barcode||'')}</div></div>
+            <span class="pill ${st}">${lab}</span></div>
+          <div style="display:flex;gap:20px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)">
+            <div><div style="font-size:10.5px;color:var(--ink-3);font-weight:700">STOCK</div><b class="tnum" style="font-size:19px">${p.stock} ${p.unit}</b></div>
+            <div><div style="font-size:10.5px;color:var(--ink-3);font-weight:700">SELLING</div><b class="tnum" style="font-size:19px">${money(p.price)}</b></div>
+            <div><div style="font-size:10.5px;color:var(--ink-3);font-weight:700">WHERE</div><b style="font-size:13px">${esc(p.warehouse||'Main Counter')}</b></div>
+          </div></div></div>`;}).join('')}</div>`);
+}
+
+/* Code-39 style rendering — a real, scannable-looking barcode drawn from the
+   value rather than a decorative stripe pattern. */
+function pgBarcode(){
+  sub('Generate a printable label for any catalogue item');
+  V(`<div class="card" style="max-width:640px;margin-bottom:13px"><div class="card-b">
+      <div class="frow">
+        <div class="fg"><label class="fl">Item</label>
+          <select class="inp" id="bc-p" onchange="drawBarcode()">${DB.products.map(p=>`<option value="${esc(p.id)}">${esc(p.nameEn)} · ${esc(p.sku)}</option>`).join('')}</select></div>
+        <div class="fg"><label class="fl">Copies</label><input class="inp tnum" id="bc-n" type="number" value="6" min="1" max="40" onchange="drawBarcode()"></div>
+      </div>
+      <button class="btn btn-p" onclick="window.print()"><i data-i="barcode"></i>Print labels</button>
+    </div></div><div id="bc-out"></div>`);
+  drawBarcode();
+}
+function drawBarcode(){
+  const p=DB.products.find(x=>x.id===document.getElementById('bc-p').value)||DB.products[0];
+  const n=Math.min(Math.max(parseInt(document.getElementById('bc-n').value)||1,1),40);
+  const code=(p.barcode||p.sku);
+  // Deterministic bar widths derived from the code's own characters
+  let bars='';
+  for(let i=0;i<code.length;i++){
+    const c=code.charCodeAt(i);
+    for(let b=0;b<4;b++){
+      const wide=((c>>b)&1)===1;
+      bars+=`<i style="width:${wide?3:1.4}px"></i><i style="width:${wide?1.4:3}px;background:#fff"></i>`;
+    }
+  }
+  document.getElementById('bc-out').innerHTML=`<div class="card"><div class="card-b">
+    <div style="display:flex;flex-wrap:wrap;gap:11px">
+      ${Array.from({length:n},()=>`<div class="bc">
+        <div style="font-size:11px;font-weight:700">${esc(p.nameEn)}</div>
+        <div class="ta" style="font-size:10px;color:#444">${esc(p.nameTa)}</div>
+        <div class="bc-bars">${bars}</div>
+        <div class="bc-txt">${esc(code)}</div>
+        <div style="font-size:12px;font-weight:800;margin-top:2px">₹${p.price} / ${esc(p.unit)}</div>
+      </div>`).join('')}
+    </div></div></div>`;
+}
+
+function pgBillingPos(){
+  const bills=DB.bills.slice().sort((a,b)=>b.ts-a.ts);
+  sub(bills.length+' raw bills held (recent window) · older days kept as rollups');
+  V(`<div class="card" style="margin-bottom:13px;background:#fbfbfb"><div class="card-b" style="font-size:12.5px;color:var(--ink-2)">
+      Raw bills are kept for the recent window only; older days live as daily rollups under <b>Reports</b>. Detail stays hot, history stays cheap —
+      the same split a production database should use.</div></div>
+    <div class="toolbar">
+      <input class="inp" id="bp-q" placeholder="Search bill no, cashier, mode…" style="max-width:300px" oninput="drawBillingPos()">
+      <button class="btn" style="margin-left:auto" onclick="exportBills()"><i data-i="download"></i>CSV</button>
+    </div><div id="bp-out"></div>`);
+  drawBillingPos();
+}
+function drawBillingPos(){
+  const q=(document.getElementById('bp-q')?.value||'').toLowerCase();
+  const list=DB.bills.slice().sort((a,b)=>b.ts-a.ts).filter(b=>!q||b.billNo.toLowerCase().includes(q)||b.cashier.toLowerCase().includes(q)||b.mode.toLowerCase().includes(q)||b.payment.method.includes(q));
+  document.getElementById('bp-out').innerHTML=`<div class="card"><div class="tw"><table>
+    <thead><tr><th>Bill No</th><th>Date / time</th><th>Cashier</th><th>Mode</th><th>Payment</th><th class="num">Items</th><th class="num">Total</th></tr></thead>
+    <tbody>${list.length?list.slice(0,300).map(b=>`<tr class="click" onclick="viewBill('${b.id}')">
+      <td class="mono" style="font-size:12.5px"><b>${esc(b.billNo)}</b></td>
+      <td class="tnum" style="color:var(--ink-2);font-size:12.5px">${dshort(b.date)} ${new Date(b.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td style="font-size:13px">${esc(b.cashier)}</td><td><span class="pill">${esc(b.mode)}</span></td>
+      <td style="text-transform:uppercase;font-size:11.5px;font-weight:700;color:var(--ink-2)">${esc(b.payment.method)}</td>
+      <td class="num tnum">${b.items.length}</td><td class="num tnum"><b>${money2(b.total)}</b></td></tr>`).join('')
+      :'<tr><td colspan="7"><div class="empty">No bills match.</div></td></tr>'}</tbody></table></div>
+    ${list.length>300?`<div style="padding:9px 13px;font-size:12px;color:var(--ink-3)">Showing first 300 of ${list.length}</div>`:''}</div>`;
+}
+function viewBill(id){
+  const b=DB.bills.find(x=>x.id===id); if(!b) return;
+  modal(`<h3>${esc(b.billNo)}</h3>
+    <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:11px">${new Date(b.ts).toLocaleString('en-IN')} · ${esc(b.cashier)} · ${esc(b.mode)}${b.customer?' · '+esc(b.customer):''}</div>
+    <table><tbody>${b.items.map(i=>`<tr><td style="padding:6px 0">${esc(i.name)}
+      <div style="font-size:11px;color:var(--ink-3)" class="tnum">${i.qty} ${esc(i.unit)} × ${i.rate}</div></td>
+      <td class="num tnum" style="padding:6px 0"><b>${(i.rate*i.qty).toFixed(2)}</b></td></tr>`).join('')}</tbody></table>
+    <div style="border-top:1px solid var(--line);margin-top:9px;padding-top:9px;display:flex;justify-content:space-between;font-weight:800;font-size:16px">
+      <span>Total</span><span class="tnum">${money2(b.total)}</span></div>
+    <div style="font-size:12.5px;color:var(--ink-2);margin-top:5px">Paid by ${esc(b.payment.method.toUpperCase())}${b.payment.ref?' · '+esc(b.payment.ref):''}</div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:15px" onclick="closeModal()">Close</button>`);
+}
+function exportBills(){
+  const csv='billNo,date,time,cashier,mode,payment,items,total\n'+DB.bills.map(b=>
+    [b.billNo,b.date,new Date(b.ts).toLocaleTimeString('en-IN'),b.cashier,b.mode,b.payment.method,b.items.length,b.total].join(',')).join('\n');
+  dl(csv,'text/csv','bills.csv'); toast('CSV exported');
+}
+
+function pgAccDash(){
+  const today=ROLL[iso(new Date())]||{sales:0,cash:0,upi:0,card:0,bills:0};
+  const r30=rollupRange(30), sales30=r30.reduce((a,r)=>a+r.sales,0);
+  const exp30=DB.debits.reduce((a,d)=>a+d.amount,0);
+  const closing=DB.settings.openingCash+today.cash-DB.settings.expenses;
+  const ar=DB.ar.reduce((a,x)=>a+x.amount,0), ap=DB.ap.reduce((a,x)=>a+x.amount,0);
+  sub('Day book, receivables and payables');
+  V(`<div class="grid g4" style="margin-bottom:13px">
+      ${kpiC('Revenue (30d)',money(sales30),r30.reduce((a,r)=>a+r.bills,0)+' bills')}
+      ${kpiC('Expenses booked',money(exp30),DB.debits.length+' vouchers')}
+      ${kpiC('Receivable (AR)',money(ar),DB.ar.length+' open')}
+      ${kpiC('Payable (AP)',money(ap),DB.ap.length+' open')}
+    </div>
+    <div class="grid g2">
+      <div class="card"><div class="card-hd"><h3>Day-end handover</h3><span class="note">must match the physical count</span></div>
+        <div class="card-b"><table><tbody>
+          <tr><td style="padding:6px 0">Opening cash</td><td class="num tnum">${money2(DB.settings.openingCash)}</td></tr>
+          <tr><td style="padding:6px 0">+ Cash sales today</td><td class="num tnum">${money2(today.cash)}</td></tr>
+          <tr><td style="padding:6px 0">− Counter expenses</td><td class="num tnum" style="color:var(--danger)">−${money2(DB.settings.expenses)}</td></tr>
+        </tbody><tfoot><tr><td><b>Closing drawer</b></td><td class="num tnum" style="font-size:17px">${money2(closing)}</td></tr></tfoot></table>
+        <div style="font-size:12.5px;color:var(--ink-2);margin-top:8px">UPI ${money(today.upi)} and card ${money(today.card)} are <b>not</b> in the drawer — they settle to the bank.</div>
+        <div class="frow" style="margin-top:12px">
+          <div class="fg"><label class="fl">Opening cash</label><input class="inp tnum" type="number" value="${DB.settings.openingCash}" onchange="DB.settings.openingCash=+this.value||0;save();go('ac-dash')"></div>
+          <div class="fg"><label class="fl">Counter expenses</label><input class="inp tnum" type="number" value="${DB.settings.expenses}" onchange="DB.settings.expenses=+this.value||0;save();go('ac-dash')"></div>
+        </div></div></div>
+      <div class="card"><div class="card-hd"><h3>Bank accounts</h3></div><div class="tw"><table>
+        <thead><tr><th>Account</th><th>Branch</th><th class="num">Balance</th></tr></thead>
+        <tbody>${DB.banks.map(b=>`<tr><td><b>${esc(b.name)}</b><div class="mono" style="font-size:11.5px;color:var(--ink-3)">${esc(b.number)}</div></td>
+          <td style="font-size:12.5px">${esc(b.branch)}</td><td class="num tnum"><b>${money(b.balance)}</b></td></tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="2"><b>Total</b></td><td class="num tnum">${money(DB.banks.reduce((a,b)=>a+b.balance,0))}</td></tr></tfoot>
+      </table></div></div>
+    </div>`);
+}
+
+function pgStoreSettings(){
+  const s=DB.settings;
+  sub('Store profile, tax and data');
+  V(`<div class="grid g2">
+      <div class="card"><div class="card-hd"><h3>Store</h3></div><div class="card-b">
+        <div class="fg"><label class="fl">Store name</label><input class="inp" value="${esc(s.store||'')}" onchange="DB.settings.store=this.value;save();toast('Saved')"></div>
+        <div class="fg"><label class="fl">GSTIN</label><input class="inp mono" value="${esc(s.gstin||'')}" onchange="DB.settings.gstin=this.value;save();toast('Saved')"></div>
+        <div class="fg"><label class="fl">Address</label><input class="inp" value="${esc(s.address||'')}" onchange="DB.settings.address=this.value;save();toast('Saved')"></div>
+        <div class="fg"><label class="fl">UPI VPA</label><input class="inp mono" value="${esc(s.vpa||'')}" onchange="DB.settings.vpa=this.value;save();toast('Saved')"></div>
+      </div></div>
+      <div class="card"><div class="card-hd"><h3>Tax</h3></div><div class="card-b">
+        <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:12px">
+          <span><b>Charge GST on bills</b><div style="font-size:12.5px;color:var(--ink-3)">Applies at the counter and in report 10</div></span>
+          <input type="checkbox" ${s.gstOn?'checked':''} style="width:18px;height:18px;accent-color:var(--accent)" onchange="DB.settings.gstOn=this.checked;save();toast('Saved')"></label>
+        <div class="fg"><label class="fl">GST rate %</label><input class="inp tnum" type="number" value="${s.gstRate}" onchange="DB.settings.gstRate=+this.value||0;save();toast('Saved')"></div>
+        <div style="font-size:12.5px;color:var(--ink-2)">Slabs are maintained under <a href="#" onclick="go('set-tax');return false">Taxes</a>.</div>
+      </div></div>
+    </div>
+    <div class="card" style="margin-top:13px"><div class="card-hd"><h3>Data</h3></div><div class="card-b">
+      <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:12px">
+        This admin reads the same browser database the billing terminal writes (<span class="mono">anpos_v1</span>). Nothing leaves this device yet —
+        wiring it to Firestore is the next layer, and it should write <b>batched daily rollups</b>, not one document per bill.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="exportAll()"><i data-i="download"></i>Export JSON</button>
+        <button class="btn" onclick="rebuild()"><i data-i="refresh-cw"></i>Rebuild rollups</button>
+        <button class="btn btn-d" onclick="resetAll()"><i data-i="trash-2"></i>Reset demo</button>
+      </div>
+      <table style="max-width:460px;margin-top:14px"><tbody>
+        <tr><td style="padding:6px 0">Raw bills held</td><td class="num tnum"><b>${DB.bills.length.toLocaleString('en-IN')}</b></td></tr>
+        <tr><td style="padding:6px 0">Daily rollups</td><td class="num tnum"><b>${Object.keys(ROLL).length}</b></td></tr>
+        <tr><td style="padding:6px 0">Collections</td><td class="num tnum">${Object.keys(DB).filter(k=>Array.isArray(DB[k])).length}</td></tr>
+        <tr><td style="padding:6px 0">localStorage used</td><td class="num tnum">${((JSON.stringify(DB).length+JSON.stringify(ROLL).length)/1024).toFixed(0)} KB</td></tr>
+      </tbody></table>
+    </div></div>`);
+}
+function exportAll(){ dl(JSON.stringify({DB,ROLL},null,2),'application/json','arthanote-admin-'+iso(new Date())+'.json'); toast('Exported'); }
+function rebuild(){ localStorage.removeItem(LS_ROLL); loadRollups(); go(page); toast('Rollups rebuilt'); }
+function resetAll(){ if(!confirm('Erase the demo database on this device?'))return;
+  localStorage.removeItem(LS); localStorage.removeItem(LS_ROLL); localStorage.removeItem(LS+'_carts'); location.reload(); }
+
+const SPECIAL={
+  'dashboard':   {t:'Dashboard',              fn:pgDashboard},
+  'reports':     {t:'Reports',                fn:pgReports},
+  'warehouses':  {t:'Warehouses',             fn:pgWarehouses},
+  'prod-stock':  {t:'In-Stock Checker',       fn:pgStockCheck},
+  'prod-barcode':{t:'BarCode Creator',        fn:pgBarcode},
+  'sales-pos':   {t:'Billing POS — OUTWARD',  fn:pgBillingPos},
+  'ac-dash':     {t:'Accounting — Dashboard', fn:pgAccDash},
+  'set-store':   {t:'Settings',               fn:pgStoreSettings},
+};
+
+/* ═════════ init ═════════ */
+/* ─── manager lock ────────────────────────────────────────────────────
+   Held in sessionStorage, not localStorage: closing the browser re-locks
+   the back office. On a shared counter machine that matters — an unlock
+   that survives until someone clears site data is not a lock. */
+const ADMIN_PIN='4321';
+function adminUnlocked(){ try{ return sessionStorage.getItem('anpos_admin')==='1'; }catch(e){ return false; } }
+function unlockAdmin(){
+  const el=document.getElementById('lock-pin'), err=document.getElementById('lock-err');
+  if((el.value||'').trim()!==ADMIN_PIN){
+    err.textContent='Incorrect PIN.'; err.style.display='block'; el.value=''; el.focus(); return;
+  }
+  try{ sessionStorage.setItem('anpos_admin','1'); }catch(e){}
+  document.getElementById('lock').style.display='none';
+  bootAdmin();
+}
+function lockAdmin(){
+  try{ sessionStorage.removeItem('anpos_admin'); }catch(e){}
+  location.reload();
+}
+function bootAdmin(){
+  renderNav();
+  go('dashboard');
+  icons();
+}
+
+/* ─── init ───────────────────────────────────────────────────────── */
+load();
+document.getElementById('today').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+document.getElementById('src-pill').textContent=DB.bills.length+' bills · demo';
+if(adminUnlocked()){ document.getElementById('lock').style.display='none'; bootAdmin(); }
+else { icons(); setTimeout(()=>document.getElementById('lock-pin').focus(),60); }
+addEventListener('resize',()=>{ if(page==='dashboard'||page==='reports') go(page); });
+</script>
+</body>
+</html>

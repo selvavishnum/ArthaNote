@@ -24,6 +24,29 @@ service cloud.firestore {
     //     uid) may manage it. This keeps any authenticated user from being
     //     able to overwrite someone else's businessId and hijack their data.
     match /staff/{docId} {
+      // ⚠️ WORLD-READABLE. This is the biggest remaining hole: anyone on the
+      // internet can list every staff doc of every business — names, emails,
+      // businessIds, and on owner self-profile docs the billing fields
+      // (pro / planType / proExpiry / lastPaymentId) too.
+      //
+      // It is open because attend.html (QR, no login) queries
+      //   staff.where('businessId','==',BID)
+      // and an unauthenticated client has no identity to match a rule against.
+      //
+      // TO CLOSE IT, in this order — flipping it early breaks attendance for
+      // every shop, so do not reorder:
+      //   1. Firebase Console → Authentication → Sign-in method → enable
+      //      "Anonymous".
+      //   2. Deploy the attend.html that calls ensureAnonAuth() (already in
+      //      this repo) and confirm a real QR scan still lists staff.
+      //   3. Only then change the line below to:
+      //         allow read: if request.auth != null;
+      //      and re-test one QR scan immediately after publishing.
+      // That stops anonymous internet-wide scraping. It does not stop a
+      // determined attacker who mints their own anonymous token, so the
+      // durable fix is to stop keeping email/billing fields on a doc this
+      // page needs to read — split the roster (businessId, name, shop) into
+      // its own collection and lock this one to ownsBusiness().
       allow read: if true;
 
       allow create: if isAdmin() || (request.auth != null && (
@@ -52,9 +75,40 @@ service cloud.firestore {
       ));
     }
 
-    // Attendance — public (QR scan page has no login)
+    // Attendance — the QR scan page (attend.html) has no login, so reads and
+    // new marks stay open. `write: if true` used to cover update and delete
+    // too, which meant anyone on the internet could rewrite or wipe any
+    // business's entire attendance history, and could write arbitrary
+    // documents into this collection. Both are now closed.
     match /attendance/{docId} {
-      allow read, write: if true;
+      allow read: if true;
+
+      // Append-only, and shape-checked so the open endpoint can only be used
+      // to record attendance. All three writers — attend.html (staff + manager
+      // paths), the Flutter QR screen and the Flutter staff screen — send
+      // exactly these fields, so this rejects nothing the app actually does.
+      allow create: if request.resource.data.keys().hasAll(
+            ['businessId','shopId','staffName','date','time','timeRaw','type'])
+        && request.resource.data.businessId is string
+        && request.resource.data.businessId.size() > 0
+        && request.resource.data.businessId.size() <= 128
+        && request.resource.data.staffName is string
+        && request.resource.data.staffName.size() > 0
+        && request.resource.data.staffName.size() <= 120
+        && request.resource.data.date is string
+        && request.resource.data.date.size() <= 10
+        && request.resource.data.time is string
+        && request.resource.data.time.size() <= 20
+        // int OR float: both clients send an integer epoch, but a rule that
+        // insisted on `is int` would block every staff member from marking
+        // attendance if a client ever serialised it as a double. Failing open
+        // on the number type is the safe side of that trade.
+        && (request.resource.data.timeRaw is int || request.resource.data.timeRaw is float)
+        && request.resource.data.type in ['in','out','rest','back','half'];
+
+      // Editing or deleting a mark is not part of the no-login QR flow. The
+      // owning business does it in-app; the admin purge does it on deletion.
+      allow update, delete: if isAdmin() || ownsBusiness(resource.data.businessId);
     }
 
     // Config (shops, bizType, GST) — business owner only
