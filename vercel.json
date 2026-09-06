@@ -3,6 +3,7 @@
   "outputDirectory": ".",
   "buildCommand": null,
   "rewrites": [
+    { "source": "/pos",     "destination": "/pos.html"     },
     { "source": "/attend",  "destination": "/attend.html"  },
     { "source": "/finance", "destination": "/finance.html" },
     { "source": "/admin",   "destination": "/admin.html"   },

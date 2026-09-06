@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ArthaNote POS — Tulasi Vegetables Market</title>
+<meta name="theme-color" content="#0f172a">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'Noto Sans Tamil', 'system-ui', 'sans-serif'],
+        ta:   ['Noto Sans Tamil', 'sans-serif'],
+        mono: ['Roboto Mono', 'ui-monospace', 'monospace'],
+      },
+      colors: {
+        brand:  { 50:'#ecfdf5', 500:'#10b981', 600:'#059669', 700:'#047857', 900:'#064e3b' },
+        term:   { 900:'#0f172a', 800:'#1e293b', 700:'#334155', 600:'#475569' },
+      },
+    }
+  }
+}
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.451.0/umd/lucide.min.js"></script>
+
+<style>
+  html,body{height:100%;overscroll-behavior:none}
+  body{-webkit-tap-highlight-color:transparent}
+  .tnum{font-variant-numeric:tabular-nums}
+  /* Thin scrollbars so panels keep their density on a counter screen */
+  .scroll::-webkit-scrollbar{width:8px;height:8px}
+  .scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+  .scroll::-webkit-scrollbar-track{background:transparent}
+  /* Number inputs: strip spinners, they steal width and are useless on a POS */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input[type=number]{-moz-appearance:textfield}
+  [x-cloak]{display:none!important}
+
+  /* ── Thermal receipt: 58mm ≈ 32 monospace chars, 80mm ≈ 48 ── */
+  .receipt{font-family:'Roboto Mono',monospace;font-size:11px;line-height:1.45;color:#000;background:#fff;width:280px}
+  .receipt.w80{width:380px;font-size:11.5px}
+  .receipt hr{border:0;border-top:1px dashed #000;margin:5px 0}
+  .receipt .r{display:flex;justify-content:space-between;gap:8px}
+
+  @media print{
+    body *{visibility:hidden!important}
+    #receipt-print, #receipt-print *{visibility:visible!important}
+    #receipt-print{position:absolute;left:0;top:0;width:100%;margin:0;padding:0;box-shadow:none}
+    @page{margin:3mm}
+  }
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+
+<body class="h-full bg-slate-100 font-sans text-slate-900 select-none">
+
+<!-- ═══════════════════════════════════════════════════════════
+     OTP LOGIN OVERLAY  (simulated 4-digit email OTP)
+     ═══════════════════════════════════════════════════════════ -->
+<div id="otp-screen" class="fixed inset-0 z-50 bg-term-900 flex items-center justify-center p-4">
+  <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-7">
+    <div class="flex items-center gap-3 mb-1">
+      <div class="w-11 h-11 rounded-xl bg-brand-600 grid place-items-center text-white text-xl font-extrabold">🥬</div>
+      <div>
+        <div class="font-extrabold text-lg leading-tight">Tulasi Vegetables Market</div>
+        <div class="text-xs text-slate-500">ArthaNote POS Terminal</div>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mt-4 mb-1">OTP to Login / Signup</p>
+    <p class="text-xs text-slate-400 mb-4">A 4-digit code was sent to the registered email. <span class="text-brand-600 font-semibold">Demo code: 1234</span></p>
+
+    <div class="flex gap-2.5 mb-4" id="otp-boxes">
+      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
+      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
+      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
+      <input inputmode="numeric" maxlength="1" class="otp-in w-full h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none tnum">
+    </div>
+
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Cashier</label>
+      <select id="otp-cashier" class="w-full mt-1 border-2 border-slate-200 rounded-xl px-3 h-11 focus:border-brand-600 focus:outline-none text-sm font-medium">
+        <option>Cashier 1 — Counter A</option>
+        <option>Cashier 2 — Counter B</option>
+        <option>Store Manager</option>
+      </select>
+    </div>
+
+    <div id="otp-err" class="hidden text-sm text-red-600 font-medium mb-3"></div>
+    <button onclick="verifyOTP()" class="w-full h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base transition">Unlock Terminal</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     APP
+     ═══════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden h-full flex flex-col">
+
+  <!-- ── HEADER ────────────────────────────────────────────── -->
+  <header class="bg-term-900 text-white flex-shrink-0">
+    <div class="px-3 h-14 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-brand-600 grid place-items-center text-lg flex-shrink-0">🥬</div>
+      <div class="min-w-0 hidden sm:block">
+        <div class="font-bold text-sm leading-tight truncate">Tulasi Vegetables Market</div>
+        <div class="text-[10px] text-slate-400 leading-tight">Thuckalay · Terminal T1</div>
+      </div>
+
+      <!-- status pills -->
+      <div class="flex items-center gap-1.5 ml-auto text-[11px]">
+        <span id="net-pill" class="px-2 py-1 rounded-md bg-brand-600/20 text-brand-500 font-semibold flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span><span id="net-txt">Online</span>
+        </span>
+        <span id="sync-pill" class="px-2 py-1 rounded-md bg-slate-700 text-slate-300 font-medium hidden md:flex items-center gap-1">
+          <i data-lucide="hard-drive" class="w-3 h-3"></i><span id="sync-txt">Saved locally</span>
+        </span>
+        <span class="px-2 py-1 rounded-md bg-slate-800 text-slate-300 font-mono tnum" id="clock">--:--:--</span>
+      </div>
+
+      <!-- view toggle -->
+      <div class="flex bg-slate-800 rounded-lg p-0.5 ml-1">
+        <button id="tab-pos" onclick="switchView('pos')" class="px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5">
+          <i data-lucide="calculator" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Billing</span>
+        </button>
+        <button id="tab-erp" onclick="switchView('erp')" class="px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5">
+          <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Manage</span>
+        </button>
+      </div>
+
+      <!-- cashier chip -->
+      <button onclick="logout()" class="flex items-center gap-2 pl-2 pr-2.5 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 transition flex-shrink-0" title="Logout">
+        <span class="w-6 h-6 rounded-md bg-brand-600 grid place-items-center text-[10px] font-bold" id="cashier-ini">C1</span>
+        <span class="text-[11px] font-semibold hidden lg:block" id="cashier-name">Cashier 1</span>
+        <i data-lucide="log-out" class="w-3.5 h-3.5 text-slate-400"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══════════ POS BILLING VIEW ══════════ -->
+  <div id="pos-view" class="flex-1 min-h-0 flex flex-col">
+
+    <!-- ── CART TABS C1–C5 + ORDER MODE ── -->
+    <div class="bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2 flex-wrap flex-shrink-0">
+      <div class="flex gap-1.5" id="cart-tabs"><!-- rendered --></div>
+      <div class="h-6 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+      <div class="flex bg-slate-100 rounded-lg p-0.5" id="mode-switch">
+        <button data-mode="InStore"   class="mode-btn px-3 h-8 rounded-md text-xs font-bold transition">InStore</button>
+        <button data-mode="Take-Away" class="mode-btn px-3 h-8 rounded-md text-xs font-bold transition">Take-Away</button>
+        <button data-mode="Delivery"  class="mode-btn px-3 h-8 rounded-md text-xs font-bold transition">Delivery</button>
+      </div>
+      <button onclick="openCustomItem()" class="ml-auto h-8 px-3 rounded-lg border-2 border-dashed border-slate-300 hover:border-brand-600 hover:text-brand-700 text-xs font-bold text-slate-600 transition flex items-center gap-1.5">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i>Custom Item
+      </button>
+    </div>
+
+    <!-- ── WORKSPACE: catalog | cart ── -->
+    <div class="flex-1 min-h-0 grid lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_440px]">
+
+      <!-- LEFT: search + product grid -->
+      <div class="min-h-0 flex flex-col border-r border-slate-200">
+        <div class="p-2 flex gap-2 bg-white border-b border-slate-200 flex-shrink-0">
+          <div class="relative w-28 sm:w-32 flex-shrink-0">
+            <input id="sku-input" placeholder="SKU"
+              class="w-full h-11 pl-8 pr-2 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm font-mono font-semibold uppercase"
+              onkeydown="if(event.key==='Enter')skuEnter()">
+            <i data-lucide="scan-barcode" class="w-4 h-4 absolute left-2.5 top-3.5 text-slate-400"></i>
+          </div>
+          <div class="relative flex-1">
+            <input id="search-input" placeholder="Search item / தமிழ் பெயர் / barcode…    (F2)"
+              class="w-full h-11 pl-9 pr-9 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm font-medium"
+              oninput="renderProducts()">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-3.5 text-slate-400"></i>
+            <button onclick="clearSearch()" class="absolute right-2 top-2.5 w-6 h-6 rounded grid place-items-center text-slate-400 hover:bg-slate-100">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        <div class="px-2 pt-2 flex gap-1.5 overflow-x-auto scroll flex-shrink-0" id="cat-chips"><!-- rendered --></div>
+        <div id="product-grid" class="flex-1 min-h-0 overflow-y-auto scroll p-2 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 content-start"><!-- rendered --></div>
+      </div>
+
+      <!-- RIGHT: cart -->
+      <div class="min-h-0 flex flex-col bg-white">
+        <div class="px-3 py-2 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <div class="font-bold text-sm flex items-center gap-2">
+            <i data-lucide="shopping-cart" class="w-4 h-4 text-brand-600"></i>
+            <span id="cart-title">Cart C1</span>
+            <span id="cart-mode-badge" class="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-600">InStore</span>
+          </div>
+          <button onclick="clearCart()" class="text-xs font-semibold text-red-600 hover:bg-red-50 px-2 py-1 rounded transition">Clear</button>
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto scroll" id="cart-body"><!-- rendered --></div>
+
+        <!-- totals + checkout -->
+        <div class="border-t-2 border-slate-200 flex-shrink-0">
+          <div class="px-3 py-2 space-y-1 text-sm">
+            <div class="flex justify-between"><span class="text-slate-500">Subtotal</span><span class="font-semibold tnum" id="t-sub">₹0.00</span></div>
+            <div class="flex justify-between items-center gap-2">
+              <span class="text-slate-500 flex-shrink-0">Discount</span>
+              <div class="flex items-center gap-1 ml-auto">
+                <input id="disc-val" type="number" min="0" step="0.01" value="0" onchange="renderCart()" oninput="renderCart()"
+                  class="w-16 h-7 px-2 rounded border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right text-xs font-semibold tnum">
+                <select id="disc-type" onchange="renderCart()" class="h-7 px-1 rounded border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-xs font-bold">
+                  <option value="pct">%</option><option value="flat">₹</option>
+                </select>
+                <span class="font-semibold tnum text-red-600 w-16 text-right" id="t-disc">−₹0.00</span>
+              </div>
+            </div>
+            <div class="flex justify-between" id="gst-row"><span class="text-slate-500">GST <span id="gst-lbl" class="text-xs"></span></span><span class="font-semibold tnum" id="t-gst">₹0.00</span></div>
+          </div>
+          <button id="checkout-btn" onclick="openPayment()"
+            class="w-full h-16 bg-brand-600 hover:bg-brand-700 active:bg-brand-900 text-white flex items-center justify-between px-4 transition disabled:bg-slate-300 disabled:cursor-not-allowed">
+            <span class="text-left">
+              <span class="block text-[11px] font-semibold opacity-80 uppercase tracking-wide">Checkout · F4</span>
+              <span class="block text-xs font-medium" id="ck-items">0 items</span>
+            </span>
+            <span class="text-2xl font-extrabold tnum" id="ck-total">₹0.00</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ ADMIN / ERP VIEW ══════════ -->
+  <div id="erp-view" class="hidden flex-1 min-h-0 flex">
+    <!-- sidebar -->
+    <nav class="w-14 md:w-52 bg-white border-r border-slate-200 flex-shrink-0 py-2 overflow-y-auto scroll" id="erp-nav"><!-- rendered --></nav>
+    <div class="flex-1 min-h-0 overflow-y-auto scroll p-3 md:p-5" id="erp-body"><!-- rendered --></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODALS
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- Custom item -->
+<div id="m-custom" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl">
+    <h3 class="font-bold text-lg mb-4">Custom Item</h3>
+    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Item name</label>
+    <input id="ci-name" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none mb-3 font-medium" placeholder="e.g. Sambar mix pack">
+    <div class="grid grid-cols-3 gap-2 mb-4">
+      <div class="col-span-1">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Unit</label>
+        <select id="ci-unit" class="w-full h-11 px-2 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-semibold text-sm">
+          <option value="pcs">Pcs</option><option value="kg">Kg</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Rate ₹</label>
+        <input id="ci-rate" type="number" min="0" step="0.01" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-semibold tnum">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Qty</label>
+        <input id="ci-qty" type="number" min="0" step="0.001" value="1" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-semibold tnum">
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="closeModals()" class="flex-1 h-11 rounded-lg border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Cancel</button>
+      <button onclick="addCustomItem()" class="flex-1 h-11 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm">Add to Cart</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment -->
+<div id="m-pay" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-full flex flex-col">
+    <div class="bg-term-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+      <div>
+        <div class="text-[11px] uppercase tracking-wide opacity-70 font-semibold">Amount payable</div>
+        <div class="text-3xl font-extrabold tnum" id="pay-total">₹0.00</div>
+      </div>
+      <button onclick="closeModals()" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 grid place-items-center"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+
+    <div class="p-4 overflow-y-auto scroll">
+      <div class="grid grid-cols-4 gap-1.5 mb-4" id="pay-methods">
+        <button data-pm="cash"  class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="banknote" class="w-5 h-5"></i><span class="text-[11px] font-bold">Cash</span></button>
+        <button data-pm="upi"   class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="qr-code" class="w-5 h-5"></i><span class="text-[11px] font-bold">UPI</span></button>
+        <button data-pm="card"  class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="credit-card" class="w-5 h-5"></i><span class="text-[11px] font-bold">Card</span></button>
+        <button data-pm="split" class="pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition"><i data-lucide="split" class="w-5 h-5"></i><span class="text-[11px] font-bold">Split</span></button>
+      </div>
+
+      <!-- CASH -->
+      <div id="pane-cash" class="pay-pane">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Cash tendered</label>
+        <input id="pay-tendered" type="number" min="0" step="0.5" oninput="calcChange()"
+          class="w-full h-14 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right text-2xl font-bold tnum">
+        <div class="flex gap-1.5 mt-2 flex-wrap" id="quick-cash"></div>
+        <div class="mt-3 bg-slate-50 rounded-xl p-3 flex justify-between items-center">
+          <span class="text-sm font-semibold text-slate-600">Balance to return</span>
+          <span class="text-2xl font-extrabold tnum" id="pay-change">₹0.00</span>
+        </div>
+      </div>
+
+      <!-- UPI -->
+      <div id="pane-upi" class="pay-pane hidden">
+        <div class="bg-slate-50 rounded-xl p-4 flex flex-col items-center">
+          <div class="w-40 h-40 bg-white border-2 border-slate-200 rounded-xl grid place-items-center" id="qr-box"></div>
+          <div class="text-xs text-slate-500 mt-2 text-center">Scan with GPay / PhonePe / Paytm<br><span class="font-mono font-semibold text-slate-700" id="upi-vpa">tulasiveg@upi</span></div>
+        </div>
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 mt-3">UPI reference / txn id</label>
+        <input id="pay-ref" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono text-sm" placeholder="e.g. 4312 8890 2231">
+      </div>
+
+      <!-- CARD -->
+      <div id="pane-card" class="pay-pane hidden">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Card approval code</label>
+        <input id="pay-card-ref" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono text-sm" placeholder="Approval / RRN">
+        <p class="text-xs text-slate-500 mt-2">Swipe on the card machine, then enter the approval code shown on its slip.</p>
+      </div>
+
+      <!-- SPLIT -->
+      <div id="pane-split" class="pay-pane hidden space-y-2">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Cash portion ₹</label>
+          <input id="sp-cash" type="number" min="0" step="0.5" value="0" oninput="calcSplit()" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">UPI portion ₹</label>
+          <input id="sp-upi" type="number" min="0" step="0.5" value="0" oninput="calcSplit()" class="w-full h-11 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 flex justify-between text-sm font-semibold">
+          <span class="text-slate-600">Still unpaid</span><span class="tnum" id="sp-left">₹0.00</span>
+        </div>
+      </div>
+
+      <!-- customer (optional) -->
+      <div class="mt-4 pt-3 border-t border-slate-200">
+        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Customer (optional)</label>
+        <input id="pay-cust" list="cust-list" class="w-full h-10 px-3 rounded-xl border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm" placeholder="Name or phone">
+        <datalist id="cust-list"></datalist>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-slate-200 flex gap-2 flex-shrink-0">
+      <button onclick="closeModals()" class="flex-1 h-12 rounded-xl border-2 border-slate-200 font-bold hover:bg-slate-50">Cancel</button>
+      <button onclick="completeSale()" class="flex-[2] h-12 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-base">Complete Sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt -->
+<div id="m-receipt" class="modal hidden fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden max-h-full flex flex-col">
+    <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+      <h3 class="font-bold flex items-center gap-2"><i data-lucide="receipt" class="w-4 h-4 text-brand-600"></i>Receipt</h3>
+      <div class="flex bg-slate-100 rounded-lg p-0.5">
+        <button onclick="setPaper(58)" id="p58" class="px-2.5 h-7 rounded text-[11px] font-bold">58mm</button>
+        <button onclick="setPaper(80)" id="p80" class="px-2.5 h-7 rounded text-[11px] font-bold">80mm</button>
+      </div>
+    </div>
+    <div class="flex-1 min-h-0 overflow-y-auto scroll bg-slate-200 p-4 grid place-items-start justify-center">
+      <div id="receipt-print" class="receipt p-3 shadow-lg"></div>
+    </div>
+    <div class="p-3 border-t border-slate-200 flex gap-2 flex-shrink-0">
+      <button onclick="closeModals()" class="flex-1 h-11 rounded-xl border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Done</button>
+      <button onclick="window.print()" class="flex-1 h-11 rounded-xl bg-term-900 hover:bg-term-800 text-white font-bold text-sm flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i>Print Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- Product add/edit -->
+<div id="m-product" class="modal hidden fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl max-h-full overflow-y-auto scroll">
+    <h3 class="font-bold text-lg mb-4" id="pm-title">Add Product</h3>
+    <input type="hidden" id="pm-id">
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Name (English)</label>
+        <input id="pm-en" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-medium"></div>
+      <div class="col-span-2"><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">பெயர் (Tamil)</label>
+        <input id="pm-ta" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-ta"></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">SKU</label>
+        <input id="pm-sku" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono uppercase text-sm"></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</label>
+        <input id="pm-cat" list="cat-list" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm">
+        <datalist id="cat-list"></datalist></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Unit</label>
+        <select id="pm-unit" class="w-full h-11 px-2 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-semibold text-sm"><option value="kg">Kg</option><option value="pcs">Pcs</option></select></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Stock</label>
+        <input id="pm-stock" type="number" step="0.001" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right tnum"></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Cost ₹</label>
+        <input id="pm-cost" type="number" step="0.01" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right tnum"></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Selling ₹</label>
+        <input id="pm-price" type="number" step="0.01" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right tnum font-bold"></div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="closeModals()" class="flex-1 h-11 rounded-lg border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Cancel</button>
+      <button onclick="saveProduct()" class="flex-1 h-11 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- toast -->
+<div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden">
+  <div class="bg-term-900 text-white px-4 py-2.5 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-2" id="toast-body"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   ArthaNote POS — single-file terminal
+   All state lives in localStorage. No backend calls: a bill is durable the
+   instant it is written locally, which is the only behaviour acceptable at
+   a counter where the internet drops. Sync to Firestore is a later layer.
+   ══════════════════════════════════════════════════════════════════════ */
+
+const LS = 'anpos_v1';
+const TERMINAL = 'T1';                 // bill-number prefix; per-counter, so two
+                                       // terminals never collide while offline
+
+/* ── seed catalog: real Tamil Nadu market produce and realistic rates ── */
+const SEED_PRODUCTS = [
+  ['VEG01','Onion','வெங்காயம்','Vegetables','kg',28,38,120],
+  ['VEG02','Tomato','தக்காளி','Vegetables','kg',18,26,85],
+  ['VEG03','Potato','உருளைக்கிழங்கு','Vegetables','kg',24,32,95],
+  ['VEG04','Ginger','இஞ்சி','Vegetables','kg',70,95,18],
+  ['VEG05','Green Chilli','பச்சை மிளகாய்','Vegetables','kg',40,60,22],
+  ['VEG06','Curry Leaves','கறிவேப்பிலை','Greens','pcs',4,8,60],
+  ['VEG07','Coriander','கொத்தமல்லி','Greens','pcs',7,12,45],
+  ['VEG08','Mint','புதினா','Greens','pcs',6,10,30],
+  ['VEG09','Spinach','பசலைக்கீரை','Greens','pcs',9,15,25],
+  ['VEG10','Carrot','கேரட்','Vegetables','kg',38,52,40],
+  ['VEG11','Beans','பீன்ஸ்','Vegetables','kg',45,65,28],
+  ['VEG12','Brinjal','கத்தரிக்காய்','Vegetables','kg',26,38,35],
+  ['VEG13','Ladies Finger','வெண்டைக்காய்','Vegetables','kg',32,45,30],
+  ['VEG14','Drumstick','முருங்கைக்காய்','Vegetables','pcs',6,10,80],
+  ['VEG15','Garlic','பூண்டு','Vegetables','kg',110,145,15],
+  ['VEG16','Lemon','எலுமிச்சை','Fruits','pcs',3,5,150],
+  ['VEG17','Cabbage','முட்டைகோஸ்','Vegetables','kg',20,30,32],
+  ['VEG18','Cauliflower','காலிஃபிளவர்','Vegetables','pcs',22,35,26],
+  ['VEG19','Beetroot','பீட்ரூட்','Vegetables','kg',30,42,20],
+  ['VEG20','Cucumber','வெள்ளரிக்காய்','Vegetables','kg',22,32,24],
+  ['VEG21','Pumpkin','பரங்கிக்காய்','Vegetables','kg',18,26,30],
+  ['VEG22','Snake Gourd','புடலங்காய்','Vegetables','kg',24,36,18],
+  ['VEG23','Bitter Gourd','பாகற்காய்','Vegetables','kg',34,48,16],
+  ['VEG24','Ash Gourd','பூசணிக்காய்','Vegetables','kg',16,24,22],
+  ['VEG25','Raw Banana','வாழைக்காய்','Vegetables','pcs',5,9,70],
+  ['VEG26','Capsicum','குடைமிளகாய்','Vegetables','kg',48,68,14],
+  ['VEG27','Radish','முள்ளங்கி','Vegetables','kg',18,28,20],
+  ['VEG28','Sweet Corn','சோளம்','Vegetables','pcs',15,25,35],
+];
+
+/* ── DB ──────────────────────────────────────────────────────────────── */
+let DB, CARTS, active = 0, payMethod = 'cash', lastBill = null, paper = 58, erpModule = 'dashboard', catFilter = '';
+
+function blankCart(){ return { items:[], mode:'InStore', disc:0, discType:'pct' }; }
+
+function loadDB(){
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(LS) || 'null'); } catch(e){ raw = null; }
+  DB = raw || {};
+  if(!DB.products || !DB.products.length){
+    DB.products = SEED_PRODUCTS.map((p,i) => ({
+      id:'p'+(i+1), sku:p[0], nameEn:p[1], nameTa:p[2], category:p[3],
+      unit:p[4], cost:p[5], price:p[6], stock:p[7], barcode:'890'+String(1000+i)
+    }));
+  }
+  DB.bills      = DB.bills      || [];
+  DB.customers  = DB.customers  || [
+    {id:'c1',name:'Ramesh Anna',    phone:'9842011223', due:0,   loyalty:120},
+    {id:'c2',name:'Hotel Sai Sree', phone:'9445566778', due:840, loyalty:640},
+    {id:'c3',name:'Lakshmi Akka',   phone:'9003344556', due:0,   loyalty:60},
+  ];
+  DB.suppliers  = DB.suppliers  || [
+    {id:'s1',name:'Oddanchatram Mandi', phone:'9787012345', warehouse:'Main Counter'},
+    {id:'s2',name:'Local Farmer — Kani',phone:'9600123456', warehouse:'Main Counter'},
+    {id:'s3',name:'Cold Store Depot',   phone:'9500998877', warehouse:'Cold Room'},
+  ];
+  DB.settings   = Object.assign({ gstOn:false, gstRate:5, openingCash:2000, expenses:0, vpa:'tulasiveg@upi', seq:1 }, DB.settings||{});
+  DB.session    = DB.session || null;
+  saveDB();
+}
+function saveDB(){ try{ localStorage.setItem(LS, JSON.stringify(DB)); }catch(e){ toast('Storage full — export and clear old bills','error'); } }
+
+/* Carts are stored separately so a crash mid-bill never corrupts the master DB */
+function loadCarts(){
+  let c = null;
+  try { c = JSON.parse(localStorage.getItem(LS+'_carts') || 'null'); } catch(e){ c = null; }
+  CARTS = (Array.isArray(c) && c.length === 5) ? c : [blankCart(),blankCart(),blankCart(),blankCart(),blankCart()];
+}
+function saveCarts(){ try{ localStorage.setItem(LS+'_carts', JSON.stringify(CARTS)); }catch(e){} }
+
+const cart = () => CARTS[active];
+const money = n => '₹' + (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
+const qtyFmt = (q,u) => u === 'kg' ? Number(q).toFixed(3) : String(Math.round(q));
+
+/* ══════════════ AUTH ══════════════ */
+function verifyOTP(){
+  const code = [...document.querySelectorAll('.otp-in')].map(i=>i.value).join('');
+  const err  = document.getElementById('otp-err');
+  if(code !== '1234'){
+    err.textContent = 'Incorrect code. Use 1234 for this demo terminal.';
+    err.classList.remove('hidden');
+    document.querySelectorAll('.otp-in').forEach(i=>i.value='');
+    document.querySelector('.otp-in').focus();
+    return;
+  }
+  const who = document.getElementById('otp-cashier').value;
+  DB.session = { cashier: who, since: Date.now() };
+  saveDB();
+  startApp();
+}
+function logout(){
+  if(cart().items.length && !confirm('Cart C'+(active+1)+' still has items. Log out anyway?')) return;
+  DB.session = null; saveDB();
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('otp-screen').classList.remove('hidden');
+  document.querySelectorAll('.otp-in').forEach(i=>i.value='');
+  document.getElementById('otp-err').classList.add('hidden');
+  document.querySelector('.otp-in').focus();
+}
+function startApp(){
+  document.getElementById('otp-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  const who = DB.session.cashier;
+  document.getElementById('cashier-name').textContent = who.split('—')[0].trim();
+  document.getElementById('cashier-ini').textContent  = who.startsWith('Store') ? 'SM' : 'C'+(who.match(/\d/)||['1'])[0];
+  switchView('pos');
+  renderAll();
+}
+
+/* ══════════════ VIEW SWITCH ══════════════ */
+function switchView(v){
+  const pos = v === 'pos';
+  document.getElementById('pos-view').classList.toggle('hidden', !pos);
+  document.getElementById('erp-view').classList.toggle('hidden', pos);
+  document.getElementById('erp-view').classList.toggle('flex', !pos);
+  document.getElementById('tab-pos').className = 'px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5 ' + (pos?'bg-white text-term-900':'text-slate-400 hover:text-white');
+  document.getElementById('tab-erp').className = 'px-3 h-8 rounded-md text-xs font-bold transition flex items-center gap-1.5 ' + (!pos?'bg-white text-term-900':'text-slate-400 hover:text-white');
+  if(!pos) renderERP();
+  icons();
+}
+
+/* ══════════════ CART TABS ══════════════ */
+function renderTabs(){
+  document.getElementById('cart-tabs').innerHTML = CARTS.map((c,i)=>{
+    const on = i === active, n = c.items.length;
+    return `<button onclick="switchCart(${i})" class="relative h-8 px-3 rounded-lg text-xs font-extrabold transition ${
+      on ? 'bg-amber-400 text-amber-950 shadow' : n ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">
+      C${i+1}${n ? `<span class="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold grid place-items-center tnum">${n}</span>` : ''}
+    </button>`;
+  }).join('');
+}
+function switchCart(i){ active = i; renderAll(); }
+function clearCart(){
+  if(!cart().items.length) return;
+  if(!confirm('Clear cart C'+(active+1)+'?')) return;
+  CARTS[active] = blankCart(); saveCarts(); renderAll();
+}
+
+/* ══════════════ ORDER MODE ══════════════ */
+function renderMode(){
+  document.querySelectorAll('.mode-btn').forEach(b=>{
+    const on = b.dataset.mode === cart().mode;
+    b.className = 'mode-btn px-3 h-8 rounded-md text-xs font-bold transition ' + (on?'bg-white shadow text-term-900':'text-slate-500 hover:text-slate-800');
+    b.onclick = () => { cart().mode = b.dataset.mode; saveCarts(); renderMode(); renderCart(); };
+  });
+  document.getElementById('cart-mode-badge').textContent = cart().mode;
+}
+
+/* ══════════════ PRODUCTS ══════════════ */
+function renderCats(){
+  const cats = [...new Set(DB.products.map(p=>p.category))].sort();
+  document.getElementById('cat-chips').innerHTML =
+    [['','All']].concat(cats.map(c=>[c,c])).map(([v,l])=>
+      `<button onclick="catFilter='${v}';renderProducts();renderCats()" class="flex-shrink-0 px-3 h-7 rounded-full text-[11px] font-bold transition ${
+        catFilter===v ? 'bg-term-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'}">${l}</button>`
+    ).join('');
+}
+/* Fuzzy-ish match across English name, Tamil name, SKU and barcode */
+function matches(p, q){
+  if(!q) return true;
+  q = q.toLowerCase().trim();
+  return p.nameEn.toLowerCase().includes(q) || p.nameTa.includes(q)
+      || p.sku.toLowerCase().includes(q)    || (p.barcode||'').includes(q);
+}
+function renderProducts(){
+  const q = document.getElementById('search-input').value;
+  const list = DB.products.filter(p => matches(p,q) && (!catFilter || p.category===catFilter));
+  const grid = document.getElementById('product-grid');
+  if(!list.length){ grid.innerHTML = `<div class="col-span-full text-center text-slate-400 text-sm py-10">No item matches “${esc(q)}”. Use <b>+ Custom Item</b> for an unlisted one.</div>`; return; }
+  grid.innerHTML = list.map(p=>{
+    const low = p.stock <= 5;
+    return `<button onclick="addToCart('${p.id}')" class="text-left bg-white border-2 border-slate-200 hover:border-brand-600 active:bg-brand-50 rounded-xl p-2.5 transition flex flex-col">
+      <div class="font-bold text-[13px] leading-tight">${esc(p.nameEn)}</div>
+      <div class="font-ta text-[12px] text-slate-500 leading-tight truncate">${esc(p.nameTa)}</div>
+      <div class="mt-auto pt-2 flex items-end justify-between">
+        <span class="text-base font-extrabold text-brand-700 tnum">₹${p.price}<span class="text-[10px] font-semibold text-slate-400">/${p.unit}</span></span>
+        <span class="text-[10px] font-bold tnum ${low?'text-red-600':'text-slate-400'}">${qtyFmt(p.stock,p.unit)}</span>
+      </div>
+    </button>`;
+  }).join('');
+}
+function clearSearch(){ document.getElementById('search-input').value=''; renderProducts(); document.getElementById('search-input').focus(); }
+function skuEnter(){
+  const el = document.getElementById('sku-input'), v = el.value.trim().toLowerCase();
+  if(!v) return;
+  const p = DB.products.find(x => x.sku.toLowerCase()===v || (x.barcode||'')===v);
+  if(p){ addToCart(p.id); el.value=''; } else { toast('No item with SKU / barcode '+v,'error'); el.select(); }
+}
+
+/* ══════════════ CART OPS ══════════════ */
+function addToCart(pid){
+  const p = DB.products.find(x=>x.id===pid); if(!p) return;
+  const c = cart();
+  const ex = c.items.find(i=>i.pid===pid);
+  if(ex) ex.qty = +(ex.qty + (p.unit==='kg' ? 0.25 : 1)).toFixed(3);
+  else c.items.push({ pid:p.id, name:p.nameEn, nameTa:p.nameTa, unit:p.unit, rate:p.price, qty: p.unit==='kg' ? 0.5 : 1 });
+  saveCarts(); renderAll();
+  // Focus the qty box of the row just touched so a weight can be typed straight away
+  const idx = c.items.findIndex(i=>i.pid===pid);
+  const box = document.getElementById('q-'+idx);
+  if(box){ box.focus(); box.select(); }
+}
+function addCustomItem(){
+  const name = document.getElementById('ci-name').value.trim();
+  const rate = parseFloat(document.getElementById('ci-rate').value);
+  const qty  = parseFloat(document.getElementById('ci-qty').value);
+  const unit = document.getElementById('ci-unit').value;
+  if(!name)                    return toast('Enter an item name','error');
+  if(!(rate>0))                return toast('Enter a rate','error');
+  if(!(qty>0))                 return toast('Enter a quantity','error');
+  cart().items.push({ pid:null, name, nameTa:'', unit, rate, qty, custom:true });
+  saveCarts(); closeModals(); renderAll(); toast('Added '+name);
+}
+function setQty(i, v){
+  const it = cart().items[i]; if(!it) return;
+  let q = parseFloat(v);
+  if(isNaN(q) || q < 0) q = 0;
+  it.qty = it.unit==='kg' ? +q.toFixed(3) : Math.round(q);
+  saveCarts(); renderCart();
+}
+function bumpQty(i, d){
+  const it = cart().items[i]; if(!it) return;
+  const step = it.unit==='kg' ? 0.25 : 1;
+  it.qty = Math.max(0, +(it.qty + d*step).toFixed(3));
+  saveCarts(); renderCart();
+}
+function removeItem(i){ cart().items.splice(i,1); saveCarts(); renderAll(); }
+
+function calcTotals(){
+  const c = cart();
+  const sub = c.items.reduce((a,i)=>a + i.rate*i.qty, 0);
+  const dv  = parseFloat(document.getElementById('disc-val').value)||0;
+  const dt  = document.getElementById('disc-type').value;
+  let disc  = dt==='pct' ? sub*dv/100 : dv;
+  disc = Math.min(Math.max(disc,0), sub);
+  const taxable = sub - disc;
+  const gst = DB.settings.gstOn ? taxable * DB.settings.gstRate/100 : 0;
+  return { sub, disc, dv, dt, gst, total: taxable + gst, count: c.items.length };
+}
+
+function renderCart(){
+  const c = cart(), body = document.getElementById('cart-body');
+  document.getElementById('cart-title').textContent = 'Cart C'+(active+1);
+
+  if(!c.items.length){
+    body.innerHTML = `<div class="h-full grid place-items-center text-center px-6 py-12">
+      <div><div class="text-4xl mb-2">🧺</div>
+      <div class="font-bold text-slate-400">Cart C${active+1} is empty</div>
+      <div class="text-xs text-slate-400 mt-1">Tap an item, or scan into the SKU box.</div></div></div>`;
+  } else {
+    body.innerHTML = `<table class="w-full text-sm">
+      <thead class="sticky top-0 bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+        <tr><th class="text-left px-3 py-2 font-bold">Item</th><th class="text-right px-1 font-bold">Rate</th>
+            <th class="text-center px-1 font-bold w-[104px]">Qty</th><th class="text-right px-2 font-bold">Total</th><th class="w-8"></th></tr>
+      </thead><tbody>${c.items.map((it,i)=>`
+        <tr class="border-b border-slate-100">
+          <td class="px-3 py-2">
+            <div class="font-bold text-[13px] leading-tight">${esc(it.name)}${it.custom?'<span class="ml-1 text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-800 font-bold align-middle">CUSTOM</span>':''}</div>
+            ${it.nameTa?`<div class="font-ta text-[11px] text-slate-400 leading-tight">${esc(it.nameTa)}</div>`:''}
+            <div class="text-[10px] text-slate-400 font-semibold uppercase">${it.unit}</div>
+          </td>
+          <td class="text-right px-1 tnum font-semibold text-slate-600">${it.rate}</td>
+          <td class="px-1">
+            <div class="flex items-center gap-0.5">
+              <button onclick="bumpQty(${i},-1)" class="w-6 h-7 rounded bg-slate-100 hover:bg-slate-200 font-bold text-slate-600 flex-shrink-0">−</button>
+              <input id="q-${i}" value="${qtyFmt(it.qty,it.unit)}" inputmode="decimal"
+                onchange="setQty(${i},this.value)" onfocus="this.select()"
+                class="w-full min-w-0 h-7 text-center rounded border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-xs font-bold tnum">
+              <button onclick="bumpQty(${i},1)" class="w-6 h-7 rounded bg-slate-100 hover:bg-slate-200 font-bold text-slate-600 flex-shrink-0">+</button>
+            </div>
+          </td>
+          <td class="text-right px-2 tnum font-extrabold">${(it.rate*it.qty).toFixed(2)}</td>
+          <td class="px-1"><button onclick="removeItem(${i})" class="w-7 h-7 rounded grid place-items-center text-slate-300 hover:text-red-600 hover:bg-red-50 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></td>
+        </tr>`).join('')}</tbody></table>`;
+  }
+
+  const t = calcTotals();
+  document.getElementById('t-sub').textContent  = money(t.sub);
+  document.getElementById('t-disc').textContent = '−'+money(t.disc);
+  document.getElementById('gst-row').style.display = DB.settings.gstOn ? '' : 'none';
+  document.getElementById('gst-lbl').textContent = DB.settings.gstOn ? '@'+DB.settings.gstRate+'%' : '';
+  document.getElementById('t-gst').textContent   = money(t.gst);
+  document.getElementById('ck-total').textContent= money(t.total);
+  document.getElementById('ck-items').textContent= t.count + (t.count===1?' item':' items');
+  document.getElementById('checkout-btn').disabled = !t.count;
+  c.disc = t.dv; c.discType = t.dt; saveCarts();
+  renderTabs(); icons();
+}
+function renderAll(){ renderTabs(); renderMode(); renderCats(); renderProducts(); renderCart(); }
+
+/* ══════════════ PAYMENT ══════════════ */
+function openPayment(){
+  const t = calcTotals();
+  if(!t.count) return;
+  document.getElementById('pay-total').textContent = money(t.total);
+  document.getElementById('pay-tendered').value = '';
+  document.getElementById('pay-ref').value = '';
+  document.getElementById('pay-card-ref').value = '';
+  document.getElementById('pay-cust').value = '';
+  document.getElementById('sp-cash').value = 0;
+  document.getElementById('sp-upi').value = 0;
+  document.getElementById('upi-vpa').textContent = DB.settings.vpa;
+  document.getElementById('cust-list').innerHTML = DB.customers.map(c=>`<option value="${esc(c.name)} · ${c.phone}">`).join('');
+  drawQR(); quickCash(t.total); setPay('cash'); calcChange(); calcSplit();
+  show('m-pay');
+  setTimeout(()=>document.getElementById('pay-tendered').focus(), 50);
+}
+function setPay(m){
+  payMethod = m;
+  document.querySelectorAll('.pm-btn').forEach(b=>{
+    const on = b.dataset.pm===m;
+    b.className = 'pm-btn h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition ' +
+      (on ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:border-slate-300');
+  });
+  ['cash','upi','card','split'].forEach(x=>document.getElementById('pane-'+x).classList.toggle('hidden', x!==m));
+  icons();
+}
+/* Denomination shortcuts — the note the customer is most likely to hand over */
+function quickCash(total){
+  const notes = [...new Set([Math.ceil(total/10)*10, Math.ceil(total/50)*50, Math.ceil(total/100)*100, 100,200,500,2000])]
+    .filter(n=>n>=total).sort((a,b)=>a-b).slice(0,5);
+  document.getElementById('quick-cash').innerHTML = notes.map(n=>
+    `<button onclick="document.getElementById('pay-tendered').value=${n};calcChange()" class="px-3 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-bold tnum">₹${n}</button>`).join('')
+    + `<button onclick="document.getElementById('pay-tendered').value=${total.toFixed(2)};calcChange()" class="px-3 h-8 rounded-lg bg-brand-50 text-brand-700 text-xs font-bold">Exact</button>`;
+}
+function calcChange(){
+  const t = calcTotals().total;
+  const g = parseFloat(document.getElementById('pay-tendered').value)||0;
+  const ch = g - t;
+  const el = document.getElementById('pay-change');
+  el.textContent = money(Math.max(ch,0));
+  el.className = 'text-2xl font-extrabold tnum ' + (ch<0 ? 'text-red-600' : 'text-brand-700');
+  if(ch<0) el.textContent = '−'+money(-ch);
+}
+function calcSplit(){
+  const t = calcTotals().total;
+  const c = parseFloat(document.getElementById('sp-cash').value)||0;
+  const u = parseFloat(document.getElementById('sp-upi').value)||0;
+  const left = t - c - u;
+  const el = document.getElementById('sp-left');
+  el.textContent = money(Math.abs(left)) + (left<0?' over':'');
+  el.className = 'tnum ' + (Math.abs(left)<0.01 ? 'text-brand-700' : 'text-red-600');
+}
+/* Deterministic QR-looking placeholder — a real deployment swaps in a UPI intent QR */
+function drawQR(){
+  const N=21; let s='<div style="display:grid;grid-template-columns:repeat('+N+',1fr);width:136px;height:136px">';
+  for(let i=0;i<N*N;i++){
+    const r=Math.floor(i/N), c=i%N;
+    const finder = (r<7&&c<7)||(r<7&&c>=N-7)||(r>=N-7&&c<7);
+    const on = finder ? !((r>1&&r<5&&c>1&&c<5)||(r>1&&r<5&&c>N-6&&c<N-2)||(r>N-6&&r<N-2&&c>1&&c<5)) ? ((r===0||r===6||c===0||c===6)||(r>1&&r<5&&c>1&&c<5)) : true
+                      : ((r*7+c*13+((r*c)%5))%3===0);
+    s += '<div style="background:'+(on?'#000':'#fff')+'"></div>';
+  }
+  document.getElementById('qr-box').innerHTML = s+'</div>';
+}
+
+function completeSale(){
+  const t = calcTotals();
+  if(!t.count) return;
+  const c = cart();
+  let pay = { method: payMethod };
+
+  if(payMethod==='cash'){
+    const g = parseFloat(document.getElementById('pay-tendered').value)||0;
+    if(g < t.total - 0.001) return toast('Cash tendered is less than the total','error');
+    pay.tendered = g; pay.change = +(g - t.total).toFixed(2);
+  } else if(payMethod==='upi'){
+    pay.ref = document.getElementById('pay-ref').value.trim();
+    if(!pay.ref) return toast('Enter the UPI reference id','error');
+  } else if(payMethod==='card'){
+    pay.ref = document.getElementById('pay-card-ref').value.trim();
+    if(!pay.ref) return toast('Enter the card approval code','error');
+  } else {
+    pay.cash = parseFloat(document.getElementById('sp-cash').value)||0;
+    pay.upi  = parseFloat(document.getElementById('sp-upi').value)||0;
+    if(Math.abs(t.total - pay.cash - pay.upi) > 0.01) return toast('Split parts must add up to the total','error');
+  }
+
+  const bill = {
+    id: 'b'+Date.now(),
+    billNo: TERMINAL+'-'+String(DB.settings.seq).padStart(5,'0'),
+    ts: Date.now(),
+    date: new Date().toISOString().slice(0,10),
+    cashier: DB.session.cashier,
+    mode: c.mode,
+    customer: document.getElementById('pay-cust').value.trim(),
+    items: c.items.map(i=>({name:i.name, nameTa:i.nameTa, unit:i.unit, rate:i.rate, qty:i.qty})),
+    subtotal:+t.sub.toFixed(2), discount:+t.disc.toFixed(2), discType:t.dt, discVal:t.dv,
+    gst:+t.gst.toFixed(2), gstRate: DB.settings.gstOn ? DB.settings.gstRate : 0,
+    total:+t.total.toFixed(2), payment: pay
+  };
+
+  // Decrement stock for catalogued items (custom lines have no pid)
+  c.items.forEach(i=>{ if(i.pid){ const p = DB.products.find(x=>x.id===i.pid); if(p) p.stock = +(p.stock - i.qty).toFixed(3); } });
+
+  DB.bills.unshift(bill);
+  DB.settings.seq++;
+  saveDB();
+
+  CARTS[active] = blankCart();
+  document.getElementById('disc-val').value = 0;
+  saveCarts();
+
+  lastBill = bill;
+  closeModals();
+  renderAll();
+  showReceipt(bill);
+  toast('Bill '+bill.billNo+' saved · '+money(bill.total));
+}
+
+/* ══════════════ RECEIPT ══════════════ */
+function setPaper(p){
+  paper = p;
+  document.getElementById('receipt-print').classList.toggle('w80', p===80);
+  document.getElementById('p58').className = 'px-2.5 h-7 rounded text-[11px] font-bold ' + (p===58?'bg-white shadow':'text-slate-500');
+  document.getElementById('p80').className = 'px-2.5 h-7 rounded text-[11px] font-bold ' + (p===80?'bg-white shadow':'text-slate-500');
+}
+function showReceipt(b){
+  const d = new Date(b.ts);
+  const pm = b.payment.method==='cash'  ? 'CASH'
+           : b.payment.method==='upi'   ? 'UPI'
+           : b.payment.method==='card'  ? 'CARD' : 'SPLIT';
+  document.getElementById('receipt-print').innerHTML = `
+    <div style="text-align:center">
+      <div style="font-weight:700;font-size:13px">TULASI VEGETABLES MARKET</div>
+      <div>Thuckalay, Kanyakumari</div>
+      <div>Ph 98420 11223</div>
+    </div>
+    <hr>
+    <div class="r"><span>Bill: ${b.billNo}</span><span>${b.mode}</span></div>
+    <div class="r"><span>${d.toLocaleDateString('en-IN')}</span><span>${d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span></div>
+    <div>Cashier: ${esc(b.cashier)}</div>
+    ${b.customer?`<div>Customer: ${esc(b.customer)}</div>`:''}
+    <hr>
+    <div class="r" style="font-weight:700"><span>ITEM</span><span>AMOUNT</span></div>
+    <hr>
+    ${b.items.map(i=>`
+      <div>${esc(i.name)}</div>
+      <div class="r"><span>&nbsp;&nbsp;${qtyFmt(i.qty,i.unit)} ${i.unit} × ${i.rate}</span><span>${(i.rate*i.qty).toFixed(2)}</span></div>
+    `).join('')}
+    <hr>
+    <div class="r"><span>Subtotal</span><span>${b.subtotal.toFixed(2)}</span></div>
+    ${b.discount>0?`<div class="r"><span>Discount${b.discType==='pct'?' ('+b.discVal+'%)':''}</span><span>-${b.discount.toFixed(2)}</span></div>`:''}
+    ${b.gst>0?`<div class="r"><span>GST @${b.gstRate}%</span><span>${b.gst.toFixed(2)}</span></div>`:''}
+    <hr>
+    <div class="r" style="font-weight:700;font-size:14px"><span>TOTAL</span><span>${b.total.toFixed(2)}</span></div>
+    <hr>
+    <div class="r"><span>Paid via</span><span>${pm}</span></div>
+    ${b.payment.method==='cash'?`<div class="r"><span>Tendered</span><span>${b.payment.tendered.toFixed(2)}</span></div>
+      <div class="r"><span>Change</span><span>${b.payment.change.toFixed(2)}</span></div>`:''}
+    ${b.payment.ref?`<div class="r"><span>Ref</span><span>${esc(b.payment.ref)}</span></div>`:''}
+    ${b.payment.method==='split'?`<div class="r"><span>Cash</span><span>${b.payment.cash.toFixed(2)}</span></div>
+      <div class="r"><span>UPI</span><span>${b.payment.upi.toFixed(2)}</span></div>`:''}
+    <hr>
+    <div style="text-align:center">
+      <div>${b.items.length} item(s)</div>
+      <div style="margin-top:4px">நன்றி! வாங்கிட்டு வாங்க 🙏</div>
+      <div style="margin-top:2px;font-size:10px">Powered by ArthaNote · arthanote.com</div>
+    </div>`;
+  setPaper(paper); show('m-receipt');
+}
+
+/* ══════════════ ERP ══════════════ */
+const ERP_MODULES = [
+  ['dashboard','Dashboard','layout-dashboard'],
+  ['products','Products','package'],
+  ['suppliers','Suppliers','truck'],
+  ['sales','Sales & Orders','scroll-text'],
+  ['customers','Customers','users'],
+  ['accounting','Accounting','wallet'],
+  ['settings','Settings','settings'],
+];
+function renderERP(m){
+  if(m) erpModule = m;
+  document.getElementById('erp-nav').innerHTML = ERP_MODULES.map(([k,l,ic])=>`
+    <button onclick="renderERP('${k}')" class="w-full flex items-center gap-3 px-3 md:px-4 h-11 text-sm font-semibold transition ${
+      erpModule===k ? 'bg-brand-50 text-brand-700 border-r-[3px] border-brand-600' : 'text-slate-500 hover:bg-slate-50'}">
+      <i data-lucide="${ic}" class="w-4 h-4 flex-shrink-0"></i><span class="hidden md:inline">${l}</span></button>`).join('');
+  ({dashboard:erpDash, products:erpProducts, suppliers:erpSuppliers,
+    sales:erpSales, customers:erpCustomers, accounting:erpAccounting, settings:erpSettings}[erpModule])();
+  icons();
+}
+const H = (t,sub) => `<div class="mb-4"><h2 class="text-xl font-extrabold">${t}</h2>${sub?`<p class="text-sm text-slate-500">${sub}</p>`:''}</div>`;
+const card = (label,val,sub,color) => `<div class="bg-white rounded-xl border border-slate-200 p-4">
+  <div class="text-[11px] font-bold uppercase tracking-wide text-slate-400">${label}</div>
+  <div class="text-2xl font-extrabold tnum mt-1 ${color||''}">${val}</div>
+  ${sub?`<div class="text-xs text-slate-400 mt-0.5">${sub}</div>`:''}</div>`;
+
+function todayBills(){ const d = new Date().toISOString().slice(0,10); return DB.bills.filter(b=>b.date===d); }
+
+function erpDash(){
+  const tb = todayBills();
+  const sales = tb.reduce((a,b)=>a+b.total,0);
+  const cash  = tb.reduce((a,b)=> a + (b.payment.method==='cash' ? b.total : b.payment.method==='split' ? (b.payment.cash||0) : 0), 0);
+  const inward= DB.products.reduce((a,p)=>a+p.cost*p.stock,0);
+  const abv   = tb.length ? sales/tb.length : 0;
+  document.getElementById('erp-body').innerHTML = H('Dashboard', new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))
+  + `<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      ${card('Today\'s Sales', money(sales), tb.length+' bills','text-brand-700')}
+      ${card('Total Bills', tb.length, 'Avg bill '+money(abv))}
+      ${card('Cash in Drawer', money(DB.settings.openingCash + cash - DB.settings.expenses), 'incl. opening '+money(DB.settings.openingCash))}
+      ${card('Stock Value (inward)', money(inward), DB.products.length+' SKUs')}
+    </div>`
+  + `<div class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+      <div class="font-bold mb-3">Low stock — reorder today</div>
+      ${(()=>{ const low = DB.products.filter(p=>p.stock<=10).sort((a,b)=>a.stock-b.stock);
+        return low.length ? `<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">${low.map(p=>
+          `<div class="flex justify-between items-center border border-slate-200 rounded-lg px-3 py-2">
+            <div><div class="text-sm font-bold">${esc(p.nameEn)}</div><div class="font-ta text-[11px] text-slate-400">${esc(p.nameTa)}</div></div>
+            <span class="text-sm font-extrabold tnum ${p.stock<=5?'text-red-600':'text-amber-600'}">${qtyFmt(p.stock,p.unit)} ${p.unit}</span>
+          </div>`).join('')}</div>` : '<div class="text-sm text-slate-400">Everything is above the reorder line.</div>'; })()}
+    </div>`
+  + `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-200 font-bold">Recent bills</div>
+      ${DB.bills.length ? tableBills(DB.bills.slice(0,8)) : '<div class="p-6 text-center text-sm text-slate-400">No bills yet today.</div>'}
+    </div>`;
+}
+
+function tableBills(list){
+  return `<div class="overflow-x-auto scroll"><table class="w-full text-sm min-w-[560px]">
+    <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+      <tr><th class="text-left px-4 py-2 font-bold">Bill No</th><th class="text-left px-3 font-bold">Time</th>
+      <th class="text-left px-3 font-bold">Mode</th><th class="text-left px-3 font-bold">Payment</th>
+      <th class="text-right px-3 font-bold">Items</th><th class="text-right px-4 font-bold">Total</th><th class="w-10"></th></tr></thead>
+    <tbody>${list.map(b=>`<tr class="border-t border-slate-100">
+      <td class="px-4 py-2 font-mono font-bold text-xs">${b.billNo}</td>
+      <td class="px-3 text-slate-500 text-xs tnum">${new Date(b.ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td class="px-3"><span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100">${b.mode}</span></td>
+      <td class="px-3 text-xs font-semibold uppercase text-slate-600">${b.payment.method}</td>
+      <td class="px-3 text-right tnum">${b.items.length}</td>
+      <td class="px-4 text-right font-extrabold tnum">${money(b.total)}</td>
+      <td class="px-2"><button onclick="reprint('${b.id}')" class="w-7 h-7 rounded grid place-items-center text-slate-400 hover:text-brand-700 hover:bg-brand-50" title="Reprint"><i data-lucide="printer" class="w-3.5 h-3.5"></i></button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+function reprint(id){ const b = DB.bills.find(x=>x.id===id); if(b) showReceipt(b); }
+
+function erpProducts(){
+  document.getElementById('erp-body').innerHTML = H('Products Catalog', DB.products.length+' items · tap a row to edit')
+  + `<div class="flex gap-2 mb-3">
+      <input id="pf" oninput="renderProdTable()" placeholder="Filter products…" class="flex-1 h-10 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-sm">
+      <button onclick="openProduct()" class="h-10 px-4 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm flex items-center gap-1.5"><i data-lucide="plus" class="w-4 h-4"></i>Add</button>
+    </div><div id="prod-table"></div>`;
+  renderProdTable();
+}
+function renderProdTable(){
+  const q = (document.getElementById('pf')?.value||'').toLowerCase();
+  const list = DB.products.filter(p=>matches(p,q));
+  document.getElementById('prod-table').innerHTML = `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="overflow-x-auto scroll"><table class="w-full text-sm min-w-[640px]">
+      <thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr>
+        <th class="text-left px-4 py-2 font-bold">Item</th><th class="text-left px-3 font-bold">SKU</th>
+        <th class="text-left px-3 font-bold">Category</th><th class="text-center px-3 font-bold">Unit</th>
+        <th class="text-right px-3 font-bold">Cost</th><th class="text-right px-3 font-bold">Selling</th>
+        <th class="text-right px-3 font-bold">Margin</th><th class="text-right px-4 font-bold">Stock</th></tr></thead>
+      <tbody>${list.map(p=>{
+        const m = p.price ? ((p.price-p.cost)/p.price*100) : 0;
+        return `<tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openProduct('${p.id}')">
+          <td class="px-4 py-2"><div class="font-bold">${esc(p.nameEn)}</div><div class="font-ta text-[11px] text-slate-400">${esc(p.nameTa)}</div></td>
+          <td class="px-3 font-mono text-xs">${p.sku}</td>
+          <td class="px-3 text-xs text-slate-500">${esc(p.category)}</td>
+          <td class="px-3 text-center text-[10px] font-bold uppercase text-slate-500">${p.unit}</td>
+          <td class="px-3 text-right tnum text-slate-500">${p.cost}</td>
+          <td class="px-3 text-right tnum font-bold">${p.price}</td>
+          <td class="px-3 text-right tnum text-xs ${m<15?'text-red-600':'text-brand-700'}">${m.toFixed(0)}%</td>
+          <td class="px-4 text-right tnum font-semibold ${p.stock<=5?'text-red-600':''}">${qtyFmt(p.stock,p.unit)}</td>
+        </tr>`;}).join('')}</tbody></table></div></div>`;
+}
+function openProduct(id){
+  const p = id ? DB.products.find(x=>x.id===id) : null;
+  document.getElementById('pm-title').textContent = p ? 'Edit Product' : 'Add Product';
+  document.getElementById('pm-id').value    = p ? p.id : '';
+  document.getElementById('pm-en').value    = p ? p.nameEn : '';
+  document.getElementById('pm-ta').value    = p ? p.nameTa : '';
+  document.getElementById('pm-sku').value   = p ? p.sku : '';
+  document.getElementById('pm-cat').value   = p ? p.category : '';
+  document.getElementById('pm-unit').value  = p ? p.unit : 'kg';
+  document.getElementById('pm-stock').value = p ? p.stock : 0;
+  document.getElementById('pm-cost').value  = p ? p.cost : '';
+  document.getElementById('pm-price').value = p ? p.price : '';
+  document.getElementById('cat-list').innerHTML = [...new Set(DB.products.map(x=>x.category))].map(c=>`<option value="${esc(c)}">`).join('');
+  show('m-product');
+}
+function saveProduct(){
+  const id = document.getElementById('pm-id').value;
+  const o = {
+    nameEn: document.getElementById('pm-en').value.trim(),
+    nameTa: document.getElementById('pm-ta').value.trim(),
+    sku:    document.getElementById('pm-sku').value.trim().toUpperCase(),
+    category: document.getElementById('pm-cat').value.trim() || 'Vegetables',
+    unit:   document.getElementById('pm-unit').value,
+    stock:  parseFloat(document.getElementById('pm-stock').value)||0,
+    cost:   parseFloat(document.getElementById('pm-cost').value)||0,
+    price:  parseFloat(document.getElementById('pm-price').value)||0,
+  };
+  if(!o.nameEn) return toast('Enter the item name','error');
+  if(!o.price)  return toast('Enter a selling price','error');
+  if(!o.sku)    o.sku = 'SKU'+String(DB.products.length+1).padStart(3,'0');
+  if(id){ Object.assign(DB.products.find(x=>x.id===id), o); }
+  else  { DB.products.push(Object.assign({id:'p'+Date.now(), barcode:''}, o)); }
+  saveDB(); closeModals(); renderERP(); renderProducts();
+  toast(id ? 'Product updated' : 'Product added');
+}
+
+function erpSuppliers(){
+  document.getElementById('erp-body').innerHTML = H('Suppliers & Warehouses','Who you buy from, and where the stock lands')
+  + `<div class="grid md:grid-cols-2 gap-3 mb-5">${DB.suppliers.map(s=>`
+      <div class="bg-white rounded-xl border border-slate-200 p-4">
+        <div class="font-bold">${esc(s.name)}</div>
+        <div class="text-sm text-slate-500 font-mono mt-0.5">${s.phone}</div>
+        <span class="inline-block mt-2 text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-600">📍 ${esc(s.warehouse)}</span>
+      </div>`).join('')}</div>
+    <div class="bg-white rounded-xl border border-slate-200 p-4">
+      <div class="font-bold mb-2">Warehouse branches</div>
+      <div class="flex gap-2 flex-wrap">${[...new Set(DB.suppliers.map(s=>s.warehouse))].map(w=>
+        `<span class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-sm font-bold">${esc(w)}</span>`).join('')}</div>
+    </div>`;
+}
+
+function erpSales(){
+  document.getElementById('erp-body').innerHTML = H('Sales & Orders Ledger', DB.bills.length+' bills recorded on this terminal')
+  + `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      ${DB.bills.length ? tableBills(DB.bills.slice(0,100)) : '<div class="p-8 text-center text-sm text-slate-400">No bills yet. Complete a sale in the Billing view.</div>'}
+    </div>`;
+}
+
+function erpCustomers(){
+  document.getElementById('erp-body').innerHTML = H('Customers (CRM)','Loyalty points and outstanding dues')
+  + `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden"><div class="overflow-x-auto scroll">
+      <table class="w-full text-sm min-w-[460px]"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+        <tr><th class="text-left px-4 py-2 font-bold">Customer</th><th class="text-left px-3 font-bold">Phone</th>
+        <th class="text-right px-3 font-bold">Loyalty</th><th class="text-right px-4 font-bold">Due</th></tr></thead>
+      <tbody>${DB.customers.map(c=>`<tr class="border-t border-slate-100">
+        <td class="px-4 py-2 font-bold">${esc(c.name)}</td>
+        <td class="px-3 font-mono text-xs text-slate-500">${c.phone}</td>
+        <td class="px-3 text-right tnum">${c.loyalty} pts</td>
+        <td class="px-4 text-right tnum font-bold ${c.due>0?'text-red-600':'text-slate-400'}">${money(c.due)}</td>
+      </tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function erpAccounting(){
+  const tb = todayBills();
+  const cashSales = tb.reduce((a,b)=> a + (b.payment.method==='cash' ? b.total : b.payment.method==='split' ? (b.payment.cash||0) : 0), 0);
+  const digital   = tb.reduce((a,b)=> a + (b.payment.method==='upi'||b.payment.method==='card' ? b.total : b.payment.method==='split' ? (b.payment.upi||0) : 0), 0);
+  const closing   = DB.settings.openingCash + cashSales - DB.settings.expenses;
+  document.getElementById('erp-body').innerHTML = H('Accounting — day-end handover','Opening cash + cash sales − counter expenses = closing drawer')
+  + `<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      ${card('Cash Sales', money(cashSales), tb.filter(b=>b.payment.method==='cash').length+' cash bills')}
+      ${card('Digital (UPI + Card)', money(digital), 'not in drawer','text-blue-700')}
+      ${card('Counter Expenses', money(DB.settings.expenses),'petty cash out','text-red-600')}
+      ${card('Closing Drawer', money(closing),'must match physical count','text-brand-700')}
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 p-4 max-w-md">
+      <div class="font-bold mb-3">Adjust</div>
+      <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Opening cash ₹</label>
+      <input type="number" value="${DB.settings.openingCash}" onchange="DB.settings.openingCash=parseFloat(this.value)||0;saveDB();renderERP()"
+        class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum mb-3">
+      <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Counter expenses today ₹</label>
+      <input type="number" value="${DB.settings.expenses}" onchange="DB.settings.expenses=parseFloat(this.value)||0;saveDB();renderERP()"
+        class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum">
+      <div class="mt-4 pt-3 border-t border-slate-200 flex justify-between items-center">
+        <span class="font-bold">Hand over</span><span class="text-2xl font-extrabold tnum text-brand-700">${money(closing)}</span>
+      </div>
+    </div>`;
+}
+
+function erpSettings(){
+  const s = DB.settings;
+  document.getElementById('erp-body').innerHTML = H('Settings','Terminal '+TERMINAL+' · bills numbered '+TERMINAL+'-00001 upward')
+  + `<div class="bg-white rounded-xl border border-slate-200 p-4 max-w-md space-y-4">
+      <label class="flex items-center justify-between cursor-pointer">
+        <span><span class="font-bold block">Charge GST</span><span class="text-xs text-slate-500">Adds tax to every bill</span></span>
+        <input type="checkbox" ${s.gstOn?'checked':''} onchange="DB.settings.gstOn=this.checked;saveDB();renderERP();renderCart()" class="w-11 h-6 accent-brand-600">
+      </label>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">GST rate %</label>
+        <input type="number" value="${s.gstRate}" onchange="DB.settings.gstRate=parseFloat(this.value)||0;saveDB();renderCart()" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none text-right font-bold tnum"></div>
+      <div><label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">UPI VPA</label>
+        <input value="${esc(s.vpa)}" onchange="DB.settings.vpa=this.value.trim();saveDB()" class="w-full h-11 px-3 rounded-lg border-2 border-slate-200 focus:border-brand-600 focus:outline-none font-mono text-sm"></div>
+      <div class="pt-3 border-t border-slate-200 flex gap-2">
+        <button onclick="exportData()" class="flex-1 h-11 rounded-lg border-2 border-slate-200 font-bold text-sm hover:bg-slate-50">Export JSON</button>
+        <button onclick="resetDemo()" class="flex-1 h-11 rounded-lg border-2 border-red-200 text-red-600 font-bold text-sm hover:bg-red-50">Reset demo data</button>
+      </div>
+      <p class="text-xs text-slate-400">Everything is stored in this browser only. Clearing site data erases it — export before you do.</p>
+    </div>`;
+}
+function exportData(){
+  const blob = new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'arthanote-pos-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Exported');
+}
+function resetDemo(){
+  if(!confirm('Erase all bills, products and settings on this terminal?')) return;
+  localStorage.removeItem(LS); localStorage.removeItem(LS+'_carts');
+  location.reload();
+}
+
+/* ══════════════ UTIL ══════════════ */
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function show(id){ document.getElementById(id).classList.remove('hidden'); icons(); }
+function closeModals(){ document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden')); }
+function openCustomItem(){
+  document.getElementById('ci-name').value=''; document.getElementById('ci-rate').value='';
+  document.getElementById('ci-qty').value=1;   show('m-custom');
+  setTimeout(()=>document.getElementById('ci-name').focus(),50);
+}
+let toastT;
+function toast(msg, kind){
+  const t = document.getElementById('toast'), b = document.getElementById('toast-body');
+  b.className = 'px-4 py-2.5 rounded-xl shadow-2xl text-sm font-semibold flex items-center gap-2 ' + (kind==='error'?'bg-red-600 text-white':'bg-term-900 text-white');
+  b.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.add('hidden'), 2400);
+}
+function icons(){ if(window.lucide) lucide.createIcons(); }
+
+/* ══════════════ KEYBOARD ══════════════ */
+document.addEventListener('keydown', e => {
+  if(e.key === 'F2'){ e.preventDefault(); document.getElementById('search-input')?.focus(); document.getElementById('search-input')?.select(); return; }
+  if(e.key === 'F4' || (e.ctrlKey && e.key === 'Enter')){
+    e.preventDefault();
+    if(!document.getElementById('m-pay').classList.contains('hidden')) completeSale();
+    else if(!document.getElementById('pos-view').classList.contains('hidden')) openPayment();
+    return;
+  }
+  if(e.key === 'Escape'){
+    const open = [...document.querySelectorAll('.modal')].some(m=>!m.classList.contains('hidden'));
+    if(open) closeModals();
+    else { const s = document.getElementById('search-input'); if(s && s.value){ s.value=''; renderProducts(); } }
+    return;
+  }
+  // Alt+1..5 jumps between held carts without leaving the keyboard
+  if(e.altKey && /^[1-5]$/.test(e.key)){ e.preventDefault(); switchCart(+e.key - 1); }
+});
+document.querySelectorAll('.otp-in').forEach((el,i,all)=>{
+  el.addEventListener('input', ()=>{ if(el.value && i<all.length-1) all[i+1].focus(); if(all[all.length-1].value && [...all].every(x=>x.value)) verifyOTP(); });
+  el.addEventListener('keydown', e=>{ if(e.key==='Backspace' && !el.value && i>0) all[i-1].focus(); if(e.key==='Enter') verifyOTP(); });
+});
+document.querySelectorAll('.pm-btn').forEach(b=> b.onclick = ()=> setPay(b.dataset.pm));
+document.querySelectorAll('.modal').forEach(m=> m.addEventListener('mousedown', e=>{ if(e.target===m) closeModals(); }));
+
+/* ══════════════ NETWORK / CLOCK ══════════════ */
+function netStatus(){
+  const on = navigator.onLine;
+  document.getElementById('net-txt').textContent = on ? 'Online' : 'Offline';
+  document.getElementById('net-pill').className = 'px-2 py-1 rounded-md font-semibold flex items-center gap-1 ' +
+    (on ? 'bg-brand-600/20 text-brand-500' : 'bg-amber-500/20 text-amber-400');
+  document.getElementById('net-pill').firstElementChild.className = 'w-1.5 h-1.5 rounded-full ' + (on?'bg-brand-500':'bg-amber-400');
+  document.getElementById('sync-txt').textContent = on ? 'Saved locally' : 'Offline — billing continues';
+}
+window.addEventListener('online', netStatus);
+window.addEventListener('offline', netStatus);
+setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false}); }, 1000);
+
+/* ══════════════ BOOT ══════════════ */
+loadDB(); loadCarts(); netStatus(); icons();
+document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false});
+if(DB.session){ startApp(); } else { document.querySelector('.otp-in').focus(); }
+</script>
+</body>
+</html>
